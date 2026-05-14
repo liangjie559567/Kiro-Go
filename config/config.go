@@ -92,18 +92,34 @@ type Account struct {
 	TotalCredits float64 `json:"totalCredits,omitempty"` // Cumulative credits consumed
 }
 
+const (
+	AutoRefreshScopeEnabled = "enabled"
+	AutoRefreshScopeAll     = "all"
+
+	AutoRefreshMinIntervalMinutes     = 5
+	AutoRefreshMaxIntervalMinutes     = 1440
+	AutoRefreshDefaultIntervalMinutes = 60
+)
+
+type AutoRefreshConfig struct {
+	Enabled         bool   `json:"enabled"`
+	IntervalMinutes int    `json:"intervalMinutes"`
+	Scope           string `json:"scope"`
+}
+
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
-	Password      string    `json:"password"`         // Admin panel password
-	Port          int       `json:"port"`             // HTTP server port (default: 8080)
-	Host          string    `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
-	ApiKey        string    `json:"apiKey,omitempty"` // API key for client authentication
-	RequireApiKey bool      `json:"requireApiKey"`    // Whether to enforce API key validation
-	KiroVersion   string    `json:"kiroVersion,omitempty"`
-	SystemVersion string    `json:"systemVersion,omitempty"`
-	NodeVersion   string    `json:"nodeVersion,omitempty"`
-	Accounts      []Account `json:"accounts"` // Registered Kiro accounts
+	Password      string            `json:"password"`         // Admin panel password
+	Port          int               `json:"port"`             // HTTP server port (default: 8080)
+	Host          string            `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
+	ApiKey        string            `json:"apiKey,omitempty"` // API key for client authentication
+	RequireApiKey bool              `json:"requireApiKey"`    // Whether to enforce API key validation
+	KiroVersion   string            `json:"kiroVersion,omitempty"`
+	SystemVersion string            `json:"systemVersion,omitempty"`
+	NodeVersion   string            `json:"nodeVersion,omitempty"`
+	Accounts      []Account         `json:"accounts"` // Registered Kiro accounts
+	AutoRefresh   AutoRefreshConfig `json:"autoRefresh"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -165,6 +181,66 @@ var (
 	cfgPath string
 )
 
+func defaultAutoRefreshConfig() AutoRefreshConfig {
+	return AutoRefreshConfig{
+		Enabled:         true,
+		IntervalMinutes: AutoRefreshDefaultIntervalMinutes,
+		Scope:           AutoRefreshScopeEnabled,
+	}
+}
+
+func normalizeAutoRefreshConfig(in AutoRefreshConfig) AutoRefreshConfig {
+	defaults := defaultAutoRefreshConfig()
+	if in == (AutoRefreshConfig{}) {
+		return defaults
+	}
+	return normalizeAutoRefreshConfigForUpdate(in)
+}
+
+func normalizeAutoRefreshConfigForUpdate(in AutoRefreshConfig) AutoRefreshConfig {
+	defaults := defaultAutoRefreshConfig()
+	if in.IntervalMinutes == 0 {
+		in.IntervalMinutes = defaults.IntervalMinutes
+	}
+	if in.Scope == "" {
+		in.Scope = defaults.Scope
+	}
+	return in
+}
+
+func ValidateAutoRefreshConfig(in AutoRefreshConfig) error {
+	if in.IntervalMinutes < AutoRefreshMinIntervalMinutes || in.IntervalMinutes > AutoRefreshMaxIntervalMinutes {
+		return fmt.Errorf("intervalMinutes must be between %d and %d", AutoRefreshMinIntervalMinutes, AutoRefreshMaxIntervalMinutes)
+	}
+	if in.Scope != AutoRefreshScopeEnabled && in.Scope != AutoRefreshScopeAll {
+		return fmt.Errorf("scope must be %q or %q", AutoRefreshScopeEnabled, AutoRefreshScopeAll)
+	}
+	return nil
+}
+
+type persistedAutoRefreshConfig struct {
+	Enabled         *bool  `json:"enabled"`
+	IntervalMinutes int    `json:"intervalMinutes"`
+	Scope           string `json:"scope"`
+}
+
+func normalizePersistedAutoRefreshConfig(data []byte, in AutoRefreshConfig) AutoRefreshConfig {
+	var raw struct {
+		AutoRefresh *persistedAutoRefreshConfig `json:"autoRefresh"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.AutoRefresh == nil {
+		return normalizeAutoRefreshConfig(in)
+	}
+
+	normalized := normalizeAutoRefreshConfigForUpdate(in)
+	if raw.AutoRefresh.Enabled == nil {
+		normalized.Enabled = defaultAutoRefreshConfig().Enabled
+		return normalized
+	}
+	normalized.Enabled = *raw.AutoRefresh.Enabled
+	return normalized
+}
+
 // Init initializes the configuration system with the specified file path.
 // If the file doesn't exist, a default configuration is created.
 func Init(path string) error {
@@ -187,6 +263,7 @@ func Load() error {
 				Host:          "0.0.0.0",
 				RequireApiKey: false,
 				Accounts:      []Account{},
+				AutoRefresh:   defaultAutoRefreshConfig(),
 			}
 			return Save()
 		}
@@ -197,6 +274,7 @@ func Load() error {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return err
 	}
+	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
 	cfg = &c
 	return nil
 }
@@ -255,6 +333,24 @@ func GetAccounts() []Account {
 	accounts := make([]Account, len(cfg.Accounts))
 	copy(accounts, cfg.Accounts)
 	return accounts
+}
+
+func GetAutoRefreshConfig() AutoRefreshConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	return normalizeAutoRefreshConfig(cfg.AutoRefresh)
+}
+
+func UpdateAutoRefreshConfig(autoRefresh AutoRefreshConfig) error {
+	normalized := normalizeAutoRefreshConfigForUpdate(autoRefresh)
+	if err := ValidateAutoRefreshConfig(normalized); err != nil {
+		return err
+	}
+
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.AutoRefresh = normalized
+	return Save()
 }
 
 func GetEnabledAccounts() []Account {
