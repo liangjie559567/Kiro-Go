@@ -194,6 +194,11 @@ func normalizeAutoRefreshConfig(in AutoRefreshConfig) AutoRefreshConfig {
 	if in == (AutoRefreshConfig{}) {
 		return defaults
 	}
+	return normalizeAutoRefreshConfigForUpdate(in)
+}
+
+func normalizeAutoRefreshConfigForUpdate(in AutoRefreshConfig) AutoRefreshConfig {
+	defaults := defaultAutoRefreshConfig()
 	if in.IntervalMinutes == 0 {
 		in.IntervalMinutes = defaults.IntervalMinutes
 	}
@@ -223,11 +228,15 @@ func normalizePersistedAutoRefreshConfig(data []byte, in AutoRefreshConfig) Auto
 	var raw struct {
 		AutoRefresh *persistedAutoRefreshConfig `json:"autoRefresh"`
 	}
-	if err := json.Unmarshal(data, &raw); err != nil || raw.AutoRefresh == nil || raw.AutoRefresh.Enabled == nil {
+	if err := json.Unmarshal(data, &raw); err != nil || raw.AutoRefresh == nil {
 		return normalizeAutoRefreshConfig(in)
 	}
 
-	normalized := normalizeAutoRefreshConfig(in)
+	normalized := normalizeAutoRefreshConfigForUpdate(in)
+	if raw.AutoRefresh.Enabled == nil {
+		normalized.Enabled = defaultAutoRefreshConfig().Enabled
+		return normalized
+	}
 	normalized.Enabled = *raw.AutoRefresh.Enabled
 	return normalized
 }
@@ -333,7 +342,7 @@ func GetAutoRefreshConfig() AutoRefreshConfig {
 }
 
 func UpdateAutoRefreshConfig(autoRefresh AutoRefreshConfig) error {
-	normalized := normalizeAutoRefreshConfig(autoRefresh)
+	normalized := normalizeAutoRefreshConfigForUpdate(autoRefresh)
 	if err := ValidateAutoRefreshConfig(normalized); err != nil {
 		return err
 	}

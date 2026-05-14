@@ -42,6 +42,36 @@ func TestNormalizePersistedAutoRefreshConfigPreservesExplicitDisabled(t *testing
 	}
 }
 
+func TestNormalizePersistedAutoRefreshConfigDefaultsAbsentEnabled(t *testing.T) {
+	data := []byte(`{"autoRefresh":{"intervalMinutes":60,"scope":"enabled"}}`)
+	got := normalizePersistedAutoRefreshConfig(data, AutoRefreshConfig{
+		IntervalMinutes: 60,
+		Scope:           AutoRefreshScopeEnabled,
+	})
+	if !got.Enabled {
+		t.Fatalf("expected absent enabled field to default true")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected interval 60, got %d", got.IntervalMinutes)
+	}
+	if got.Scope != AutoRefreshScopeEnabled {
+		t.Fatalf("expected scope %q, got %q", AutoRefreshScopeEnabled, got.Scope)
+	}
+}
+
+func TestNormalizeAutoRefreshConfigForUpdatePreservesSparseDisabled(t *testing.T) {
+	got := normalizeAutoRefreshConfigForUpdate(AutoRefreshConfig{Enabled: false})
+	if got.Enabled {
+		t.Fatalf("expected sparse disabled update to stay disabled")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected interval default 60, got %d", got.IntervalMinutes)
+	}
+	if got.Scope != AutoRefreshScopeEnabled {
+		t.Fatalf("expected scope default %q, got %q", AutoRefreshScopeEnabled, got.Scope)
+	}
+}
+
 func TestValidateAutoRefreshConfig(t *testing.T) {
 	valid := AutoRefreshConfig{Enabled: true, IntervalMinutes: 5, Scope: AutoRefreshScopeAll}
 	if err := ValidateAutoRefreshConfig(valid); err != nil {
