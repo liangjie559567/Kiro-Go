@@ -24,6 +24,11 @@ type autoRefreshStatus struct {
 	LastSkipped    bool  `json:"lastSkipped"`
 }
 
+type refreshAccountResult struct {
+	Info    *config.AccountInfo
+	Message string
+}
+
 func selectAutoRefreshAccounts(accounts []config.Account, scope string) []config.Account {
 	if scope == config.AutoRefreshScopeAll {
 		selected := make([]config.Account, len(accounts))
@@ -104,7 +109,9 @@ func (h *Handler) getAutoRefreshStatus() autoRefreshStatus {
 	return h.autoRefreshStatus
 }
 
-func refreshAccountData(account *config.Account) error {
+func refreshAccountData(account *config.Account) (*refreshAccountResult, error) {
+	originalEnabled := account.Enabled
+
 	refreshTokenIfNeeded := func() error {
 		if account.RefreshToken == "" {
 			return nil
@@ -135,34 +142,66 @@ func refreshAccountData(account *config.Account) error {
 
 	if account.ExpiresAt > 0 && time.Now().Unix() > account.ExpiresAt-300 {
 		if err := refreshTokenIfNeeded(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	info, err := RefreshAccountInfo(account)
 	if err != nil {
 		if isSuspendedRefreshError(err) {
-			return nil
+			return &refreshAccountResult{Message: "Account status updated"}, nil
 		}
 
 		if isAuthRefreshError(err) {
 			if refreshErr := refreshTokenIfNeeded(); refreshErr == nil {
 				info, err = RefreshAccountInfo(account)
 				if err != nil && isSuspendedRefreshError(err) {
-					return nil
+					return &refreshAccountResult{Message: "Account status updated"}, nil
+				}
+				if err == nil {
+					if restoreErr := restoreAccountActiveAfterAuthRetry(account, originalEnabled); restoreErr != nil {
+						return nil, restoreErr
+					}
 				}
 			}
 		}
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if err := config.UpdateAccountInfo(account.ID, *info); err != nil {
-		return err
+		return nil, err
 	}
 	logger.Infof("[AutoRefresh] Refreshed %s: %s %.1f/%.1f", account.Email, info.SubscriptionType, info.UsageCurrent, info.UsageLimit)
+	return &refreshAccountResult{Info: info}, nil
+}
+
+func restoreAccountActiveAfterAuthRetry(account *config.Account, originalEnabled bool) error {
+	accounts := config.GetAccounts()
+	for i := range accounts {
+		if accounts[i].ID != account.ID {
+			continue
+		}
+
+		accounts[i].Enabled = originalEnabled
+		accounts[i].BanStatus = "ACTIVE"
+		accounts[i].BanReason = ""
+		accounts[i].BanTime = 0
+
+		account.Enabled = accounts[i].Enabled
+		account.BanStatus = accounts[i].BanStatus
+		account.BanReason = accounts[i].BanReason
+		account.BanTime = accounts[i].BanTime
+
+		return config.UpdateAccount(account.ID, accounts[i])
+	}
+
+	account.Enabled = originalEnabled
+	account.BanStatus = "ACTIVE"
+	account.BanReason = ""
+	account.BanTime = 0
 	return nil
 }
 

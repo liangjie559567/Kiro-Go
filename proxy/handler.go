@@ -246,15 +246,19 @@ refreshLoop:
 	for {
 		settings := config.GetAutoRefreshConfig()
 		if !settings.Enabled {
+			timer := time.NewTimer(time.Minute)
 			select {
-			case <-time.After(time.Minute):
+			case <-timer.C:
 				continue
 			case <-modelTicker.C:
+				stopTimer(timer)
 				h.refreshModelsCache()
 			case <-h.autoRefreshUpdated:
+				stopTimer(timer)
 				h.scheduleNextAutoRefresh()
 				continue
 			case <-h.stopRefresh:
+				stopTimer(timer)
 				return
 			}
 			continue
@@ -319,7 +323,7 @@ func (h *Handler) runAutoRefresh() {
 
 	accounts := selectAutoRefreshAccounts(config.GetAccounts(), settings.Scope)
 	result := runRefreshBatch(accounts, func(account *config.Account) error {
-		err := refreshAccountData(account)
+		_, err := refreshAccountData(account)
 		if err != nil {
 			logger.Warnf("[AutoRefresh] Failed to refresh %s: %v", account.Email, err)
 		}
@@ -2181,7 +2185,7 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 				failCount++
 				continue
 			}
-			if err := refreshAccountData(account); err != nil {
+			if _, err := refreshAccountData(account); err != nil {
 				logger.Warnf("[AdminAPI] Failed to refresh %s: %v", account.Email, err)
 				failCount++
 				continue
@@ -2682,13 +2686,23 @@ func (h *Handler) apiRefreshAccount(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	if err := refreshAccountData(account); err != nil {
+	result, err := refreshAccountData(account)
+	if err != nil {
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+	resp := map[string]interface{}{"success": true}
+	if result != nil {
+		if result.Info != nil {
+			resp["info"] = result.Info
+		}
+		if result.Message != "" {
+			resp["message"] = result.Message
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 // apiGetAccountFull 获取单个账号的完整信息（包含敏感字段）
