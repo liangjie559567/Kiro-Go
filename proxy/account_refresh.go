@@ -15,7 +15,7 @@ type refreshBatchResult struct {
 }
 
 type autoRefreshStatus struct {
-	Running        bool `json:"running"`
+	Running        bool  `json:"running"`
 	LastStartedAt  int64 `json:"lastStartedAt"`
 	LastFinishedAt int64 `json:"lastFinishedAt"`
 	NextRunAt      int64 `json:"nextRunAt"`

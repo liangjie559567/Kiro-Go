@@ -21,15 +21,15 @@ import (
 type Handler struct {
 	pool *pool.AccountPool
 	// 运行时统计 (使用原子操作)
-	totalRequests   int64
-	successRequests int64
-	failedRequests  int64
-	totalTokens     int64
-	totalCredits    float64 // float64 需要用锁保护
-	creditsMu       sync.RWMutex
-	startTime       int64
-	stopRefresh     chan struct{}
-	stopStatsSaver  chan struct{}
+	totalRequests     int64
+	successRequests   int64
+	failedRequests    int64
+	totalTokens       int64
+	totalCredits      float64 // float64 需要用锁保护
+	creditsMu         sync.RWMutex
+	startTime         int64
+	stopRefresh       chan struct{}
+	stopStatsSaver    chan struct{}
 	autoRefreshMu     sync.RWMutex
 	autoRefreshStatus autoRefreshStatus
 	// 模型缓存
