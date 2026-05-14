@@ -234,65 +234,61 @@ func NewHandler() *Handler {
 
 // backgroundRefresh 后台定时刷新账户信息
 func (h *Handler) backgroundRefresh() {
-	ticker := time.NewTicker(30 * time.Minute) // 每 30 分钟刷新一次
-	defer ticker.Stop()
-
-	// 启动时延迟 10 秒后执行一次
-	time.Sleep(10 * time.Second)
 	h.refreshModelsCache()
-	h.refreshAllAccounts()
+	h.scheduleNextAutoRefresh()
 
 	for {
+		settings := config.GetAutoRefreshConfig()
+		if !settings.Enabled {
+			select {
+			case <-time.After(time.Minute):
+				continue
+			case <-h.stopRefresh:
+				return
+			}
+		}
+
+		interval := time.Duration(settings.IntervalMinutes) * time.Minute
 		select {
-		case <-ticker.C:
+		case <-time.After(interval):
+			h.runAutoRefresh()
 			h.refreshModelsCache()
-			h.refreshAllAccounts()
 		case <-h.stopRefresh:
 			return
 		}
 	}
 }
 
-// refreshAllAccounts 刷新所有账户信息
-func (h *Handler) refreshAllAccounts() {
-	accounts := config.GetAccounts()
-	for i := range accounts {
-		account := &accounts[i]
-		if !account.Enabled || account.AccessToken == "" {
-			continue
-		}
+func (h *Handler) scheduleNextAutoRefresh() {
+	h.setNextAutoRefreshRun(computeNextRunAt(time.Now(), config.GetAutoRefreshConfig()))
+}
 
-		// 检查 token 是否需要刷新
-		if account.ExpiresAt > 0 && time.Now().Unix() > account.ExpiresAt-300 {
-			newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := auth.RefreshToken(account)
-			if err != nil {
-				logger.Warnf("[BackgroundRefresh] Token refresh failed for %s: %v", account.Email, err)
-				continue
-			}
-			account.AccessToken = newAccessToken
-			if newRefreshToken != "" {
-				account.RefreshToken = newRefreshToken
-			}
-			account.ExpiresAt = newExpiresAt
-			config.UpdateAccountToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt)
-			h.pool.UpdateToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt)
-			if profileArn != "" {
-				account.ProfileArn = profileArn
-				config.UpdateAccountProfileArn(account.ID, profileArn)
-			}
-		}
-
-		// 刷新账户信息
-		info, err := RefreshAccountInfo(account)
-		if err != nil {
-			logger.Warnf("[BackgroundRefresh] Failed to refresh %s: %v", account.Email, err)
-			continue
-		}
-
-		config.UpdateAccountInfo(account.ID, *info)
-		logger.Infof("[BackgroundRefresh] Refreshed %s: %s %.1f/%.1f", account.Email, info.SubscriptionType, info.UsageCurrent, info.UsageLimit)
+func (h *Handler) runAutoRefresh() {
+	settings := config.GetAutoRefreshConfig()
+	now := time.Now()
+	if !settings.Enabled {
+		h.setNextAutoRefreshRun(0)
+		return
 	}
+	if !h.tryBeginAutoRefresh(now.Unix()) {
+		h.scheduleNextAutoRefresh()
+		return
+	}
+
+	accounts := selectAutoRefreshAccounts(config.GetAccounts(), settings.Scope)
+	result := runRefreshBatch(accounts, func(account *config.Account) error {
+		err := refreshAccountData(account)
+		if err != nil {
+			logger.Warnf("[AutoRefresh] Failed to refresh %s: %v", account.Email, err)
+		}
+		return err
+	})
 	h.pool.Reload()
+
+	finishedAt := time.Now()
+	nextSettings := config.GetAutoRefreshConfig()
+	h.finishAutoRefresh(result, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
+	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d", result.Success, result.Failed)
 }
 
 // validateApiKey 验证 API Key
@@ -1911,6 +1907,10 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetSettings(w, r)
 	case path == "/settings" && r.Method == "POST":
 		h.apiUpdateSettings(w, r)
+	case path == "/auto-refresh" && r.Method == "GET":
+		h.apiGetAutoRefresh(w, r)
+	case path == "/auto-refresh" && r.Method == "POST":
+		h.apiUpdateAutoRefresh(w, r)
 	case path == "/stats" && r.Method == "GET":
 		h.apiGetStats(w, r)
 	case path == "/stats/reset" && r.Method == "POST":
@@ -2139,29 +2139,11 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 				failCount++
 				continue
 			}
-			// 刷新 token
-			if account.RefreshToken != "" {
-				if newAccess, newRefresh, newExpires, profileArn, err := auth.RefreshToken(account); err == nil {
-					account.AccessToken = newAccess
-					if newRefresh != "" {
-						account.RefreshToken = newRefresh
-					}
-					account.ExpiresAt = newExpires
-					config.UpdateAccountToken(id, newAccess, newRefresh, newExpires)
-					if profileArn != "" {
-						account.ProfileArn = profileArn
-						config.UpdateAccountProfileArn(id, profileArn)
-					}
-					h.pool.UpdateToken(id, newAccess, newRefresh, newExpires)
-				}
-			}
-			// 刷新账户信息
-			info, err := RefreshAccountInfo(account)
-			if err != nil {
+			if err := refreshAccountData(account); err != nil {
+				logger.Warnf("[AdminAPI] Failed to refresh %s: %v", account.Email, err)
 				failCount++
 				continue
 			}
-			config.UpdateAccountInfo(id, *info)
 			successCount++
 		}
 		h.pool.Reload()
@@ -2588,6 +2570,29 @@ func (h *Handler) apiUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+func (h *Handler) apiGetAutoRefresh(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"settings": config.GetAutoRefreshConfig(),
+		"status":   h.getAutoRefreshStatus(),
+	})
+}
+
+func (h *Handler) apiUpdateAutoRefresh(w http.ResponseWriter, r *http.Request) {
+	var req config.AutoRefreshConfig
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+	if err := config.UpdateAutoRefreshConfig(req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	h.scheduleNextAutoRefresh()
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 func (h *Handler) apiGetStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"totalRequests":   atomic.LoadInt64(&h.totalRequests),
@@ -2634,89 +2639,13 @@ func (h *Handler) apiRefreshAccount(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	// 先尝试刷新 token（不管是否过期，确保 token 有效）
-	refreshTokenIfNeeded := func() error {
-		if account.RefreshToken == "" {
-			return nil
-		}
-		newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := auth.RefreshToken(account)
-		if err != nil {
-			return err
-		}
-		account.AccessToken = newAccessToken
-		if newRefreshToken != "" {
-			account.RefreshToken = newRefreshToken
-		}
-		account.ExpiresAt = newExpiresAt
-		config.UpdateAccountToken(id, newAccessToken, newRefreshToken, newExpiresAt)
-		h.pool.UpdateToken(id, newAccessToken, newRefreshToken, newExpiresAt)
-		if profileArn != "" {
-			account.ProfileArn = profileArn
-			config.UpdateAccountProfileArn(id, profileArn)
-		}
-		return nil
-	}
-
-	// 检查 token 是否快过期，先刷新
-	if account.ExpiresAt > 0 && time.Now().Unix() > account.ExpiresAt-300 {
-		if err := refreshTokenIfNeeded(); err != nil {
-			w.WriteHeader(500)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Token refresh failed: " + err.Error()})
-			return
-		}
-	}
-
-	// 获取账户信息
-	info, err := RefreshAccountInfo(account)
-	if err != nil {
-		// 检查是否为封禁相关错误
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "TEMPORARILY_SUSPENDED") || strings.Contains(errMsg, "Account suspended") {
-			// 封禁状态已在 RefreshAccountInfo 中处理，静默返回成功
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"message": "Account status updated",
-			})
-			return
-		}
-
-		// 如果是 403/401，说明 token 无效，尝试刷新后重试
-		if strings.Contains(errMsg, "403") || strings.Contains(errMsg, "401") || strings.Contains(errMsg, "invalid") || strings.Contains(errMsg, "expired") {
-			if refreshErr := refreshTokenIfNeeded(); refreshErr == nil {
-				// 重试
-				info, err = RefreshAccountInfo(account)
-				if err != nil {
-					// 重试后仍然失败，检查是否为封禁状态
-					if strings.Contains(err.Error(), "TEMPORARILY_SUSPENDED") || strings.Contains(err.Error(), "Account suspended") {
-						json.NewEncoder(w).Encode(map[string]interface{}{
-							"success": true,
-							"message": "Account status updated",
-						})
-						return
-					}
-				}
-			}
-		}
-
-		// 其他错误才显示错误信息
-		if err != nil {
-			w.WriteHeader(500)
-			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-			return
-		}
-	}
-
-	// 保存到配置
-	if err := config.UpdateAccountInfo(id, *info); err != nil {
+	if err := refreshAccountData(account); err != nil {
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"info":    info,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
 // apiGetAccountFull 获取单个账号的完整信息（包含敏感字段）
