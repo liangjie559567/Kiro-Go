@@ -191,6 +191,9 @@ func defaultAutoRefreshConfig() AutoRefreshConfig {
 
 func normalizeAutoRefreshConfig(in AutoRefreshConfig) AutoRefreshConfig {
 	defaults := defaultAutoRefreshConfig()
+	if in == (AutoRefreshConfig{}) {
+		return defaults
+	}
 	if in.IntervalMinutes == 0 {
 		in.IntervalMinutes = defaults.IntervalMinutes
 	}
@@ -208,6 +211,25 @@ func ValidateAutoRefreshConfig(in AutoRefreshConfig) error {
 		return fmt.Errorf("scope must be %q or %q", AutoRefreshScopeEnabled, AutoRefreshScopeAll)
 	}
 	return nil
+}
+
+type persistedAutoRefreshConfig struct {
+	Enabled         *bool  `json:"enabled"`
+	IntervalMinutes int    `json:"intervalMinutes"`
+	Scope           string `json:"scope"`
+}
+
+func normalizePersistedAutoRefreshConfig(data []byte, in AutoRefreshConfig) AutoRefreshConfig {
+	var raw struct {
+		AutoRefresh *persistedAutoRefreshConfig `json:"autoRefresh"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.AutoRefresh == nil || raw.AutoRefresh.Enabled == nil {
+		return normalizeAutoRefreshConfig(in)
+	}
+
+	normalized := normalizeAutoRefreshConfig(in)
+	normalized.Enabled = *raw.AutoRefresh.Enabled
+	return normalized
 }
 
 // Init initializes the configuration system with the specified file path.
@@ -243,7 +265,7 @@ func Load() error {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return err
 	}
-	c.AutoRefresh = normalizeAutoRefreshConfig(c.AutoRefresh)
+	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
 	cfg = &c
 	return nil
 }
