@@ -21,17 +21,18 @@ import (
 type Handler struct {
 	pool *pool.AccountPool
 	// 运行时统计 (使用原子操作)
-	totalRequests     int64
-	successRequests   int64
-	failedRequests    int64
-	totalTokens       int64
-	totalCredits      float64 // float64 需要用锁保护
-	creditsMu         sync.RWMutex
-	startTime         int64
-	stopRefresh       chan struct{}
-	stopStatsSaver    chan struct{}
-	autoRefreshMu     sync.RWMutex
-	autoRefreshStatus autoRefreshStatus
+	totalRequests      int64
+	successRequests    int64
+	failedRequests     int64
+	totalTokens        int64
+	totalCredits       float64 // float64 需要用锁保护
+	creditsMu          sync.RWMutex
+	startTime          int64
+	stopRefresh        chan struct{}
+	stopStatsSaver     chan struct{}
+	autoRefreshUpdated chan struct{}
+	autoRefreshMu      sync.RWMutex
+	autoRefreshStatus  autoRefreshStatus
 	// 模型缓存
 	cachedModels    []ModelInfo
 	modelsCacheMu   sync.RWMutex
@@ -214,16 +215,17 @@ func NewHandler() *Handler {
 
 	totalReq, successReq, failedReq, totalTokens, totalCredits := config.GetStats()
 	h := &Handler{
-		pool:            pool.GetPool(),
-		totalRequests:   int64(totalReq),
-		successRequests: int64(successReq),
-		failedRequests:  int64(failedReq),
-		totalTokens:     int64(totalTokens),
-		totalCredits:    totalCredits,
-		startTime:       time.Now().Unix(),
-		stopRefresh:     make(chan struct{}),
-		stopStatsSaver:  make(chan struct{}),
-		promptCache:     newPromptCacheTracker(defaultPromptCacheTTL),
+		pool:               pool.GetPool(),
+		totalRequests:      int64(totalReq),
+		successRequests:    int64(successReq),
+		failedRequests:     int64(failedReq),
+		totalTokens:        int64(totalTokens),
+		totalCredits:       totalCredits,
+		startTime:          time.Now().Unix(),
+		stopRefresh:        make(chan struct{}),
+		stopStatsSaver:     make(chan struct{}),
+		autoRefreshUpdated: make(chan struct{}, 1),
+		promptCache:        newPromptCacheTracker(defaultPromptCacheTTL),
 	}
 	// 启动后台刷新
 	go h.backgroundRefresh()
@@ -234,33 +236,73 @@ func NewHandler() *Handler {
 
 // backgroundRefresh 后台定时刷新账户信息
 func (h *Handler) backgroundRefresh() {
+	modelTicker := time.NewTicker(30 * time.Minute)
+	defer modelTicker.Stop()
+
 	h.refreshModelsCache()
 	h.scheduleNextAutoRefresh()
 
+refreshLoop:
 	for {
 		settings := config.GetAutoRefreshConfig()
 		if !settings.Enabled {
 			select {
 			case <-time.After(time.Minute):
 				continue
+			case <-modelTicker.C:
+				h.refreshModelsCache()
+			case <-h.autoRefreshUpdated:
+				h.scheduleNextAutoRefresh()
+				continue
 			case <-h.stopRefresh:
 				return
 			}
+			continue
 		}
 
 		interval := time.Duration(settings.IntervalMinutes) * time.Minute
+		timer := time.NewTimer(interval)
+		for {
+			select {
+			case <-timer.C:
+				h.runAutoRefresh()
+				h.refreshModelsCache()
+				continue refreshLoop
+			case <-modelTicker.C:
+				h.refreshModelsCache()
+			case <-h.autoRefreshUpdated:
+				stopTimer(timer)
+				h.scheduleNextAutoRefresh()
+				continue refreshLoop
+			case <-h.stopRefresh:
+				stopTimer(timer)
+				return
+			}
+		}
+	}
+}
+
+func stopTimer(timer *time.Timer) {
+	if !timer.Stop() {
 		select {
-		case <-time.After(interval):
-			h.runAutoRefresh()
-			h.refreshModelsCache()
-		case <-h.stopRefresh:
-			return
+		case <-timer.C:
+		default:
 		}
 	}
 }
 
 func (h *Handler) scheduleNextAutoRefresh() {
 	h.setNextAutoRefreshRun(computeNextRunAt(time.Now(), config.GetAutoRefreshConfig()))
+}
+
+func (h *Handler) notifyAutoRefreshUpdated() {
+	if h.autoRefreshUpdated == nil {
+		return
+	}
+	select {
+	case h.autoRefreshUpdated <- struct{}{}:
+	default:
+	}
 }
 
 func (h *Handler) runAutoRefresh() {
@@ -2590,6 +2632,7 @@ func (h *Handler) apiUpdateAutoRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.scheduleNextAutoRefresh()
+	h.notifyAutoRefreshUpdated()
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
