@@ -1204,6 +1204,10 @@
                 'settings.autoRefreshNextRun': '下次执行',
                 'settings.autoRefreshLastResult': '上次结果',
                 'settings.autoRefreshSaved': '自动刷新设置已保存',
+                'settings.autoRefreshInvalidInterval': '刷新间隔必须是 5-1440 之间的整数',
+                'settings.autoRefreshYes': '是',
+                'settings.autoRefreshNo': '否',
+                'settings.autoRefreshSkipped': '已跳过',
                 'settings.saveAutoRefresh': '保存自动刷新设置',
                 'settings.thinkingSettings': 'Thinking 模式设置',
                 'settings.thinkingSuffix': '触发后缀',
@@ -1453,6 +1457,10 @@
                 'settings.autoRefreshNextRun': 'Next run',
                 'settings.autoRefreshLastResult': 'Last result',
                 'settings.autoRefreshSaved': 'Auto refresh settings saved',
+                'settings.autoRefreshInvalidInterval': 'Refresh interval must be an integer from 5 to 1440',
+                'settings.autoRefreshYes': 'Yes',
+                'settings.autoRefreshNo': 'No',
+                'settings.autoRefreshSkipped': 'Skipped',
                 'settings.saveAutoRefresh': 'Save Auto Refresh Settings',
                 'settings.thinkingSettings': 'Thinking Mode Settings',
                 'settings.thinkingSuffix': 'Trigger Suffix',
@@ -2174,16 +2182,22 @@
             if (!ts) return '-';
             return new Date(ts * 1000).toLocaleString();
         }
+        function formatAutoRefreshResultValue(label, value) {
+            if (value === undefined || value === null || value === false) return null;
+            if (value === true) return label;
+            return label + ': ' + value;
+        }
         function renderAutoRefreshStatus(status) {
             status = status || {};
-            document.getElementById('autoRefreshRunning').textContent = status.running ? (currentLang === 'zh' ? '是' : 'Yes') : (currentLang === 'zh' ? '否' : 'No');
-            document.getElementById('autoRefreshLastRun').textContent = formatAutoRefreshTime(status.lastStartedAt || status.lastFinishedAt);
+            document.getElementById('autoRefreshRunning').textContent = status.running ? t('settings.autoRefreshYes') : t('settings.autoRefreshNo');
+            document.getElementById('autoRefreshLastRun').textContent = formatAutoRefreshTime(status.lastFinishedAt || status.lastStartedAt);
             document.getElementById('autoRefreshNextRun').textContent = formatAutoRefreshTime(status.nextRunAt);
-            let result = '-';
-            if (status.lastSuccess) result = t('stats.success') + ': ' + formatAutoRefreshTime(status.lastSuccess);
-            else if (status.lastFailed) result = t('stats.failed') + ': ' + formatAutoRefreshTime(status.lastFailed);
-            else if (status.lastSkipped) result = (currentLang === 'zh' ? '已跳过' : 'Skipped') + ': ' + formatAutoRefreshTime(status.lastSkipped);
-            document.getElementById('autoRefreshLastResult').textContent = result;
+            const results = [
+                formatAutoRefreshResultValue(t('stats.success'), status.lastSuccess),
+                formatAutoRefreshResultValue(t('stats.failed'), status.lastFailed),
+                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkipped)
+            ].filter(Boolean);
+            document.getElementById('autoRefreshLastResult').textContent = results.length ? results.join(', ') : '-';
         }
         async function loadAutoRefreshConfig() {
             try {
@@ -2199,17 +2213,32 @@
             }
         }
         async function saveAutoRefreshConfig() {
-            const intervalMinutes = parseInt(document.getElementById('autoRefreshInterval').value, 10);
-            const res = await fetch('/admin/api/auto-refresh', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-                body: JSON.stringify({
-                    enabled: document.getElementById('autoRefreshEnabled').checked,
-                    intervalMinutes,
-                    scope: document.getElementById('autoRefreshScope').value
-                })
-            });
-            const d = await res.json();
-            if (d.success) { alert(t('settings.autoRefreshSaved')); loadAutoRefreshConfig(); } else { alert(t('common.saveFailed') + ': ' + d.error); }
+            const intervalRaw = document.getElementById('autoRefreshInterval').value.trim();
+            const intervalMinutes = Number(intervalRaw);
+            if (!Number.isFinite(intervalMinutes) || !Number.isInteger(intervalMinutes) || intervalMinutes < 5 || intervalMinutes > 1440) {
+                alert(t('settings.autoRefreshInvalidInterval'));
+                return;
+            }
+            try {
+                const res = await fetch('/admin/api/auto-refresh', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+                    body: JSON.stringify({
+                        enabled: document.getElementById('autoRefreshEnabled').checked,
+                        intervalMinutes,
+                        scope: document.getElementById('autoRefreshScope').value
+                    })
+                });
+                let d = {};
+                try { d = await res.json(); } catch (e) { d = {}; }
+                if (!res.ok || !d.success) {
+                    alert(t('common.saveFailed') + (d.error ? ': ' + d.error : ''));
+                    return;
+                }
+                alert(t('settings.autoRefreshSaved'));
+                loadAutoRefreshConfig();
+            } catch (e) {
+                alert(t('common.saveFailed') + ': ' + e.message);
+            }
         }
         async function loadThinkingConfig() {
             const res = await fetch('/admin/api/thinking', { headers: { 'X-Admin-Password': password } });
