@@ -970,6 +970,37 @@
                 <button class="btn btn-primary" onclick="saveSettings()" data-i18n="common.save"></button>
             </div>
             <div class="card">
+                <div class="card-header"><span class="card-title" data-i18n="settings.autoRefresh"></span></div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px">
+                        <label class="switch"><input type="checkbox" id="autoRefreshEnabled"><span
+                                class="slider"></span></label>
+                        <span data-i18n="settings.autoRefreshEnabled"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="settings.autoRefreshInterval"></label>
+                    <input type="number" id="autoRefreshInterval" min="5" max="1440" value="60">
+                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block"
+                        data-i18n="settings.autoRefreshIntervalHint"></small>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="settings.autoRefreshScope"></label>
+                    <select id="autoRefreshScope">
+                        <option value="enabled" data-i18n="settings.autoRefreshScopeEnabled"></option>
+                        <option value="all" data-i18n="settings.autoRefreshScopeAll"></option>
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:16px;font-size:13px;color:#475569">
+                    <div><span data-i18n="settings.autoRefreshRunning"></span>: <span id="autoRefreshRunning">-</span></div>
+                    <div><span data-i18n="settings.autoRefreshLastRun"></span>: <span id="autoRefreshLastRun">-</span></div>
+                    <div><span data-i18n="settings.autoRefreshNextRun"></span>: <span id="autoRefreshNextRun">-</span></div>
+                    <div><span data-i18n="settings.autoRefreshLastResult"></span>: <span id="autoRefreshLastResult">-</span></div>
+                </div>
+                <button class="btn btn-primary" onclick="saveAutoRefreshConfig()"
+                    data-i18n="settings.saveAutoRefresh"></button>
+            </div>
+            <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="settings.thinkingSettings"></span></div>
                 <div class="form-group">
                     <label data-i18n="settings.thinkingSuffix"></label>
@@ -1161,6 +1192,19 @@
                 'settings.enableApiKey': '启用 API Key 验证',
                 'settings.apiKeyPlaceholder': '留空则不验证',
                 'settings.generateApiKey': '随机生成',
+                'settings.autoRefresh': '自动刷新账号',
+                'settings.autoRefreshEnabled': '启用自动刷新',
+                'settings.autoRefreshInterval': '刷新间隔（分钟）',
+                'settings.autoRefreshIntervalHint': '范围 5-1440 分钟，管理页面关闭后仍会在后端执行',
+                'settings.autoRefreshScope': '刷新范围',
+                'settings.autoRefreshScopeEnabled': '仅启用账号',
+                'settings.autoRefreshScopeAll': '所有账号',
+                'settings.autoRefreshRunning': '正在运行',
+                'settings.autoRefreshLastRun': '上次执行',
+                'settings.autoRefreshNextRun': '下次执行',
+                'settings.autoRefreshLastResult': '上次结果',
+                'settings.autoRefreshSaved': '自动刷新设置已保存',
+                'settings.saveAutoRefresh': '保存自动刷新设置',
                 'settings.thinkingSettings': 'Thinking 模式设置',
                 'settings.thinkingSuffix': '触发后缀',
                 'settings.thinkingSuffixHint': '模型名称加此后缀即启用思考模式，如 claude-sonnet-4.5-thinking',
@@ -1397,6 +1441,19 @@
                 'settings.enableApiKey': 'Enable API Key Verification',
                 'settings.apiKeyPlaceholder': 'Leave empty to disable',
                 'settings.generateApiKey': 'Generate',
+                'settings.autoRefresh': 'Auto Account Refresh',
+                'settings.autoRefreshEnabled': 'Enable automatic refresh',
+                'settings.autoRefreshInterval': 'Refresh interval (minutes)',
+                'settings.autoRefreshIntervalHint': 'Allowed range: 5-1440 minutes. Runs in the backend even when the admin page is closed.',
+                'settings.autoRefreshScope': 'Refresh scope',
+                'settings.autoRefreshScopeEnabled': 'Enabled accounts only',
+                'settings.autoRefreshScopeAll': 'All accounts',
+                'settings.autoRefreshRunning': 'Running',
+                'settings.autoRefreshLastRun': 'Last run',
+                'settings.autoRefreshNextRun': 'Next run',
+                'settings.autoRefreshLastResult': 'Last result',
+                'settings.autoRefreshSaved': 'Auto refresh settings saved',
+                'settings.saveAutoRefresh': 'Save Auto Refresh Settings',
                 'settings.thinkingSettings': 'Thinking Mode Settings',
                 'settings.thinkingSuffix': 'Trigger Suffix',
                 'settings.thinkingSuffixHint': 'Add this suffix to model name to enable thinking mode, e.g. claude-sonnet-4.5-thinking',
@@ -2111,6 +2168,48 @@
             loadThinkingConfig();
             loadEndpointConfig();
             loadProxyConfig();
+            loadAutoRefreshConfig();
+        }
+        function formatAutoRefreshTime(ts) {
+            if (!ts) return '-';
+            return new Date(ts * 1000).toLocaleString();
+        }
+        function renderAutoRefreshStatus(status) {
+            status = status || {};
+            document.getElementById('autoRefreshRunning').textContent = status.running ? (currentLang === 'zh' ? '是' : 'Yes') : (currentLang === 'zh' ? '否' : 'No');
+            document.getElementById('autoRefreshLastRun').textContent = formatAutoRefreshTime(status.lastStartedAt || status.lastFinishedAt);
+            document.getElementById('autoRefreshNextRun').textContent = formatAutoRefreshTime(status.nextRunAt);
+            let result = '-';
+            if (status.lastSuccess) result = t('stats.success') + ': ' + formatAutoRefreshTime(status.lastSuccess);
+            else if (status.lastFailed) result = t('stats.failed') + ': ' + formatAutoRefreshTime(status.lastFailed);
+            else if (status.lastSkipped) result = (currentLang === 'zh' ? '已跳过' : 'Skipped') + ': ' + formatAutoRefreshTime(status.lastSkipped);
+            document.getElementById('autoRefreshLastResult').textContent = result;
+        }
+        async function loadAutoRefreshConfig() {
+            try {
+                const res = await fetch('/admin/api/auto-refresh', { headers: { 'X-Admin-Password': password } });
+                const d = await res.json();
+                const settings = d.settings || {};
+                document.getElementById('autoRefreshEnabled').checked = !!settings.enabled;
+                document.getElementById('autoRefreshInterval').value = settings.intervalMinutes || 60;
+                document.getElementById('autoRefreshScope').value = settings.scope || 'enabled';
+                renderAutoRefreshStatus(d.status);
+            } catch (e) {
+                renderAutoRefreshStatus();
+            }
+        }
+        async function saveAutoRefreshConfig() {
+            const intervalMinutes = parseInt(document.getElementById('autoRefreshInterval').value, 10);
+            const res = await fetch('/admin/api/auto-refresh', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+                body: JSON.stringify({
+                    enabled: document.getElementById('autoRefreshEnabled').checked,
+                    intervalMinutes,
+                    scope: document.getElementById('autoRefreshScope').value
+                })
+            });
+            const d = await res.json();
+            if (d.success) { alert(t('settings.autoRefreshSaved')); loadAutoRefreshConfig(); } else { alert(t('common.saveFailed') + ': ' + d.error); }
         }
         async function loadThinkingConfig() {
             const res = await fetch('/admin/api/thinking', { headers: { 'X-Admin-Password': password } });
