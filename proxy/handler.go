@@ -17,6 +17,15 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	ensureValidTokenForHealthCheck    = defaultEnsureValidTokenForHealthCheck
+	listAvailableModelsForHealthCheck = ListAvailableModels
+)
+
+func defaultEnsureValidTokenForHealthCheck(h *Handler, account *config.Account) error {
+	return h.ensureValidToken(account)
+}
+
 // Handler HTTP 处理器
 type Handler struct {
 	pool *pool.AccountPool
@@ -411,7 +420,7 @@ func (h *Handler) runHealthCheck() {
 
 	accounts := selectHealthCheckAccounts(config.GetAccounts())
 	result := runHealthCheckBatch(accounts, settings.AutoDisableUnhealthy, func(account *config.Account) error {
-		_, err := ListAvailableModels(account)
+		err := h.checkAccountHealth(account)
 		if err != nil {
 			logger.Warnf("[HealthCheck] Account %s unhealthy: %v", account.Email, err)
 		}
@@ -426,6 +435,14 @@ func (h *Handler) runHealthCheck() {
 	nextSettings := config.GetHealthCheckConfig()
 	h.finishHealthCheck(result, finishedAt.Unix(), computeNextHealthCheckRunAt(finishedAt, nextSettings))
 	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d", result.Success, result.Failed, result.Disabled)
+}
+
+func (h *Handler) checkAccountHealth(account *config.Account) error {
+	if err := ensureValidTokenForHealthCheck(h, account); err != nil {
+		return err
+	}
+	_, err := listAvailableModelsForHealthCheck(account)
+	return err
 }
 
 // validateApiKey 验证 API Key

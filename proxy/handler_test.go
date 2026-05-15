@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"kiro-go/config"
 	"kiro-go/pool"
 	"net/http"
@@ -294,6 +295,50 @@ func TestAdminHealthCheckConfigUpdateAndGet(t *testing.T) {
 	}
 	if !strings.Contains(getW.Body.String(), `"autoDisableUnhealthy":true`) {
 		t.Fatalf("expected saved auto-disable in response, got %s", getW.Body.String())
+	}
+}
+
+func TestCheckAccountHealthValidatesTokenBeforeModelLoad(t *testing.T) {
+	h := &Handler{}
+	account := &config.Account{ID: "account-1", Email: "test@example.com"}
+
+	var calls []string
+	ensureValidTokenForHealthCheck = func(h *Handler, account *config.Account) error {
+		calls = append(calls, "ensure")
+		return nil
+	}
+	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
+		calls = append(calls, "list")
+		return nil, nil
+	}
+	t.Cleanup(func() {
+		ensureValidTokenForHealthCheck = defaultEnsureValidTokenForHealthCheck
+		listAvailableModelsForHealthCheck = ListAvailableModels
+	})
+
+	if err := h.checkAccountHealth(account); err != nil {
+		t.Fatalf("expected health check to pass, got %v", err)
+	}
+	if got := strings.Join(calls, ","); got != "ensure,list" {
+		t.Fatalf("expected ensure before list, got %q", got)
+	}
+
+	calls = nil
+	ensureErr := errors.New("refresh failed")
+	ensureValidTokenForHealthCheck = func(h *Handler, account *config.Account) error {
+		calls = append(calls, "ensure")
+		return ensureErr
+	}
+	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
+		calls = append(calls, "list")
+		return nil, nil
+	}
+
+	if err := h.checkAccountHealth(account); !errors.Is(err, ensureErr) {
+		t.Fatalf("expected ensure error, got %v", err)
+	}
+	if got := strings.Join(calls, ","); got != "ensure" {
+		t.Fatalf("expected list to be skipped after ensure error, got %q", got)
 	}
 }
 
