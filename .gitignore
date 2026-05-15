@@ -1,1 +1,5 @@
 .worktrees/
+data/
+recovery/
+kiro-playwright-blocked-*.png
+sub2api-playwright-blocked*.png

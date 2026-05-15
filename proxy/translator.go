@@ -141,9 +141,11 @@ type ImageSource struct {
 }
 
 type ClaudeTool struct {
+	Type        string      `json:"type,omitempty"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	InputSchema interface{} `json:"input_schema"`
+	MaxUses     int         `json:"max_uses,omitempty"`
 }
 
 type ClaudeResponse struct {
@@ -285,14 +287,57 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 
 func buildClaudeSystemPrompt(system interface{}, thinking bool) string {
 	systemPrompt := extractSystemPrompt(system)
+	systemPrompt, transportOnly := stripClaudeCodeTransportMetadata(systemPrompt)
 	systemPrompt = applyPromptFilters(systemPrompt)
 	if !thinking {
 		return systemPrompt
 	}
 	if systemPrompt == "" {
+		if transportOnly {
+			return ""
+		}
 		return ThinkingModePrompt
 	}
 	return ThinkingModePrompt + "\n\n" + systemPrompt
+}
+
+func stripClaudeCodeTransportMetadata(prompt string) (string, bool) {
+	if strings.TrimSpace(prompt) == "" {
+		return "", false
+	}
+	lines := strings.Split(prompt, "\n")
+	out := make([]string, 0, len(lines))
+	removed := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		switch {
+		case trimmed == "":
+			out = append(out, line)
+		case strings.HasPrefix(lower, "x-anthropic-billing-header:"):
+			removed = true
+			continue
+		case isClaudeCodeTransportPromptLine(trimmed):
+			removed = true
+			continue
+		default:
+			out = append(out, line)
+		}
+	}
+	cleaned := strings.TrimSpace(collapseBlankLines(strings.Join(out, "\n")))
+	return cleaned, removed && cleaned == ""
+}
+
+func isClaudeCodeTransportPromptLine(line string) bool {
+	switch strings.TrimSpace(line) {
+	case "You are Claude Code, Anthropic's official CLI for Claude.",
+		"You are a Claude agent, built on Anthropic's Claude Agent SDK.",
+		"You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.",
+		"You are a file search specialist for Claude Code, Anthropic's official CLI for Claude.",
+		"You are a helpful AI assistant tasked with summarizing conversations.":
+		return true
+	}
+	return false
 }
 
 // applyPromptFilters applies all enabled prompt filter rules to the system prompt.

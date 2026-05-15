@@ -170,6 +170,40 @@ func TestValidateHealthCheckConfig(t *testing.T) {
 	}
 }
 
+func TestGetOpus47AdmissionConfigDefaultsAndPersistsValues(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	defaults := GetOpus47AdmissionConfig()
+	if defaults.MaxConcurrent != 2 {
+		t.Fatalf("expected default max concurrent 2, got %d", defaults.MaxConcurrent)
+	}
+	if defaults.MaxWaiting != 200 {
+		t.Fatalf("expected default max waiting 200, got %d", defaults.MaxWaiting)
+	}
+
+	if err := UpdateOpus47AdmissionConfig(Opus47AdmissionConfig{MaxConcurrent: 10, MaxWaiting: 300}); err != nil {
+		t.Fatalf("update opus admission config: %v", err)
+	}
+	got := GetOpus47AdmissionConfig()
+	if got.MaxConcurrent != 10 || got.MaxWaiting != 300 {
+		t.Fatalf("expected persisted opus admission config 10/300, got %#v", got)
+	}
+}
+
+func TestValidateOpus47AdmissionConfig(t *testing.T) {
+	if err := ValidateOpus47AdmissionConfig(Opus47AdmissionConfig{MaxConcurrent: 10, MaxWaiting: 0}); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+	if err := ValidateOpus47AdmissionConfig(Opus47AdmissionConfig{MaxConcurrent: 0, MaxWaiting: 0}); err == nil {
+		t.Fatalf("expected zero max concurrent to fail")
+	}
+	if err := ValidateOpus47AdmissionConfig(Opus47AdmissionConfig{MaxConcurrent: 1, MaxWaiting: -1}); err == nil {
+		t.Fatalf("expected negative max waiting to fail")
+	}
+}
+
 func TestUpdateAndClearAccountHealth(t *testing.T) {
 	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

@@ -197,6 +197,39 @@ func TestClaudeConversationIDStableFromAnchor(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroStripsClaudeCodeTransportSystemMetadata(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-opus-4-7",
+		MaxTokens: 128,
+		System: []interface{}{
+			map[string]interface{}{"type": "text", "text": "x-anthropic-billing-header: cc_version=2.1.92.abc; cc_entrypoint=cli; cch=00000;"},
+			map[string]interface{}{"type": "text", "text": "You are Claude Code, Anthropic's official CLI for Claude."},
+		},
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "hello"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, true)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	if strings.Contains(content, "x-anthropic-billing-header") {
+		t.Fatalf("expected billing metadata to be stripped, got %q", content)
+	}
+	if strings.Contains(content, "Claude Code") {
+		t.Fatalf("expected Claude Code transport prompt to be stripped, got %q", content)
+	}
+	if strings.Contains(content, "--- SYSTEM PROMPT ---") {
+		t.Fatalf("expected empty transport-only system prompt not to create boundary markers, got %q", content)
+	}
+	if strings.Contains(content, "<thinking_mode>") {
+		t.Fatalf("expected transport-only Claude Code request not to expose thinking control tags, got %q", content)
+	}
+	if content != "hello" {
+		t.Fatalf("expected only user content to remain, got %q", content)
+	}
+}
+
 func TestOpenAIConversationIDRandomForSyntheticAnchor(t *testing.T) {
 	req := &OpenAIRequest{
 		Model: "claude-sonnet-4.5",

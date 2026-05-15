@@ -127,6 +127,39 @@ type HealthCheckConfig struct {
 	AutoDisableUnhealthy bool `json:"autoDisableUnhealthy"`
 }
 
+type Opus47AdmissionConfig struct {
+	MaxConcurrent int `json:"maxConcurrent"`
+	MaxWaiting    int `json:"maxWaiting"`
+}
+
+func defaultOpus47AdmissionConfig() Opus47AdmissionConfig {
+	return Opus47AdmissionConfig{
+		MaxConcurrent: 2,
+		MaxWaiting:    200,
+	}
+}
+
+func normalizeOpus47AdmissionConfig(in Opus47AdmissionConfig) Opus47AdmissionConfig {
+	defaults := defaultOpus47AdmissionConfig()
+	if in.MaxConcurrent == 0 {
+		in.MaxConcurrent = defaults.MaxConcurrent
+	}
+	if in.MaxWaiting == 0 {
+		in.MaxWaiting = defaults.MaxWaiting
+	}
+	return in
+}
+
+func ValidateOpus47AdmissionConfig(in Opus47AdmissionConfig) error {
+	if in.MaxConcurrent <= 0 {
+		return fmt.Errorf("maxConcurrent must be greater than 0")
+	}
+	if in.MaxWaiting < 0 {
+		return fmt.Errorf("maxWaiting must be greater than or equal to 0")
+	}
+	return nil
+}
+
 // PromptFilterRule defines a single custom prompt sanitization rule.
 // Type can be: "regex" (regexp find/replace within prompt) or
 // "lines-containing" (remove lines containing the match substring).
@@ -142,17 +175,18 @@ type PromptFilterRule struct {
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
-	Password      string            `json:"password"`         // Admin panel password
-	Port          int               `json:"port"`             // HTTP server port (default: 8080)
-	Host          string            `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
-	ApiKey        string            `json:"apiKey,omitempty"` // API key for client authentication
-	RequireApiKey bool              `json:"requireApiKey"`    // Whether to enforce API key validation
-	KiroVersion   string            `json:"kiroVersion,omitempty"`
-	SystemVersion string            `json:"systemVersion,omitempty"`
-	NodeVersion   string            `json:"nodeVersion,omitempty"`
-	Accounts      []Account         `json:"accounts"` // Registered Kiro accounts
-	AutoRefresh   AutoRefreshConfig `json:"autoRefresh"`
-	HealthCheck   HealthCheckConfig `json:"healthCheck"`
+	Password        string                `json:"password"`         // Admin panel password
+	Port            int                   `json:"port"`             // HTTP server port (default: 8080)
+	Host            string                `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
+	ApiKey          string                `json:"apiKey,omitempty"` // API key for client authentication
+	RequireApiKey   bool                  `json:"requireApiKey"`    // Whether to enforce API key validation
+	KiroVersion     string                `json:"kiroVersion,omitempty"`
+	SystemVersion   string                `json:"systemVersion,omitempty"`
+	NodeVersion     string                `json:"nodeVersion,omitempty"`
+	Accounts        []Account             `json:"accounts"` // Registered Kiro accounts
+	AutoRefresh     AutoRefreshConfig     `json:"autoRefresh"`
+	HealthCheck     HealthCheckConfig     `json:"healthCheck"`
+	Opus47Admission Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -373,13 +407,14 @@ func Load() error {
 			// Create default configuration.
 			// Binds to 0.0.0.0 by default for Docker/container compatibility.
 			cfg = &Config{
-				Password:      "changeme",
-				Port:          8080,
-				Host:          "0.0.0.0",
-				RequireApiKey: false,
-				Accounts:      []Account{},
-				AutoRefresh:   defaultAutoRefreshConfig(),
-				HealthCheck:   defaultHealthCheckConfig(),
+				Password:        "changeme",
+				Port:            8080,
+				Host:            "0.0.0.0",
+				RequireApiKey:   false,
+				Accounts:        []Account{},
+				AutoRefresh:     defaultAutoRefreshConfig(),
+				HealthCheck:     defaultHealthCheckConfig(),
+				Opus47Admission: defaultOpus47AdmissionConfig(),
 			}
 			return Save()
 		}
@@ -392,6 +427,7 @@ func Load() error {
 	}
 	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
 	c.HealthCheck = normalizePersistedHealthCheckConfig(data, c.HealthCheck)
+	c.Opus47Admission = normalizeOpus47AdmissionConfig(c.Opus47Admission)
 	cfg = &c
 	return nil
 }
@@ -474,6 +510,27 @@ func GetHealthCheckConfig() HealthCheckConfig {
 	cfgLock.RLock()
 	defer cfgLock.RUnlock()
 	return normalizeHealthCheckConfig(cfg.HealthCheck)
+}
+
+func GetOpus47AdmissionConfig() Opus47AdmissionConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	if cfg == nil {
+		return defaultOpus47AdmissionConfig()
+	}
+	return normalizeOpus47AdmissionConfig(cfg.Opus47Admission)
+}
+
+func UpdateOpus47AdmissionConfig(admission Opus47AdmissionConfig) error {
+	normalized := normalizeOpus47AdmissionConfig(admission)
+	if err := ValidateOpus47AdmissionConfig(normalized); err != nil {
+		return err
+	}
+
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.Opus47Admission = normalized
+	return Save()
 }
 
 func UpdateHealthCheckConfig(healthCheck HealthCheckConfig) error {

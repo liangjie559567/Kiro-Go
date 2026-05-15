@@ -189,3 +189,130 @@ The high-concurrency target is certified for the tested shapes: concurrency 10 t
 - Keep `preferredEndpoint=auto` and `endpointFallback=true` in production, but Opus 4.7 429s should continue to bypass same-account endpoint fan-out.
 - Consider making the Opus 4.7 admission-control concurrency and queue size configurable from admin settings.
 - Add rolling production metrics for Opus 4.7 by status, latency bucket, upstream reason, endpoint, and account.
+
+## Post-Upstream-1.0.8 Integration Production Retest - 2026-05-15 18:43 CST
+
+### Deployment
+
+- Branch/commit: `main` at `6e76252` after merging upstream `1.0.8` while preserving local Opus 4.7 fixes.
+- Deployment command: `docker compose up -d --build kiro-go`.
+- Container: `kiro-go-kiro-go-1`.
+- Health checks after deploy:
+  - `http://127.0.0.1:8080/health`: `{"status":"ok","uptime":9,"version":"1.0.8"}`.
+  - `https://kiro.cgtall.com/health`: `{"status":"ok","uptime":9,"version":"1.0.8"}`.
+- Runtime config evidence:
+  - Accounts: 13 total, 13 enabled.
+  - Endpoint config: `preferredEndpoint=auto`, `endpointFallback=true`.
+  - API key enforcement: enabled.
+
+### Smoke Test
+
+- Endpoint: `https://kiro.cgtall.com/v1/messages`.
+- Model: `claude-opus-4-7`.
+- Request: streaming Claude Messages API, message `hi`, `max_tokens=16`.
+- Result:
+  - HTTP 200.
+  - Latency: 1.58 seconds.
+  - Body bytes: 794.
+  - SSE markers present: `message_start`, `content_block_delta`, `message_stop`.
+  - SSE error: 0.
+
+Verdict: PASS.
+
+### Public Domain Concurrency 10 / Total 100
+
+- Endpoint: `https://kiro.cgtall.com/v1/messages`.
+- Model: `claude-opus-4-7`.
+- Shape: concurrency 10, total 100.
+- Client headers included normal `User-Agent: curl/8.5.0` and `Accept: text/event-stream`.
+- Run directory: `/tmp/kiro-opus47-domain-ua-20260515-184659`.
+- Result:
+  - HTTP 200: 100.
+  - Success: 100 / 100.
+  - Success rate: 100%.
+  - Empty body: 0.
+  - HTTP 200 empty body: 0.
+  - Missing `message_start`: 0.
+  - SSE error: 0.
+  - Error JSON: 0.
+  - Exceptions: 0.
+  - Latency: min 1077.9 ms, p50 1486.8 ms, p90 6592.29 ms, p95 7818.725 ms, p99 11095.189 ms, max 11104.9 ms.
+
+Verdict: PASS for 99%+ success target and 90 second downstream latency budget.
+
+### Local Production Container Concurrency 10 / Total 100
+
+- Endpoint: `http://127.0.0.1:8080/v1/messages`.
+- Purpose: isolate Kiro-Go and upstream account routing from public front-door WAF/CDN behavior.
+- Model: `claude-opus-4-7`.
+- Shape: concurrency 10, total 100.
+- Run directory: `/tmp/kiro-opus47-local-20260515-184557`.
+- Result:
+  - HTTP 200: 100.
+  - Success: 100 / 100.
+  - Success rate: 100%.
+  - Empty body: 0.
+  - HTTP 200 empty body: 0.
+  - Missing `message_start`: 0.
+  - SSE error: 0.
+  - Error JSON: 0.
+  - Exceptions: 0.
+  - Latency: min 1026.8 ms, p50 1496.95 ms, p90 7865.13 ms, p95 8825.725 ms, p99 10034.854 ms, max 10035.9 ms.
+
+Verdict: PASS for Kiro-Go production container behavior.
+
+### Front-Door 403 Control Run
+
+- Endpoint: `https://kiro.cgtall.com/v1/messages`.
+- Shape: concurrency 10, total 100.
+- Client: Python `urllib` default request identity.
+- Run directory: `/tmp/kiro-opus47-prod-20260515-184502`.
+- Result:
+  - HTTP 403: 100.
+  - Body: `error code: 1010`.
+  - Duration: 430.3 ms for all 100 requests.
+  - Container logs showed no matching application requests for this run.
+- Interpretation: this run was blocked by the public front door before Kiro-Go. It is not counted as an Opus 4.7/Kiro-Go failure. The same endpoint passed 100/100 when using normal curl-like headers.
+
+Verdict: CONTROL ONLY, not a Kiro-Go UAT failure.
+
+### Runtime Logs And Account State
+
+- Docker logs during valid production runs contained real upstream Opus 4.7 pressure:
+  - `INSUFFICIENT_MODEL_CAPACITY`.
+  - `Too many requests, please wait before trying again.`
+- Despite upstream 429s, downstream valid test runs returned no empty streams and no SSE errors.
+- Post-run config state:
+  - Accounts: 13.
+  - Enabled accounts: 13.
+  - Persisted failures: none.
+- Health after runs:
+  - `http://127.0.0.1:8080/health`: `{"status":"ok","uptime":257,"version":"1.0.8"}`.
+  - `https://kiro.cgtall.com/health`: `{"status":"ok","uptime":257,"version":"1.0.8"}`.
+
+### Playwright-MCP Browser UAT
+
+- Attempted pages:
+  - `https://kiro.cgtall.com/admin`.
+  - `http://127.0.0.1:8080/admin`.
+- Result:
+  - Both navigations failed before page load with Playwright browser backend error `net::ERR_BLOCKED_BY_CLIENT`.
+  - Browser tabs showed `chrome-error://chromewebdata/`.
+  - Browser console had 0 messages.
+  - Server logs showed no corresponding admin request, confirming the block occurred before reaching Kiro-Go.
+- Screenshot evidence:
+  - `kiro-playwright-blocked-20260515.png`.
+
+Verdict: BLOCKED by Playwright/browser environment. UI screenshot correctness is not marked PASS. API and production container behavior are marked PASS based on direct HTTP and Docker evidence.
+
+### Post-Integration Verdict
+
+PASS for real production Opus 4.7 API behavior after upstream `1.0.8` integration:
+
+- Public endpoint valid-client concurrency 10 / total 100: 100% success.
+- Local production container concurrency 10 / total 100: 100% success.
+- Empty stream regression: 0 empty bodies, 0 HTTP 200 empty bodies, 0 missing `message_start`.
+- Latency: max 11.105 seconds in public valid-client run, well below the 90 second downstream budget.
+- Model: `claude-opus-4-7` only, no downgrade.
+
+Playwright visual UI validation remains blocked by `ERR_BLOCKED_BY_CLIENT` and is not passed.

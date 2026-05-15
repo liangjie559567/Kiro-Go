@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -161,6 +162,107 @@ func TestValidateClaudeRequestShapeRejectsAssistantPrefill(t *testing.T) {
 	if msg := validateClaudeRequestShape(req); msg == "" {
 		t.Fatalf("expected assistant-prefill final message to be rejected")
 	}
+}
+
+func TestHandleClaudeNativeWebSearchUsesKiroMCP(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	config.AddAccount(config.Account{
+		ID:          "acct-1",
+		Enabled:     true,
+		AccessToken: "token-1",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test-1",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	})
+	p.Reload()
+
+	var requestedPath string
+	var requestedAuth string
+	var requestedMethod string
+	var mcpBody map[string]interface{}
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestedPath = req.URL.Path
+			requestedAuth = req.Header.Get("Authorization")
+			requestedMethod = req.Method
+			if err := json.NewDecoder(req.Body).Decode(&mcpBody); err != nil {
+				t.Fatalf("decode mcp body: %v", err)
+			}
+			resultText := `{"results":[{"title":"OpenAI News","url":"https://example.com/openai","snippet":"Latest OpenAI update"}],"totalResults":1,"query":"OpenAI latest news today"}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`{
+					"id":"web_search_tooluse_test",
+					"jsonrpc":"2.0",
+					"result":{"content":[{"type":"text","text":` + strconv.Quote(resultText) + `}],"isError":false}
+				}`)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":1024,
+		"tools":[{"name":"web_search","type":"web_search_20250305","max_uses":2}],
+		"tool_choice":{"type":"tool","name":"web_search"},
+		"messages":[{"role":"user","content":[{"type":"text","text":"Perform a web search for the query: OpenAI latest news today"}]}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected native web_search to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if requestedMethod != http.MethodPost {
+		t.Fatalf("expected MCP POST, got %q", requestedMethod)
+	}
+	if requestedPath != "/mcp" {
+		t.Fatalf("expected MCP path, got %q", requestedPath)
+	}
+	if requestedAuth != "Bearer token-1" {
+		t.Fatalf("expected bearer token auth, got %q", requestedAuth)
+	}
+	if mcpBody["method"] != "tools/call" {
+		t.Fatalf("expected tools/call MCP method, got %#v", mcpBody["method"])
+	}
+	params, _ := mcpBody["params"].(map[string]interface{})
+	args, _ := params["arguments"].(map[string]interface{})
+	if got := args["query"]; got != "OpenAI latest news today" {
+		t.Fatalf("expected extracted query, got %#v", got)
+	}
+
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Content) != 3 {
+		t.Fatalf("expected server tool use, result, and text blocks, got %#v", resp.Content)
+	}
+	if resp.Content[0].Type != "server_tool_use" || resp.Content[0].Name != "web_search" {
+		t.Fatalf("expected web_search server_tool_use block, got %#v", resp.Content[0])
+	}
+	if resp.Content[1].Type != "web_search_tool_result" {
+		t.Fatalf("expected web_search_tool_result block, got %#v", resp.Content[1])
+	}
+	if resp.Content[2].Type != "text" || !strings.Contains(resp.Content[2].Text, "OpenAI News") {
+		t.Fatalf("expected text summary with search result title, got %#v", resp.Content[2])
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if config.GetAccounts()[0].RequestCount > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats update to complete")
 }
 
 func TestHandleClaudeRetriesQuotaFailureOnNextAccount(t *testing.T) {
@@ -501,6 +603,34 @@ func TestHandleClaudeOpus47AdmissionGateLimitsUpstreamConcurrency(t *testing.T) 
 	waitForAccountRequestCount(t, 5)
 }
 
+func TestApplyOpus47AdmissionConfigUsesConfiguredGate(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateOpus47AdmissionConfig(config.Opus47AdmissionConfig{MaxConcurrent: 10, MaxWaiting: 20}); err != nil {
+		t.Fatalf("update opus admission config: %v", err)
+	}
+
+	oldGate := opus47AdmissionGate
+	t.Cleanup(func() {
+		opus47AdmissionGate = oldGate
+	})
+
+	applyOpus47AdmissionConfig()
+
+	releases := make([]func(), 0, 10)
+	for i := 0; i < 10; i++ {
+		release, err := opus47AdmissionGate.acquire(time.Millisecond)
+		if err != nil {
+			t.Fatalf("expected configured gate to allow 10 concurrent holders, acquire %d failed: %v", i+1, err)
+		}
+		releases = append(releases, release)
+	}
+	for _, release := range releases {
+		release()
+	}
+}
+
 func TestHandleClaudeOpus47AdmissionGateSharesRetryBudget(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -773,6 +903,13 @@ func TestAdminAccountsExposeHealthCooldownFields(t *testing.T) {
 	if got[0]["lastFailureAt"] != float64(123) || got[0]["cooldownUntil"] != float64(456) || got[0]["failureCount"] != float64(2) {
 		t.Fatalf("expected health fields in accounts response, got %#v", got[0])
 	}
+	health, ok := got[0]["runtimeHealth"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected runtimeHealth object, got %#v", got[0]["runtimeHealth"])
+	}
+	if health["score"] != float64(100) {
+		t.Fatalf("expected default runtime health score 100, got %#v", health)
+	}
 }
 
 func TestAdminAccountFullExposesHealthCooldownFields(t *testing.T) {
@@ -807,6 +944,13 @@ func TestAdminAccountFullExposesHealthCooldownFields(t *testing.T) {
 	}
 	if got["lastFailureAt"] != float64(234) || got["cooldownUntil"] != float64(567) || got["failureCount"] != float64(3) {
 		t.Fatalf("expected health fields in account detail response, got %#v", got)
+	}
+	health, ok := got["runtimeHealth"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected runtimeHealth object, got %#v", got["runtimeHealth"])
+	}
+	if health["activeConnections"] != float64(0) {
+		t.Fatalf("expected runtime active connections 0, got %#v", health)
 	}
 }
 

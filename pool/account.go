@@ -25,6 +25,52 @@ const (
 	FailureReasonUpstream5xx      FailureReason = "upstream_5xx"
 )
 
+type RuntimeHealth struct {
+	ActiveConnections int   `json:"activeConnections"`
+	RecentFailures    int   `json:"recentFailures"`
+	RecentSuccesses   int   `json:"recentSuccesses"`
+	AvgLatencyMS      int64 `json:"avgLatencyMs"`
+	LastUpdatedAt     int64 `json:"lastUpdatedAt"`
+	Score             int   `json:"score"`
+}
+
+type runtimeHealthState struct {
+	activeConnections int
+	recentFailures    int
+	recentSuccesses   int
+	avgLatencyMS      int64
+	lastUpdatedAt     int64
+}
+
+func (h runtimeHealthState) score() int {
+	total := h.recentSuccesses + h.recentFailures
+	successScore := 100
+	if total > 0 {
+		successScore = h.recentSuccesses * 100 / total
+	}
+	connectionPenalty := h.activeConnections * 15
+	latencyPenalty := int(h.avgLatencyMS / 1000 * 5)
+	score := successScore - connectionPenalty - latencyPenalty
+	if score < 0 {
+		return 0
+	}
+	if score > 100 {
+		return 100
+	}
+	return score
+}
+
+func (h runtimeHealthState) export() RuntimeHealth {
+	return RuntimeHealth{
+		ActiveConnections: h.activeConnections,
+		RecentFailures:    h.recentFailures,
+		RecentSuccesses:   h.recentSuccesses,
+		AvgLatencyMS:      h.avgLatencyMS,
+		LastUpdatedAt:     h.lastUpdatedAt,
+		Score:             h.score(),
+	}
+}
+
 func ClassifyFailureReason(err error) FailureReason {
 	if err == nil {
 		return FailureReasonUnknown
@@ -40,7 +86,8 @@ func ClassifyFailureReason(err error) FailureReason {
 		return FailureReasonRateLimited
 	case strings.Contains(msg, "401"), strings.Contains(msg, "403"), strings.Contains(msg, "expired"), strings.Contains(msg, "invalid token"):
 		return FailureReasonAuthExpired
-	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"), strings.Contains(msg, "connection refused"), strings.Contains(msg, "eof"), strings.Contains(msg, "network"):
+	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"), strings.Contains(msg, "connection refused"), strings.Contains(msg, "eof"), strings.Contains(msg, "network"),
+		strings.Contains(msg, "stream error"), strings.Contains(msg, "internal_error"), strings.Contains(msg, "received from peer"), strings.Contains(msg, "http2"):
 		return FailureReasonTransientNetwork
 	case strings.Contains(msg, "500"), strings.Contains(msg, "502"), strings.Contains(msg, "503"), strings.Contains(msg, "504"):
 		return FailureReasonUpstream5xx
@@ -59,6 +106,7 @@ type AccountPool struct {
 	errorCounts   map[string]int             // 连续错误计数
 	failures      map[string]FailureReason   // Last failure classification
 	modelLists    map[string]map[string]bool // accountID -> set of modelIDs
+	runtimeHealth map[string]*runtimeHealthState
 }
 
 var (
@@ -70,10 +118,11 @@ var (
 func GetPool() *AccountPool {
 	poolOnce.Do(func() {
 		pool = &AccountPool{
-			cooldowns:   make(map[string]time.Time),
-			errorCounts: make(map[string]int),
-			failures:    make(map[string]FailureReason),
-			modelLists:  make(map[string]map[string]bool),
+			cooldowns:     make(map[string]time.Time),
+			errorCounts:   make(map[string]int),
+			failures:      make(map[string]FailureReason),
+			modelLists:    make(map[string]map[string]bool),
+			runtimeHealth: make(map[string]*runtimeHealthState),
 		}
 		pool.Reload()
 	})
@@ -92,6 +141,9 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.modelLists == nil {
 		p.modelLists = make(map[string]map[string]bool)
+	}
+	if p.runtimeHealth == nil {
+		p.runtimeHealth = make(map[string]*runtimeHealthState)
 	}
 }
 
@@ -139,6 +191,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 	seen := make(map[string]bool)
 
 	// 加权轮询查找可用账号
+	var best *config.Account
 	for i := 0; i < n; i++ {
 		idx := atomic.AddUint64(&p.currentIndex, 1) % uint64(n)
 		acc := &p.accounts[idx]
@@ -175,7 +228,15 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 			continue
 		}
 
-		return acc
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+			best = acc
+		}
+		if p.isIdleHealthyLocked(acc.ID) {
+			return acc
+		}
+	}
+	if best != nil {
+		return best
 	}
 
 	// 无可用账号时直接返回 nil。冷却账号必须等到冷却结束后再重新进入调度，
@@ -196,12 +257,16 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 			if now.Before(cooldown) {
 				continue
 			}
-			return acc
+			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+				best = acc
+			}
 		} else {
-			return acc
+			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+				best = acc
+			}
 		}
 	}
-	return nil
+	return best
 }
 
 // SetModelList 缓存账号支持的模型集合（由 handler 在刷新后调用）
@@ -259,6 +324,7 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 	p.clearExpiredCooldownsLocked(now)
 	n := len(p.accounts)
 	seen := make(map[string]bool)
+	var best *config.Account
 
 	for i := 0; i < n; i++ {
 		idx := atomic.AddUint64(&p.currentIndex, 1) % uint64(n)
@@ -291,7 +357,15 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 			seen[acc.ID] = true
 			continue
 		}
-		return acc
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+			best = acc
+		}
+		if p.isIdleHealthyLocked(acc.ID) {
+			return acc
+		}
+	}
+	if best != nil {
+		return best
 	}
 
 	for i := range p.accounts {
@@ -312,11 +386,44 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 			if now.Before(cooldown) {
 				continue
 			}
-			return acc
+			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+				best = acc
+			}
 		}
-		return acc
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+			best = acc
+		}
 	}
-	return nil
+	return best
+}
+
+func (p *AccountPool) isIdleHealthyLocked(id string) bool {
+	health := p.runtimeHealth[id]
+	if health == nil {
+		return true
+	}
+	return health.activeConnections == 0 && health.score() >= 90
+}
+
+func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID string) bool {
+	candidate := p.runtimeHealth[candidateID]
+	current := p.runtimeHealth[currentID]
+	if candidate == nil && current == nil {
+		return false
+	}
+	if candidate == nil {
+		return current.activeConnections > 0 || current.score() < 100
+	}
+	if current == nil {
+		return candidate.activeConnections == 0 && candidate.score() >= 100
+	}
+	if candidate.activeConnections != current.activeConnections {
+		return candidate.activeConnections < current.activeConnections
+	}
+	if candidate.score() != current.score() {
+		return candidate.score() > current.score()
+	}
+	return candidate.avgLatencyMS < current.avgLatencyMS
 }
 
 // GetByID 根据 ID 获取账号
@@ -333,10 +440,26 @@ func (p *AccountPool) GetByID(id string) *config.Account {
 
 // RecordSuccess 记录请求成功，清除冷却
 func (p *AccountPool) RecordSuccess(id string) {
+	p.RecordSuccessWithLatency(id, 0)
+}
+
+func (p *AccountPool) RecordSuccessWithLatency(id string, latency time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
 	p.clearFailureStateLocked(id)
+	health := p.runtimeHealthForLocked(id)
+	health.recentSuccesses++
+	health.lastUpdatedAt = time.Now().Unix()
+	if latency > 0 {
+		latencyMS := latency.Milliseconds()
+		if health.avgLatencyMS == 0 {
+			health.avgLatencyMS = latencyMS
+		} else {
+			health.avgLatencyMS = (health.avgLatencyMS*9 + latencyMS) / 10
+		}
+	}
+	trimRuntimeWindowLocked(health)
 	if config.Get() != nil {
 		_ = config.ClearAccountHealth(id)
 	}
@@ -389,6 +512,10 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 	p.errorCounts[id]++
 	p.failures[id] = reason
 	now := time.Now()
+	health := p.runtimeHealthForLocked(id)
+	health.recentFailures++
+	health.lastUpdatedAt = now.Unix()
+	trimRuntimeWindowLocked(health)
 	cooldown := time.Duration(0)
 
 	switch reason {
@@ -438,6 +565,10 @@ func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetA
 	p.errorCounts[id]++
 	p.failures[id] = reason
 	now := time.Now()
+	health := p.runtimeHealthForLocked(id)
+	health.recentFailures++
+	health.lastUpdatedAt = now.Unix()
+	trimRuntimeWindowLocked(health)
 	if !resetAt.After(now) {
 		resetAt = now
 	}
@@ -455,6 +586,55 @@ func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetA
 			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
 		}
 	}
+}
+
+func (p *AccountPool) BeginRequest(id string) func() {
+	p.mu.Lock()
+	p.ensureStateLocked()
+	health := p.runtimeHealthForLocked(id)
+	health.activeConnections++
+	health.lastUpdatedAt = time.Now().Unix()
+	p.mu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			p.ensureStateLocked()
+			health := p.runtimeHealthForLocked(id)
+			if health.activeConnections > 0 {
+				health.activeConnections--
+			}
+			health.lastUpdatedAt = time.Now().Unix()
+		})
+	}
+}
+
+func (p *AccountPool) GetRuntimeHealth(id string) RuntimeHealth {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.runtimeHealth == nil || p.runtimeHealth[id] == nil {
+		return runtimeHealthState{}.export()
+	}
+	return p.runtimeHealth[id].export()
+}
+
+func (p *AccountPool) runtimeHealthForLocked(id string) *runtimeHealthState {
+	health := p.runtimeHealth[id]
+	if health == nil {
+		health = &runtimeHealthState{}
+		p.runtimeHealth[id] = health
+	}
+	return health
+}
+
+func trimRuntimeWindowLocked(health *runtimeHealthState) {
+	if health.recentSuccesses+health.recentFailures <= 100 {
+		return
+	}
+	health.recentSuccesses = health.recentSuccesses * 9 / 10
+	health.recentFailures = health.recentFailures * 9 / 10
 }
 
 // UpdateToken 更新账号 Token

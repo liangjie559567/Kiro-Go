@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"kiro-go/logger"
 	"kiro-go/pool"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -322,6 +324,7 @@ func opusCapacityRetryDelay(err error, deadline time.Time) (time.Duration, bool)
 func NewHandler() *Handler {
 	// 启动时应用代理配置
 	applyProxyConfig(config.GetProxyURL())
+	applyOpus47AdmissionConfig()
 
 	totalReq, successReq, failedReq, totalTokens, totalCredits := config.GetStats()
 	h := &Handler{
@@ -344,6 +347,12 @@ func NewHandler() *Handler {
 	// 启动后台统计保存 (每30秒保存一次)
 	go h.backgroundStatsSaver()
 	return h
+}
+
+func applyOpus47AdmissionConfig() {
+	admission := config.GetOpus47AdmissionConfig()
+	opus47AdmissionGate = newOpus47Gate(admission.MaxConcurrent, admission.MaxWaiting)
+	logger.Infof("[Opus47Admission] maxConcurrent=%d maxWaiting=%d", admission.MaxConcurrent, admission.MaxWaiting)
 }
 
 // backgroundRefresh 后台定时刷新账户信息
@@ -536,6 +545,7 @@ func (h *Handler) runHealthCheck() {
 }
 
 func (h *Handler) checkAccountHealth(account *config.Account) error {
+	startedAt := time.Now()
 	if err := ensureValidTokenForHealthCheck(h, account); err != nil {
 		if h.pool != nil {
 			h.recordAccountFailure(account.ID, err)
@@ -549,7 +559,7 @@ func (h *Handler) checkAccountHealth(account *config.Account) error {
 		return err
 	}
 	if h.pool != nil {
-		h.pool.RecordSuccess(account.ID)
+		h.pool.RecordSuccessWithLatency(account.ID, time.Since(startedAt))
 	}
 	return nil
 }
@@ -1048,9 +1058,354 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
 
+	if hasNativeClaudeWebSearch(req.Tools) {
+		h.handleClaudeNativeWebSearch(w, &req, estimatedInputTokens)
+		return
+	}
+
 	// 转换请求
 	kiroPayload := ClaudeToKiro(&req, thinking)
 	h.handleClaudeWithAccountRetry(w, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
+}
+
+func hasNativeClaudeWebSearch(tools []ClaudeTool) bool {
+	for _, tool := range tools {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(tool.Type)), "web_search") {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, req *ClaudeRequest, estimatedInputTokens int) {
+	query := extractClaudeWebSearchQuery(req.Messages)
+	if query == "" {
+		h.sendClaudeError(w, 400, "invalid_request_error", "Cannot extract search query from messages")
+		return
+	}
+
+	used := make(map[string]bool)
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		account := h.pool.GetNextForModelExcept(req.Model, used)
+		if account == nil {
+			if lastErr != nil {
+				h.recordFailure()
+				h.sendClaudeError(w, 503, "api_error", lastErr.Error())
+			} else {
+				h.recordFailure()
+				h.sendClaudeError(w, 503, "api_error", "No available accounts")
+			}
+			return
+		}
+		used[account.ID] = true
+
+		if err := h.ensureValidToken(account); err != nil {
+			lastErr = err
+			h.recordAccountFailure(account.ID, err)
+			continue
+		}
+
+		releaseRequest := h.pool.BeginRequest(account.ID)
+		startedAt := time.Now()
+		toolUseID, results, err := callKiroMCPWebSearch(account, query)
+		releaseRequest()
+		if err != nil {
+			lastErr = err
+			h.recordAccountFailure(account.ID, err)
+			if shouldRetryAccount(classifyFailureReason(err), attempt) {
+				continue
+			}
+			h.recordFailure()
+			h.sendClaudeError(w, 500, "api_error", err.Error())
+			return
+		}
+
+		outputTokens := estimateClaudeOutputTokens(summarizeKiroWebSearchResults(query, results), "", nil)
+		h.recordSuccess(estimatedInputTokens, outputTokens, 0)
+		h.pool.RecordSuccessWithLatency(account.ID, time.Since(startedAt))
+		h.pool.UpdateStats(account.ID, estimatedInputTokens+outputTokens, 0)
+
+		if req.Stream {
+			h.sendClaudeNativeWebSearchStream(w, req.Model, query, toolUseID, results, estimatedInputTokens, outputTokens)
+			return
+		}
+		h.sendClaudeNativeWebSearchResponse(w, req.Model, query, toolUseID, results, estimatedInputTokens, outputTokens)
+		return
+	}
+
+	h.recordFailure()
+	if lastErr != nil {
+		h.sendClaudeError(w, 503, "api_error", lastErr.Error())
+		return
+	}
+	h.sendClaudeError(w, 503, "api_error", "No available accounts")
+}
+
+func extractClaudeWebSearchQuery(messages []ClaudeMessage) string {
+	for _, msg := range messages {
+		if msg.Role != "user" {
+			continue
+		}
+		text, _ := extractClaudeMessageText(msg.Content)
+		if query := normalizeClaudeWebSearchQuery(text); query != "" {
+			return query
+		}
+	}
+	return ""
+}
+
+func extractClaudeMessageText(content interface{}) (string, bool) {
+	switch v := content.(type) {
+	case string:
+		return v, true
+	case []interface{}:
+		var b strings.Builder
+		for _, item := range v {
+			block, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if block["type"] == "text" {
+				if text, ok := block["text"].(string); ok {
+					if b.Len() > 0 {
+						b.WriteString("\n")
+					}
+					b.WriteString(text)
+				}
+			}
+		}
+		return b.String(), b.Len() > 0
+	default:
+		return "", false
+	}
+}
+
+func normalizeClaudeWebSearchQuery(text string) string {
+	query := strings.TrimSpace(text)
+	if query == "" {
+		return ""
+	}
+	prefixes := []string{
+		"Perform a web search for the query:",
+		"Search the web for:",
+		"Web search query:",
+		"web_search:",
+	}
+	lower := strings.ToLower(query)
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(lower, strings.ToLower(prefix)) {
+			return strings.TrimSpace(query[len(prefix):])
+		}
+	}
+	return query
+}
+
+type kiroMCPResponse struct {
+	Result struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		IsError bool `json:"isError"`
+	} `json:"result"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+type kiroWebSearchResults struct {
+	Results []kiroWebSearchResult `json:"results"`
+	Query   string                `json:"query,omitempty"`
+}
+
+type kiroWebSearchResult struct {
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	Snippet string `json:"snippet"`
+}
+
+func callKiroMCPWebSearch(account *config.Account, query string) (string, *kiroWebSearchResults, error) {
+	toolUseID := fmt.Sprintf("web_search_tooluse_%s_%d", uuid.New().String(), time.Now().UnixMilli())
+	body := map[string]interface{}{
+		"id":      toolUseID,
+		"jsonrpc": "2.0",
+		"method":  "tools/call",
+		"params": map[string]interface{}{
+			"name":      "web_search",
+			"arguments": map[string]interface{}{"query": query},
+		},
+	}
+	reqBody, _ := json.Marshal(body)
+
+	endpoints := []string{
+		"https://q.us-east-1.amazonaws.com/mcp",
+		"https://codewhisperer.us-east-1.amazonaws.com/mcp",
+	}
+	var lastErr error
+	for _, endpoint := range endpoints {
+		httpReq, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(reqBody))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		host := ""
+		if parsed, err := url.Parse(endpoint); err == nil {
+			host = parsed.Host
+		}
+		applyKiroBaseHeaders(httpReq, account, buildStreamingHeaderValues(account, host))
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("x-amzn-codewhisperer-optout", "false")
+
+		resp, err := GetClientForProxy(ResolveAccountProxyURL(account)).Do(httpReq)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		respBody := readResponseBody(resp)
+		resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			lastErr = fmt.Errorf("HTTP %d from Kiro MCP: %s", resp.StatusCode, respBody)
+			continue
+		}
+
+		var mcpResp kiroMCPResponse
+		if err := json.Unmarshal([]byte(respBody), &mcpResp); err != nil {
+			return "", nil, err
+		}
+		if mcpResp.Error != nil {
+			return "", nil, fmt.Errorf("Kiro MCP error: %s", mcpResp.Error.Message)
+		}
+		if mcpResp.Result.IsError {
+			return "", nil, fmt.Errorf("Kiro MCP web_search returned an error")
+		}
+		if len(mcpResp.Result.Content) == 0 || strings.TrimSpace(mcpResp.Result.Content[0].Text) == "" {
+			return "", nil, fmt.Errorf("Kiro MCP web_search returned empty results")
+		}
+		var results kiroWebSearchResults
+		if err := json.Unmarshal([]byte(mcpResp.Result.Content[0].Text), &results); err != nil {
+			return "", nil, err
+		}
+		return toolUseID, &results, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("Kiro MCP web_search failed")
+	}
+	return "", nil, lastErr
+}
+
+func sendClaudeNativeWebSearchContent(model, query, toolUseID string, results *kiroWebSearchResults, inputTokens, outputTokens int) *ClaudeResponse {
+	summary := summarizeKiroWebSearchResults(query, results)
+	resp := &ClaudeResponse{
+		ID:           "msg_" + uuid.New().String(),
+		Type:         "message",
+		Role:         "assistant",
+		Model:        model,
+		StopReason:   "end_turn",
+		StopSequence: nil,
+		Usage: ClaudeUsage{
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+		},
+	}
+	resp.Content = []ClaudeContentBlock{
+		{
+			Type:  "server_tool_use",
+			ID:    toolUseID,
+			Name:  "web_search",
+			Input: map[string]interface{}{"query": query},
+		},
+		{
+			Type:      "web_search_tool_result",
+			ToolUseID: toolUseID,
+			Content:   buildClaudeWebSearchResultContent(results),
+		},
+		{Type: "text", Text: summary},
+	}
+	return resp
+}
+
+func buildClaudeWebSearchResultContent(results *kiroWebSearchResults) []map[string]interface{} {
+	if results == nil {
+		return nil
+	}
+	content := make([]map[string]interface{}, 0, len(results.Results))
+	for _, result := range results.Results {
+		content = append(content, map[string]interface{}{
+			"type":              "web_search_result",
+			"title":             result.Title,
+			"url":               result.URL,
+			"encrypted_content": result.Snippet,
+			"page_age":          nil,
+		})
+	}
+	return content
+}
+
+func summarizeKiroWebSearchResults(query string, results *kiroWebSearchResults) string {
+	if results == nil || len(results.Results) == 0 {
+		return fmt.Sprintf("<web_search>\nNo results found for %q.\n</web_search>", query)
+	}
+	var b strings.Builder
+	b.WriteString("<web_search>\n")
+	for i, result := range results.Results {
+		if i >= 10 {
+			break
+		}
+		fmt.Fprintf(&b, "%d. %s\n%s\n%s\n", i+1, result.Title, result.URL, result.Snippet)
+	}
+	b.WriteString("</web_search>")
+	return b.String()
+}
+
+func (h *Handler) sendClaudeNativeWebSearchResponse(w http.ResponseWriter, model, query, toolUseID string, results *kiroWebSearchResults, inputTokens, outputTokens int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(sendClaudeNativeWebSearchContent(model, query, toolUseID, results, inputTokens, outputTokens))
+}
+
+func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, query, toolUseID string, results *kiroWebSearchResults, inputTokens, outputTokens int) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		h.sendClaudeError(w, 500, "api_error", "Streaming not supported")
+		return
+	}
+	resp := sendClaudeNativeWebSearchContent(model, query, toolUseID, results, inputTokens, outputTokens)
+	h.sendSSE(w, flusher, "message_start", map[string]interface{}{
+		"type": "message_start",
+		"message": map[string]interface{}{
+			"id":            resp.ID,
+			"type":          "message",
+			"role":          "assistant",
+			"content":       []interface{}{},
+			"model":         model,
+			"stop_reason":   nil,
+			"stop_sequence": nil,
+			"usage":         map[string]int{"input_tokens": inputTokens, "output_tokens": 0},
+		},
+	})
+	for idx, block := range resp.Content {
+		h.sendSSE(w, flusher, "content_block_start", map[string]interface{}{
+			"type":          "content_block_start",
+			"index":         idx,
+			"content_block": block,
+		})
+		h.sendSSE(w, flusher, "content_block_stop", map[string]interface{}{
+			"type":  "content_block_stop",
+			"index": idx,
+		})
+	}
+	h.sendSSE(w, flusher, "message_delta", map[string]interface{}{
+		"type": "message_delta",
+		"delta": map[string]interface{}{
+			"stop_reason":   "end_turn",
+			"stop_sequence": nil,
+		},
+		"usage": map[string]int{"output_tokens": outputTokens},
+	})
+	h.sendSSE(w, flusher, "message_stop", map[string]interface{}{"type": "message_stop"})
 }
 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
@@ -1600,7 +1955,11 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, account *conf
 		},
 	}
 
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
 	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
@@ -1641,7 +2000,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, account *conf
 	outputTokens = estimateClaudeOutputTokens(outputContent, thinkingOutput, toolUses)
 
 	h.recordSuccess(inputTokens, outputTokens, credits)
-	h.pool.RecordSuccess(account.ID)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 	h.promptCache.Update(account.ID, cacheProfile)
 
@@ -1773,7 +2132,11 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, account *c
 		},
 	}
 
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
 	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
 		h.recordAccountFailure(account.ID, err)
@@ -1805,7 +2168,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, account *c
 	outputTokens = estimateClaudeOutputTokens(finalContent, rawThinkingContent, toolUses)
 
 	h.recordSuccess(inputTokens, outputTokens, credits)
-	h.pool.RecordSuccess(account.ID)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 	h.promptCache.Update(account.ID, cacheProfile)
 
@@ -2208,7 +2571,11 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *conf
 		},
 	}
 
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
 	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
@@ -2259,7 +2626,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *conf
 	}
 
 	h.recordSuccess(inputTokens, outputTokens, credits)
-	h.pool.RecordSuccess(account.ID)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 
 	// 发送结束
@@ -2317,7 +2684,11 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *c
 		},
 	}
 
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
 	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
 		h.recordAccountFailure(account.ID, err)
@@ -2346,7 +2717,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *c
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	h.recordSuccess(inputTokens, outputTokens, credits)
-	h.pool.RecordSuccess(account.ID)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 
 	thinkingFormat := config.GetThinkingConfig().OpenAIFormat
@@ -2579,6 +2950,7 @@ func (h *Handler) apiGetAccounts(w http.ResponseWriter, r *http.Request) {
 			"totalTokens":       stats.TotalTokens,
 			"totalCredits":      stats.TotalCredits,
 			"lastUsed":          stats.LastUsed,
+			"runtimeHealth":     h.pool.GetRuntimeHealth(a.ID),
 		}
 	}
 	json.NewEncoder(w).Encode(result)
@@ -3508,6 +3880,7 @@ func (h *Handler) apiGetAccountFull(w http.ResponseWriter, r *http.Request, id s
 		"totalTokens":       stats.TotalTokens,
 		"totalCredits":      stats.TotalCredits,
 		"lastUsed":          stats.LastUsed,
+		"runtimeHealth":     h.pool.GetRuntimeHealth(account.ID),
 	}
 
 	json.NewEncoder(w).Encode(result)

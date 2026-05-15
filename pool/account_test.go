@@ -67,6 +67,7 @@ func TestClassifyFailureReason(t *testing.T) {
 		{name: "rate limited", err: errors.New("HTTP 429 from Kiro IDE"), want: FailureReasonRateLimited},
 		{name: "model rate limit body", err: errors.New(`HTTP 429 from Kiro IDE: {"message":"model claude-opus-4.7 is throttled","reason":"MODEL_RATE_LIMIT"}`), want: FailureReasonRateLimited},
 		{name: "network", err: errors.New("dial tcp timeout"), want: FailureReasonTransientNetwork},
+		{name: "http2 internal stream reset", err: errors.New("stream error: stream ID 397; INTERNAL_ERROR; received from peer"), want: FailureReasonTransientNetwork},
 		{name: "server error", err: errors.New("HTTP 503 from Kiro IDE"), want: FailureReasonUpstream5xx},
 	}
 
@@ -248,5 +249,59 @@ func TestGetNextForModelExceptSkipsUnsupportedAndExcludedAccounts(t *testing.T) 
 	}
 	if got.ID != "acct-3" {
 		t.Fatalf("expected acct-3, got %q", got.ID)
+	}
+}
+
+func TestGetNextForModelPrefersLessBusyHealthyAccount(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}},
+		totalAccounts: 2,
+		currentIndex:  1,
+	}
+	p.SetModelList("acct-1", []string{"claude-opus-4.7"})
+	p.SetModelList("acct-2", []string{"claude-opus-4.7"})
+
+	release := p.BeginRequest("acct-1")
+	defer release()
+
+	got := p.GetNextForModel("claude-opus-4.7")
+	if got == nil {
+		t.Fatalf("expected an account")
+	}
+	if got.ID != "acct-2" {
+		t.Fatalf("expected less busy acct-2, got %q", got.ID)
+	}
+}
+
+func TestRuntimeHealthRecordsLatencyAndFailureScore(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+	}
+
+	release := p.BeginRequest("acct-1")
+	p.RecordSuccessWithLatency("acct-1", 1500*time.Millisecond)
+	release()
+	p.RecordFailure("acct-1", FailureReasonTransientNetwork)
+
+	health := p.GetRuntimeHealth("acct-1")
+	if health.ActiveConnections != 0 {
+		t.Fatalf("expected active connections to be released, got %d", health.ActiveConnections)
+	}
+	if health.RecentSuccesses != 1 || health.RecentFailures != 1 {
+		t.Fatalf("unexpected success/failure counts: %#v", health)
+	}
+	if health.AvgLatencyMS != 1500 {
+		t.Fatalf("expected avg latency 1500ms, got %d", health.AvgLatencyMS)
+	}
+	if health.Score >= 100 {
+		t.Fatalf("expected mixed health score below 100, got %d", health.Score)
 	}
 }
