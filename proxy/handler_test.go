@@ -3,13 +3,17 @@ package proxy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"kiro-go/config"
 	"kiro-go/pool"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -98,6 +102,54 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 	}
 }
 
+func TestOpus47GateLimitsConcurrentWork(t *testing.T) {
+	gate := newOpus47Gate(2, 10)
+	var running int64
+	var maxRunning int64
+	started := make(chan struct{}, 5)
+	release := make(chan struct{})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			done, err := gate.acquire(time.Second)
+			if err != nil {
+				t.Errorf("acquire gate: %v", err)
+				return
+			}
+			defer done()
+
+			now := atomic.AddInt64(&running, 1)
+			for {
+				seen := atomic.LoadInt64(&maxRunning)
+				if now <= seen || atomic.CompareAndSwapInt64(&maxRunning, seen, now) {
+					break
+				}
+			}
+			started <- struct{}{}
+			<-release
+			atomic.AddInt64(&running, -1)
+		}()
+	}
+
+	for i := 0; i < 2; i++ {
+		<-started
+	}
+	select {
+	case <-started:
+		t.Fatalf("expected only two concurrent requests before release")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	wg.Wait()
+
+	if got := atomic.LoadInt64(&maxRunning); got > 2 {
+		t.Fatalf("expected max concurrency <= 2, got %d", got)
+	}
+}
+
 func TestValidateClaudeRequestShapeRejectsAssistantPrefill(t *testing.T) {
 	req := &ClaudeRequest{
 		Messages: []ClaudeMessage{
@@ -167,6 +219,522 @@ func TestHandleClaudeRetriesQuotaFailureOnNextAccount(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("expected async account stats update to complete")
+}
+
+func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = time.Second
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+	}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			status := http.StatusOK
+			body := ""
+			if attempts <= 6 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected capacity retries to recover, got status %d body %s", w.Code, w.Body.String())
+	}
+	if attempts != 7 {
+		t.Fatalf("expected six capacity retries then success, got %d attempts", attempts)
+	}
+	if len(sleeps) != 6 {
+		t.Fatalf("expected one wait per capacity response, got %d waits", len(sleeps))
+	}
+	if !strings.Contains(w.Body.String(), `"model":"claude-opus-4.7"`) {
+		t.Fatalf("expected response to preserve requested opus model, got %s", w.Body.String())
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if config.GetAccounts()[0].RequestCount > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats update to complete")
+}
+
+func TestHandleClaudeWaitsAndRetriesOpus47RateLimit(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = time.Second
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+	}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			status := http.StatusOK
+			body := ""
+			if attempts == 1 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"Too many requests, please wait before trying again.","retry_after_seconds":0}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected rate-limit retry to recover, got status %d body %s", w.Code, w.Body.String())
+	}
+	if attempts != 2 {
+		t.Fatalf("expected one rate-limit retry then success, got %d attempts", attempts)
+	}
+	if len(sleeps) != 1 {
+		t.Fatalf("expected one wait for rate-limit response, got %d", len(sleeps))
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleClaudeOpus47RateLimitTriesNextAccountBeforeWaiting(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{ID: fmt.Sprintf("acct-%d", i), Enabled: true, AccessToken: fmt.Sprintf("token-%d", i), ProfileArn: fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i), ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+
+	oldSleep := sleepForOpusCapacityRetry
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+	}
+	t.Cleanup(func() {
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			status := http.StatusOK
+			body := ""
+			if len(tokens) == 1 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"Too many requests, please wait before trying again.","retry_after_seconds":5}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected retry on next account to recover, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(sleeps) != 0 {
+		t.Fatalf("expected next available account before waiting, got sleeps %#v", sleeps)
+	}
+	if len(tokens) != 2 || tokens[0] != "Bearer token-1" || tokens[1] != "Bearer token-2" {
+		t.Fatalf("expected first account then second account, got %#v", tokens)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleClaudeOpus47AdmissionGateLimitsUpstreamConcurrency(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	for i := 0; i < 5; i++ {
+		if err := config.AddAccount(config.Account{ID: fmt.Sprintf("acct-%d", i), Enabled: true, AccessToken: fmt.Sprintf("token-%d", i), ProfileArn: "arn:aws:codewhisperer:profile/test", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+
+	oldGate := opus47AdmissionGate
+	opus47AdmissionGate = newOpus47Gate(2, 10)
+	t.Cleanup(func() {
+		opus47AdmissionGate = oldGate
+		InitKiroHttpClient("")
+	})
+
+	var upstreamRunning int64
+	var maxUpstreamRunning int64
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			now := atomic.AddInt64(&upstreamRunning, 1)
+			for {
+				seen := atomic.LoadInt64(&maxUpstreamRunning)
+				if now <= seen || atomic.CompareAndSwapInt64(&maxUpstreamRunning, seen, now) {
+					break
+				}
+			}
+			time.Sleep(50 * time.Millisecond)
+			atomic.AddInt64(&upstreamRunning, -1)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+			req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+			w := httptest.NewRecorder()
+			h.handleClaudeMessagesInternal(w, req)
+			if w.Code != http.StatusOK {
+				t.Errorf("expected status 200, got %d body %s", w.Code, w.Body.String())
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt64(&maxUpstreamRunning); got > 2 {
+		t.Fatalf("expected upstream concurrency <= 2, got %d", got)
+	}
+	waitForAccountRequestCount(t, 5)
+}
+
+func TestHandleClaudeOpus47AdmissionGateSharesRetryBudget(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	oldGate := opus47AdmissionGate
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opus47AdmissionGate = newOpus47Gate(1, 10)
+	opusCapacityRetryBudget = 200 * time.Millisecond
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+	}
+	t.Cleanup(func() {
+		opus47AdmissionGate = oldGate
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	held, err := opus47AdmissionGate.acquire(time.Second)
+	if err != nil {
+		t.Fatalf("pre-acquire gate: %v", err)
+	}
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			status := http.StatusOK
+			body := ""
+			if attempts == 1 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+		w := httptest.NewRecorder()
+		h.handleClaudeMessagesInternal(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d body %s", w.Code, w.Body.String())
+		}
+	}()
+
+	time.Sleep(90 * time.Millisecond)
+	held()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatalf("handler did not complete")
+	}
+	if len(sleeps) != 1 {
+		t.Fatalf("expected one capacity retry sleep, got %d", len(sleeps))
+	}
+	if sleeps[0] > 150*time.Millisecond {
+		t.Fatalf("expected gate wait to consume retry budget, got retry sleep %s", sleeps[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleClaudeStreamOpus47CapacityLimitReturnsExplicitError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = time.Millisecond
+	sleepForOpusCapacityRetry = func(d time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected explicit 503 after capacity budget, got status %d body %q", w.Code, w.Body.String())
+	}
+	if strings.TrimSpace(w.Body.String()) == "" {
+		t.Fatalf("expected non-empty error body")
+	}
+	if !strings.Contains(w.Body.String(), "INSUFFICIENT_MODEL_CAPACITY") {
+		t.Fatalf("expected upstream capacity reason in body, got %q", w.Body.String())
+	}
+}
+
+func TestHandleClaudeStreamOpus47CapacityLimitNeverReturnsEmptyBodyUnderConcurrency(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	for i := 0; i < 10; i++ {
+		if err := config.AddAccount(config.Account{ID: fmt.Sprintf("acct-%d", i), Enabled: true, AccessToken: fmt.Sprintf("token-%d", i), ProfileArn: "arn:aws:codewhisperer:profile/test", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+
+	oldGate := opus47AdmissionGate
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opus47AdmissionGate = newOpus47Gate(100, 100)
+	opusCapacityRetryBudget = time.Millisecond
+	sleepForOpusCapacityRetry = func(d time.Duration) {}
+	t.Cleanup(func() {
+		opus47AdmissionGate = oldGate
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	var wg sync.WaitGroup
+	errCh := make(chan string, 100)
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			body := strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+			req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+			w := httptest.NewRecorder()
+			h.handleClaudeMessagesInternal(w, req)
+			respBody := w.Body.String()
+			if w.Code == http.StatusOK && strings.TrimSpace(respBody) == "" {
+				errCh <- "got HTTP 200 with empty body"
+				return
+			}
+			if strings.TrimSpace(respBody) == "" {
+				errCh <- fmt.Sprintf("got status %d with empty body", w.Code)
+				return
+			}
+			if w.Code == http.StatusOK && !strings.Contains(respBody, "event: error") {
+				errCh <- fmt.Sprintf("got HTTP 200 without SSE error body: %q", respBody)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+
+	var failures []string
+	for msg := range errCh {
+		failures = append(failures, msg)
+	}
+	if len(failures) > 0 {
+		t.Fatalf("expected no empty streams, got %d failures, first: %s", len(failures), failures[0])
+	}
+}
+
+func waitForAccountRequestCount(t *testing.T, want int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		total := 0
+		for _, account := range config.GetAccounts() {
+			total += account.RequestCount
+		}
+		if total >= want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats request count >= %d", want)
 }
 
 func TestAdminAccountsExposeHealthCooldownFields(t *testing.T) {
@@ -239,6 +807,33 @@ func TestAdminAccountFullExposesHealthCooldownFields(t *testing.T) {
 	}
 	if got["lastFailureAt"] != float64(234) || got["cooldownUntil"] != float64(567) || got["failureCount"] != float64(3) {
 		t.Fatalf("expected health fields in account detail response, got %#v", got)
+	}
+}
+
+func TestRecordAccountFailureUsesRateLimitResetTime(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{ID: "acct-1", Email: "acct1@example.com", Enabled: true}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	resetAt := time.Now().Add(2 * time.Second).Truncate(time.Second)
+
+	h.recordAccountFailure(account.ID, &rateLimitError{endpoint: "Kiro IDE", body: `{"message":"rate limited"}`, resetAt: resetAt})
+
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "rate_limited" {
+		t.Fatalf("expected rate_limited, got %q", got.LastFailureReason)
+	}
+	if got.CooldownUntil != resetAt.Unix() {
+		t.Fatalf("expected cooldown until %d, got %d", resetAt.Unix(), got.CooldownUntil)
+	}
+	if got.CooldownUntil-time.Now().Unix() > 5 {
+		t.Fatalf("expected short precise cooldown, got until %d", got.CooldownUntil)
 	}
 }
 
@@ -432,7 +1027,113 @@ func TestAdminHealthCheckConfigUpdateAndGet(t *testing.T) {
 	}
 }
 
-func TestCheckAccountHealthValidatesTokenBeforeModelLoad(t *testing.T) {
+func TestAdminPageDisablesCaching(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	w := httptest.NewRecorder()
+
+	h.serveAdminPage(w, req)
+
+	if got := w.Header().Get("Cache-Control"); !strings.Contains(got, "no-store") {
+		t.Fatalf("expected admin page to disable caching, got %q", got)
+	}
+}
+
+func TestDashboardRefreshIncludesHealthCheckStatus(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "web", "index.html"))
+	if err != nil {
+		t.Fatalf("read admin page: %v", err)
+	}
+
+	html := string(body)
+	if !strings.Contains(html, "loadStats(), loadAccounts(), loadAutoRefreshConfig(), loadHealthCheckConfig()") {
+		t.Fatalf("expected dashboard polling to refresh health check status")
+	}
+}
+
+func TestAdminAutoRefreshConfigRunsImmediatelyWhenEnabled(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("test-password")
+
+	h := &Handler{
+		pool:               &pool.AccountPool{},
+		autoRefreshUpdated: make(chan struct{}, 1),
+	}
+
+	body := strings.NewReader(`{"enabled":true,"intervalMinutes":5,"scope":"all"}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/auto-refresh", body)
+	req.Header.Set("X-Admin-Password", "test-password")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	status := waitForAutoRefreshFinished(t, h)
+	if status.LastStartedAt == 0 || status.LastFinishedAt == 0 {
+		t.Fatalf("expected enabled auto refresh save to run immediately, got %#v", status)
+	}
+}
+
+func TestAdminHealthCheckConfigRunsImmediatelyWhenEnabled(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("test-password")
+
+	h := &Handler{
+		pool:               &pool.AccountPool{},
+		healthCheckUpdated: make(chan struct{}, 1),
+	}
+
+	body := strings.NewReader(`{"enabled":true,"intervalMinutes":5,"autoDisableUnhealthy":true}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/health-check", body)
+	req.Header.Set("X-Admin-Password", "test-password")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	status := waitForHealthCheckFinished(t, h)
+	if status.LastStartedAt == 0 || status.LastFinishedAt == 0 {
+		t.Fatalf("expected enabled health check save to run immediately, got %#v", status)
+	}
+}
+
+func waitForAutoRefreshFinished(t *testing.T, h *Handler) autoRefreshStatus {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	var status autoRefreshStatus
+	for time.Now().Before(deadline) {
+		status = h.getAutoRefreshStatus()
+		if status.LastStartedAt != 0 && status.LastFinishedAt != 0 && !status.Running {
+			return status
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return status
+}
+
+func waitForHealthCheckFinished(t *testing.T, h *Handler) healthCheckStatus {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	var status healthCheckStatus
+	for time.Now().Before(deadline) {
+		status = h.getHealthCheckStatus()
+		if status.LastStartedAt != 0 && status.LastFinishedAt != 0 && !status.Running {
+			return status
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return status
+}
+
+func TestCheckAccountHealthValidatesTokenBeforeProbe(t *testing.T) {
 	h := &Handler{}
 	account := &config.Account{ID: "account-1", Email: "test@example.com"}
 
@@ -442,8 +1143,8 @@ func TestCheckAccountHealthValidatesTokenBeforeModelLoad(t *testing.T) {
 		return nil
 	}
 	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
-		calls = append(calls, "list")
-		return nil, nil
+		calls = append(calls, "models")
+		return []ModelInfo{{ModelId: "claude-sonnet-4.5"}}, nil
 	}
 	t.Cleanup(func() {
 		ensureValidTokenForHealthCheck = defaultEnsureValidTokenForHealthCheck
@@ -453,8 +1154,8 @@ func TestCheckAccountHealthValidatesTokenBeforeModelLoad(t *testing.T) {
 	if err := h.checkAccountHealth(account); err != nil {
 		t.Fatalf("expected health check to pass, got %v", err)
 	}
-	if got := strings.Join(calls, ","); got != "ensure,list" {
-		t.Fatalf("expected ensure before list, got %q", got)
+	if got := strings.Join(calls, ","); got != "ensure,models" {
+		t.Fatalf("expected ensure before model list, got %q", got)
 	}
 
 	calls = nil
@@ -464,15 +1165,15 @@ func TestCheckAccountHealthValidatesTokenBeforeModelLoad(t *testing.T) {
 		return ensureErr
 	}
 	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
-		calls = append(calls, "list")
-		return nil, nil
+		calls = append(calls, "models")
+		return []ModelInfo{{ModelId: "claude-sonnet-4.5"}}, nil
 	}
 
 	if err := h.checkAccountHealth(account); !errors.Is(err, ensureErr) {
 		t.Fatalf("expected ensure error, got %v", err)
 	}
 	if got := strings.Join(calls, ","); got != "ensure" {
-		t.Fatalf("expected list to be skipped after ensure error, got %q", got)
+		t.Fatalf("expected model list to be skipped after ensure error, got %q", got)
 	}
 }
 

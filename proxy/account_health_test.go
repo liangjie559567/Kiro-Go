@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"kiro-go/config"
+	"kiro-go/pool"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
@@ -13,7 +14,7 @@ func TestSelectHealthCheckAccountsOnlyEnabled(t *testing.T) {
 	accounts := []config.Account{
 		{ID: "enabled-1", Enabled: true},
 		{ID: "disabled-1", Enabled: false},
-		{ID: "enabled-2", Enabled: true},
+		{ID: "enabled-2", Enabled: true, CooldownUntil: time.Now().Add(time.Hour).Unix(), LastFailureReason: "quota_exhausted"},
 	}
 
 	got := selectHealthCheckAccounts(accounts)
@@ -70,6 +71,25 @@ func TestRunHealthCheckBatchDisablesFailedAccountsWhenConfigured(t *testing.T) {
 	}
 	if len(disabled) != 1 || disabled[0] != "bad:403 forbidden" {
 		t.Fatalf("unexpected disabled accounts: %#v", disabled)
+	}
+}
+
+func TestRunHealthCheckBatchDoesNotDisableQuotaExhaustedAccounts(t *testing.T) {
+	accounts := []config.Account{{ID: "quota"}}
+	var disabled []string
+
+	result := runHealthCheckBatch(accounts, true, func(account *config.Account) error {
+		return errors.New("quota exhausted on Kiro IDE")
+	}, func(account *config.Account, reason string, now int64) error {
+		disabled = append(disabled, account.ID)
+		return nil
+	}, 123)
+
+	if result.Success != 0 || result.Failed != 1 || result.Disabled != 0 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+	if len(disabled) != 0 {
+		t.Fatalf("quota exhaustion should not disable accounts, disabled %#v", disabled)
 	}
 }
 
@@ -160,5 +180,90 @@ func TestDisableUnhealthyAccountPersistsUnhealthyStatus(t *testing.T) {
 	}
 	if got.BanTime != 123 {
 		t.Fatalf("expected ban time 123, got %d", got.BanTime)
+	}
+}
+
+func TestCheckAccountHealthClearsCooldownAfterSuccessfulModelList(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:                "account-1",
+		Email:             "account@example.com",
+		Enabled:           true,
+		AccessToken:       "token",
+		ProfileArn:        "arn:aws:codewhisperer:profile/test",
+		LastFailureReason: "quota_exhausted",
+		LastFailureAt:     time.Now().Add(-time.Minute).Unix(),
+		CooldownUntil:     time.Now().Add(time.Hour).Unix(),
+		FailureCount:      1,
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+
+	var loadedAccountID string
+	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
+		loadedAccountID = account.ID
+		return []ModelInfo{{ModelId: "claude-sonnet-4.5"}}, nil
+	}
+	t.Cleanup(func() {
+		listAvailableModelsForHealthCheck = ListAvailableModels
+	})
+
+	if err := h.checkAccountHealth(&account); err != nil {
+		t.Fatalf("expected health check to pass, got %v", err)
+	}
+	if loadedAccountID != account.ID {
+		t.Fatalf("expected model list check for account %q, got %q", account.ID, loadedAccountID)
+	}
+	if p.IsCoolingDown(account.ID, time.Now()) {
+		t.Fatalf("expected successful probe to clear pool cooldown")
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "" || got.LastFailureAt != 0 || got.CooldownUntil != 0 || got.FailureCount != 0 {
+		t.Fatalf("expected successful probe to clear persisted health fields, got %#v", got)
+	}
+}
+
+func TestCheckAccountHealthRecordsFailureWhenModelListFails(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:          "account-1",
+		Email:       "account@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+
+	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
+		return nil, errors.New("quota exhausted on Kiro IDE")
+	}
+	t.Cleanup(func() {
+		listAvailableModelsForHealthCheck = ListAvailableModels
+	})
+
+	if err := h.checkAccountHealth(&account); err == nil {
+		t.Fatalf("expected health check to fail")
+	}
+	if !p.IsCoolingDown(account.ID, time.Now()) {
+		t.Fatalf("expected failed probe to put account in cooldown")
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "quota_exhausted" || got.FailureCount != 1 || got.CooldownUntil == 0 {
+		t.Fatalf("expected quota health fields after failed probe, got %#v", got)
 	}
 }

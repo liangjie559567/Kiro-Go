@@ -19,6 +19,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const defaultRateLimitFallbackSeconds = 5
+
+type rateLimitError struct {
+	endpoint string
+	body     string
+	resetAt  time.Time
+}
+
+func (e *rateLimitError) Error() string {
+	if e.body != "" {
+		return fmt.Sprintf("HTTP 429 from %s: %s", e.endpoint, e.body)
+	}
+	return fmt.Sprintf("HTTP 429 from %s", e.endpoint)
+}
+
+func (e *rateLimitError) RateLimitResetAt() time.Time {
+	return e.resetAt
+}
+
 // Endpoint configuration (auto-fallback on quota exhaustion).
 type kiroEndpoint struct {
 	URL       string
@@ -231,6 +250,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 	if _, err := json.Marshal(payload); err != nil {
 		return err
 	}
+	opus47Payload := payload != nil && isOpus47Model(payload.ConversationState.CurrentMessage.UserInputMessage.ModelID)
 
 	// Debug: dump full payload for troubleshooting upstream rejections
 	if payloadJSON, err := json.Marshal(payload); err == nil {
@@ -303,16 +323,33 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		}
 
 		if resp.StatusCode == 429 {
+			errBody := readResponseBody(resp)
+			resetAt := rateLimitResetAt(resp.Header, errBody, time.Now())
 			resp.Body.Close()
-			logger.Warnf("[KiroAPI] Endpoint %s quota exhausted (429), trying next...", ep.Name)
-			lastErr = fmt.Errorf("quota exhausted on %s", ep.Name)
+			if errBody != "" {
+				if opus47Payload {
+					logger.Warnf("[KiroAPI] Endpoint %s returned Opus 4.7 429: %s", ep.Name, errBody)
+				} else {
+					logger.Warnf("[KiroAPI] Endpoint %s returned 429: %s, trying next...", ep.Name, errBody)
+				}
+			} else {
+				if opus47Payload {
+					logger.Warnf("[KiroAPI] Endpoint %s returned Opus 4.7 429", ep.Name)
+				} else {
+					logger.Warnf("[KiroAPI] Endpoint %s returned 429, trying next...", ep.Name)
+				}
+			}
+			lastErr = &rateLimitError{endpoint: ep.Name, body: errBody, resetAt: resetAt}
+			if opus47Payload {
+				return lastErr
+			}
 			continue
 		}
 
 		if resp.StatusCode != 200 {
-			errBody, _ := io.ReadAll(resp.Body)
+			errBody := readResponseBody(resp)
 			resp.Body.Close()
-			lastErr = fmt.Errorf("HTTP %d from %s: %s", resp.StatusCode, ep.Name, string(errBody))
+			lastErr = fmt.Errorf("HTTP %d from %s: %s", resp.StatusCode, ep.Name, errBody)
 			// Authentication errors are not retried across endpoints.
 			if resp.StatusCode == 401 || resp.StatusCode == 403 {
 				return lastErr
@@ -330,6 +367,114 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		return lastErr
 	}
 	return fmt.Errorf("all endpoints failed")
+}
+
+func readResponseBody(resp *http.Response) string {
+	if resp == nil || resp.Body == nil {
+		return ""
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return strings.TrimSpace(string(body))
+}
+
+func rateLimitResetAt(headers http.Header, body string, now time.Time) time.Time {
+	if resetAt, ok := rateLimitResetAtFromHeaders(headers, now); ok {
+		return resetAt
+	}
+	if resetAt, ok := rateLimitResetAtFromBody(body, now); ok {
+		return resetAt
+	}
+	return now.Add(defaultRateLimitFallbackSeconds * time.Second)
+}
+
+func rateLimitResetAtFromHeaders(headers http.Header, now time.Time) (time.Time, bool) {
+	if headers == nil {
+		return time.Time{}, false
+	}
+	if retryAfter := strings.TrimSpace(headers.Get("Retry-After")); retryAfter != "" {
+		if resetAt, ok := parseRateLimitTime(retryAfter, now); ok {
+			return resetAt, true
+		}
+	}
+	for _, name := range []string{
+		"x-ratelimit-reset-requests",
+		"x-ratelimit-reset-tokens",
+		"anthropic-ratelimit-unified-reset",
+	} {
+		if value := strings.TrimSpace(headers.Get(name)); value != "" {
+			if resetAt, ok := parseRateLimitTime(value, now); ok {
+				return resetAt, true
+			}
+		}
+	}
+	return time.Time{}, false
+}
+
+func rateLimitResetAtFromBody(body string, now time.Time) (time.Time, bool) {
+	if strings.TrimSpace(body) == "" {
+		return time.Time{}, false
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(body), &raw); err != nil {
+		return time.Time{}, false
+	}
+	for _, key := range []string{"rate_limit_reset_at", "reset_at"} {
+		if value, ok := stringValue(raw[key]); ok {
+			if resetAt, ok := parseRateLimitTime(value, now); ok {
+				return resetAt, true
+			}
+		}
+	}
+	for _, key := range []string{"reset_after_seconds", "retry_after_seconds", "retry_after"} {
+		if seconds, ok := secondsValue(raw[key]); ok {
+			return now.Add(time.Duration(seconds) * time.Second), true
+		}
+	}
+	return time.Time{}, false
+}
+
+func parseRateLimitTime(value string, now time.Time) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	if seconds, err := strconv.ParseFloat(value, 64); err == nil {
+		if seconds > 1000000000 {
+			return time.Unix(int64(seconds), 0), true
+		}
+		if seconds < 0 {
+			seconds = 0
+		}
+		return now.Add(time.Duration(seconds * float64(time.Second))), true
+	}
+	if resetAt, err := time.Parse(time.RFC3339, value); err == nil {
+		return resetAt, true
+	}
+	if resetAt, err := http.ParseTime(value); err == nil {
+		return resetAt, true
+	}
+	return time.Time{}, false
+}
+
+func stringValue(value any) (string, bool) {
+	switch v := value.(type) {
+	case string:
+		return v, v != ""
+	default:
+		return "", false
+	}
+}
+
+func secondsValue(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case string:
+		seconds, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return seconds, err == nil
+	default:
+		return 0, false
+	}
 }
 
 // ==================== Event Stream Parsing ====================
@@ -391,14 +536,14 @@ func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
 		case "assistantResponseEvent":
 			if content, ok := event["content"].(string); ok && content != "" {
 				normalized := normalizeChunk(content, &lastAssistantContent)
-				if normalized != "" {
+				if normalized != "" && callback.OnText != nil {
 					callback.OnText(normalized, false)
 				}
 			}
 		case "reasoningContentEvent":
 			if text, ok := event["text"].(string); ok && text != "" {
 				normalized := normalizeChunk(text, &lastReasoningContent)
-				if normalized != "" {
+				if normalized != "" && callback.OnText != nil {
 					callback.OnText(normalized, true)
 				}
 			}
@@ -421,7 +566,9 @@ func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
 		callback.OnCredits(totalCredits)
 	}
 
-	callback.OnComplete(inputTokens, outputTokens)
+	if callback.OnComplete != nil {
+		callback.OnComplete(inputTokens, outputTokens)
+	}
 	return nil
 }
 

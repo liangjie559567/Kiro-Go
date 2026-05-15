@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"kiro-go/config"
 	"kiro-go/logger"
+	"kiro-go/pool"
 	"time"
 )
 
@@ -50,7 +51,7 @@ func runHealthCheckBatch(
 		}
 
 		result.Failed++
-		if !autoDisable {
+		if !autoDisable || !shouldDisableHealthCheckFailure(err) {
 			continue
 		}
 		if disableErr := disable(&accounts[i], err.Error(), now); disableErr != nil {
@@ -60,6 +61,15 @@ func runHealthCheckBatch(
 		result.Disabled++
 	}
 	return result
+}
+
+func shouldDisableHealthCheckFailure(err error) bool {
+	switch classifyFailureReason(err) {
+	case pool.FailureReasonAuthExpired, pool.FailureReasonSuspended:
+		return true
+	default:
+		return false
+	}
 }
 
 func computeNextHealthCheckRunAt(now time.Time, settings config.HealthCheckConfig) int64 {

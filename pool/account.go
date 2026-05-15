@@ -119,14 +119,15 @@ func (p *AccountPool) GetNext() *config.Account {
 }
 
 func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	if len(p.accounts) == 0 {
 		return nil
 	}
 
 	now := time.Now()
+	p.clearExpiredCooldownsLocked(now)
 	n := len(p.accounts)
 	seen := make(map[string]bool)
 
@@ -170,9 +171,8 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		return acc
 	}
 
-	// 无可用账号，返回冷却时间最短的（排除额度用尽的）
-	var best *config.Account
-	var earliest time.Time
+	// 无可用账号时直接返回 nil。冷却账号必须等到冷却结束后再重新进入调度，
+	// 否则 Opus 4.7 容量不足时会在同一冷却窗口内反复打同一个账号。
 	for i := range p.accounts {
 		acc := &p.accounts[i]
 		if excluded != nil && excluded[acc.ID] {
@@ -186,15 +186,15 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 			continue
 		}
 		if cooldown, ok := p.cooldowns[acc.ID]; ok {
-			if best == nil || cooldown.Before(earliest) {
-				best = acc
-				earliest = cooldown
+			if now.Before(cooldown) {
+				continue
 			}
+			return acc
 		} else {
 			return acc
 		}
 	}
-	return best
+	return nil
 }
 
 // GetByID 根据 ID 获取账号
@@ -214,6 +214,37 @@ func (p *AccountPool) RecordSuccess(id string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
+	p.clearFailureStateLocked(id)
+	if config.Get() != nil {
+		_ = config.ClearAccountHealth(id)
+	}
+}
+
+func (p *AccountPool) clearExpiredCooldownsLocked(now time.Time) {
+	nowUnix := now.Unix()
+	cleared := make(map[string]bool)
+	for i := range p.accounts {
+		id := p.accounts[i].ID
+		if cleared[id] {
+			continue
+		}
+		if cooldown, ok := p.cooldowns[id]; ok && now.Before(cooldown) {
+			continue
+		}
+		if p.accounts[i].CooldownUntil > 0 && nowUnix < p.accounts[i].CooldownUntil {
+			continue
+		}
+		if _, ok := p.cooldowns[id]; ok || p.accounts[i].CooldownUntil > 0 {
+			p.clearFailureStateLocked(id)
+			if config.Get() != nil {
+				_ = config.ClearAccountHealth(id)
+			}
+			cleared[id] = true
+		}
+	}
+}
+
+func (p *AccountPool) clearFailureStateLocked(id string) {
 	delete(p.cooldowns, id)
 	p.errorCounts[id] = 0
 	delete(p.failures, id)
@@ -224,9 +255,6 @@ func (p *AccountPool) RecordSuccess(id string) {
 			p.accounts[i].LastFailureAt = 0
 			p.accounts[i].CooldownUntil = 0
 		}
-	}
-	if config.Get() != nil {
-		_ = config.ClearAccountHealth(id)
 	}
 }
 
@@ -280,6 +308,33 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 	}
 }
 
+func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetAt time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+
+	p.errorCounts[id]++
+	p.failures[id] = reason
+	now := time.Now()
+	if !resetAt.After(now) {
+		resetAt = now
+	}
+
+	for i := range p.accounts {
+		if p.accounts[i].ID != id {
+			continue
+		}
+		p.accounts[i].FailureCount = p.errorCounts[id]
+		p.accounts[i].LastFailureReason = string(reason)
+		p.accounts[i].LastFailureAt = now.Unix()
+		p.cooldowns[id] = resetAt
+		p.accounts[i].CooldownUntil = resetAt.Unix()
+		if config.Get() != nil {
+			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
+		}
+	}
+}
+
 // UpdateToken 更新账号 Token
 func (p *AccountPool) UpdateToken(id, accessToken, refreshToken string, expiresAt int64) {
 	p.mu.Lock()
@@ -312,9 +367,10 @@ func (p *AccountPool) Count() int {
 
 // AvailableCount 返回可用账号数
 func (p *AccountPool) AvailableCount() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	now := time.Now()
+	p.clearExpiredCooldownsLocked(now)
 	count := 0
 	seen := make(map[string]bool)
 	for _, acc := range p.accounts {
@@ -323,6 +379,9 @@ func (p *AccountPool) AvailableCount() int {
 		}
 		seen[acc.ID] = true
 		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
+			continue
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			continue
 		}
 		count++

@@ -1,8 +1,11 @@
 package proxy
 
 import (
+	"io"
+	"kiro-go/config"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -79,6 +82,169 @@ func TestInitKiroHttpClientKeepsShortRestTimeout(t *testing.T) {
 	}
 	if restClient.Timeout != 30*time.Second {
 		t.Fatalf("expected REST timeout to stay 30s, got %s", restClient.Timeout)
+	}
+}
+
+func TestCallKiroAPIRetainsTooManyRequestsBody(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"model claude-opus-4.7 is throttled","reason":"MODEL_RATE_LIMIT"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-opus-4-7",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected 429 error")
+	}
+	if !strings.Contains(err.Error(), "MODEL_RATE_LIMIT") || !strings.Contains(err.Error(), "claude-opus-4.7 is throttled") {
+		t.Fatalf("expected 429 body to be preserved, got %q", err.Error())
+	}
+}
+
+func TestCallKiroAPIDoesNotFallbackEndpointsForOpus47RateLimit(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("auto"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(true); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"Too many requests, please wait before trying again.","retry_after_seconds":5}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-opus-4.7",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected 429 error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected opus 4.7 429 to stop endpoint fallback after one attempt, got %d", attempts)
+	}
+}
+
+func TestCallKiroAPIReturnsRateLimitResetFromRetryAfter(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			header := make(http.Header)
+			header.Set("Retry-After", "2")
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"rate limited"}`)),
+				Header:     header,
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	start := time.Now()
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected 429 error")
+	}
+	rlErr, ok := err.(interface{ RateLimitResetAt() time.Time })
+	if !ok {
+		t.Fatalf("expected rate limit reset error, got %T", err)
+	}
+	resetAt := rlErr.RateLimitResetAt()
+	if resetAt.Before(start.Add(1500*time.Millisecond)) || resetAt.After(start.Add(3*time.Second)) {
+		t.Fatalf("expected reset near 2s from start, got %s", resetAt.Sub(start))
+	}
+}
+
+func TestCallKiroAPIReturnsRateLimitResetFromBody(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	resetAt := time.Now().Add(4 * time.Second).UTC().Truncate(time.Second)
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"rate limited","rate_limit_reset_at":"` + resetAt.Format(time.RFC3339) + `"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected 429 error")
+	}
+	rlErr, ok := err.(interface{ RateLimitResetAt() time.Time })
+	if !ok {
+		t.Fatalf("expected rate limit reset error, got %T", err)
+	}
+	if !rlErr.RateLimitResetAt().Equal(resetAt) {
+		t.Fatalf("expected reset %s, got %s", resetAt, rlErr.RateLimitResetAt())
 	}
 }
 

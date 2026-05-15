@@ -94,3 +94,13 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
+
+func TestParseEventStreamAllowsPartialCallback(t *testing.T) {
+	callback := &KiroStreamCallback{
+		OnText: func(text string, isThinking bool) {},
+	}
+
+	if err := parseEventStream(strings.NewReader(""), callback); err != nil {
+		t.Fatalf("expected empty stream with partial callback to pass, got %v", err)
+	}
+}

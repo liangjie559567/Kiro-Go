@@ -65,6 +65,7 @@ func TestClassifyFailureReason(t *testing.T) {
 		{name: "auth", err: errors.New("HTTP 401 from Kiro IDE"), want: FailureReasonAuthExpired},
 		{name: "suspended", err: errors.New("TEMPORARILY_SUSPENDED"), want: FailureReasonSuspended},
 		{name: "rate limited", err: errors.New("HTTP 429 from Kiro IDE"), want: FailureReasonRateLimited},
+		{name: "model rate limit body", err: errors.New(`HTTP 429 from Kiro IDE: {"message":"model claude-opus-4.7 is throttled","reason":"MODEL_RATE_LIMIT"}`), want: FailureReasonRateLimited},
 		{name: "network", err: errors.New("dial tcp timeout"), want: FailureReasonTransientNetwork},
 		{name: "server error", err: errors.New("HTTP 503 from Kiro IDE"), want: FailureReasonUpstream5xx},
 	}
@@ -91,6 +92,30 @@ func TestRecordFailureAppliesCooldownByReason(t *testing.T) {
 	}
 	if got := p.GetAllAccounts()[0].LastFailureReason; got != string(FailureReasonQuotaExhausted) {
 		t.Fatalf("expected failure reason to persist, got %q", got)
+	}
+}
+
+func TestRecordFailureUntilUsesExplicitRateLimitReset(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+	}
+	resetAt := time.Now().Add(3 * time.Second).Truncate(time.Second)
+
+	p.RecordFailureUntil("acct-1", FailureReasonRateLimited, resetAt)
+
+	got := p.GetAllAccounts()[0]
+	if got.LastFailureReason != string(FailureReasonRateLimited) {
+		t.Fatalf("expected rate_limited reason, got %q", got.LastFailureReason)
+	}
+	if got.CooldownUntil != resetAt.Unix() {
+		t.Fatalf("expected cooldown until %d, got %d", resetAt.Unix(), got.CooldownUntil)
+	}
+	if !p.IsCoolingDown("acct-1", time.Now()) {
+		t.Fatalf("expected account to be cooling down")
 	}
 }
 
@@ -146,5 +171,41 @@ func TestGetNextSkipsCoolingAccount(t *testing.T) {
 
 	if got := p.GetNext(); got != nil {
 		t.Fatalf("expected cooling account to be skipped, got %q", got.ID)
+	}
+}
+
+func TestGetNextAllowsExpiredPersistedCooldown(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1", CooldownUntil: time.Now().Add(-time.Second).Unix(), LastFailureReason: string(FailureReasonRateLimited), FailureCount: 2}},
+		totalAccounts: 1,
+	}
+
+	got := p.GetNext()
+	if got == nil {
+		t.Fatalf("expected expired cooldown account to be schedulable")
+	}
+	if got.ID != "acct-1" {
+		t.Fatalf("expected acct-1, got %q", got.ID)
+	}
+	state := p.GetAllAccounts()[0]
+	if state.LastFailureReason != "" || state.CooldownUntil != 0 || state.FailureCount != 0 {
+		t.Fatalf("expected expired cooldown state to be cleared, got %#v", state)
+	}
+}
+
+func TestAvailableCountSkipsPersistedCooldown(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1", CooldownUntil: time.Now().Add(time.Minute).Unix()}},
+		totalAccounts: 1,
+	}
+
+	if got := p.AvailableCount(); got != 0 {
+		t.Fatalf("expected persisted cooldown account to be unavailable, got %d", got)
 	}
 }
