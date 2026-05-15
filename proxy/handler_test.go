@@ -265,6 +265,62 @@ func TestHandleClaudeNativeWebSearchUsesKiroMCP(t *testing.T) {
 	t.Fatalf("expected async account stats update to complete")
 }
 
+func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	config.AddAccount(config.Account{
+		ID:          "acct-1",
+		Enabled:     true,
+		AccessToken: "token-1",
+		ProfileArn:  "arn:aws:codewhisperer:ap-southeast-1:123456789012:profile/test-1",
+		Region:      "us-east-1",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	})
+	p.Reload()
+
+	var requestedHost string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestedHost = req.URL.Host
+			resultText := `{"results":[{"title":"Regional","url":"https://example.com","snippet":"ok"}],"query":"regional query"}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`{
+					"id":"web_search_tooluse_test",
+					"jsonrpc":"2.0",
+					"result":{"content":[{"type":"text","text":` + strconv.Quote(resultText) + `}],"isError":false}
+				}`)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4-6",
+		"max_tokens":1024,
+		"tools":[{"name":"web_search","type":"web_search_20250305"}],
+		"tool_choice":{"type":"tool","name":"web_search"},
+		"messages":[{"role":"user","content":"regional query"}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected native web_search to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if requestedHost != "q.ap-southeast-1.amazonaws.com" {
+		t.Fatalf("expected regional MCP q host, got %q", requestedHost)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleClaudeRetriesQuotaFailureOnNextAccount(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

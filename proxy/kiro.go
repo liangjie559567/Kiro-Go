@@ -21,6 +21,7 @@ import (
 )
 
 const defaultRateLimitFallbackSeconds = 5
+const defaultKiroRegion = "us-east-1"
 
 type rateLimitError struct {
 	endpoint string
@@ -45,6 +46,8 @@ type kiroEndpoint struct {
 	Origin    string
 	AmzTarget string
 	Name      string
+	Service   string
+	Path      string
 }
 
 var kiroEndpoints = []kiroEndpoint{
@@ -53,18 +56,24 @@ var kiroEndpoints = []kiroEndpoint{
 		Origin:    "AI_EDITOR",
 		AmzTarget: "",
 		Name:      "Kiro IDE",
+		Service:   "q",
+		Path:      "/generateAssistantResponse",
 	},
 	{
 		URL:       "https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse",
 		Origin:    "AI_EDITOR",
 		AmzTarget: "AmazonCodeWhispererStreamingService.GenerateAssistantResponse",
 		Name:      "CodeWhisperer",
+		Service:   "codewhisperer",
+		Path:      "/generateAssistantResponse",
 	},
 	{
 		URL:       "https://q.us-east-1.amazonaws.com/generateAssistantResponse",
 		Origin:    "AI_EDITOR",
 		AmzTarget: "AmazonQDeveloperStreamingService.SendMessage",
 		Name:      "AmazonQ",
+		Service:   "q",
+		Path:      "/generateAssistantResponse",
 	},
 }
 
@@ -157,6 +166,102 @@ func InitKiroHttpClient(proxyURL string) {
 		Transport: buildKiroTransport(proxyURL),
 	}
 	kiroRestHttpStore.Store(restClient)
+}
+
+var supportedKiroRegions = map[string]struct{}{
+	"af-south-1":     {},
+	"ap-east-1":      {},
+	"ap-northeast-1": {},
+	"ap-northeast-2": {},
+	"ap-northeast-3": {},
+	"ap-south-1":     {},
+	"ap-south-2":     {},
+	"ap-southeast-1": {},
+	"ap-southeast-2": {},
+	"ap-southeast-3": {},
+	"ap-southeast-4": {},
+	"ap-southeast-5": {},
+	"ap-southeast-7": {},
+	"ca-central-1":   {},
+	"ca-west-1":      {},
+	"cn-north-1":     {},
+	"cn-northwest-1": {},
+	"eu-central-1":   {},
+	"eu-central-2":   {},
+	"eu-north-1":     {},
+	"eu-south-1":     {},
+	"eu-south-2":     {},
+	"eu-west-1":      {},
+	"eu-west-2":      {},
+	"eu-west-3":      {},
+	"il-central-1":   {},
+	"me-central-1":   {},
+	"me-south-1":     {},
+	"mx-central-1":   {},
+	"sa-east-1":      {},
+	"us-east-1":      {},
+	"us-east-2":      {},
+	"us-gov-east-1":  {},
+	"us-gov-west-1":  {},
+	"us-west-1":      {},
+	"us-west-2":      {},
+}
+
+func isSupportedKiroRegion(region string) bool {
+	_, ok := supportedKiroRegions[strings.TrimSpace(region)]
+	return ok
+}
+
+func parseRegionFromProfileArn(profileArn string) string {
+	parts := strings.Split(strings.TrimSpace(profileArn), ":")
+	if len(parts) < 4 {
+		return ""
+	}
+	if parts[0] != "arn" || parts[2] != "codewhisperer" {
+		return ""
+	}
+	region := strings.TrimSpace(parts[3])
+	if !isSupportedKiroRegion(region) {
+		return ""
+	}
+	return region
+}
+
+func resolveKiroRegion(profileArn, accountRegion string) string {
+	if region := parseRegionFromProfileArn(profileArn); region != "" {
+		return region
+	}
+	if region := strings.TrimSpace(accountRegion); isSupportedKiroRegion(region) {
+		return region
+	}
+	return defaultKiroRegion
+}
+
+func resolveAccountKiroRegion(account *config.Account) string {
+	if account == nil {
+		return defaultKiroRegion
+	}
+	return resolveKiroRegion(account.ProfileArn, account.Region)
+}
+
+func (ep kiroEndpoint) withRegion(region string) kiroEndpoint {
+	if region == "" {
+		region = defaultKiroRegion
+	}
+	service := ep.Service
+	if service == "" {
+		if parsed, err := url.Parse(ep.URL); err == nil {
+			service = strings.Split(parsed.Host, ".")[0]
+		}
+	}
+	path := ep.Path
+	if path == "" {
+		if parsed, err := url.Parse(ep.URL); err == nil {
+			path = parsed.Path
+		}
+	}
+	ep.URL = fmt.Sprintf("https://%s.%s.amazonaws.com%s", service, region, path)
+	return ep
 }
 
 // ==================== Request Structs ====================
@@ -293,6 +398,14 @@ func getSortedEndpoints(preferred string) []kiroEndpoint {
 	return result
 }
 
+func getSortedEndpointsForRegion(preferred, region string) []kiroEndpoint {
+	endpoints := getSortedEndpoints(preferred)
+	for i := range endpoints {
+		endpoints[i] = endpoints[i].withRegion(region)
+	}
+	return endpoints
+}
+
 // CallKiroAPI calls the Kiro streaming API, trying each configured endpoint with automatic fallback.
 func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroStreamCallback) error {
 	if _, err := json.Marshal(payload); err != nil {
@@ -332,7 +445,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 	}
 
 	// Build endpoint list ordered by configuration.
-	endpoints := getSortedEndpoints(config.GetPreferredEndpoint())
+	endpoints := getSortedEndpointsForRegion(config.GetPreferredEndpoint(), resolveAccountKiroRegion(account))
 
 	var lastErr error
 	for _, ep := range endpoints {

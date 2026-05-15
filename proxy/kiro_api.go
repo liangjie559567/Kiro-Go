@@ -13,13 +13,15 @@ import (
 	"time"
 )
 
-const (
-	kiroRestAPIBase = "https://codewhisperer.us-east-1.amazonaws.com"
-)
+const kiroRestAPIService = "codewhisperer"
+
+func kiroRestAPIBase(account *config.Account) string {
+	return fmt.Sprintf("https://%s.%s.amazonaws.com", kiroRestAPIService, resolveAccountKiroRegion(account))
+}
 
 // GetUsageLimits 获取账户使用量和订阅信息
 func GetUsageLimits(account *config.Account) (*UsageLimitsResponse, error) {
-	url := fmt.Sprintf("%s/getUsageLimits?origin=AI_EDITOR&resourceType=AGENTIC_REQUEST&isEmailRequired=true", kiroRestAPIBase)
+	url := fmt.Sprintf("%s/getUsageLimits?origin=AI_EDITOR&resourceType=AGENTIC_REQUEST&isEmailRequired=true", kiroRestAPIBase(account))
 	url = withProfileArnQuery(url, account)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -49,7 +51,7 @@ func GetUsageLimits(account *config.Account) (*UsageLimitsResponse, error) {
 
 // GetUserInfo 获取用户信息
 func GetUserInfo(account *config.Account) (*UserInfoResponse, error) {
-	url := fmt.Sprintf("%s/GetUserInfo", kiroRestAPIBase)
+	url := fmt.Sprintf("%s/GetUserInfo", kiroRestAPIBase(account))
 
 	payload := `{"origin":"KIRO_IDE"}`
 	req, err := http.NewRequest("POST", url, strings.NewReader(payload))
@@ -80,7 +82,7 @@ func GetUserInfo(account *config.Account) (*UserInfoResponse, error) {
 
 // ListAvailableModels 获取可用模型列表
 func ListAvailableModels(account *config.Account) ([]ModelInfo, error) {
-	url := fmt.Sprintf("%s/ListAvailableModels?origin=AI_EDITOR&maxResults=50", kiroRestAPIBase)
+	url := fmt.Sprintf("%s/ListAvailableModels?origin=AI_EDITOR&maxResults=50", kiroRestAPIBase(account))
 	url = withProfileArnQuery(url, account)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -147,7 +149,7 @@ func ResolveProfileArn(account *config.Account) (string, error) {
 }
 
 func listAvailableProfiles(account *config.Account) (string, error) {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/ListAvailableProfiles", kiroRestAPIBase), strings.NewReader(`{"maxResults":10}`))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/ListAvailableProfiles", kiroRestAPIBase(account)), strings.NewReader(`{"maxResults":10}`))
 	if err != nil {
 		return "", err
 	}

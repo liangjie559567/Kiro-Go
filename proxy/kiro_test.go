@@ -85,6 +85,69 @@ func TestInitKiroHttpClientKeepsShortRestTimeout(t *testing.T) {
 	}
 }
 
+func TestResolveKiroRegionPrefersProfileArnThenAccountRegion(t *testing.T) {
+	if got := resolveKiroRegion(
+		"arn:aws:codewhisperer:eu-central-1:123456789012:profile/test",
+		"us-west-2",
+	); got != "eu-central-1" {
+		t.Fatalf("expected profile ARN region to win, got %q", got)
+	}
+	if got := resolveKiroRegion("", "ap-southeast-1"); got != "ap-southeast-1" {
+		t.Fatalf("expected account region fallback, got %q", got)
+	}
+	if got := resolveKiroRegion("arn:aws:s3:us-west-2:123456789012:bucket/test", "not-a-region"); got != defaultKiroRegion {
+		t.Fatalf("expected default region for unsupported inputs, got %q", got)
+	}
+}
+
+func TestCallKiroAPIUsesAccountRegionForStreamingEndpoint(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	var requestedHost string
+	var requestedRequestHost string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestedHost = req.URL.Host
+			requestedRequestHost = req.Host
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"rate limited"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.6",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	err := CallKiroAPI(&config.Account{
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:eu-central-1:123456789012:profile/test",
+		Region:      "us-east-1",
+	}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected mocked 429 error")
+	}
+	if requestedHost != "q.eu-central-1.amazonaws.com" {
+		t.Fatalf("expected regional q host, got %q", requestedHost)
+	}
+	if requestedRequestHost != "q.eu-central-1.amazonaws.com" {
+		t.Fatalf("expected request Host header to match regional q host, got %q", requestedRequestHost)
+	}
+}
+
 func TestCallKiroAPIRetainsTooManyRequestsBody(t *testing.T) {
 	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
 		t.Fatalf("init config: %v", err)

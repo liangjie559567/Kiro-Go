@@ -1249,9 +1249,10 @@ func callKiroMCPWebSearch(account *config.Account, query string) (string, *kiroW
 	}
 	reqBody, _ := json.Marshal(body)
 
+	region := resolveAccountKiroRegion(account)
 	endpoints := []string{
-		"https://q.us-east-1.amazonaws.com/mcp",
-		"https://codewhisperer.us-east-1.amazonaws.com/mcp",
+		fmt.Sprintf("https://q.%s.amazonaws.com/mcp", region),
+		fmt.Sprintf("https://codewhisperer.%s.amazonaws.com/mcp", region),
 	}
 	var lastErr error
 	for _, endpoint := range endpoints {

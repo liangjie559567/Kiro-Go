@@ -89,6 +89,37 @@ func TestResolveProfileArnFetchesAndCachesProfile(t *testing.T) {
 	}
 }
 
+func TestListAvailableModelsUsesAccountRegionForRestEndpoint(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	var requestedHost string
+	kiroRestHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestedHost = req.URL.Host
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"models":[]}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	_, err := ListAvailableModels(&config.Account{
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:ap-southeast-1:123456789012:profile/test",
+		Region:      "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("list models: %v", err)
+	}
+	if requestedHost != "codewhisperer.ap-southeast-1.amazonaws.com" {
+		t.Fatalf("expected regional codewhisperer host, got %q", requestedHost)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
