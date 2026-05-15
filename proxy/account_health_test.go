@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"kiro-go/config"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -116,5 +117,48 @@ func TestComputeNextHealthCheckRunAt(t *testing.T) {
 	disabled := computeNextHealthCheckRunAt(now, config.HealthCheckConfig{Enabled: false, IntervalMinutes: 60})
 	if disabled != 0 {
 		t.Fatalf("expected disabled next run 0, got %d", disabled)
+	}
+}
+
+func TestDisableUnhealthyAccountReturnsErrorWhenAccountMissing(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	err := disableUnhealthyAccount(&config.Account{ID: "missing", Email: "missing@example.com"}, "boom", 123)
+	if err == nil {
+		t.Fatalf("expected missing account to return error")
+	}
+}
+
+func TestDisableUnhealthyAccountPersistsUnhealthyStatus(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.AddAccount(config.Account{ID: "account-1", Email: "account@example.com", Enabled: true}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	account := config.Account{ID: "account-1", Email: "account@example.com", Enabled: true}
+	if err := disableUnhealthyAccount(&account, "boom", 123); err != nil {
+		t.Fatalf("disable unhealthy account: %v", err)
+	}
+
+	accounts := config.GetAccounts()
+	if len(accounts) != 1 {
+		t.Fatalf("expected 1 account, got %d", len(accounts))
+	}
+	got := accounts[0]
+	if got.Enabled {
+		t.Fatalf("expected account to be disabled")
+	}
+	if got.BanStatus != "UNHEALTHY" {
+		t.Fatalf("expected unhealthy ban status, got %q", got.BanStatus)
+	}
+	if got.BanReason != "boom" {
+		t.Fatalf("expected ban reason boom, got %q", got.BanReason)
+	}
+	if got.BanTime != 123 {
+		t.Fatalf("expected ban time 123, got %d", got.BanTime)
 	}
 }

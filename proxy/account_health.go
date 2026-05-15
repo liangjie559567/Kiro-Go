@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"kiro-go/config"
 	"kiro-go/logger"
 	"time"
@@ -133,5 +134,5 @@ func disableUnhealthyAccount(account *config.Account, reason string, now int64) 
 
 		return config.UpdateAccount(account.ID, accounts[i])
 	}
-	return nil
+	return fmt.Errorf("account %s not found", account.ID)
 }
