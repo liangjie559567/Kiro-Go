@@ -58,6 +58,8 @@ type Handler struct {
 	modelsCacheTime int64
 	promptCache     *promptCacheTracker
 	tokenRefreshMu  sync.Mutex
+	requestLogsMu   sync.Mutex
+	requestLogs     *requestLogStore
 }
 
 type thinkingStreamSource int
@@ -340,6 +342,7 @@ func NewHandler() *Handler {
 		autoRefreshUpdated: make(chan struct{}, 1),
 		healthCheckUpdated: make(chan struct{}, 1),
 		promptCache:        newPromptCacheTracker(defaultPromptCacheTTL),
+		requestLogs:        newRequestLogStore(defaultRequestLogCapacity),
 	}
 	// 启动后台刷新
 	go h.backgroundRefresh()
@@ -592,6 +595,12 @@ func (h *Handler) validateApiKey(r *http.Request) bool {
 // ServeHTTP 路由分发
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	logCtx, loggedReq, responseRecorder, loggedWriter := h.beginRequestLog(w, r)
+	if responseRecorder != nil {
+		defer h.finishRequestLog(logCtx, responseRecorder)
+	}
+	r = loggedReq
+	w = loggedWriter
 
 	// Debug-level request trace for fine-grained visibility
 	logger.Debugf("[HTTP] %s %s from %s", r.Method, path, r.RemoteAddr)
@@ -1003,6 +1012,7 @@ func (h *Handler) handleCountTokens(w http.ResponseWriter, r *http.Request) {
 		h.sendClaudeError(w, 400, "invalid_request_error", "Invalid JSON")
 		return
 	}
+	updateRequestLogMetadata(r, req.Model, false)
 	if msg := validateClaudeThinkingConfig(req.Thinking, req.MaxTokens); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
@@ -1045,6 +1055,7 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		h.sendClaudeError(w, 400, "invalid_request_error", "Invalid JSON: "+err.Error())
 		return
 	}
+	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateClaudeRequestShape(&req); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
@@ -2235,6 +2246,7 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 		h.sendOpenAIError(w, 400, "invalid_request_error", "Invalid JSON")
 		return
 	}
+	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateOpenAIRequestShape(&req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
 		return
@@ -2865,6 +2877,12 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetStats(w, r)
 	case path == "/stats/reset" && r.Method == "POST":
 		h.apiResetStats(w, r)
+	case path == "/request-logs" && r.Method == "GET":
+		h.apiGetRequestLogs(w, r)
+	case path == "/request-stats" && r.Method == "GET":
+		h.apiGetRequestStats(w, r)
+	case path == "/request-logs/clear" && r.Method == "POST":
+		h.apiClearRequestLogs(w, r)
 	case path == "/generate-machine-id" && r.Method == "GET":
 		h.apiGenerateMachineId(w, r)
 	case path == "/thinking" && r.Method == "GET":
