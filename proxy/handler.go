@@ -233,6 +233,7 @@ func NewHandler() *Handler {
 	}
 	// 启动后台刷新
 	go h.backgroundRefresh()
+	go h.backgroundHealthCheck()
 	// 启动后台统计保存 (每30秒保存一次)
 	go h.backgroundStatsSaver()
 	return h
@@ -339,6 +340,92 @@ func (h *Handler) runAutoRefresh() {
 	nextSettings := config.GetAutoRefreshConfig()
 	h.finishAutoRefresh(result, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
 	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d", result.Success, result.Failed)
+}
+
+func (h *Handler) backgroundHealthCheck() {
+	h.scheduleNextHealthCheck()
+
+healthLoop:
+	for {
+		settings := config.GetHealthCheckConfig()
+		if !settings.Enabled {
+			timer := time.NewTimer(time.Minute)
+			select {
+			case <-timer.C:
+				continue
+			case <-h.healthCheckUpdated:
+				stopTimer(timer)
+				h.scheduleNextHealthCheck()
+				continue
+			case <-h.stopRefresh:
+				stopTimer(timer)
+				return
+			}
+			continue
+		}
+
+		interval := time.Duration(settings.IntervalMinutes) * time.Minute
+		timer := time.NewTimer(interval)
+		for {
+			select {
+			case <-timer.C:
+				h.runHealthCheck()
+				continue healthLoop
+			case <-h.healthCheckUpdated:
+				stopTimer(timer)
+				h.scheduleNextHealthCheck()
+				continue healthLoop
+			case <-h.stopRefresh:
+				stopTimer(timer)
+				return
+			}
+		}
+	}
+}
+
+func (h *Handler) scheduleNextHealthCheck() {
+	h.setNextHealthCheckRun(computeNextHealthCheckRunAt(time.Now(), config.GetHealthCheckConfig()))
+}
+
+func (h *Handler) notifyHealthCheckUpdated() {
+	if h.healthCheckUpdated == nil {
+		return
+	}
+	select {
+	case h.healthCheckUpdated <- struct{}{}:
+	default:
+	}
+}
+
+func (h *Handler) runHealthCheck() {
+	settings := config.GetHealthCheckConfig()
+	now := time.Now()
+	if !settings.Enabled {
+		h.setNextHealthCheckRun(0)
+		return
+	}
+	if !h.tryBeginHealthCheck(now.Unix()) {
+		h.scheduleNextHealthCheck()
+		return
+	}
+
+	accounts := selectHealthCheckAccounts(config.GetAccounts())
+	result := runHealthCheckBatch(accounts, settings.AutoDisableUnhealthy, func(account *config.Account) error {
+		_, err := ListAvailableModels(account)
+		if err != nil {
+			logger.Warnf("[HealthCheck] Account %s unhealthy: %v", account.Email, err)
+		}
+		return err
+	}, disableUnhealthyAccount, now.Unix())
+
+	if result.Disabled > 0 {
+		h.pool.Reload()
+	}
+
+	finishedAt := time.Now()
+	nextSettings := config.GetHealthCheckConfig()
+	h.finishHealthCheck(result, finishedAt.Unix(), computeNextHealthCheckRunAt(finishedAt, nextSettings))
+	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d", result.Success, result.Failed, result.Disabled)
 }
 
 // validateApiKey 验证 API Key
@@ -1961,6 +2048,10 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetAutoRefresh(w, r)
 	case path == "/auto-refresh" && r.Method == "POST":
 		h.apiUpdateAutoRefresh(w, r)
+	case path == "/health-check" && r.Method == "GET":
+		h.apiGetHealthCheck(w, r)
+	case path == "/health-check" && r.Method == "POST":
+		h.apiUpdateHealthCheck(w, r)
 	case path == "/stats" && r.Method == "GET":
 		h.apiGetStats(w, r)
 	case path == "/stats/reset" && r.Method == "POST":
@@ -2641,6 +2732,30 @@ func (h *Handler) apiUpdateAutoRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	h.scheduleNextAutoRefresh()
 	h.notifyAutoRefreshUpdated()
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+func (h *Handler) apiGetHealthCheck(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"settings": config.GetHealthCheckConfig(),
+		"status":   h.getHealthCheckStatus(),
+	})
+}
+
+func (h *Handler) apiUpdateHealthCheck(w http.ResponseWriter, r *http.Request) {
+	var req config.HealthCheckConfig
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+	if err := config.UpdateHealthCheckConfig(req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	h.scheduleNextHealthCheck()
+	h.notifyHealthCheckUpdated()
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 

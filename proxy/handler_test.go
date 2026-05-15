@@ -1,6 +1,14 @@
 package proxy
 
-import "testing"
+import (
+	"kiro-go/config"
+	"kiro-go/pool"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestThinkingSourceReasoningFirst(t *testing.T) {
 	var source thinkingStreamSource
@@ -222,6 +230,70 @@ func TestThinkingPromptAffectsClaudeTokenEstimate(t *testing.T) {
 
 	if thinkingTokens <= baseTokens {
 		t.Fatalf("expected thinking tokens (%d) to exceed base tokens (%d)", thinkingTokens, baseTokens)
+	}
+}
+
+func TestAdminHealthCheckConfigRejectsInvalidInterval(t *testing.T) {
+	dir := t.TempDir()
+	if err := config.Init(filepath.Join(dir, "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("test-password")
+
+	h := &Handler{
+		pool:               pool.GetPool(),
+		healthCheckUpdated: make(chan struct{}, 1),
+	}
+
+	body := strings.NewReader(`{"enabled":true,"intervalMinutes":4,"autoDisableUnhealthy":true}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/health-check", body)
+	req.Header.Set("X-Admin-Password", "test-password")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdminHealthCheckConfigUpdateAndGet(t *testing.T) {
+	dir := t.TempDir()
+	if err := config.Init(filepath.Join(dir, "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("test-password")
+
+	h := &Handler{
+		pool:               pool.GetPool(),
+		healthCheckUpdated: make(chan struct{}, 1),
+	}
+
+	body := strings.NewReader(`{"enabled":true,"intervalMinutes":15,"autoDisableUnhealthy":true}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/health-check", body)
+	req.Header.Set("X-Admin-Password", "test-password")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/admin/api/health-check", nil)
+	getReq.Header.Set("X-Admin-Password", "test-password")
+	getW := httptest.NewRecorder()
+
+	h.handleAdminAPI(getW, getReq)
+
+	if getW.Code != http.StatusOK {
+		t.Fatalf("expected get status 200, got %d body %s", getW.Code, getW.Body.String())
+	}
+	if !strings.Contains(getW.Body.String(), `"intervalMinutes":15`) {
+		t.Fatalf("expected saved interval in response, got %s", getW.Body.String())
+	}
+	if !strings.Contains(getW.Body.String(), `"autoDisableUnhealthy":true`) {
+		t.Fatalf("expected saved auto-disable in response, got %s", getW.Body.String())
 	}
 }
 
