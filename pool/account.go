@@ -11,6 +11,7 @@ import (
 )
 
 const overageFrequencyScale = 10
+const tokenRefreshSkewSeconds int64 = 120
 
 type FailureReason string
 
@@ -54,9 +55,10 @@ type AccountPool struct {
 	accounts      []config.Account
 	totalAccounts int
 	currentIndex  uint64
-	cooldowns     map[string]time.Time // 账号冷却时间
-	errorCounts   map[string]int       // 连续错误计数
-	failures      map[string]FailureReason
+	cooldowns     map[string]time.Time       // 账号冷却时间
+	errorCounts   map[string]int             // 连续错误计数
+	failures      map[string]FailureReason   // Last failure classification
+	modelLists    map[string]map[string]bool // accountID -> set of modelIDs
 }
 
 var (
@@ -71,6 +73,7 @@ func GetPool() *AccountPool {
 			cooldowns:   make(map[string]time.Time),
 			errorCounts: make(map[string]int),
 			failures:    make(map[string]FailureReason),
+			modelLists:  make(map[string]map[string]bool),
 		}
 		pool.Reload()
 	})
@@ -86,6 +89,9 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.failures == nil {
 		p.failures = make(map[string]FailureReason)
+	}
+	if p.modelLists == nil {
+		p.modelLists = make(map[string]map[string]bool)
 	}
 }
 
@@ -126,6 +132,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		return nil
 	}
 
+	allowOverUsage := config.GetAllowOverUsage()
 	now := time.Now()
 	p.clearExpiredCooldownsLocked(now)
 	n := len(p.accounts)
@@ -157,13 +164,13 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		}
 
 		// 跳过即将过期的 Token
-		if acc.ExpiresAt > 0 && time.Now().Unix() > acc.ExpiresAt-300 {
+		if acc.ExpiresAt > 0 && time.Now().Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
 			seen[acc.ID] = true
 			continue
 		}
 
-		// 跳过额度已用尽的账号（适用于所有订阅类型）
-		if isOverUsageLimit(*acc) && !acc.AllowOverage {
+		// 跳过额度已用尽的账号（账号级 AllowOverage 或全局 AllowOverUsage 可放行）
+		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
 			seen[acc.ID] = true
 			continue
 		}
@@ -178,8 +185,8 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		if excluded != nil && excluded[acc.ID] {
 			continue
 		}
-		// 额度用尽的账号不作为 fallback
-		if isOverUsageLimit(*acc) && !acc.AllowOverage {
+		// 额度用尽的账号不作为 fallback（除非账号级或全局允许超额）
+		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
 			continue
 		}
 		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
@@ -193,6 +200,121 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		} else {
 			return acc
 		}
+	}
+	return nil
+}
+
+// SetModelList 缓存账号支持的模型集合（由 handler 在刷新后调用）
+func (p *AccountPool) SetModelList(accountID string, modelIDs []string) {
+	set := make(map[string]bool, len(modelIDs))
+	for _, id := range modelIDs {
+		set[strings.ToLower(strings.TrimSpace(id))] = true
+	}
+	p.mu.Lock()
+	p.ensureStateLocked()
+	p.modelLists[accountID] = set
+	p.mu.Unlock()
+}
+
+// GetModelList 返回该账号缓存的模型 ID 列表（供 admin API 使用）。
+func (p *AccountPool) GetModelList(accountID string) []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	set, ok := p.modelLists[accountID]
+	if !ok || len(set) == 0 {
+		return []string{}
+	}
+	ids := make([]string, 0, len(set))
+	for id := range set {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// accountHasModel 检查账号是否支持指定模型。冷启动时模型列表为空，乐观放行。
+func (p *AccountPool) accountHasModel(accountID, model string) bool {
+	list, ok := p.modelLists[accountID]
+	if !ok || len(list) == 0 {
+		return true
+	}
+	return list[strings.ToLower(strings.TrimSpace(model))]
+}
+
+// GetNextForModel 获取下一个支持指定模型的可用账号。
+func (p *AccountPool) GetNextForModel(model string) *config.Account {
+	return p.GetNextForModelExcept(model, nil)
+}
+
+// GetNextForModelExcept 获取下一个支持指定模型且不在 excluded 中的账号。
+func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bool) *config.Account {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if len(p.accounts) == 0 {
+		return nil
+	}
+
+	allowOverUsage := config.GetAllowOverUsage()
+	now := time.Now()
+	p.clearExpiredCooldownsLocked(now)
+	n := len(p.accounts)
+	seen := make(map[string]bool)
+
+	for i := 0; i < n; i++ {
+		idx := atomic.AddUint64(&p.currentIndex, 1) % uint64(n)
+		acc := &p.accounts[idx]
+
+		if seen[acc.ID] {
+			continue
+		}
+		if excluded != nil && excluded[acc.ID] {
+			seen[acc.ID] = true
+			continue
+		}
+		if !p.accountHasModel(acc.ID, model) {
+			seen[acc.ID] = true
+			continue
+		}
+		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
+			seen[acc.ID] = true
+			continue
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+			seen[acc.ID] = true
+			continue
+		}
+		if acc.ExpiresAt > 0 && time.Now().Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
+			seen[acc.ID] = true
+			continue
+		}
+		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
+			seen[acc.ID] = true
+			continue
+		}
+		return acc
+	}
+
+	for i := range p.accounts {
+		acc := &p.accounts[i]
+		if excluded != nil && excluded[acc.ID] {
+			continue
+		}
+		if !p.accountHasModel(acc.ID, model) {
+			continue
+		}
+		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
+			continue
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+			continue
+		}
+		if cooldown, ok := p.cooldowns[acc.ID]; ok {
+			if now.Before(cooldown) {
+				continue
+			}
+			return acc
+		}
+		return acc
 	}
 	return nil
 }

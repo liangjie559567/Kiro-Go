@@ -209,3 +209,44 @@ func TestAvailableCountSkipsPersistedCooldown(t *testing.T) {
 		t.Fatalf("expected persisted cooldown account to be unavailable, got %d", got)
 	}
 }
+
+func TestGetNextKeepsFiveMinuteTokenAvailable(t *testing.T) {
+	p := &AccountPool{}
+	account := config.Account{
+		ID:          "acct-1",
+		AccessToken: "access-token",
+		ExpiresAt:   time.Now().Unix() + 300,
+	}
+
+	p.accounts = []config.Account{account}
+
+	got := p.GetNext()
+	if got == nil {
+		t.Fatalf("expected five-minute token to be available")
+	}
+	if got.ID != account.ID {
+		t.Fatalf("expected account %q, got %q", account.ID, got.ID)
+	}
+}
+
+func TestGetNextForModelExceptSkipsUnsupportedAndExcludedAccounts(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}, {ID: "acct-3"}},
+		totalAccounts: 3,
+	}
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.6"})
+	p.SetModelList("acct-2", []string{"claude-opus-4.7"})
+	p.SetModelList("acct-3", []string{"claude-opus-4.7"})
+
+	got := p.GetNextForModelExcept("claude-opus-4.7", map[string]bool{"acct-2": true})
+	if got == nil {
+		t.Fatalf("expected account supporting model")
+	}
+	if got.ID != "acct-3" {
+		t.Fatalf("expected acct-3, got %q", got.ID)
+	}
+}
