@@ -107,6 +107,18 @@ type AutoRefreshConfig struct {
 	Scope           string `json:"scope"`
 }
 
+const (
+	HealthCheckMinIntervalMinutes     = 5
+	HealthCheckMaxIntervalMinutes     = 1440
+	HealthCheckDefaultIntervalMinutes = 60
+)
+
+type HealthCheckConfig struct {
+	Enabled              bool `json:"enabled"`
+	IntervalMinutes      int  `json:"intervalMinutes"`
+	AutoDisableUnhealthy bool `json:"autoDisableUnhealthy"`
+}
+
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
@@ -120,6 +132,7 @@ type Config struct {
 	NodeVersion   string            `json:"nodeVersion,omitempty"`
 	Accounts      []Account         `json:"accounts"` // Registered Kiro accounts
 	AutoRefresh   AutoRefreshConfig `json:"autoRefresh"`
+	HealthCheck   HealthCheckConfig `json:"healthCheck"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -241,6 +254,65 @@ func normalizePersistedAutoRefreshConfig(data []byte, in AutoRefreshConfig) Auto
 	return normalized
 }
 
+func defaultHealthCheckConfig() HealthCheckConfig {
+	return HealthCheckConfig{
+		Enabled:              false,
+		IntervalMinutes:      HealthCheckDefaultIntervalMinutes,
+		AutoDisableUnhealthy: false,
+	}
+}
+
+func normalizeHealthCheckConfig(in HealthCheckConfig) HealthCheckConfig {
+	defaults := defaultHealthCheckConfig()
+	if in == (HealthCheckConfig{}) {
+		return defaults
+	}
+	return normalizeHealthCheckConfigForUpdate(in)
+}
+
+func normalizeHealthCheckConfigForUpdate(in HealthCheckConfig) HealthCheckConfig {
+	defaults := defaultHealthCheckConfig()
+	if in.IntervalMinutes == 0 {
+		in.IntervalMinutes = defaults.IntervalMinutes
+	}
+	return in
+}
+
+func ValidateHealthCheckConfig(in HealthCheckConfig) error {
+	if in.IntervalMinutes < HealthCheckMinIntervalMinutes || in.IntervalMinutes > HealthCheckMaxIntervalMinutes {
+		return fmt.Errorf("intervalMinutes must be between %d and %d", HealthCheckMinIntervalMinutes, HealthCheckMaxIntervalMinutes)
+	}
+	return nil
+}
+
+type persistedHealthCheckConfig struct {
+	Enabled              *bool `json:"enabled"`
+	IntervalMinutes      int   `json:"intervalMinutes"`
+	AutoDisableUnhealthy *bool `json:"autoDisableUnhealthy"`
+}
+
+func normalizePersistedHealthCheckConfig(data []byte, in HealthCheckConfig) HealthCheckConfig {
+	var raw struct {
+		HealthCheck *persistedHealthCheckConfig `json:"healthCheck"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.HealthCheck == nil {
+		return normalizeHealthCheckConfig(in)
+	}
+
+	normalized := normalizeHealthCheckConfigForUpdate(in)
+	if raw.HealthCheck.Enabled == nil {
+		normalized.Enabled = defaultHealthCheckConfig().Enabled
+	} else {
+		normalized.Enabled = *raw.HealthCheck.Enabled
+	}
+	if raw.HealthCheck.AutoDisableUnhealthy == nil {
+		normalized.AutoDisableUnhealthy = defaultHealthCheckConfig().AutoDisableUnhealthy
+	} else {
+		normalized.AutoDisableUnhealthy = *raw.HealthCheck.AutoDisableUnhealthy
+	}
+	return normalized
+}
+
 // Init initializes the configuration system with the specified file path.
 // If the file doesn't exist, a default configuration is created.
 func Init(path string) error {
@@ -264,6 +336,7 @@ func Load() error {
 				RequireApiKey: false,
 				Accounts:      []Account{},
 				AutoRefresh:   defaultAutoRefreshConfig(),
+				HealthCheck:   defaultHealthCheckConfig(),
 			}
 			return Save()
 		}
@@ -275,6 +348,7 @@ func Load() error {
 		return err
 	}
 	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
+	c.HealthCheck = normalizePersistedHealthCheckConfig(data, c.HealthCheck)
 	cfg = &c
 	return nil
 }
@@ -350,6 +424,24 @@ func UpdateAutoRefreshConfig(autoRefresh AutoRefreshConfig) error {
 	cfgLock.Lock()
 	defer cfgLock.Unlock()
 	cfg.AutoRefresh = normalized
+	return Save()
+}
+
+func GetHealthCheckConfig() HealthCheckConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	return normalizeHealthCheckConfig(cfg.HealthCheck)
+}
+
+func UpdateHealthCheckConfig(healthCheck HealthCheckConfig) error {
+	normalized := normalizeHealthCheckConfigForUpdate(healthCheck)
+	if err := ValidateHealthCheckConfig(normalized); err != nil {
+		return err
+	}
+
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.HealthCheck = normalized
 	return Save()
 }
 

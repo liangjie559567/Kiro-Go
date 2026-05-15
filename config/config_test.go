@@ -93,3 +93,76 @@ func TestValidateAutoRefreshConfig(t *testing.T) {
 		t.Fatalf("expected invalid scope to fail")
 	}
 }
+
+func TestDefaultHealthCheckConfig(t *testing.T) {
+	got := defaultHealthCheckConfig()
+	if got.Enabled {
+		t.Fatalf("expected health check disabled by default")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected default interval 60, got %d", got.IntervalMinutes)
+	}
+	if got.AutoDisableUnhealthy {
+		t.Fatalf("expected auto-disable disabled by default")
+	}
+}
+
+func TestNormalizePersistedHealthCheckConfigPreservesExplicitDisabled(t *testing.T) {
+	data := []byte(`{"healthCheck":{"enabled":false,"autoDisableUnhealthy":true}}`)
+	got := normalizePersistedHealthCheckConfig(data, HealthCheckConfig{
+		AutoDisableUnhealthy: true,
+	})
+	if got.Enabled {
+		t.Fatalf("expected explicit disabled config to be preserved")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected interval default 60, got %d", got.IntervalMinutes)
+	}
+	if !got.AutoDisableUnhealthy {
+		t.Fatalf("expected explicit auto-disable to be preserved")
+	}
+}
+
+func TestNormalizePersistedHealthCheckConfigDefaultsAbsentEnabled(t *testing.T) {
+	data := []byte(`{"healthCheck":{"intervalMinutes":60}}`)
+	got := normalizePersistedHealthCheckConfig(data, HealthCheckConfig{IntervalMinutes: 60})
+	if got.Enabled {
+		t.Fatalf("expected absent enabled field to default false")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected interval 60, got %d", got.IntervalMinutes)
+	}
+	if got.AutoDisableUnhealthy {
+		t.Fatalf("expected absent auto-disable to default false")
+	}
+}
+
+func TestNormalizeHealthCheckConfigForUpdatePreservesSparseDisabled(t *testing.T) {
+	got := normalizeHealthCheckConfigForUpdate(HealthCheckConfig{Enabled: false, AutoDisableUnhealthy: true})
+	if got.Enabled {
+		t.Fatalf("expected sparse disabled update to stay disabled")
+	}
+	if got.IntervalMinutes != 60 {
+		t.Fatalf("expected interval default 60, got %d", got.IntervalMinutes)
+	}
+	if !got.AutoDisableUnhealthy {
+		t.Fatalf("expected auto-disable to stay enabled")
+	}
+}
+
+func TestValidateHealthCheckConfig(t *testing.T) {
+	valid := HealthCheckConfig{Enabled: true, IntervalMinutes: 5, AutoDisableUnhealthy: true}
+	if err := ValidateHealthCheckConfig(valid); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+
+	tooSmall := HealthCheckConfig{Enabled: true, IntervalMinutes: 4}
+	if err := ValidateHealthCheckConfig(tooSmall); err == nil {
+		t.Fatalf("expected interval below minimum to fail")
+	}
+
+	tooLarge := HealthCheckConfig{Enabled: true, IntervalMinutes: 1441}
+	if err := ValidateHealthCheckConfig(tooLarge); err == nil {
+		t.Fatalf("expected interval above maximum to fail")
+	}
+}
