@@ -1099,6 +1099,21 @@
                     data-i18n="settings.saveEndpoint"></button>
             </div>
             <div class="card">
+                <div class="card-header"><span class="card-title" data-i18n="settings.loadBalance"></span></div>
+                <div class="form-group">
+                    <label data-i18n="settings.loadBalanceStrategy"></label>
+                    <select id="loadBalanceStrategy">
+                        <option value="health" data-i18n="settings.loadBalanceHealth"></option>
+                        <option value="least_connections" data-i18n="settings.loadBalanceLeastConnections"></option>
+                        <option value="round_robin" data-i18n="settings.loadBalanceRoundRobin"></option>
+                    </select>
+                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block"
+                        data-i18n="settings.loadBalanceHint"></small>
+                </div>
+                <button class="btn btn-primary" onclick="saveLoadBalanceConfig()"
+                    data-i18n="settings.saveLoadBalance"></button>
+            </div>
+            <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="settings.adminPassword"></span></div>
                 <div class="form-group"><label data-i18n="settings.newPassword"></label><input type="password"
                         id="newPassword" data-i18n-placeholder="settings.newPasswordPlaceholder"></div>
@@ -1173,6 +1188,32 @@
             <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="settings.statistics"></span></div>
                 <button class="btn btn-danger" onclick="resetStats()" data-i18n="settings.resetStats"></button>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="requestLogs.title"></span>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="loadRequestLogs()" data-i18n="requestLogs.refresh"></button>
+                        <button class="btn btn-danger btn-sm" onclick="clearRequestLogs()" data-i18n="requestLogs.clear"></button>
+                    </div>
+                </div>
+                <div id="requestLogStats" style="font-size:13px;color:#475569;margin-bottom:12px">-</div>
+                <div style="overflow-x:auto">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead>
+                            <tr style="border-bottom:1px solid #e2e8f0;text-align:left">
+                                <th style="padding:8px" data-i18n="requestLogs.time"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.model"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.account"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.status"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.duration"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.tokens"></th>
+                                <th style="padding:8px" data-i18n="requestLogs.error"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestLogsBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
         <div id="tabApi" class="tab-content hidden">
@@ -1328,6 +1369,14 @@
                 'settings.endpointFallbackHint': '关闭后，仅使用选定的端点，不会自动切换到其他端点',
                 'settings.saveEndpoint': '保存端点设置',
                 'settings.endpointSaved': '端点设置已保存',
+                'settings.loadBalance': '账号调度策略',
+                'settings.loadBalanceStrategy': '调度策略',
+                'settings.loadBalanceHealth': '健康优先',
+                'settings.loadBalanceLeastConnections': '最少连接',
+                'settings.loadBalanceRoundRobin': '轮询',
+                'settings.loadBalanceHint': '健康优先会综合连接数、成功率和延迟；最少连接适合压测；轮询保留权重顺序。',
+                'settings.saveLoadBalance': '保存调度策略',
+                'settings.loadBalanceSaved': '调度策略已保存',
                 'settings.adminPassword': '管理密码',
                 'settings.newPassword': '新密码',
                 'settings.newPasswordPlaceholder': '输入新密码',
@@ -1347,6 +1396,18 @@
                 'settings.proxyHostRequired': '请填写代理地址和端口',
                 'settings.saveProxy': '保存代理设置',
                 'settings.proxySaved': '代理设置已保存',
+                'requestLogs.title': '最近请求日志',
+                'requestLogs.refresh': '刷新',
+                'requestLogs.clear': '清空',
+                'requestLogs.time': '时间',
+                'requestLogs.model': '模型',
+                'requestLogs.account': '账号/区域',
+                'requestLogs.status': '状态',
+                'requestLogs.duration': '耗时',
+                'requestLogs.tokens': 'Tokens',
+                'requestLogs.error': '错误',
+                'requestLogs.empty': '暂无请求日志',
+                'requestLogs.summary': '总数 {0}，成功 {1}，失败 {2}，平均耗时 {3}ms，输入 {4}，输出 {5}',
                 'settings.promptFilter': 'System Prompt 过滤',
                 'settings.builtinFilters': '内置过滤器',
                 'settings.filterClaudeCode': '替换 Claude Code CLI 系统提示',
@@ -1649,6 +1710,14 @@
                 'settings.endpointFallbackHint': 'When disabled, only the selected endpoint is used without automatic fallback',
                 'settings.saveEndpoint': 'Save Endpoint Settings',
                 'settings.endpointSaved': 'Endpoint settings saved',
+                'settings.loadBalance': 'Account Routing Strategy',
+                'settings.loadBalanceStrategy': 'Strategy',
+                'settings.loadBalanceHealth': 'Health first',
+                'settings.loadBalanceLeastConnections': 'Least connections',
+                'settings.loadBalanceRoundRobin': 'Round robin',
+                'settings.loadBalanceHint': 'Health first combines active connections, success rate, and latency. Least connections is useful for load tests. Round robin preserves weighted order.',
+                'settings.saveLoadBalance': 'Save Routing Strategy',
+                'settings.loadBalanceSaved': 'Routing strategy saved',
                 'settings.adminPassword': 'Admin Password',
                 'settings.newPassword': 'New Password',
                 'settings.newPasswordPlaceholder': 'Enter new password',
@@ -1668,6 +1737,18 @@
                 'settings.proxyHostRequired': 'Please enter proxy host and port',
                 'settings.saveProxy': 'Save Proxy Settings',
                 'settings.proxySaved': 'Proxy settings saved',
+                'requestLogs.title': 'Recent Request Logs',
+                'requestLogs.refresh': 'Refresh',
+                'requestLogs.clear': 'Clear',
+                'requestLogs.time': 'Time',
+                'requestLogs.model': 'Model',
+                'requestLogs.account': 'Account/Region',
+                'requestLogs.status': 'Status',
+                'requestLogs.duration': 'Duration',
+                'requestLogs.tokens': 'Tokens',
+                'requestLogs.error': 'Error',
+                'requestLogs.empty': 'No request logs',
+                'requestLogs.summary': 'Total {0}, success {1}, failed {2}, avg {3}ms, input {4}, output {5}',
                 'settings.promptFilter': 'System Prompt Filter',
                 'settings.builtinFilters': 'Built-in Filters',
                 'settings.filterClaudeCode': 'Replace Claude Code CLI system prompts',
@@ -2640,10 +2721,12 @@
             document.getElementById('allowOverUsage').checked = d.allowOverUsage || false;
             loadThinkingConfig();
             loadEndpointConfig();
+            loadLoadBalanceConfig();
             loadProxyConfig();
             loadAutoRefreshConfig();
             loadHealthCheckConfig();
             loadPromptFilter();
+            loadRequestLogs();
         }
         function formatAutoRefreshTime(ts) {
             if (!ts) return '-';
@@ -2791,6 +2874,67 @@
             });
             const d = await res.json();
             if (d.success) { alert(t('settings.endpointSaved')); } else { alert(t('common.saveFailed') + ': ' + d.error); }
+        }
+        async function loadLoadBalanceConfig() {
+            const res = await fetch('/admin/api/load-balance', { headers: { 'X-Admin-Password': password } });
+            const d = await res.json();
+            document.getElementById('loadBalanceStrategy').value = d.strategy || 'health';
+        }
+        async function saveLoadBalanceConfig() {
+            const res = await fetch('/admin/api/load-balance', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+                body: JSON.stringify({ strategy: document.getElementById('loadBalanceStrategy').value })
+            });
+            const d = await res.json();
+            if (d.success) { alert(t('settings.loadBalanceSaved')); } else { alert(t('common.saveFailed') + ': ' + d.error); }
+        }
+        async function loadRequestLogs() {
+            try {
+                const [logsRes, statsRes] = await Promise.all([
+                    fetch('/admin/api/request-logs?limit=100', { headers: { 'X-Admin-Password': password } }),
+                    fetch('/admin/api/request-stats', { headers: { 'X-Admin-Password': password } })
+                ]);
+                const logsData = await logsRes.json();
+                const stats = await statsRes.json();
+                renderRequestLogs(logsData.logs || [], stats || {});
+            } catch (e) {
+                renderRequestLogs([], {});
+            }
+        }
+        function renderRequestLogs(logs, stats) {
+            document.getElementById('requestLogStats').textContent = t(
+                'requestLogs.summary',
+                stats.total || 0,
+                stats.success || 0,
+                stats.failed || 0,
+                stats.averageDurationMs || 0,
+                formatNum(stats.inputTokens || 0),
+                formatNum(stats.outputTokens || 0)
+            );
+            const body = document.getElementById('requestLogsBody');
+            if (!logs.length) {
+                body.innerHTML = '<tr><td colspan="7" style="padding:12px;color:#94a3b8">' + t('requestLogs.empty') + '</td></tr>';
+                return;
+            }
+            body.innerHTML = logs.map(log => {
+                const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : '-';
+                const statusColor = log.outcome === 'success' ? '#059669' : '#dc2626';
+                const tokenText = (log.inputTokens || 0) + ' / ' + (log.outputTokens || 0);
+                const accountText = [log.accountId || '-', log.region || ''].filter(Boolean).join(' / ');
+                return '<tr style="border-bottom:1px solid #f1f5f9">' +
+                    '<td style="padding:8px;white-space:nowrap">' + escapeHtml(ts) + '</td>' +
+                    '<td style="padding:8px">' + escapeHtml(log.model || '-') + '</td>' +
+                    '<td style="padding:8px">' + escapeHtml(accountText) + '</td>' +
+                    '<td style="padding:8px;color:' + statusColor + '">' + (log.statusCode || '-') + '</td>' +
+                    '<td style="padding:8px">' + (log.durationMs || 0) + 'ms</td>' +
+                    '<td style="padding:8px">' + escapeHtml(tokenText) + '</td>' +
+                    '<td style="padding:8px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + escapeHtml(log.error || '') + '">' + escapeHtml(log.error || log.errorType || '-') + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+        async function clearRequestLogs() {
+            await fetch('/admin/api/request-logs/clear', { method: 'POST', headers: { 'X-Admin-Password': password } });
+            loadRequestLogs();
         }
         async function loadProxyConfig() {
             const res = await fetch('/admin/api/proxy', { headers: { 'X-Admin-Password': password } });

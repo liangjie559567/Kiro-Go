@@ -204,6 +204,36 @@ func TestValidateOpus47AdmissionConfig(t *testing.T) {
 	}
 }
 
+func TestGetLoadBalanceConfigDefaultsAndPersistsStrategy(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	defaults := GetLoadBalanceConfig()
+	if defaults.Strategy != LoadBalanceStrategyHealth {
+		t.Fatalf("expected default strategy %q, got %q", LoadBalanceStrategyHealth, defaults.Strategy)
+	}
+
+	if err := UpdateLoadBalanceConfig(LoadBalanceConfig{Strategy: LoadBalanceStrategyLeastConnections}); err != nil {
+		t.Fatalf("update load balance config: %v", err)
+	}
+	got := GetLoadBalanceConfig()
+	if got.Strategy != LoadBalanceStrategyLeastConnections {
+		t.Fatalf("expected persisted least_connections, got %#v", got)
+	}
+}
+
+func TestValidateLoadBalanceConfig(t *testing.T) {
+	for _, strategy := range []string{LoadBalanceStrategyHealth, LoadBalanceStrategyRoundRobin, LoadBalanceStrategyLeastConnections} {
+		if err := ValidateLoadBalanceConfig(LoadBalanceConfig{Strategy: strategy}); err != nil {
+			t.Fatalf("expected strategy %q to be valid: %v", strategy, err)
+		}
+	}
+	if err := ValidateLoadBalanceConfig(LoadBalanceConfig{Strategy: "quota_magic"}); err == nil {
+		t.Fatalf("expected invalid strategy to fail")
+	}
+}
+
 func TestUpdateAndClearAccountHealth(t *testing.T) {
 	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,6 +103,102 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		t.Fatalf("expected tool-result final turn to be valid, got %q", msg)
 	}
+}
+
+func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	config.AddAccount(config.Account{
+		ID:          "acct-resp",
+		Enabled:     true,
+		AccessToken: "token-resp",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	})
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "responses ok"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.6","input":"say ok","max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["object"] != "response" || resp["output_text"] != "responses ok" {
+		t.Fatalf("unexpected responses object: %#v", resp)
+	}
+	if _, ok := resp["choices"]; ok {
+		t.Fatalf("responses endpoint should not return chat choices: %#v", resp)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if config.GetAccounts()[0].RequestCount > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats update to complete")
+}
+
+type testEventStreamMessage struct {
+	eventType string
+	payload   map[string]interface{}
+}
+
+func buildTestEventStream(t *testing.T, messages []testEventStreamMessage) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	for _, msg := range messages {
+		payload, err := json.Marshal(msg.payload)
+		if err != nil {
+			t.Fatalf("marshal event payload: %v", err)
+		}
+		headers := buildTestEventStreamHeader(":event-type", msg.eventType)
+		totalLen := 12 + len(headers) + len(payload) + 4
+		var prelude [12]byte
+		binary.BigEndian.PutUint32(prelude[0:4], uint32(totalLen))
+		binary.BigEndian.PutUint32(prelude[4:8], uint32(len(headers)))
+		out.Write(prelude[:])
+		out.Write(headers)
+		out.Write(payload)
+		out.Write([]byte{0, 0, 0, 0})
+	}
+	return out.Bytes()
+}
+
+func buildTestEventStreamHeader(name, value string) []byte {
+	var out bytes.Buffer
+	out.WriteByte(byte(len(name)))
+	out.WriteString(name)
+	out.WriteByte(7)
+	out.WriteByte(byte(len(value) >> 8))
+	out.WriteByte(byte(len(value)))
+	out.WriteString(value)
+	return out.Bytes()
 }
 
 func TestOpus47GateLimitsConcurrentWork(t *testing.T) {

@@ -356,6 +356,7 @@ func applyOpus47AdmissionConfig() {
 	admission := config.GetOpus47AdmissionConfig()
 	opus47AdmissionGate = newOpus47Gate(admission.MaxConcurrent, admission.MaxWaiting)
 	logger.Infof("[Opus47Admission] maxConcurrent=%d maxWaiting=%d", admission.MaxConcurrent, admission.MaxWaiting)
+	pool.GetPool().SetStrategy(pool.Strategy(config.GetLoadBalanceConfig().Strategy))
 }
 
 // backgroundRefresh 后台定时刷新账户信息
@@ -637,6 +638,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.handleOpenAIChat(w, r)
+	case path == "/v1/responses" || path == "/responses":
+		if !h.validateApiKey(r) {
+			h.sendOpenAIError(w, 401, "authentication_error", "Invalid or missing API key")
+			return
+		}
+		h.handleOpenAIResponses(w, r)
 	case path == "/v1/models" || path == "/models":
 		h.handleModels(w, r)
 	case path == "/api/event_logging/batch":
@@ -1070,13 +1077,13 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
 
 	if hasNativeClaudeWebSearch(req.Tools) {
-		h.handleClaudeNativeWebSearch(w, &req, estimatedInputTokens)
+		h.handleClaudeNativeWebSearch(w, r, &req, estimatedInputTokens)
 		return
 	}
 
 	// 转换请求
 	kiroPayload := ClaudeToKiro(&req, thinking)
-	h.handleClaudeWithAccountRetry(w, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
+	h.handleClaudeWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
 }
 
 func hasNativeClaudeWebSearch(tools []ClaudeTool) bool {
@@ -1088,7 +1095,7 @@ func hasNativeClaudeWebSearch(tools []ClaudeTool) bool {
 	return false
 }
 
-func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, req *ClaudeRequest, estimatedInputTokens int) {
+func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Request, req *ClaudeRequest, estimatedInputTokens int) {
 	query := extractClaudeWebSearchQuery(req.Messages)
 	if query == "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", "Cannot extract search query from messages")
@@ -1110,6 +1117,7 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, req *Claude
 			return
 		}
 		used[account.ID] = true
+		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
 		if err := h.ensureValidToken(account); err != nil {
 			lastErr = err
@@ -1133,6 +1141,7 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, req *Claude
 		}
 
 		outputTokens := estimateClaudeOutputTokens(summarizeKiroWebSearchResults(query, results), "", nil)
+		updateRequestLogUsage(r, estimatedInputTokens, outputTokens, 0, 0)
 		h.recordSuccess(estimatedInputTokens, outputTokens, 0)
 		h.pool.RecordSuccessWithLatency(account.ID, time.Since(startedAt))
 		h.pool.UpdateStats(account.ID, estimatedInputTokens+outputTokens, 0)
@@ -1420,7 +1429,7 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 	h.sendSSE(w, flusher, "message_stop", map[string]interface{}{"type": "message_stop"})
 }
 
-func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
+func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
 	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, true, deadline)
 	if !ok {
@@ -1456,6 +1465,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream boo
 			return
 		}
 		used[account.ID] = true
+		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
 		if err := h.ensureValidToken(account); err != nil {
 			h.recordAccountFailure(account.ID, err)
@@ -1470,13 +1480,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream boo
 		var err error
 		if stream {
 			var done bool
-			done, err = h.handleClaudeStreamAttempt(w, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
+			done, err = h.handleClaudeStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
 			if done {
 				return
 			}
 		} else {
 			var done bool
-			done, err = h.handleClaudeNonStreamAttempt(w, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
+			done, err = h.handleClaudeNonStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
 			if done {
 				return
 			}
@@ -1501,7 +1511,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream boo
 	}
 }
 
-func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
 	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, false, deadline)
 	if !ok {
@@ -1536,6 +1546,7 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, stream boo
 			return
 		}
 		used[account.ID] = true
+		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
 		if err := h.ensureValidToken(account); err != nil {
 			h.recordAccountFailure(account.ID, err)
@@ -1549,13 +1560,13 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, stream boo
 		var err error
 		if stream {
 			var done bool
-			done, err = h.handleOpenAIStreamAttempt(w, account, payload, model, thinking, estimatedInputTokens, used, attempt)
+			done, err = h.handleOpenAIStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
 			if done {
 				return
 			}
 		} else {
 			var done bool
-			done, err = h.handleOpenAINonStreamAttempt(w, account, payload, model, thinking, estimatedInputTokens, used, attempt)
+			done, err = h.handleOpenAINonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
 			if done {
 				return
 			}
@@ -1602,7 +1613,7 @@ func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, st
 }
 
 // handleClaudeStream Claude 流式响应
-func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
+func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2011,6 +2022,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, account *conf
 	}
 	outputTokens = estimateClaudeOutputTokens(outputContent, thinkingOutput, toolUses)
 
+	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -2110,7 +2122,7 @@ func (h *Handler) checkOverageError(err error, accountID string) {
 }
 
 // handleClaudeNonStream Claude 非流式响应
-func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
+func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
 	var content string
 	var thinkingContent string
 	var toolUses []KiroToolUse
@@ -2179,6 +2191,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, account *c
 	}
 	outputTokens = estimateClaudeOutputTokens(finalContent, rawThinkingContent, toolUses)
 
+	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -2260,11 +2273,119 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 	estimatedInputTokens := estimateOpenAIRequestInputTokens(&req)
 
 	kiroPayload := OpenAIToKiro(&req, thinking)
-	h.handleOpenAIWithAccountRetry(w, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
+	h.handleOpenAIWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
+}
+
+func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method Not Allowed", 405)
+		return
+	}
+
+	var payload map[string]interface{}
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	if err := decoder.Decode(&payload); err != nil {
+		h.sendOpenAIError(w, 400, "invalid_request_error", "Invalid JSON")
+		return
+	}
+
+	req, err := OpenAIResponsesToChatRequest(payload)
+	if err != nil {
+		h.sendOpenAIError(w, 400, "invalid_request_error", err.Error())
+		return
+	}
+	updateRequestLogMetadata(r, req.Model, req.Stream)
+	if msg := validateOpenAIRequestShape(req); msg != "" {
+		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
+		return
+	}
+
+	thinkingCfg := config.GetThinkingConfig()
+	actualModel, thinking := ParseModelAndThinking(req.Model, thinkingCfg.Suffix)
+	req.Model = actualModel
+	estimatedInputTokens := estimateOpenAIRequestInputTokens(req)
+
+	kiroPayload := OpenAIToKiro(req, thinking)
+	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
+}
+
+func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+	deadline := time.Now().Add(opusCapacityRetryBudget)
+	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, false, deadline)
+	if !ok {
+		return
+	}
+	defer releaseGate()
+
+	used := make(map[string]bool)
+	var lastErr error
+	attempt := 0
+
+	for {
+		account := h.pool.GetNextForModelExcept(model, used)
+		if account == nil {
+			if shouldWaitAndRetryOpus47(lastErr, model) {
+				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
+					sleepForOpusCapacityRetry(delay)
+					used = make(map[string]bool)
+					continue
+				}
+				h.recordFailure()
+				h.sendOpenAIError(w, 503, "server_error", "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				return
+			}
+			if lastErr != nil {
+				h.recordFailure()
+				h.sendOpenAIError(w, 503, "server_error", lastErr.Error())
+			} else {
+				h.recordFailure()
+				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
+			}
+			return
+		}
+		used[account.ID] = true
+		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
+
+		if err := h.ensureValidToken(account); err != nil {
+			h.recordAccountFailure(account.ID, err)
+			if attempt == 0 {
+				continue
+			}
+			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
+			return
+		}
+
+		var err error
+		var done bool
+		if stream {
+			done, err = h.handleOpenAIResponsesStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, attempt)
+		} else {
+			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, attempt)
+		}
+		if done {
+			return
+		}
+		lastErr = err
+		if shouldWaitAndRetryOpus47(err, model) {
+			attempt++
+			continue
+		}
+		if err != nil && shouldRetryAccount(classifyFailureReason(err), attempt) {
+			attempt++
+			continue
+		}
+		if err != nil {
+			h.recordFailure()
+			h.sendOpenAIError(w, 500, "server_error", err.Error())
+			return
+		}
+		attempt++
+	}
 }
 
 // handleOpenAIStream OpenAI 流式响应
-func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
+func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2638,6 +2759,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *conf
 		outputTokens += estimateApproxTokens(tc.Function.Arguments)
 	}
 
+	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -2671,8 +2793,109 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *conf
 	return true, nil
 }
 
+func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		h.sendOpenAIError(w, 500, "server_error", "Streaming not supported")
+		return true, fmt.Errorf("streaming not supported")
+	}
+
+	responseID := "resp_" + uuid.New().String()
+	var content strings.Builder
+	var reasoning strings.Builder
+	var inputTokens, outputTokens int
+	var credits float64
+	var realInputTokens int
+	streamStarted := false
+
+	sendEvent := func(event string, payload interface{}) {
+		data, _ := json.Marshal(payload)
+		fmt.Fprintf(w, "event: %s\n", event)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		streamStarted = true
+		flusher.Flush()
+	}
+
+	sendEvent("response.created", map[string]interface{}{
+		"type":     "response.created",
+		"response": buildOpenAIResponsesObject(responseID, model, "", 0, 0, false),
+	})
+
+	callback := &KiroStreamCallback{
+		OnText: func(text string, isThinking bool) {
+			if isThinking {
+				reasoning.WriteString(text)
+				return
+			}
+			content.WriteString(text)
+			sendEvent("response.output_text.delta", map[string]interface{}{
+				"type":  "response.output_text.delta",
+				"delta": text,
+			})
+		},
+		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
+		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
+		OnCredits:  func(c float64) { credits = c },
+		OnContextUsage: func(pct float64) {
+			realInputTokens = int(pct * float64(getContextWindowSize(model)) / 100.0)
+		},
+	}
+
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
+	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
+	if err != nil {
+		reason := classifyFailureReason(err)
+		h.recordAccountFailure(account.ID, err)
+		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
+			return false, err
+		}
+		h.recordFailure()
+		h.checkOverageError(err, account.ID)
+		sendEvent("response.failed", map[string]interface{}{
+			"type":  "response.failed",
+			"error": map[string]string{"type": "server_error", "message": err.Error()},
+		})
+		return true, err
+	}
+
+	finalContent, extractedReasoning := extractThinkingFromContent(content.String())
+	reasoningContent := reasoning.String()
+	if thinking && reasoningContent == "" && extractedReasoning != "" {
+		reasoningContent = extractedReasoning
+	}
+	if !thinking {
+		reasoningContent = ""
+	}
+	if realInputTokens > 0 {
+		inputTokens = realInputTokens
+	} else if inputTokens <= 0 {
+		inputTokens = estimatedInputTokens
+	}
+	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, nil)
+
+	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	h.recordSuccess(inputTokens, outputTokens, credits)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
+	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
+
+	sendEvent("response.completed", map[string]interface{}{
+		"type":     "response.completed",
+		"response": buildOpenAIResponsesObject(responseID, model, finalContent, inputTokens, outputTokens, true),
+	})
+	fmt.Fprintf(w, "data: [DONE]\n\n")
+	flusher.Flush()
+	return true, nil
+}
+
 // handleOpenAINonStream OpenAI 非流式响应
-func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
+func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
 	var content string
 	var reasoningContent string
 	var toolUses []KiroToolUse
@@ -2729,6 +2952,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *c
 	}
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
+	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -2738,6 +2962,95 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *c
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(resp)
 	return true, nil
+}
+
+func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+	var content string
+	var reasoningContent string
+	var inputTokens, outputTokens int
+	var credits float64
+	var realInputTokens int
+
+	callback := &KiroStreamCallback{
+		OnText: func(text string, isThinking bool) {
+			if isThinking {
+				reasoningContent += text
+			} else {
+				content += text
+			}
+		},
+		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
+		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
+		OnCredits:  func(c float64) { credits = c },
+		OnContextUsage: func(pct float64) {
+			realInputTokens = int(pct * float64(getContextWindowSize(model)) / 100.0)
+		},
+	}
+
+	releaseRequest := h.pool.BeginRequest(account.ID)
+	startedAt := time.Now()
+	err := CallKiroAPI(account, payload, callback)
+	latency := time.Since(startedAt)
+	releaseRequest()
+	if err != nil {
+		reason := classifyFailureReason(err)
+		h.recordAccountFailure(account.ID, err)
+		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
+			return false, err
+		}
+		h.recordFailure()
+		h.checkOverageError(err, account.ID)
+		h.sendOpenAIError(w, 500, "server_error", err.Error())
+		return true, err
+	}
+
+	finalContent, extractedReasoning := extractThinkingFromContent(content)
+	if thinking && reasoningContent == "" && extractedReasoning != "" {
+		reasoningContent = extractedReasoning
+	} else if !thinking {
+		reasoningContent = ""
+	}
+	if realInputTokens > 0 {
+		inputTokens = realInputTokens
+	} else if inputTokens <= 0 {
+		inputTokens = estimatedInputTokens
+	}
+	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, nil)
+
+	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	h.recordSuccess(inputTokens, outputTokens, credits)
+	h.pool.RecordSuccessWithLatency(account.ID, latency)
+	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(buildOpenAIResponsesObject("resp_"+uuid.New().String(), model, finalContent, inputTokens, outputTokens, true))
+	return true, nil
+}
+
+func buildOpenAIResponsesObject(id, model, text string, inputTokens, outputTokens int, completed bool) map[string]interface{} {
+	status := "in_progress"
+	if completed {
+		status = "completed"
+	}
+	return map[string]interface{}{
+		"id":         id,
+		"object":     "response",
+		"created_at": time.Now().Unix(),
+		"status":     status,
+		"model":      model,
+		"output": []map[string]interface{}{{
+			"id":      "msg_" + uuid.New().String(),
+			"type":    "message",
+			"role":    "assistant",
+			"content": []map[string]interface{}{{"type": "output_text", "text": text}},
+		}},
+		"output_text": text,
+		"usage": map[string]int{
+			"input_tokens":  inputTokens,
+			"output_tokens": outputTokens,
+			"total_tokens":  inputTokens + outputTokens,
+		},
+	}
 }
 
 func (h *Handler) sendOpenAIError(w http.ResponseWriter, status int, errType, message string) {
@@ -2874,6 +3187,10 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetHealthCheck(w, r)
 	case path == "/health-check" && r.Method == "POST":
 		h.apiUpdateHealthCheck(w, r)
+	case path == "/load-balance" && r.Method == "GET":
+		h.apiGetLoadBalance(w, r)
+	case path == "/load-balance" && r.Method == "POST":
+		h.apiUpdateLoadBalance(w, r)
 	case path == "/stats" && r.Method == "GET":
 		h.apiGetStats(w, r)
 	case path == "/stats/reset" && r.Method == "POST":
@@ -4051,6 +4368,28 @@ func (h *Handler) apiUpdateEndpointConfig(w http.ResponseWriter, r *http.Request
 		config.UpdateEndpointFallback(*req.EndpointFallback)
 	}
 
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+func (h *Handler) apiGetLoadBalance(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(config.GetLoadBalanceConfig())
+}
+
+func (h *Handler) apiUpdateLoadBalance(w http.ResponseWriter, r *http.Request) {
+	var req config.LoadBalanceConfig
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+	if err := config.UpdateLoadBalanceConfig(req); err != nil {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	if h.pool != nil {
+		h.pool.SetStrategy(pool.Strategy(config.GetLoadBalanceConfig().Strategy))
+	}
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 

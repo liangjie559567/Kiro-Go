@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"kiro-go/auth"
 	"kiro-go/config"
 	"kiro-go/logger"
@@ -118,11 +119,16 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 			return nil
 		}
 
+		originalRefreshToken := account.RefreshToken
 		newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := auth.RefreshToken(account)
 		if err != nil {
 			return err
 		}
 		tokenRefreshed = true
+
+		if !accountRefreshTokenUnchanged(account.ID, originalRefreshToken) {
+			return fmt.Errorf("stale refresh result for account %s: refresh token changed during refresh", account.ID)
+		}
 
 		account.AccessToken = newAccessToken
 		if newRefreshToken != "" {
@@ -179,6 +185,15 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 	}
 	logger.Infof("[AutoRefresh] Refreshed %s: %s %.1f/%.1f", account.Email, info.SubscriptionType, info.UsageCurrent, info.UsageLimit)
 	return &refreshAccountResult{Info: info}, nil
+}
+
+func accountRefreshTokenUnchanged(accountID, originalRefreshToken string) bool {
+	for _, latest := range config.GetAccounts() {
+		if latest.ID == accountID {
+			return latest.RefreshToken == originalRefreshToken
+		}
+	}
+	return false
 }
 
 func restoreAccountActiveAfterAuthRetry(account *config.Account, originalEnabled bool) error {

@@ -310,3 +310,49 @@ func TestToolResultsContinuationIncludesInstructionPrefix(t *testing.T) {
 		t.Fatalf("expected tool result text in continuation content, got %q", content)
 	}
 }
+
+func TestOpenAIResponsesToChatRequestNormalizesInstructionsAndInput(t *testing.T) {
+	payload := map[string]interface{}{
+		"model":             "claude-opus-4-7",
+		"instructions":      "Follow backend policy.",
+		"max_output_tokens": float64(123),
+		"stream":            true,
+		"input": []interface{}{
+			map[string]interface{}{
+				"role": "user",
+				"content": []interface{}{
+					map[string]interface{}{"type": "input_text", "text": "Hello from Responses"},
+				},
+			},
+		},
+	}
+
+	req, err := OpenAIResponsesToChatRequest(payload)
+	if err != nil {
+		t.Fatalf("responses normalize: %v", err)
+	}
+	if req.Model != "claude-opus-4-7" || !req.Stream || req.MaxTokens != 123 {
+		t.Fatalf("unexpected request metadata: %#v", req)
+	}
+	if len(req.Messages) != 2 {
+		t.Fatalf("expected system and user messages, got %#v", req.Messages)
+	}
+	if req.Messages[0].Role != "system" || req.Messages[0].Content != "Follow backend policy." {
+		t.Fatalf("unexpected system message: %#v", req.Messages[0])
+	}
+	if req.Messages[1].Role != "user" || req.Messages[1].Content != "Hello from Responses" {
+		t.Fatalf("unexpected user message: %#v", req.Messages[1])
+	}
+}
+
+func TestExtractThinkingFromContentIgnoresQuotedCloseTag(t *testing.T) {
+	content := `<thinking>Need to explain the literal "</thinking>" marker before ending.</thinking>Final answer`
+
+	final, reasoning := extractThinkingFromContent(content)
+	if final != "Final answer" {
+		t.Fatalf("expected final answer only, got %q", final)
+	}
+	if !strings.Contains(reasoning, `literal "</thinking>" marker`) {
+		t.Fatalf("expected quoted close tag to stay in reasoning, got %q", reasoning)
+	}
+}

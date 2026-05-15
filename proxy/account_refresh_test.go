@@ -179,3 +179,50 @@ func TestRefreshAccountDataRefreshesTokenWhenTokenIsStillValid(t *testing.T) {
 		t.Fatalf("expected persisted expiresAt %d, got %d", account.ExpiresAt, persisted.ExpiresAt)
 	}
 }
+
+func TestRefreshAccountDataSkipsStaleTokenWriteWhenRefreshTokenChanged(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldExpiresAt := time.Now().Add(time.Hour).Unix()
+	account := config.Account{
+		ID:           "acct-stale",
+		Email:        "stale@example.com",
+		AccessToken:  "old-access-token",
+		RefreshToken: "old-refresh-token",
+		AuthMethod:   "social",
+		Region:       "us-east-1",
+		Enabled:      true,
+		ExpiresAt:    oldExpiresAt,
+		ProfileArn:   "arn:aws:codewhisperer:profile/test",
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	authHttpClientStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if err := config.UpdateAccountToken(account.ID, "user-new-access-token", "user-new-refresh-token", oldExpiresAt+600); err != nil {
+				t.Fatalf("simulate user token update: %v", err)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"accessToken":"stale-access-token","refreshToken":"stale-refresh-token","expiresIn":7200,"profileArn":"arn:aws:codewhisperer:profile/stale"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { auth.InitHttpClient("") })
+
+	_, err := refreshAccountData(&account)
+	if err == nil {
+		t.Fatalf("expected stale refresh to fail")
+	}
+	if !strings.Contains(err.Error(), "stale refresh result") {
+		t.Fatalf("expected stale refresh error, got %v", err)
+	}
+	persisted := config.GetAccounts()[0]
+	if persisted.AccessToken != "user-new-access-token" || persisted.RefreshToken != "user-new-refresh-token" {
+		t.Fatalf("expected user-updated token to remain, got %#v", persisted)
+	}
+}

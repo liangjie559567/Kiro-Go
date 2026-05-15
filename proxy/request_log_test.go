@@ -60,9 +60,9 @@ func TestAdminRequestLogsEndpointReturnsRecentEntries(t *testing.T) {
 
 func TestAdminRequestStatsEndpointAggregatesRecentEntries(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
-	h.recordRequestLog(RequestLogEntry{RequestID: "ok-1", Endpoint: "/v1/messages", Model: "claude-opus-4.7", StatusCode: 200, Outcome: "success", DurationMs: 100})
-	h.recordRequestLog(RequestLogEntry{RequestID: "err-1", Endpoint: "/v1/messages", Model: "claude-opus-4.7", StatusCode: 503, Outcome: "error", DurationMs: 300})
-	h.recordRequestLog(RequestLogEntry{RequestID: "ok-2", Endpoint: "/v1/chat/completions", Model: "claude-sonnet-4.6", StatusCode: 200, Outcome: "success", DurationMs: 200})
+	h.recordRequestLog(RequestLogEntry{RequestID: "ok-1", Endpoint: "/v1/messages", Model: "claude-opus-4.7", StatusCode: 200, Outcome: "success", DurationMs: 100, InputTokens: 10, OutputTokens: 5, CacheReadInputTokens: 3})
+	h.recordRequestLog(RequestLogEntry{RequestID: "err-1", Endpoint: "/v1/messages", Model: "claude-opus-4.7", StatusCode: 503, Outcome: "error", DurationMs: 300, ErrorType: "upstream_5xx"})
+	h.recordRequestLog(RequestLogEntry{RequestID: "ok-2", Endpoint: "/v1/chat/completions", Model: "claude-sonnet-4.6", StatusCode: 200, Outcome: "success", DurationMs: 200, InputTokens: 20, OutputTokens: 10, CacheCreationInputTokens: 4})
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/api/request-stats", nil)
 	w := httptest.NewRecorder()
@@ -79,6 +79,10 @@ func TestAdminRequestStatsEndpointAggregatesRecentEntries(t *testing.T) {
 		AverageDurationMs int64                       `json:"averageDurationMs"`
 		ByModel           map[string]RequestLogBucket `json:"byModel"`
 		ByEndpoint        map[string]RequestLogBucket `json:"byEndpoint"`
+		InputTokens       int                         `json:"inputTokens"`
+		OutputTokens      int                         `json:"outputTokens"`
+		CacheReadTokens   int                         `json:"cacheReadInputTokens"`
+		CacheCreateTokens int                         `json:"cacheCreationInputTokens"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode response: %v", err)
@@ -91,6 +95,33 @@ func TestAdminRequestStatsEndpointAggregatesRecentEntries(t *testing.T) {
 	}
 	if got := resp.ByEndpoint["/v1/messages"]; got.Total != 2 || got.Failed != 1 || got.AverageDurationMs != 200 {
 		t.Fatalf("unexpected endpoint stats: %#v", got)
+	}
+	if resp.InputTokens != 30 || resp.OutputTokens != 15 || resp.CacheReadTokens != 3 || resp.CacheCreateTokens != 4 {
+		t.Fatalf("unexpected token stats: %#v", resp)
+	}
+}
+
+func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogMetadata(loggedReq, "claude-opus-4.7", false)
+	updateRequestLogUpstream(loggedReq, "acct-1", "eu-west-1")
+	updateRequestLogUsage(loggedReq, 100, 25, 40, 5)
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.AccountID != "acct-1" || entry.Region != "eu-west-1" {
+		t.Fatalf("expected account and region metadata, got %#v", entry)
+	}
+	if entry.InputTokens != 100 || entry.OutputTokens != 25 || entry.CacheReadInputTokens != 40 || entry.CacheCreationInputTokens != 5 {
+		t.Fatalf("expected token usage metadata, got %#v", entry)
 	}
 }
 

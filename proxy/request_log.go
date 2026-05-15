@@ -19,23 +19,34 @@ const (
 )
 
 type RequestLogEntry struct {
-	Timestamp  time.Time `json:"timestamp"`
-	RequestID  string    `json:"requestId"`
-	Method     string    `json:"method"`
-	Endpoint   string    `json:"endpoint"`
-	Model      string    `json:"model,omitempty"`
-	Stream     bool      `json:"stream"`
-	StatusCode int       `json:"statusCode"`
-	Outcome    string    `json:"outcome"`
-	DurationMs int64     `json:"durationMs"`
-	Error      string    `json:"error,omitempty"`
+	Timestamp                time.Time `json:"timestamp"`
+	RequestID                string    `json:"requestId"`
+	Method                   string    `json:"method"`
+	Endpoint                 string    `json:"endpoint"`
+	Model                    string    `json:"model,omitempty"`
+	AccountID                string    `json:"accountId,omitempty"`
+	Region                   string    `json:"region,omitempty"`
+	Stream                   bool      `json:"stream"`
+	StatusCode               int       `json:"statusCode"`
+	Outcome                  string    `json:"outcome"`
+	DurationMs               int64     `json:"durationMs"`
+	InputTokens              int       `json:"inputTokens,omitempty"`
+	OutputTokens             int       `json:"outputTokens,omitempty"`
+	CacheReadInputTokens     int       `json:"cacheReadInputTokens,omitempty"`
+	CacheCreationInputTokens int       `json:"cacheCreationInputTokens,omitempty"`
+	ErrorType                string    `json:"errorType,omitempty"`
+	Error                    string    `json:"error,omitempty"`
 }
 
 type RequestLogBucket struct {
-	Total             int   `json:"total"`
-	Success           int   `json:"success"`
-	Failed            int   `json:"failed"`
-	AverageDurationMs int64 `json:"averageDurationMs"`
+	Total                    int   `json:"total"`
+	Success                  int   `json:"success"`
+	Failed                   int   `json:"failed"`
+	AverageDurationMs        int64 `json:"averageDurationMs"`
+	InputTokens              int   `json:"inputTokens"`
+	OutputTokens             int   `json:"outputTokens"`
+	CacheReadInputTokens     int   `json:"cacheReadInputTokens"`
+	CacheCreationInputTokens int   `json:"cacheCreationInputTokens"`
 }
 
 type requestLogStore struct {
@@ -190,6 +201,7 @@ func shouldLogRequestPath(path string) bool {
 	case "/v1/messages", "/messages", "/anthropic/v1/messages",
 		"/v1/messages/count_tokens", "/messages/count_tokens",
 		"/v1/chat/completions", "/chat/completions",
+		"/v1/responses", "/responses",
 		"/v1/models", "/models", "/v1/stats":
 		return true
 	default:
@@ -204,6 +216,26 @@ func updateRequestLogMetadata(r *http.Request, model string, stream bool) {
 	}
 	ctx.entry.Model = model
 	ctx.entry.Stream = stream
+}
+
+func updateRequestLogUpstream(r *http.Request, accountID, region string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.entry.AccountID = strings.TrimSpace(accountID)
+	ctx.entry.Region = strings.TrimSpace(region)
+}
+
+func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheReadInputTokens, cacheCreationInputTokens int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.entry.InputTokens = inputTokens
+	ctx.entry.OutputTokens = outputTokens
+	ctx.entry.CacheReadInputTokens = cacheReadInputTokens
+	ctx.entry.CacheCreationInputTokens = cacheCreationInputTokens
 }
 
 func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter) {
@@ -323,12 +355,16 @@ func (h *Handler) apiGetRequestStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"total":             total.Total,
-		"success":           total.Success,
-		"failed":            total.Failed,
-		"averageDurationMs": total.Export().AverageDurationMs,
-		"byModel":           exportRequestLogBuckets(byModel),
-		"byEndpoint":        exportRequestLogBuckets(byEndpoint),
+		"total":                    total.Total,
+		"success":                  total.Success,
+		"failed":                   total.Failed,
+		"averageDurationMs":        total.Export().AverageDurationMs,
+		"inputTokens":              total.InputTokens,
+		"outputTokens":             total.OutputTokens,
+		"cacheReadInputTokens":     total.CacheReadInputTokens,
+		"cacheCreationInputTokens": total.CacheCreationInputTokens,
+		"byModel":                  exportRequestLogBuckets(byModel),
+		"byEndpoint":               exportRequestLogBuckets(byEndpoint),
 	})
 }
 
@@ -350,6 +386,10 @@ func addRequestLogBucket(bucket *requestLogBucketAccumulator, entry RequestLogEn
 		bucket.Failed++
 	}
 	bucket.durationTotal += entry.DurationMs
+	bucket.InputTokens += entry.InputTokens
+	bucket.OutputTokens += entry.OutputTokens
+	bucket.CacheReadInputTokens += entry.CacheReadInputTokens
+	bucket.CacheCreationInputTokens += entry.CacheCreationInputTokens
 }
 
 func (b requestLogBucketAccumulator) Export() RequestLogBucket {

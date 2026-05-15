@@ -34,6 +34,14 @@ type RuntimeHealth struct {
 	Score             int   `json:"score"`
 }
 
+type Strategy string
+
+const (
+	StrategyHealth           Strategy = "health"
+	StrategyRoundRobin       Strategy = "round_robin"
+	StrategyLeastConnections Strategy = "least_connections"
+)
+
 type runtimeHealthState struct {
 	activeConnections int
 	recentFailures    int
@@ -107,6 +115,7 @@ type AccountPool struct {
 	failures      map[string]FailureReason   // Last failure classification
 	modelLists    map[string]map[string]bool // accountID -> set of modelIDs
 	runtimeHealth map[string]*runtimeHealthState
+	strategy      Strategy
 }
 
 var (
@@ -123,6 +132,7 @@ func GetPool() *AccountPool {
 			failures:      make(map[string]FailureReason),
 			modelLists:    make(map[string]map[string]bool),
 			runtimeHealth: make(map[string]*runtimeHealthState),
+			strategy:      Strategy(config.GetLoadBalanceConfig().Strategy),
 		}
 		pool.Reload()
 	})
@@ -144,6 +154,21 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.runtimeHealth == nil {
 		p.runtimeHealth = make(map[string]*runtimeHealthState)
+	}
+	if p.strategy == "" {
+		p.strategy = StrategyHealth
+	}
+}
+
+func (p *AccountPool) SetStrategy(strategy Strategy) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	switch strategy {
+	case StrategyRoundRobin, StrategyLeastConnections, StrategyHealth:
+		p.strategy = strategy
+	default:
+		p.strategy = StrategyHealth
 	}
 }
 
@@ -231,7 +256,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
 			best = acc
 		}
-		if p.isIdleHealthyLocked(acc.ID) {
+		if p.strategy == StrategyRoundRobin || p.isIdleHealthyLocked(acc.ID) {
 			return acc
 		}
 	}
@@ -360,7 +385,7 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
 			best = acc
 		}
-		if p.isIdleHealthyLocked(acc.ID) {
+		if p.strategy == StrategyRoundRobin || p.isIdleHealthyLocked(acc.ID) {
 			return acc
 		}
 	}
@@ -406,6 +431,9 @@ func (p *AccountPool) isIdleHealthyLocked(id string) bool {
 }
 
 func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID string) bool {
+	if p.strategy == StrategyRoundRobin {
+		return false
+	}
 	candidate := p.runtimeHealth[candidateID]
 	current := p.runtimeHealth[currentID]
 	if candidate == nil && current == nil {
@@ -420,7 +448,7 @@ func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID string) boo
 	if candidate.activeConnections != current.activeConnections {
 		return candidate.activeConnections < current.activeConnections
 	}
-	if candidate.score() != current.score() {
+	if p.strategy != StrategyLeastConnections && candidate.score() != current.score() {
 		return candidate.score() > current.score()
 	}
 	return candidate.avgLatencyMS < current.avgLatencyMS

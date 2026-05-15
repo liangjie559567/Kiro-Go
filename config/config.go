@@ -132,6 +132,36 @@ type Opus47AdmissionConfig struct {
 	MaxWaiting    int `json:"maxWaiting"`
 }
 
+const (
+	LoadBalanceStrategyHealth           = "health"
+	LoadBalanceStrategyRoundRobin       = "round_robin"
+	LoadBalanceStrategyLeastConnections = "least_connections"
+)
+
+type LoadBalanceConfig struct {
+	Strategy string `json:"strategy"`
+}
+
+func defaultLoadBalanceConfig() LoadBalanceConfig {
+	return LoadBalanceConfig{Strategy: LoadBalanceStrategyHealth}
+}
+
+func normalizeLoadBalanceConfig(in LoadBalanceConfig) LoadBalanceConfig {
+	if in.Strategy == "" {
+		return defaultLoadBalanceConfig()
+	}
+	return in
+}
+
+func ValidateLoadBalanceConfig(in LoadBalanceConfig) error {
+	switch in.Strategy {
+	case LoadBalanceStrategyHealth, LoadBalanceStrategyRoundRobin, LoadBalanceStrategyLeastConnections:
+		return nil
+	default:
+		return fmt.Errorf("strategy must be %q, %q, or %q", LoadBalanceStrategyHealth, LoadBalanceStrategyRoundRobin, LoadBalanceStrategyLeastConnections)
+	}
+}
+
 func defaultOpus47AdmissionConfig() Opus47AdmissionConfig {
 	return Opus47AdmissionConfig{
 		MaxConcurrent: 2,
@@ -187,6 +217,7 @@ type Config struct {
 	AutoRefresh     AutoRefreshConfig     `json:"autoRefresh"`
 	HealthCheck     HealthCheckConfig     `json:"healthCheck"`
 	Opus47Admission Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
+	LoadBalance     LoadBalanceConfig     `json:"loadBalance,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -415,6 +446,7 @@ func Load() error {
 				AutoRefresh:     defaultAutoRefreshConfig(),
 				HealthCheck:     defaultHealthCheckConfig(),
 				Opus47Admission: defaultOpus47AdmissionConfig(),
+				LoadBalance:     defaultLoadBalanceConfig(),
 			}
 			return Save()
 		}
@@ -428,6 +460,7 @@ func Load() error {
 	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
 	c.HealthCheck = normalizePersistedHealthCheckConfig(data, c.HealthCheck)
 	c.Opus47Admission = normalizeOpus47AdmissionConfig(c.Opus47Admission)
+	c.LoadBalance = normalizeLoadBalanceConfig(c.LoadBalance)
 	cfg = &c
 	return nil
 }
@@ -530,6 +563,27 @@ func UpdateOpus47AdmissionConfig(admission Opus47AdmissionConfig) error {
 	cfgLock.Lock()
 	defer cfgLock.Unlock()
 	cfg.Opus47Admission = normalized
+	return Save()
+}
+
+func GetLoadBalanceConfig() LoadBalanceConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	if cfg == nil {
+		return defaultLoadBalanceConfig()
+	}
+	return normalizeLoadBalanceConfig(cfg.LoadBalance)
+}
+
+func UpdateLoadBalanceConfig(loadBalance LoadBalanceConfig) error {
+	normalized := normalizeLoadBalanceConfig(loadBalance)
+	if err := ValidateLoadBalanceConfig(normalized); err != nil {
+		return err
+	}
+
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.LoadBalance = normalized
 	return Save()
 }
 

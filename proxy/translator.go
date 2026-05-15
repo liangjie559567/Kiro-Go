@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"kiro-go/config"
 	"regexp"
 	"strings"
@@ -927,6 +928,136 @@ type OpenAIRequest struct {
 	Tools       []OpenAITool    `json:"tools,omitempty"`
 }
 
+func OpenAIResponsesToChatRequest(payload map[string]interface{}) (*OpenAIRequest, error) {
+	model, _ := payload["model"].(string)
+	if strings.TrimSpace(model) == "" {
+		model = "claude-sonnet-4.5"
+	}
+
+	req := &OpenAIRequest{Model: model}
+	if stream, ok := payload["stream"].(bool); ok {
+		req.Stream = stream
+	}
+	if maxTokens := numberToInt(payload["max_output_tokens"]); maxTokens > 0 {
+		req.MaxTokens = maxTokens
+	} else if maxTokens := numberToInt(payload["max_tokens"]); maxTokens > 0 {
+		req.MaxTokens = maxTokens
+	}
+	if temperature, ok := numberToFloat64(payload["temperature"]); ok {
+		req.Temperature = temperature
+	}
+	if topP, ok := numberToFloat64(payload["top_p"]); ok {
+		req.TopP = topP
+	}
+
+	if instructions := extractResponsesText(payload["instructions"]); instructions != "" {
+		req.Messages = append(req.Messages, OpenAIMessage{Role: "system", Content: instructions})
+	}
+	req.Messages = append(req.Messages, convertResponsesInput(payload["input"])...)
+	if len(req.Messages) == 0 || (len(req.Messages) == 1 && req.Messages[0].Role == "system") {
+		return nil, fmt.Errorf("responses request missing convertible input")
+	}
+	return req, nil
+}
+
+func convertResponsesInput(input interface{}) []OpenAIMessage {
+	switch v := input.(type) {
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil
+		}
+		return []OpenAIMessage{{Role: "user", Content: v}}
+	case []interface{}:
+		messages := make([]OpenAIMessage, 0, len(v))
+		for _, item := range v {
+			if msg, ok := responsesItemToOpenAIMessage(item); ok {
+				messages = append(messages, msg)
+			}
+		}
+		return messages
+	case map[string]interface{}:
+		if msg, ok := responsesItemToOpenAIMessage(v); ok {
+			return []OpenAIMessage{msg}
+		}
+	}
+	return nil
+}
+
+func responsesItemToOpenAIMessage(item interface{}) (OpenAIMessage, bool) {
+	obj, ok := item.(map[string]interface{})
+	if !ok {
+		text := extractResponsesText(item)
+		return OpenAIMessage{Role: "user", Content: text}, strings.TrimSpace(text) != ""
+	}
+	role, _ := obj["role"].(string)
+	if role == "" {
+		role = "user"
+	}
+	text := extractResponsesText(obj["content"])
+	if text == "" {
+		text = extractResponsesText(obj)
+	}
+	if strings.TrimSpace(text) == "" {
+		return OpenAIMessage{}, false
+	}
+	return OpenAIMessage{Role: role, Content: text}, true
+}
+
+func extractResponsesText(value interface{}) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return v
+	case map[string]interface{}:
+		for _, key := range []string{"text", "input_text", "output_text"} {
+			if text, ok := v[key].(string); ok && strings.TrimSpace(text) != "" {
+				return text
+			}
+		}
+		if content, ok := v["content"]; ok {
+			return extractResponsesText(content)
+		}
+	case []interface{}:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			if text := extractResponsesText(item); strings.TrimSpace(text) != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, "")
+	}
+	return ""
+}
+
+func numberToInt(value interface{}) int {
+	switch v := value.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case json.Number:
+		i, _ := v.Int64()
+		return int(i)
+	default:
+		return 0
+	}
+}
+
+func numberToFloat64(value interface{}) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	default:
+		return 0, false
+	}
+}
+
 type OpenAIMessage struct {
 	Role       string      `json:"role"`
 	Content    interface{} `json:"content"`
@@ -1548,7 +1679,7 @@ func extractThinkingFromContent(content string) (string, string) {
 		if start == -1 {
 			break
 		}
-		end := strings.Index(result[start:], "</thinking>")
+		end := findUnquotedThinkingEnd(result[start:])
 		if end == -1 {
 			break
 		}
@@ -1563,6 +1694,37 @@ func extractThinkingFromContent(content string) (string, string) {
 	}
 
 	return strings.TrimSpace(result), reasoning
+}
+
+func findUnquotedThinkingEnd(s string) int {
+	const closeTag = "</thinking>"
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+
+	for i := 0; i <= len(s)-len(closeTag); i++ {
+		ch := s[i]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if ch == '\\' && (inSingleQuote || inDoubleQuote) {
+			escaped = true
+			continue
+		}
+		if ch == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+		if ch == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			continue
+		}
+		if !inSingleQuote && !inDoubleQuote && strings.HasPrefix(s[i:], closeTag) {
+			return i
+		}
+	}
+	return -1
 }
 
 // KiroToOpenAIResponseWithReasoning 带 reasoning_content 的 OpenAI 响应

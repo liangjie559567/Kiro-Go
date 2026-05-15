@@ -277,6 +277,58 @@ func TestGetNextForModelPrefersLessBusyHealthyAccount(t *testing.T) {
 	}
 }
 
+func TestGetNextForModelLeastConnectionsStrategyPrefersLessBusyAccount(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "busy"}, {ID: "idle"}},
+		totalAccounts: 2,
+		currentIndex:  1,
+	}
+	p.SetStrategy(StrategyLeastConnections)
+	p.SetModelList("busy", []string{"claude-opus-4.7"})
+	p.SetModelList("idle", []string{"claude-opus-4.7"})
+
+	release := p.BeginRequest("busy")
+	defer release()
+
+	got := p.GetNextForModel("claude-opus-4.7")
+	if got == nil {
+		t.Fatalf("expected an account")
+	}
+	if got.ID != "idle" {
+		t.Fatalf("expected idle account, got %q", got.ID)
+	}
+}
+
+func TestGetNextForModelRoundRobinStrategyPreservesConfiguredOrder(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "busy"}, {ID: "next"}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("busy", []string{"claude-opus-4.7"})
+	p.SetModelList("next", []string{"claude-opus-4.7"})
+
+	release := p.BeginRequest("busy")
+	defer release()
+
+	got := p.GetNextForModel("claude-opus-4.7")
+	if got == nil {
+		t.Fatalf("expected an account")
+	}
+	if got.ID != "busy" {
+		t.Fatalf("expected round robin to keep weighted order, got %q", got.ID)
+	}
+}
+
 func TestRuntimeHealthRecordsLatencyAndFailureScore(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),
