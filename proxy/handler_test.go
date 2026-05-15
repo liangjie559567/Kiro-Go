@@ -1337,6 +1337,21 @@ func TestAdminPageDisablesCaching(t *testing.T) {
 	}
 }
 
+func TestFaviconServed(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected favicon status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "image/svg+xml") {
+		t.Fatalf("expected svg favicon content type, got %q", got)
+	}
+}
+
 func TestDashboardRefreshIncludesHealthCheckStatus(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("..", "web", "index.html"))
 	if err != nil {

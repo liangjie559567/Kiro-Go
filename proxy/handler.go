@@ -650,6 +650,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Claude Code 遥测端点 - 直接返回 200 OK
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write([]byte(`{"status":"ok"}`))
+	case path == "/favicon.ico":
+		h.serveFavicon(w, r)
 
 	// 管理端点
 	case path == "/admin" || path == "/admin/":
@@ -4284,6 +4286,13 @@ func (h *Handler) serveAdminPage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) serveStaticFile(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/admin/")
 	http.ServeFile(w, r, "web/"+path)
+}
+
+func (h *Handler) serveFavicon(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0f172a"/><path d="M18 16h8v14l14-14h10L34 32l17 16H40L26 34v14h-8z" fill="#38bdf8"/></svg>`))
 }
 
 // apiGetThinkingConfig 获取 thinking 配置

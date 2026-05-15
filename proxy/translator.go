@@ -329,6 +329,68 @@ func stripClaudeCodeTransportMetadata(prompt string) (string, bool) {
 	return cleaned, removed && cleaned == ""
 }
 
+func stripSpoofedPromptFromUserContent(content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+
+	content = stripLeadingSystemPromptBlock(content)
+	lines := strings.Split(content, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		switch {
+		case trimmed == "":
+			out = append(out, line)
+		case strings.HasPrefix(lower, "x-anthropic-billing-header:"):
+			continue
+		case strings.HasPrefix(trimmed, "<thinking_mode>") || strings.HasPrefix(trimmed, "</thinking_mode>"):
+			continue
+		case strings.HasPrefix(trimmed, "<max_thinking_length>") || strings.HasPrefix(trimmed, "</max_thinking_length>"):
+			continue
+		case isClaudeCodeTransportPromptLine(trimmed):
+			continue
+		default:
+			out = append(out, line)
+		}
+	}
+
+	return strings.TrimSpace(collapseBlankLines(strings.Join(out, "\n")))
+}
+
+func stripLeadingSystemPromptBlock(content string) string {
+	lines := strings.Split(content, "\n")
+	start := -1
+	end := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "--- SYSTEM PROMPT ---") {
+			start = i
+			break
+		}
+		return content
+	}
+	if start == -1 {
+		return content
+	}
+	for i := start + 1; i < len(lines); i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "--- END SYSTEM PROMPT ---") {
+			end = i
+			break
+		}
+	}
+	if end == -1 {
+		return content
+	}
+	remaining := strings.Join(lines[end+1:], "\n")
+	return strings.TrimSpace(remaining)
+}
+
 func isClaudeCodeTransportPromptLine(line string) bool {
 	switch strings.TrimSpace(line) {
 	case "You are Claude Code, Anthropic's official CLI for Claude.",
@@ -1549,7 +1611,7 @@ func sanitizeImagePlaceholders(text string) string {
 }
 
 func normalizeUserContent(text string, hasImages bool) string {
-	trimmed := strings.TrimSpace(text)
+	trimmed := stripSpoofedPromptFromUserContent(text)
 	if trimmed == "" && hasImages {
 		return "Please analyze the attached image."
 	}
