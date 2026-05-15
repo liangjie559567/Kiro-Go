@@ -33,6 +33,9 @@ type Handler struct {
 	autoRefreshUpdated chan struct{}
 	autoRefreshMu      sync.RWMutex
 	autoRefreshStatus  autoRefreshStatus
+	healthCheckUpdated chan struct{}
+	healthCheckMu      sync.RWMutex
+	healthCheckStatus  healthCheckStatus
 	// 模型缓存
 	cachedModels    []ModelInfo
 	modelsCacheMu   sync.RWMutex
@@ -225,6 +228,7 @@ func NewHandler() *Handler {
 		stopRefresh:        make(chan struct{}),
 		stopStatsSaver:     make(chan struct{}),
 		autoRefreshUpdated: make(chan struct{}, 1),
+		healthCheckUpdated: make(chan struct{}, 1),
 		promptCache:        newPromptCacheTracker(defaultPromptCacheTTL),
 	}
 	// 启动后台刷新
