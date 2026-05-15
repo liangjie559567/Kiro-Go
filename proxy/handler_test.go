@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"errors"
+	"io"
 	"kiro-go/config"
 	"kiro-go/pool"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestThinkingSourceReasoningFirst(t *testing.T) {
@@ -106,6 +108,64 @@ func TestValidateClaudeRequestShapeRejectsAssistantPrefill(t *testing.T) {
 	if msg := validateClaudeRequestShape(req); msg == "" {
 		t.Fatalf("expected assistant-prefill final message to be rejected")
 	}
+}
+
+func TestHandleClaudeRetriesQuotaFailureOnNextAccount(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()})
+	config.AddAccount(config.Account{ID: "acct-2", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:aws:codewhisperer:profile/test-2", ExpiresAt: time.Now().Add(time.Hour).Unix()})
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			status := http.StatusOK
+			body := ""
+			if len(tokens) <= 3 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"quota exhausted"}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","max_tokens":128,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected retry to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 4 {
+		t.Fatalf("expected three endpoint attempts on first account plus one retry, got %d: %#v", len(tokens), tokens)
+	}
+	if tokens[0] != "Bearer token-1" || tokens[3] != "Bearer token-2" {
+		t.Fatalf("expected retry to switch from acct-1 to acct-2, got %#v", tokens)
+	}
+	if !p.IsCoolingDown("acct-1", time.Now()) {
+		t.Fatalf("expected quota-failed account to enter cooldown")
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if config.GetAccounts()[1].RequestCount > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats update to complete")
 }
 
 func TestResolveClaudeThinkingModeHonorsRequestThinking(t *testing.T) {

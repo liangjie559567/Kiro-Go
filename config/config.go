@@ -64,6 +64,11 @@ type Account struct {
 	BanStatus string `json:"banStatus,omitempty"` // Ban status: "ACTIVE", "BANNED", "SUSPENDED"
 	BanReason string `json:"banReason,omitempty"` // Reason for ban/suspension
 	BanTime   int64  `json:"banTime,omitempty"`   // Timestamp when ban was detected
+	// Request-level health state
+	LastFailureReason string `json:"lastFailureReason,omitempty"` // Last request failure classification
+	LastFailureAt     int64  `json:"lastFailureAt,omitempty"`     // Last request failure timestamp
+	CooldownUntil     int64  `json:"cooldownUntil,omitempty"`     // Request routing cooldown end timestamp
+	FailureCount      int    `json:"failureCount,omitempty"`      // Consecutive request failure count
 
 	// Subscription information
 	SubscriptionType  string `json:"subscriptionType,omitempty"`  // Tier: FREE, PRO, PRO_PLUS, or POWER
@@ -486,6 +491,28 @@ func UpdateAccountProfileArn(id, profileArn string) error {
 		}
 	}
 	return nil
+}
+
+func UpdateAccountHealth(id string, lastFailureReason string, lastFailureAt, cooldownUntil int64, failureCount int) error {
+	if cfg == nil {
+		return nil
+	}
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	for i, a := range cfg.Accounts {
+		if a.ID == id {
+			cfg.Accounts[i].LastFailureReason = lastFailureReason
+			cfg.Accounts[i].LastFailureAt = lastFailureAt
+			cfg.Accounts[i].CooldownUntil = cooldownUntil
+			cfg.Accounts[i].FailureCount = failureCount
+			return Save()
+		}
+	}
+	return nil
+}
+
+func ClearAccountHealth(id string) error {
+	return UpdateAccountHealth(id, "", 0, 0, 0)
 }
 
 func DeleteAccount(id string) error {

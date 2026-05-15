@@ -4,6 +4,7 @@ package pool
 
 import (
 	"kiro-go/config"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,14 +12,51 @@ import (
 
 const overageFrequencyScale = 10
 
+type FailureReason string
+
+const (
+	FailureReasonUnknown          FailureReason = "unknown"
+	FailureReasonQuotaExhausted   FailureReason = "quota_exhausted"
+	FailureReasonAuthExpired      FailureReason = "auth_expired"
+	FailureReasonSuspended        FailureReason = "suspended"
+	FailureReasonRateLimited      FailureReason = "rate_limited"
+	FailureReasonTransientNetwork FailureReason = "transient_network"
+	FailureReasonUpstream5xx      FailureReason = "upstream_5xx"
+)
+
+func ClassifyFailureReason(err error) FailureReason {
+	if err == nil {
+		return FailureReasonUnknown
+	}
+
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "quota exhausted"):
+		return FailureReasonQuotaExhausted
+	case strings.Contains(msg, "temporarily_suspended"), strings.Contains(msg, "account suspended"), strings.Contains(msg, "suspended"):
+		return FailureReasonSuspended
+	case strings.Contains(msg, "429"), strings.Contains(msg, "rate limit"), strings.Contains(msg, "too many requests"):
+		return FailureReasonRateLimited
+	case strings.Contains(msg, "401"), strings.Contains(msg, "403"), strings.Contains(msg, "expired"), strings.Contains(msg, "invalid token"):
+		return FailureReasonAuthExpired
+	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"), strings.Contains(msg, "connection refused"), strings.Contains(msg, "eof"), strings.Contains(msg, "network"):
+		return FailureReasonTransientNetwork
+	case strings.Contains(msg, "500"), strings.Contains(msg, "502"), strings.Contains(msg, "503"), strings.Contains(msg, "504"):
+		return FailureReasonUpstream5xx
+	default:
+		return FailureReasonUnknown
+	}
+}
+
 // AccountPool 账号池
 type AccountPool struct {
-	mu           sync.RWMutex
-	accounts     []config.Account
+	mu            sync.RWMutex
+	accounts      []config.Account
 	totalAccounts int
-	currentIndex uint64
-	cooldowns    map[string]time.Time // 账号冷却时间
-	errorCounts  map[string]int       // 连续错误计数
+	currentIndex  uint64
+	cooldowns     map[string]time.Time // 账号冷却时间
+	errorCounts   map[string]int       // 连续错误计数
+	failures      map[string]FailureReason
 }
 
 var (
@@ -32,10 +70,23 @@ func GetPool() *AccountPool {
 		pool = &AccountPool{
 			cooldowns:   make(map[string]time.Time),
 			errorCounts: make(map[string]int),
+			failures:    make(map[string]FailureReason),
 		}
 		pool.Reload()
 	})
 	return pool
+}
+
+func (p *AccountPool) ensureStateLocked() {
+	if p.cooldowns == nil {
+		p.cooldowns = make(map[string]time.Time)
+	}
+	if p.errorCounts == nil {
+		p.errorCounts = make(map[string]int)
+	}
+	if p.failures == nil {
+		p.failures = make(map[string]FailureReason)
+	}
 }
 
 // Reload 从配置重新加载账号
@@ -43,6 +94,7 @@ func GetPool() *AccountPool {
 func (p *AccountPool) Reload() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.ensureStateLocked()
 	enabled := config.GetEnabledAccounts()
 	var weighted []config.Account
 	for _, a := range enabled {
@@ -63,6 +115,10 @@ func (p *AccountPool) Reload() {
 
 // GetNext 获取下一个可用账号（加权轮询）
 func (p *AccountPool) GetNext() *config.Account {
+	return p.GetNextExcept(nil)
+}
+
+func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -82,9 +138,19 @@ func (p *AccountPool) GetNext() *config.Account {
 		if seen[acc.ID] {
 			continue
 		}
+		if excluded != nil && excluded[acc.ID] {
+			seen[acc.ID] = true
+			continue
+		}
 
 		// 跳过冷却中的账号
 		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
+			seen[acc.ID] = true
+			continue
+		}
+
+		// 跳过账号自身持久化冷却中的账号
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			seen[acc.ID] = true
 			continue
 		}
@@ -109,8 +175,14 @@ func (p *AccountPool) GetNext() *config.Account {
 	var earliest time.Time
 	for i := range p.accounts {
 		acc := &p.accounts[i]
+		if excluded != nil && excluded[acc.ID] {
+			continue
+		}
 		// 额度用尽的账号不作为 fallback
 		if isOverUsageLimit(*acc) && !acc.AllowOverage {
+			continue
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			continue
 		}
 		if cooldown, ok := p.cooldowns[acc.ID]; ok {
@@ -141,23 +213,70 @@ func (p *AccountPool) GetByID(id string) *config.Account {
 func (p *AccountPool) RecordSuccess(id string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.ensureStateLocked()
 	delete(p.cooldowns, id)
 	p.errorCounts[id] = 0
+	delete(p.failures, id)
+	for i := range p.accounts {
+		if p.accounts[i].ID == id {
+			p.accounts[i].FailureCount = 0
+			p.accounts[i].LastFailureReason = ""
+			p.accounts[i].LastFailureAt = 0
+			p.accounts[i].CooldownUntil = 0
+		}
+	}
+	if config.Get() != nil {
+		_ = config.ClearAccountHealth(id)
+	}
 }
 
-// RecordError 记录请求错误，设置冷却
-func (p *AccountPool) RecordError(id string, isQuotaError bool) {
+// RecordFailure 记录请求错误，设置冷却
+func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.ensureStateLocked()
 
 	p.errorCounts[id]++
+	p.failures[id] = reason
+	now := time.Now()
+	cooldown := time.Duration(0)
 
-	if isQuotaError {
-		// 配额错误，冷却 1 小时
-		p.cooldowns[id] = time.Now().Add(time.Hour)
-	} else if p.errorCounts[id] >= 3 {
-		// 连续 3 次错误，冷却 1 分钟
-		p.cooldowns[id] = time.Now().Add(time.Minute)
+	switch reason {
+	case FailureReasonQuotaExhausted, FailureReasonSuspended:
+		cooldown = time.Hour
+	case FailureReasonAuthExpired:
+		cooldown = 10 * time.Minute
+	case FailureReasonRateLimited:
+		cooldown = time.Minute
+	case FailureReasonTransientNetwork, FailureReasonUpstream5xx:
+		if p.errorCounts[id] >= 3 {
+			cooldown = time.Minute
+		}
+	default:
+		if p.errorCounts[id] >= 3 {
+			cooldown = time.Minute
+		}
+	}
+
+	for i := range p.accounts {
+		if p.accounts[i].ID != id {
+			continue
+		}
+		p.accounts[i].FailureCount = p.errorCounts[id]
+		p.accounts[i].LastFailureReason = string(reason)
+		p.accounts[i].LastFailureAt = now.Unix()
+		if cooldown > 0 {
+			until := now.Add(cooldown)
+			p.cooldowns[id] = until
+			p.accounts[i].CooldownUntil = until.Unix()
+		}
+		if config.Get() != nil {
+			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
+		}
+	}
+
+	if cooldown == 0 && (reason == FailureReasonTransientNetwork || reason == FailureReasonUpstream5xx) && p.errorCounts[id] < 3 {
+		return
 	}
 }
 
@@ -254,6 +373,20 @@ func (p *AccountPool) GetAllAccounts() []config.Account {
 	result := make([]config.Account, len(p.accounts))
 	copy(result, p.accounts)
 	return result
+}
+
+func (p *AccountPool) IsCoolingDown(id string, now time.Time) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if cooldown, ok := p.cooldowns[id]; ok && now.Before(cooldown) {
+		return true
+	}
+	for _, acc := range p.accounts {
+		if acc.ID == id && acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+			return true
+		}
+	}
+	return false
 }
 
 func isOverUsageLimit(acc config.Account) bool {

@@ -221,6 +221,22 @@ func validateOpenAIRequestShape(req *OpenAIRequest) string {
 	return ""
 }
 
+func classifyFailureReason(err error) pool.FailureReason {
+	return pool.ClassifyFailureReason(err)
+}
+
+func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
+	if attempt > 0 {
+		return false
+	}
+	switch reason {
+	case pool.FailureReasonQuotaExhausted, pool.FailureReasonRateLimited, pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
+		return true
+	default:
+		return false
+	}
+}
+
 func NewHandler() *Handler {
 	// 启动时应用代理配置
 	applyProxyConfig(config.GetProxyURL())
@@ -851,19 +867,6 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 获取账号
-	account := h.pool.GetNext()
-	if account == nil {
-		h.sendClaudeError(w, 503, "api_error", "No available accounts")
-		return
-	}
-
-	// 检查并刷新 token
-	if err := h.ensureValidToken(account); err != nil {
-		h.sendClaudeError(w, 503, "api_error", "Token refresh failed: "+err.Error())
-		return
-	}
-
 	// 解析模型和 thinking 模式
 	thinkingCfg := config.GetThinkingConfig()
 	actualModel, thinking := resolveClaudeThinkingMode(req.Model, req.Thinking, thinkingCfg.Suffix)
@@ -871,22 +874,91 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	effectiveReq := cloneClaudeRequestForThinking(&req, thinking)
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
-	cacheProfile := h.promptCache.BuildClaudeProfile(effectiveReq, estimatedInputTokens)
-	cacheUsage := h.promptCache.Compute(account.ID, cacheProfile)
 
 	// 转换请求
 	kiroPayload := ClaudeToKiro(&req, thinking)
+	h.handleClaudeWithAccountRetry(w, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
+}
 
-	// Stream or non-stream
-	if req.Stream {
-		h.handleClaudeStream(w, account, kiroPayload, req.Model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile)
-	} else {
-		h.handleClaudeNonStream(w, account, kiroPayload, req.Model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile)
+func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
+	cacheProfile := h.promptCache.BuildClaudeProfile(effectiveReq, estimatedInputTokens)
+	used := make(map[string]bool)
+	maxAttempts := 2
+	if stream {
+		maxAttempts = 1
+	}
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		account := h.pool.GetNextExcept(used)
+		if account == nil {
+			if attempt == 0 {
+				h.sendClaudeError(w, 503, "api_error", "No available accounts")
+			}
+			return
+		}
+		used[account.ID] = true
+
+		if err := h.ensureValidToken(account); err != nil {
+			h.pool.RecordFailure(account.ID, classifyFailureReason(err))
+			if attempt == 0 {
+				continue
+			}
+			h.sendClaudeError(w, 503, "api_error", "Token refresh failed: "+err.Error())
+			return
+		}
+
+		cacheUsage := h.promptCache.Compute(account.ID, cacheProfile)
+		if stream {
+			if h.handleClaudeStreamAttempt(w, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt) {
+				return
+			}
+		} else {
+			if h.handleClaudeNonStreamAttempt(w, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt) {
+				return
+			}
+		}
+	}
+}
+
+func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+	used := make(map[string]bool)
+	maxAttempts := 2
+	if stream {
+		maxAttempts = 1
+	}
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		account := h.pool.GetNextExcept(used)
+		if account == nil {
+			if attempt == 0 {
+				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
+			}
+			return
+		}
+		used[account.ID] = true
+
+		if err := h.ensureValidToken(account); err != nil {
+			h.pool.RecordFailure(account.ID, classifyFailureReason(err))
+			if attempt == 0 {
+				continue
+			}
+			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
+			return
+		}
+
+		if stream {
+			if h.handleOpenAIStreamAttempt(w, account, payload, model, thinking, estimatedInputTokens, used, attempt) {
+				return
+			}
+		} else {
+			if h.handleOpenAINonStreamAttempt(w, account, payload, model, thinking, estimatedInputTokens, used, attempt) {
+				return
+			}
+		}
 	}
 }
 
 // handleClaudeStream Claude 流式响应
-func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile) {
+func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) bool {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -894,7 +966,7 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		h.sendClaudeError(w, 500, "api_error", "Streaming not supported")
-		return
+		return true
 	}
 
 	// 获取 thinking 输出格式配置
@@ -911,11 +983,33 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 	activeBlockIndex := -1
 	activeBlockType := ""
 	startInputTokens := estimatedInputTokens
+	streamStarted := false
+
+	startMessage := func() {
+		if streamStarted {
+			return
+		}
+		streamStarted = true
+		h.sendSSE(w, flusher, "message_start", map[string]interface{}{
+			"type": "message_start",
+			"message": map[string]interface{}{
+				"id":            msgID,
+				"type":          "message",
+				"role":          "assistant",
+				"content":       []interface{}{},
+				"model":         model,
+				"stop_reason":   nil,
+				"stop_sequence": nil,
+				"usage":         buildClaudeUsageMap(startInputTokens, 0, cacheUsage, cacheProfile != nil),
+			},
+		})
+	}
 
 	closeActiveBlock := func() {
 		if activeBlockIndex < 0 {
 			return
 		}
+		startMessage()
 		h.sendSSE(w, flusher, "content_block_stop", map[string]interface{}{
 			"type":  "content_block_stop",
 			"index": activeBlockIndex,
@@ -929,6 +1023,7 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 			return
 		}
 		closeActiveBlock()
+		startMessage()
 
 		idx := nextContentIndex
 		nextContentIndex++
@@ -1161,21 +1256,6 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 		}
 	}
 
-	// 发送 message_start
-	h.sendSSE(w, flusher, "message_start", map[string]interface{}{
-		"type": "message_start",
-		"message": map[string]interface{}{
-			"id":            msgID,
-			"type":          "message",
-			"role":          "assistant",
-			"content":       []interface{}{},
-			"model":         model,
-			"stop_reason":   nil,
-			"stop_sequence": nil,
-			"usage":         buildClaudeUsageMap(startInputTokens, 0, cacheUsage, cacheProfile != nil),
-		},
-	})
-
 	callback := &KiroStreamCallback{
 		OnText: func(text string, isThinking bool) {
 			if text == "" {
@@ -1233,7 +1313,7 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 			outputTokens = outTok
 		},
 		OnError: func(err error) {
-			h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "quota"))
+			h.pool.RecordFailure(account.ID, classifyFailureReason(err))
 		},
 		OnCredits: func(c float64) {
 			credits = c
@@ -1246,12 +1326,17 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 	err := CallKiroAPI(account, payload, callback)
 	if err != nil {
 		h.recordFailure()
-		h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "quota"))
+		reason := classifyFailureReason(err)
+		h.pool.RecordFailure(account.ID, reason)
+		if shouldRetryAccount(reason, attempt) && !streamStarted {
+			return false
+		}
+		startMessage()
 		h.sendSSE(w, flusher, "error", map[string]interface{}{
 			"type":  "error",
 			"error": map[string]string{"type": "api_error", "message": err.Error()},
 		})
-		return
+		return true
 	}
 
 	// 刷新剩余缓冲区
@@ -1288,6 +1373,7 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 		stopReason = "tool_use"
 	}
 
+	startMessage()
 	h.sendSSE(w, flusher, "message_delta", map[string]interface{}{
 		"type": "message_delta",
 		"delta": map[string]interface{}{
@@ -1299,6 +1385,7 @@ func (h *Handler) handleClaudeStream(w http.ResponseWriter, account *config.Acco
 	h.sendSSE(w, flusher, "message_stop", map[string]interface{}{
 		"type": "message_stop",
 	})
+	return true
 }
 
 func (h *Handler) sendSSE(w http.ResponseWriter, flusher http.Flusher, event string, data interface{}) {
@@ -1362,7 +1449,7 @@ func (h *Handler) recordFailure() {
 }
 
 // handleClaudeNonStream Claude 非流式响应
-func (h *Handler) handleClaudeNonStream(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile) {
+func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) bool {
 	var content string
 	var thinkingContent string
 	var toolUses []KiroToolUse
@@ -1386,7 +1473,7 @@ func (h *Handler) handleClaudeNonStream(w http.ResponseWriter, account *config.A
 			outputTokens = outTok
 		},
 		OnError: func(err error) {
-			h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429"))
+			h.pool.RecordFailure(account.ID, classifyFailureReason(err))
 		},
 		OnCredits: func(c float64) {
 			credits = c
@@ -1399,9 +1486,13 @@ func (h *Handler) handleClaudeNonStream(w http.ResponseWriter, account *config.A
 	err := CallKiroAPI(account, payload, callback)
 	if err != nil {
 		h.recordFailure()
-		h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429"))
+		reason := classifyFailureReason(err)
+		h.pool.RecordFailure(account.ID, reason)
+		if shouldRetryAccount(reason, attempt) {
+			return false
+		}
 		h.sendClaudeError(w, 500, "api_error", err.Error())
-		return
+		return true
 	}
 
 	// 合并 thinking 内容（如果有 reasoningContentEvent 的内容）
@@ -1457,6 +1548,7 @@ func (h *Handler) handleClaudeNonStream(w http.ResponseWriter, account *config.A
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(resp)
+	return true
 }
 
 func (h *Handler) sendClaudeError(w http.ResponseWriter, status int, errType, message string) {
@@ -1494,17 +1586,6 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account := h.pool.GetNext()
-	if account == nil {
-		h.sendOpenAIError(w, 503, "server_error", "No available accounts")
-		return
-	}
-
-	if err := h.ensureValidToken(account); err != nil {
-		h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
-		return
-	}
-
 	// 解析模型和 thinking 模式
 	thinkingCfg := config.GetThinkingConfig()
 	actualModel, thinking := ParseModelAndThinking(req.Model, thinkingCfg.Suffix)
@@ -1512,16 +1593,11 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 	estimatedInputTokens := estimateOpenAIRequestInputTokens(&req)
 
 	kiroPayload := OpenAIToKiro(&req, thinking)
-
-	if req.Stream {
-		h.handleOpenAIStream(w, account, kiroPayload, req.Model, thinking, estimatedInputTokens)
-	} else {
-		h.handleOpenAINonStream(w, account, kiroPayload, req.Model, thinking, estimatedInputTokens)
-	}
+	h.handleOpenAIWithAccountRetry(w, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
 }
 
 // handleOpenAIStream OpenAI 流式响应
-func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) bool {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -1529,7 +1605,7 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		h.sendOpenAIError(w, 500, "server_error", "Streaming not supported")
-		return
+		return true
 	}
 
 	// 获取 thinking 输出格式配置
@@ -1543,6 +1619,7 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 	var realInputTokens int
 	var rawContentBuilder strings.Builder
 	var rawReasoningBuilder strings.Builder
+	streamStarted := false
 
 	// Thinking 标签解析状态
 	var textBuffer string
@@ -1648,6 +1725,7 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 			}
 		}
 		data, _ := json.Marshal(chunk)
+		streamStarted = true
 		fmt.Fprintf(w, "data: %s\n\n", string(data))
 		flusher.Flush()
 	}
@@ -1820,6 +1898,7 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 			}
 			toolCallIndex++
 			data, _ := json.Marshal(chunk)
+			streamStarted = true
 			fmt.Fprintf(w, "data: %s\n\n", string(data))
 			flusher.Flush()
 		},
@@ -1828,7 +1907,7 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 			outputTokens = outTok
 		},
 		OnError: func(err error) {
-			h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429"))
+			h.pool.RecordFailure(account.ID, classifyFailureReason(err))
 		},
 		OnCredits: func(c float64) {
 			credits = c
@@ -1841,8 +1920,12 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 	err := CallKiroAPI(account, payload, callback)
 	if err != nil {
 		h.recordFailure()
-		h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429"))
-		return
+		reason := classifyFailureReason(err)
+		h.pool.RecordFailure(account.ID, reason)
+		if shouldRetryAccount(reason, attempt) && !streamStarted {
+			return false
+		}
+		return true
 	}
 
 	// 刷新剩余缓冲区
@@ -1901,10 +1984,11 @@ func (h *Handler) handleOpenAIStream(w http.ResponseWriter, account *config.Acco
 	fmt.Fprintf(w, "data: %s\n\n", string(data))
 	fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
+	return true
 }
 
 // handleOpenAINonStream OpenAI 非流式响应
-func (h *Handler) handleOpenAINonStream(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) bool {
 	var content string
 	var reasoningContent string
 	var toolUses []KiroToolUse
@@ -1922,7 +2006,7 @@ func (h *Handler) handleOpenAINonStream(w http.ResponseWriter, account *config.A
 		},
 		OnToolUse:  func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
-		OnError:    func(err error) { h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429")) },
+		OnError:    func(err error) { h.pool.RecordFailure(account.ID, classifyFailureReason(err)) },
 		OnCredits:  func(c float64) { credits = c },
 		OnContextUsage: func(pct float64) {
 			realInputTokens = int(pct * float64(getContextWindowSize(model)) / 100.0)
@@ -1932,9 +2016,13 @@ func (h *Handler) handleOpenAINonStream(w http.ResponseWriter, account *config.A
 	err := CallKiroAPI(account, payload, callback)
 	if err != nil {
 		h.recordFailure()
-		h.pool.RecordError(account.ID, strings.Contains(err.Error(), "429"))
+		reason := classifyFailureReason(err)
+		h.pool.RecordFailure(account.ID, reason)
+		if shouldRetryAccount(reason, attempt) {
+			return false
+		}
 		h.sendOpenAIError(w, 500, "server_error", err.Error())
-		return
+		return true
 	}
 
 	// 解析 content 中的 <thinking> 标签
@@ -1960,6 +2048,7 @@ func (h *Handler) handleOpenAINonStream(w http.ResponseWriter, account *config.A
 	resp := KiroToOpenAIResponseWithReasoning(finalContent, reasoningContent, toolUses, inputTokens, outputTokens, model, thinkingFormat)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(resp)
+	return true
 }
 
 func (h *Handler) sendOpenAIError(w http.ResponseWriter, status int, errType, message string) {

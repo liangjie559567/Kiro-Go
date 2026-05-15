@@ -2,11 +2,20 @@ package proxy
 
 import (
 	"errors"
+	"io"
+	"kiro-go/auth"
 	"kiro-go/config"
+	"net/http"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "unsafe"
 )
+
+//go:linkname authHttpClientStore kiro-go/auth.httpClientStore
+var authHttpClientStore atomic.Pointer[http.Client]
 
 func TestSelectAutoRefreshAccountsHonorsScope(t *testing.T) {
 	accounts := []config.Account{
@@ -90,5 +99,83 @@ func TestComputeNextRunAt(t *testing.T) {
 	disabled := computeNextRunAt(now, config.AutoRefreshConfig{Enabled: false, IntervalMinutes: 60})
 	if disabled != 0 {
 		t.Fatalf("expected disabled next run 0, got %d", disabled)
+	}
+}
+
+func TestRefreshAccountDataRefreshesTokenWhenTokenIsStillValid(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldExpiresAt := time.Now().Add(time.Hour).Unix()
+	account := config.Account{
+		ID:           "acct-1",
+		Email:        "user@example.com",
+		AccessToken:  "old-access-token",
+		RefreshToken: "old-refresh-token",
+		AuthMethod:   "social",
+		Region:       "us-east-1",
+		Enabled:      true,
+		ExpiresAt:    oldExpiresAt,
+		ProfileArn:   "arn:aws:codewhisperer:profile/test",
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	var authCalls int32
+	authHttpClientStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			atomic.AddInt32(&authCalls, 1)
+			if req.URL.Host != "prod.us-east-1.auth.desktop.kiro.dev" || req.URL.Path != "/refreshToken" {
+				t.Fatalf("unexpected auth request: %s %s", req.Method, req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"accessToken":"new-access-token","refreshToken":"new-refresh-token","expiresIn":7200,"profileArn":"arn:aws:codewhisperer:profile/new"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { auth.InitHttpClient("") })
+
+	kiroRestHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got := req.Header.Get("Authorization"); got != "Bearer new-access-token" {
+				t.Fatalf("expected refreshed access token in usage request, got %q", got)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`{
+					"userInfo":{"email":"user@example.com","userId":"user-1"},
+					"subscriptionInfo":{"subscriptionTitle":"KIRO PRO"},
+					"usageBreakdownList":[{"currentUsage":1,"usageLimit":100}],
+					"nextDateReset":1800000000
+				}`)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	_, err := refreshAccountData(&account)
+	if err != nil {
+		t.Fatalf("refresh account data: %v", err)
+	}
+	if authCalls != 1 {
+		t.Fatalf("expected token refresh to run once, got %d", authCalls)
+	}
+	if account.AccessToken != "new-access-token" {
+		t.Fatalf("expected in-memory account access token to refresh, got %q", account.AccessToken)
+	}
+	if account.ExpiresAt <= oldExpiresAt {
+		t.Fatalf("expected in-memory expiresAt to move forward, old=%d new=%d", oldExpiresAt, account.ExpiresAt)
+	}
+
+	persisted := config.GetAccounts()[0]
+	if persisted.AccessToken != "new-access-token" {
+		t.Fatalf("expected persisted access token to refresh, got %q", persisted.AccessToken)
+	}
+	if persisted.ExpiresAt != account.ExpiresAt {
+		t.Fatalf("expected persisted expiresAt %d, got %d", account.ExpiresAt, persisted.ExpiresAt)
 	}
 }

@@ -111,8 +111,9 @@ func (h *Handler) getAutoRefreshStatus() autoRefreshStatus {
 
 func refreshAccountData(account *config.Account) (*refreshAccountResult, error) {
 	originalEnabled := account.Enabled
+	tokenRefreshed := false
 
-	refreshTokenIfNeeded := func() error {
+	refreshToken := func() error {
 		if account.RefreshToken == "" {
 			return nil
 		}
@@ -121,6 +122,7 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 		if err != nil {
 			return err
 		}
+		tokenRefreshed = true
 
 		account.AccessToken = newAccessToken
 		if newRefreshToken != "" {
@@ -140,10 +142,8 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 		return nil
 	}
 
-	if account.ExpiresAt > 0 && time.Now().Unix() > account.ExpiresAt-300 {
-		if err := refreshTokenIfNeeded(); err != nil {
-			return nil, err
-		}
+	if err := refreshToken(); err != nil {
+		return nil, err
 	}
 
 	info, err := RefreshAccountInfo(account)
@@ -153,7 +153,10 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 		}
 
 		if isAuthRefreshError(err) {
-			if refreshErr := refreshTokenIfNeeded(); refreshErr == nil {
+			if !tokenRefreshed {
+				if refreshErr := refreshToken(); refreshErr != nil {
+					return nil, err
+				}
 				info, err = RefreshAccountInfo(account)
 				if err != nil && isSuspendedRefreshError(err) {
 					return &refreshAccountResult{Message: "Account status updated"}, nil

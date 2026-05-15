@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestDefaultAutoRefreshConfig(t *testing.T) {
 	got := defaultAutoRefreshConfig()
@@ -164,5 +167,30 @@ func TestValidateHealthCheckConfig(t *testing.T) {
 	tooLarge := HealthCheckConfig{Enabled: true, IntervalMinutes: 1441}
 	if err := ValidateHealthCheckConfig(tooLarge); err == nil {
 		t.Fatalf("expected interval above maximum to fail")
+	}
+}
+
+func TestUpdateAndClearAccountHealth(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfgLock.Lock()
+	cfg.Accounts = []Account{{ID: "acct-1"}}
+	cfgLock.Unlock()
+
+	if err := UpdateAccountHealth("acct-1", "quota_exhausted", 123, 456, 2); err != nil {
+		t.Fatalf("update health: %v", err)
+	}
+	got := GetAccounts()[0]
+	if got.LastFailureReason != "quota_exhausted" || got.LastFailureAt != 123 || got.CooldownUntil != 456 || got.FailureCount != 2 {
+		t.Fatalf("unexpected health state: %#v", got)
+	}
+
+	if err := ClearAccountHealth("acct-1"); err != nil {
+		t.Fatalf("clear health: %v", err)
+	}
+	got = GetAccounts()[0]
+	if got.LastFailureReason != "" || got.LastFailureAt != 0 || got.CooldownUntil != 0 || got.FailureCount != 0 {
+		t.Fatalf("expected cleared health state, got %#v", got)
 	}
 }

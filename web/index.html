@@ -2781,7 +2781,11 @@
                 } else alert(t('common.failed') + ': ' + d.error);
             }
         }
-        setInterval(() => { if (!document.getElementById('mainPage').classList.contains('hidden')) loadStats(); }, 10000);
+        async function refreshDashboardData() {
+            if (document.getElementById('mainPage').classList.contains('hidden')) return;
+            await Promise.all([loadStats(), loadAccounts(), loadAutoRefreshConfig()]);
+        }
+        setInterval(refreshDashboardData, 10000);
 
         // ==================== 版本检查 ====================
         let currentVersion = '';
