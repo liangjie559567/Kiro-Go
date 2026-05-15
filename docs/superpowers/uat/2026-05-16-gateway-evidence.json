@@ -1,0 +1,215 @@
+{
+  "generatedAt": "2026-05-15T18:08:52.619Z",
+  "directOnly": true,
+  "health": {
+    "status": 200,
+    "ok": true,
+    "body": {
+      "status": "ok",
+      "uptime": 543,
+      "version": "1.0.8"
+    }
+  },
+  "adminStatus": {
+    "status": 200,
+    "ok": true,
+    "accounts": 12,
+    "available": 12,
+    "totalRequests": 1587,
+    "successRequests": 1096,
+    "failedRequests": 491
+  },
+  "loadBalance": {
+    "before": {
+      "strategy": "health"
+    },
+    "set": {
+      "status": 200,
+      "ok": true
+    },
+    "after": {
+      "strategy": "least_connections"
+    },
+    "persistAfter": {
+      "strategy": "least_connections",
+      "requireApiKey": true,
+      "hasApiKey": true,
+      "hasPassword": true
+    },
+    "restore": {
+      "status": 200,
+      "ok": true
+    },
+    "final": {
+      "strategy": "health"
+    }
+  },
+  "responses": {
+    "status": 200,
+    "ok": true,
+    "ms": 7270,
+    "object": "response",
+    "model": "claude-opus-4.7",
+    "expected": true,
+    "outputTextLength": 19
+  },
+  "messages": {
+    "status": 200,
+    "ok": true,
+    "ms": 1595,
+    "type": "message",
+    "model": "claude-opus-4.7",
+    "expected": true,
+    "contentItems": 1
+  },
+  "requestLogs": {
+    "status": 200,
+    "ok": true,
+    "count": 10,
+    "newest": [
+      {
+        "requestId": "98d4ed8f-9bbf-4f46-bb28-2296f1044cf6",
+        "endpoint": "/v1/responses",
+        "model": "claude-opus-4.7",
+        "statusCode": 200,
+        "outcome": "success",
+        "durationMs": 2536,
+        "accountPresent": true,
+        "region": "us-east-1",
+        "inputTokens": 5903,
+        "outputTokens": 5,
+        "stream": true
+      },
+      {
+        "requestId": "dd690617-992e-4d0d-9bee-89c555acab74",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4-7",
+        "statusCode": 200,
+        "outcome": "success",
+        "durationMs": 11085,
+        "accountPresent": true,
+        "region": "us-east-1",
+        "inputTokens": 22442,
+        "outputTokens": 451,
+        "stream": true
+      },
+      {
+        "requestId": "f2af2de9-b7c3-4062-8c7d-342b7e7206c2",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4.7",
+        "statusCode": 200,
+        "outcome": "success",
+        "durationMs": 1590,
+        "accountPresent": true,
+        "region": "us-east-1",
+        "inputTokens": 5907,
+        "outputTokens": 5,
+        "stream": false
+      },
+      {
+        "requestId": "68489d38-b8a0-4b04-a808-daaec0214257",
+        "endpoint": "/v1/responses",
+        "model": "claude-opus-4.7",
+        "statusCode": 200,
+        "outcome": "success",
+        "durationMs": 7267,
+        "accountPresent": true,
+        "region": "us-east-1",
+        "inputTokens": 5907,
+        "outputTokens": 6,
+        "stream": false
+      },
+      {
+        "requestId": "2d43dd27-17fb-42f2-8979-75a60e55c81b",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4-7",
+        "statusCode": 200,
+        "outcome": "success",
+        "durationMs": 21214,
+        "accountPresent": true,
+        "region": "us-east-1",
+        "inputTokens": 22156,
+        "outputTokens": 337,
+        "stream": true
+      }
+    ]
+  },
+  "requestStats": {
+    "status": 200,
+    "ok": true,
+    "total": 24,
+    "success": 24,
+    "failed": 0,
+    "averageDurationMs": 19482,
+    "byEndpoint": {
+      "/v1/messages": {
+        "total": 19,
+        "success": 19,
+        "failed": 0,
+        "averageDurationMs": 23011,
+        "inputTokens": 717631,
+        "outputTokens": 23047,
+        "cacheReadInputTokens": 641548,
+        "cacheCreationInputTokens": 847819
+      },
+      "/v1/messages/count_tokens": {
+        "total": 1,
+        "success": 1,
+        "failed": 0,
+        "averageDurationMs": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0
+      },
+      "/v1/responses": {
+        "total": 4,
+        "success": 4,
+        "failed": 0,
+        "averageDurationMs": 7589,
+        "inputTokens": 23632,
+        "outputTokens": 23,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0
+      }
+    },
+    "byModel": {
+      "claude-opus-4-7": {
+        "total": 18,
+        "success": 18,
+        "failed": 0,
+        "averageDurationMs": 24123,
+        "inputTokens": 705811,
+        "outputTokens": 23036,
+        "cacheReadInputTokens": 641548,
+        "cacheCreationInputTokens": 847819
+      },
+      "claude-opus-4.7": {
+        "total": 6,
+        "success": 6,
+        "failed": 0,
+        "averageDurationMs": 5558,
+        "inputTokens": 35452,
+        "outputTokens": 34,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0
+      }
+    }
+  },
+  "frontendHtml": {
+    "status": 200,
+    "ok": true,
+    "hasLoadBalanceStrategy": true,
+    "hasRequestLogsBody": true,
+    "hasLoadRequestLogs": true,
+    "hasSaveLoadBalanceConfig": true
+  },
+  "responsesStream": {
+    "status": 200,
+    "ok": true,
+    "ms": 2566,
+    "textLength": 1210,
+    "hasDone": true,
+    "expected": true
+  }
+}
