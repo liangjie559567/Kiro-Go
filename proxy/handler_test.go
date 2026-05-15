@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"kiro-go/config"
@@ -166,6 +167,79 @@ func TestHandleClaudeRetriesQuotaFailureOnNextAccount(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("expected async account stats update to complete")
+}
+
+func TestAdminAccountsExposeHealthCooldownFields(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{pool: &pool.AccountPool{}}
+	account := config.Account{
+		ID:                "acct-1",
+		Email:             "user@example.com",
+		Enabled:           true,
+		LastFailureReason: "quota_exhausted",
+		LastFailureAt:     123,
+		CooldownUntil:     456,
+		FailureCount:      2,
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	h.pool.Reload()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/accounts", nil)
+	h.apiGetAccounts(w, req)
+
+	var got []map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode accounts response: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected one account, got %d", len(got))
+	}
+	if got[0]["lastFailureReason"] != "quota_exhausted" {
+		t.Fatalf("expected lastFailureReason, got %#v", got[0]["lastFailureReason"])
+	}
+	if got[0]["lastFailureAt"] != float64(123) || got[0]["cooldownUntil"] != float64(456) || got[0]["failureCount"] != float64(2) {
+		t.Fatalf("expected health fields in accounts response, got %#v", got[0])
+	}
+}
+
+func TestAdminAccountFullExposesHealthCooldownFields(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{pool: &pool.AccountPool{}}
+	account := config.Account{
+		ID:                "acct-1",
+		Email:             "user@example.com",
+		Enabled:           true,
+		LastFailureReason: "rate_limited",
+		LastFailureAt:     234,
+		CooldownUntil:     567,
+		FailureCount:      3,
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	h.pool.Reload()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/accounts/acct-1/full", nil)
+	h.apiGetAccountFull(w, req, "acct-1")
+
+	var got map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode account response: %v", err)
+	}
+	if got["lastFailureReason"] != "rate_limited" {
+		t.Fatalf("expected lastFailureReason, got %#v", got["lastFailureReason"])
+	}
+	if got["lastFailureAt"] != float64(234) || got["cooldownUntil"] != float64(567) || got["failureCount"] != float64(3) {
+		t.Fatalf("expected health fields in account detail response, got %#v", got)
+	}
 }
 
 func TestResolveClaudeThinkingModeHonorsRequestThinking(t *testing.T) {

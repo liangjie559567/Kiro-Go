@@ -1204,6 +1204,7 @@
                 'accounts.enabled': '已启用',
                 'accounts.banned': '已封禁',
                 'accounts.suspended': '已暂停',
+                'accounts.coolingDown': '冷却中',
                 'accounts.refreshFailed': '刷新失败',
                 'accounts.confirmDelete': '确定删除？',
                 'accounts.mainQuota': '主配额',
@@ -1314,6 +1315,11 @@
                 'detail.errorCount': '错误数',
                 'detail.totalTokens': '总Tokens',
                 'detail.totalCredits': '总Credits',
+                'detail.health': '健康状态',
+                'detail.lastFailureReason': '失败原因',
+                'detail.failureCount': '失败次数',
+                'detail.lastFailureAt': '失败时间',
+                'detail.cooldownUntil': '冷却结束',
                 'detail.models': '可用模型',
                 'detail.loadModels': '加载',
                 'detail.loading': '加载中...',
@@ -1476,6 +1482,7 @@
                 'accounts.enabled': 'Enabled',
                 'accounts.banned': 'Banned',
                 'accounts.suspended': 'Suspended',
+                'accounts.coolingDown': 'Cooling',
                 'accounts.refreshFailed': 'Refresh failed',
                 'accounts.confirmDelete': 'Confirm delete?',
                 'accounts.copyJSON': 'Copy JSON',
@@ -1576,6 +1583,11 @@
                 'detail.errorCount': 'Errors',
                 'detail.totalTokens': 'Total Tokens',
                 'detail.totalCredits': 'Total Credits',
+                'detail.health': 'Health',
+                'detail.lastFailureReason': 'Failure reason',
+                'detail.failureCount': 'Failure count',
+                'detail.lastFailureAt': 'Failure time',
+                'detail.cooldownUntil': 'Cooldown until',
                 'detail.models': 'Available Models',
                 'detail.loadModels': 'Load',
                 'detail.loading': 'Loading...',
@@ -1969,6 +1981,7 @@
                 const weightVal = a.weight || 0;
                 const weightBadge = weightVal >= 2 ? '<span class="badge" style="background:#f59e0b;color:#fff">W:' + weightVal + '</span>' : '';
                 const overageBadge = a.allowOverage ? '<span class="badge badge-warning">' + t('accounts.overage') + ':' + (a.overageWeight || 1) + '</span>' : '';
+                const cooldownBadge = getCooldownBadge(a);
                 return '<div class="account-card" style="' + (isSelected ? 'border-color:#7c3aed;background:#faf5ff' : '') + '">' +
                     '<div class="account-header">' +
                     '<div class="account-info" style="display:flex;align-items:center;gap:8px">' +
@@ -1980,6 +1993,7 @@
                     getTrialBadge(a) +
                     weightBadge +
                     overageBadge +
+                    cooldownBadge +
                     '<span class="badge badge-info">' + formatAuthMethod(a.provider || a.authMethod) + '</span>' +
                     getStatusBadge(a) +
                     '</div>' +
@@ -2021,6 +2035,25 @@
                 return '<span class="badge badge-trial">' + t('accounts.trial') + '</span>';
             }
             return '';
+        }
+
+        function isCoolingDown(account) {
+            return account && account.cooldownUntil && account.cooldownUntil > Date.now() / 1000;
+        }
+
+        function formatCooldownRemaining(cooldownUntil) {
+            if (!cooldownUntil) return '-';
+            const seconds = Math.ceil(cooldownUntil - Date.now() / 1000);
+            if (seconds <= 0) return '-';
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.ceil(seconds / 60) + t('time.minutes');
+            if (seconds < 86400) return Math.ceil(seconds / 3600) + t('time.hours');
+            return Math.ceil(seconds / 86400) + t('time.days');
+        }
+
+        function getCooldownBadge(account) {
+            if (!isCoolingDown(account)) return '';
+            return '<span class="badge badge-warning">' + t('accounts.coolingDown') + ' ' + formatCooldownRemaining(account.cooldownUntil) + '</span>';
         }
 
         function formatTrialExpiry(timestamp) {
@@ -2099,6 +2132,9 @@
         async function showDetail(id) {
             const a = accountsData.find(x => x.id === id);
             if (!a) return;
+            const cooldownText = isCoolingDown(a)
+                ? new Date(a.cooldownUntil * 1000).toLocaleString() + ' (' + formatCooldownRemaining(a.cooldownUntil) + ')'
+                : (a.cooldownUntil ? new Date(a.cooldownUntil * 1000).toLocaleString() : '-');
             document.getElementById('detailBody').innerHTML =
                 '<div class="detail-section"><h4>' + t('detail.basicInfo') + '</h4><div class="detail-grid">' +
                 '<div class="detail-item"><div class="detail-label">' + t('detail.email') + '</div><div class="detail-value">' + getDisplayEmail(a.email, null) + '</div></div>' +
@@ -2136,6 +2172,12 @@
                 '<div class="detail-item"><div class="detail-label">' + t('detail.errorCount') + '</div><div class="detail-value">' + (a.errorCount || 0) + '</div></div>' +
                 '<div class="detail-item"><div class="detail-label">' + t('detail.totalTokens') + '</div><div class="detail-value">' + formatNum(a.totalTokens || 0) + '</div></div>' +
                 '<div class="detail-item"><div class="detail-label">' + t('detail.totalCredits') + '</div><div class="detail-value">' + (a.totalCredits || 0).toFixed(2) + '</div></div>' +
+                '</div></div>' +
+                '<div class="detail-section"><h4>' + t('detail.health') + '</h4><div class="detail-grid">' +
+                '<div class="detail-item"><div class="detail-label">' + t('detail.lastFailureReason') + '</div><div class="detail-value">' + escapeHtml(a.lastFailureReason || '-') + '</div></div>' +
+                '<div class="detail-item"><div class="detail-label">' + t('detail.failureCount') + '</div><div class="detail-value">' + (a.failureCount || 0) + '</div></div>' +
+                '<div class="detail-item"><div class="detail-label">' + t('detail.lastFailureAt') + '</div><div class="detail-value">' + (a.lastFailureAt ? new Date(a.lastFailureAt * 1000).toLocaleString() : '-') + '</div></div>' +
+                '<div class="detail-item"><div class="detail-label">' + t('detail.cooldownUntil') + '</div><div class="detail-value">' + cooldownText + '</div></div>' +
                 '</div></div>' +
                 '<div class="detail-section"><h4>' + t('detail.models') + ' <button class="btn btn-sm btn-secondary" onclick="loadModels(\'' + id + '\')" style="margin-left:8px">' + t('detail.loadModels') + '</button></h4><div id="modelsList" class="model-list"></div></div>';
             document.getElementById('detailModal').classList.add('active');
