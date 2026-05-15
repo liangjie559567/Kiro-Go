@@ -1,0 +1,14 @@
+{
+  "url": "http://127.0.0.1:8080/admin",
+  "httpStatus": 200,
+  "title": "Kiro-Go",
+  "loginLoaded": true,
+  "settingsHasLoadBalance": true,
+  "settingsHasRequestLogs": true,
+  "settingsHasPromptFilter": true,
+  "screenshotLogin": "docs/superpowers/uat/kiro-admin-login-direct-20260516.png",
+  "screenshotSettingsLogs": "docs/superpowers/uat/kiro-admin-settings-logs-direct-20260516.png",
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}
