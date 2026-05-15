@@ -1001,6 +1001,37 @@
                     data-i18n="settings.saveAutoRefresh"></button>
             </div>
             <div class="card">
+                <div class="card-header"><span class="card-title" data-i18n="settings.healthCheck"></span></div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px">
+                        <label class="switch"><input type="checkbox" id="healthCheckEnabled"><span
+                                class="slider"></span></label>
+                        <span data-i18n="settings.healthCheckEnabled"></span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="settings.healthCheckInterval"></label>
+                    <input type="number" id="healthCheckInterval" min="5" max="1440" value="60">
+                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block"
+                        data-i18n="settings.healthCheckIntervalHint"></small>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px">
+                        <label class="switch"><input type="checkbox" id="healthCheckAutoDisable"><span
+                                class="slider"></span></label>
+                        <span data-i18n="settings.healthCheckAutoDisable"></span>
+                    </label>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:16px;font-size:13px;color:#475569">
+                    <div><span data-i18n="settings.healthCheckRunning"></span>: <span id="healthCheckRunning">-</span></div>
+                    <div><span data-i18n="settings.healthCheckLastRun"></span>: <span id="healthCheckLastRun">-</span></div>
+                    <div><span data-i18n="settings.healthCheckNextRun"></span>: <span id="healthCheckNextRun">-</span></div>
+                    <div><span data-i18n="settings.healthCheckLastResult"></span>: <span id="healthCheckLastResult">-</span></div>
+                </div>
+                <button class="btn btn-primary" onclick="saveHealthCheckConfig()"
+                    data-i18n="settings.saveHealthCheck"></button>
+            </div>
+            <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="settings.thinkingSettings"></span></div>
                 <div class="form-group">
                     <label data-i18n="settings.thinkingSuffix"></label>
@@ -1209,6 +1240,19 @@
                 'settings.autoRefreshNo': '否',
                 'settings.autoRefreshSkipped': '已跳过',
                 'settings.saveAutoRefresh': '保存自动刷新设置',
+                'settings.healthCheck': '账号健康检测',
+                'settings.healthCheckEnabled': '启用定时健康检测',
+                'settings.healthCheckInterval': '检测间隔（分钟）',
+                'settings.healthCheckIntervalHint': '范围 5-1440 分钟，仅检测启用账号；通过加载可用模型判断账号健康状态',
+                'settings.healthCheckAutoDisable': '检测失败时自动禁用账号',
+                'settings.healthCheckRunning': '正在运行',
+                'settings.healthCheckLastRun': '上次执行',
+                'settings.healthCheckNextRun': '下次执行',
+                'settings.healthCheckLastResult': '上次结果',
+                'settings.healthCheckSaved': '账号健康检测设置已保存',
+                'settings.healthCheckInvalidInterval': '检测间隔必须是 5-1440 之间的整数',
+                'settings.healthCheckDisabled': '已禁用',
+                'settings.saveHealthCheck': '保存健康检测设置',
                 'settings.thinkingSettings': 'Thinking 模式设置',
                 'settings.thinkingSuffix': '触发后缀',
                 'settings.thinkingSuffixHint': '模型名称加此后缀即启用思考模式，如 claude-sonnet-4.5-thinking',
@@ -1462,6 +1506,19 @@
                 'settings.autoRefreshNo': 'No',
                 'settings.autoRefreshSkipped': 'Skipped',
                 'settings.saveAutoRefresh': 'Save Auto Refresh Settings',
+                'settings.healthCheck': 'Account Health Check',
+                'settings.healthCheckEnabled': 'Enable scheduled health checks',
+                'settings.healthCheckInterval': 'Check interval (minutes)',
+                'settings.healthCheckIntervalHint': 'Allowed range: 5-1440 minutes. Only enabled accounts are checked by loading available models.',
+                'settings.healthCheckAutoDisable': 'Automatically disable accounts when checks fail',
+                'settings.healthCheckRunning': 'Running',
+                'settings.healthCheckLastRun': 'Last run',
+                'settings.healthCheckNextRun': 'Next run',
+                'settings.healthCheckLastResult': 'Last result',
+                'settings.healthCheckSaved': 'Account health check settings saved',
+                'settings.healthCheckInvalidInterval': 'Check interval must be an integer from 5 to 1440',
+                'settings.healthCheckDisabled': 'Disabled',
+                'settings.saveHealthCheck': 'Save Health Check Settings',
                 'settings.thinkingSettings': 'Thinking Mode Settings',
                 'settings.thinkingSuffix': 'Trigger Suffix',
                 'settings.thinkingSuffixHint': 'Add this suffix to model name to enable thinking mode, e.g. claude-sonnet-4.5-thinking',
@@ -2177,6 +2234,7 @@
             loadEndpointConfig();
             loadProxyConfig();
             loadAutoRefreshConfig();
+            loadHealthCheckConfig();
         }
         function formatAutoRefreshTime(ts) {
             if (!ts) return '-';
@@ -2236,6 +2294,60 @@
                 }
                 alert(t('settings.autoRefreshSaved'));
                 loadAutoRefreshConfig();
+            } catch (e) {
+                alert(t('common.saveFailed') + ': ' + e.message);
+            }
+        }
+        function renderHealthCheckStatus(status) {
+            status = status || {};
+            document.getElementById('healthCheckRunning').textContent = status.running ? t('settings.autoRefreshYes') : t('settings.autoRefreshNo');
+            document.getElementById('healthCheckLastRun').textContent = formatAutoRefreshTime(status.lastFinishedAt || status.lastStartedAt);
+            document.getElementById('healthCheckNextRun').textContent = formatAutoRefreshTime(status.nextRunAt);
+            const results = [
+                formatAutoRefreshResultValue(t('stats.success'), status.lastSuccess),
+                formatAutoRefreshResultValue(t('stats.failed'), status.lastFailed),
+                formatAutoRefreshResultValue(t('settings.healthCheckDisabled'), status.lastDisabled),
+                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkipped)
+            ].filter(Boolean);
+            document.getElementById('healthCheckLastResult').textContent = results.length ? results.join(', ') : '-';
+        }
+        async function loadHealthCheckConfig() {
+            try {
+                const res = await fetch('/admin/api/health-check', { headers: { 'X-Admin-Password': password } });
+                const d = await res.json();
+                const settings = d.settings || {};
+                document.getElementById('healthCheckEnabled').checked = !!settings.enabled;
+                document.getElementById('healthCheckInterval').value = settings.intervalMinutes || 60;
+                document.getElementById('healthCheckAutoDisable').checked = !!settings.autoDisableUnhealthy;
+                renderHealthCheckStatus(d.status);
+            } catch (e) {
+                renderHealthCheckStatus();
+            }
+        }
+        async function saveHealthCheckConfig() {
+            const intervalRaw = document.getElementById('healthCheckInterval').value.trim();
+            const intervalMinutes = Number(intervalRaw);
+            if (!Number.isFinite(intervalMinutes) || !Number.isInteger(intervalMinutes) || intervalMinutes < 5 || intervalMinutes > 1440) {
+                alert(t('settings.healthCheckInvalidInterval'));
+                return;
+            }
+            try {
+                const res = await fetch('/admin/api/health-check', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+                    body: JSON.stringify({
+                        enabled: document.getElementById('healthCheckEnabled').checked,
+                        intervalMinutes,
+                        autoDisableUnhealthy: document.getElementById('healthCheckAutoDisable').checked
+                    })
+                });
+                let d = {};
+                try { d = await res.json(); } catch (e) { d = {}; }
+                if (!res.ok || !d.success) {
+                    alert(t('common.saveFailed') + (d.error ? ': ' + d.error : ''));
+                    return;
+                }
+                alert(t('settings.healthCheckSaved'));
+                loadHealthCheckConfig();
             } catch (e) {
                 alert(t('common.saveFailed') + ': ' + e.message);
             }
