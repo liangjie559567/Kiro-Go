@@ -1667,8 +1667,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		h.sendClaudeError(w, 500, "api_error", "Streaming not supported")
 		return true, fmt.Errorf("streaming not supported")
 	}
@@ -1681,12 +1680,10 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	var credits float64
 	var realInputTokens int
 	var toolUses []KiroToolUse
-	var nextContentIndex int
 	var rawContentBuilder strings.Builder
 	var rawThinkingBuilder strings.Builder
-	activeBlockIndex := -1
-	activeBlockType := ""
 	startInputTokens := estimatedInputTokens
+	sse := newClaudeSSEWriter(w, msgID, model, buildClaudeUsageMap(startInputTokens, 0, cacheUsage, cacheProfile != nil), 4096)
 	streamStarted := false
 	upstreamStartedAt := time.Now()
 	firstTokenRecorded := false
@@ -1704,66 +1701,36 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		streamStarted = true
-		h.sendSSE(w, flusher, "message_start", map[string]interface{}{
-			"type": "message_start",
-			"message": map[string]interface{}{
-				"id":            msgID,
-				"type":          "message",
-				"role":          "assistant",
-				"content":       []interface{}{},
-				"model":         model,
-				"stop_reason":   nil,
-				"stop_sequence": nil,
-				"usage":         buildClaudeUsageMap(startInputTokens, 0, cacheUsage, cacheProfile != nil),
-			},
-		})
+		sse.Start()
 	}
 
 	closeActiveBlock := func() {
-		if activeBlockIndex < 0 {
-			return
-		}
-		startMessage()
-		h.sendSSE(w, flusher, "content_block_stop", map[string]interface{}{
-			"type":  "content_block_stop",
-			"index": activeBlockIndex,
-		})
-		activeBlockIndex = -1
-		activeBlockType = ""
+		sse.closeBlock()
 	}
 
 	startContentBlock := func(blockType string) {
-		if activeBlockType == blockType {
+		startMessage()
+		if blockType == "thinking" {
+			sse.startBlock("thinking", map[string]string{"type": "thinking", "thinking": ""})
+		} else {
+			sse.startBlock("text", map[string]string{"type": "text", "text": ""})
+		}
+	}
+
+	sendTextDelta := func(text string) {
+		if text == "" {
 			return
 		}
-		closeActiveBlock()
 		startMessage()
+		sse.TextDelta(text)
+	}
 
-		idx := nextContentIndex
-		nextContentIndex++
-
-		if blockType == "thinking" {
-			h.sendSSE(w, flusher, "content_block_start", map[string]interface{}{
-				"type":  "content_block_start",
-				"index": idx,
-				"content_block": map[string]string{
-					"type":     "thinking",
-					"thinking": "",
-				},
-			})
-		} else {
-			h.sendSSE(w, flusher, "content_block_start", map[string]interface{}{
-				"type":  "content_block_start",
-				"index": idx,
-				"content_block": map[string]string{
-					"type": "text",
-					"text": "",
-				},
-			})
+	sendThinkingDelta := func(text string) {
+		if text == "" {
+			return
 		}
-
-		activeBlockIndex = idx
-		activeBlockType = blockType
+		startMessage()
+		sse.ThinkingDelta(text)
 	}
 
 	// Thinking 标签解析状态
@@ -1780,12 +1747,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			if text == "" {
 				return
 			}
-			startContentBlock("text")
-			h.sendSSE(w, flusher, "content_block_delta", map[string]interface{}{
-				"type":  "content_block_delta",
-				"index": activeBlockIndex,
-				"delta": map[string]string{"type": "text_delta", "text": text},
-			})
+			sendTextDelta(text)
 			return
 		}
 
@@ -1807,22 +1769,12 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			if outputText == "" {
 				return
 			}
-			startContentBlock("text")
-			h.sendSSE(w, flusher, "content_block_delta", map[string]interface{}{
-				"type":  "content_block_delta",
-				"index": activeBlockIndex,
-				"delta": map[string]string{"type": "text_delta", "text": outputText},
-			})
+			sendTextDelta(outputText)
 		case "reasoning_content":
 			if text == "" {
 				return
 			}
-			startContentBlock("text")
-			h.sendSSE(w, flusher, "content_block_delta", map[string]interface{}{
-				"type":  "content_block_delta",
-				"index": activeBlockIndex,
-				"delta": map[string]string{"type": "text_delta", "text": text},
-			})
+			sendTextDelta(text)
 		default:
 			if thinkingOpts.OmitDisplay {
 				if thinkingState == 1 {
@@ -1830,7 +1782,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 					return
 				}
 				if thinkingState == 3 {
-					if activeBlockType != "thinking" {
+					if sse.activeType != "thinking" {
 						startContentBlock("thinking")
 					}
 					closeActiveBlock()
@@ -1838,20 +1790,15 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			if thinkingState == 3 && text == "" {
-				if activeBlockType == "thinking" {
+				if sse.activeType == "thinking" {
 					closeActiveBlock()
 				}
 				return
 			}
 			if text != "" {
-				startContentBlock("thinking")
-				h.sendSSE(w, flusher, "content_block_delta", map[string]interface{}{
-					"type":  "content_block_delta",
-					"index": activeBlockIndex,
-					"delta": map[string]string{"type": "thinking_delta", "thinking": text},
-				})
+				sendThinkingDelta(text)
 			}
-			if thinkingState == 3 && activeBlockType == "thinking" {
+			if thinkingState == 3 && sse.activeType == "thinking" {
 				closeActiveBlock()
 			}
 		}
@@ -1996,35 +1943,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			updateRequestLogReliability(r, -1, 0, 0, len(toolUses))
 			closeActiveBlock()
 			startMessage()
-
-			idx := nextContentIndex
-			nextContentIndex++
-
-			h.sendSSE(w, flusher, "content_block_start", map[string]interface{}{
-				"type":  "content_block_start",
-				"index": idx,
-				"content_block": map[string]interface{}{
-					"type":  "tool_use",
-					"id":    tu.ToolUseID,
-					"name":  tu.Name,
-					"input": map[string]interface{}{},
-				},
-			})
-
-			inputJSON, _ := json.Marshal(tu.Input)
-			h.sendSSE(w, flusher, "content_block_delta", map[string]interface{}{
-				"type":  "content_block_delta",
-				"index": idx,
-				"delta": map[string]interface{}{
-					"type":         "input_json_delta",
-					"partial_json": string(inputJSON),
-				},
-			})
-
-			h.sendSSE(w, flusher, "content_block_stop", map[string]interface{}{
-				"type":  "content_block_stop",
-				"index": idx,
-			})
+			sse.ToolUse(tu)
 		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
@@ -2054,7 +1973,8 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			return false, err
 		}
 		startMessage()
-		h.sendClaudeStreamError(w, flusher, err)
+		_, errType := claudeUpstreamErrorStatusAndType(err)
+		sse.Error(errType, err.Error())
 		return true, err
 	}
 
@@ -2094,17 +2014,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	startMessage()
-	h.sendSSE(w, flusher, "message_delta", map[string]interface{}{
-		"type": "message_delta",
-		"delta": map[string]interface{}{
-			"stop_reason": stopReason,
-		},
-		"usage": buildClaudeUsageMap(inputTokens, outputTokens, cacheUsage, cacheProfile != nil),
-	})
-
-	h.sendSSE(w, flusher, "message_stop", map[string]interface{}{
-		"type": "message_stop",
-	})
+	sse.Stop(stopReason, buildClaudeUsageMap(inputTokens, outputTokens, cacheUsage, cacheProfile != nil))
 	return true, nil
 }
 
