@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"kiro-go/config"
 	"strings"
 	"testing"
 )
@@ -133,6 +134,30 @@ func TestApplyTruncationRecoveryNoteRejectsOverHardLimit(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "recovery note") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestFinalizeKiroPayloadForAccountRejectsProfileArnHardLimitGrowth(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.ChatTriggerType = "MANUAL"
+	payload.ConversationState.ConversationID = "conv-1"
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: strings.Repeat("x", 900),
+		ModelID: "claude-sonnet-4.5",
+		Origin:  "AI_EDITOR",
+	}
+	account := &config.Account{ProfileArn: "arn:aws:codewhisperer:profile/" + strings.Repeat("p", 256)}
+	opts := payloadGuardOptions{SoftLimitBytes: 128, HardLimitBytes: kiroPayloadJSONSize(payload) + 32}
+
+	result, err := finalizeKiroPayloadForAccount(payload, account, opts)
+	if err == nil {
+		t.Fatalf("expected hard-limit error after profile ARN")
+	}
+	if !strings.Contains(err.Error(), "ProfileArn") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.FinalBytes <= opts.HardLimitBytes {
+		t.Fatalf("expected final bytes over hard limit, got %d <= %d", result.FinalBytes, opts.HardLimitBytes)
 	}
 }
 

@@ -3,6 +3,8 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"kiro-go/config"
+	"kiro-go/logger"
 	"strings"
 )
 
@@ -93,6 +95,33 @@ func applyTruncationRecoveryNoteWithLimit(payload *KiroPayload, result payloadGu
 		return result, fmt.Errorf("Kiro payload exceeds hard limit after recovery note: %d bytes", result.FinalBytes)
 	}
 	return result, nil
+}
+
+func finalizeKiroPayloadForAccount(payload *KiroPayload, account *config.Account, opts payloadGuardOptions) (payloadGuardResult, error) {
+	opts = normalizePayloadGuardOptions(opts)
+	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" {
+		finalizeKiroPayloadProfileArn(payload, account)
+	}
+	result := payloadGuardResult{FinalBytes: kiroPayloadJSONSize(payload)}
+	if result.FinalBytes > opts.HardLimitBytes {
+		return result, fmt.Errorf("Kiro payload exceeds hard limit after ProfileArn finalization: %d bytes", result.FinalBytes)
+	}
+	return result, nil
+}
+
+func finalizeKiroPayloadProfileArn(payload *KiroPayload, account *config.Account) {
+	if payload == nil || strings.TrimSpace(payload.ProfileArn) != "" {
+		return
+	}
+	if profileArn, err := ResolveProfileArn(account); err == nil {
+		payload.ProfileArn = profileArn
+	} else {
+		accountEmail := "<nil>"
+		if account != nil {
+			accountEmail = account.Email
+		}
+		logger.Warnf("[ProfileArn] Failed to resolve profile ARN for %s: %v", accountEmail, err)
+	}
 }
 
 func normalizePayloadGuardOptions(opts payloadGuardOptions) payloadGuardOptions {

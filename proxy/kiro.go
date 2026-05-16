@@ -433,15 +433,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 	}
 
 	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" {
-		if profileArn, err := ResolveProfileArn(account); err == nil {
-			payload.ProfileArn = profileArn
-		} else {
-			accountEmail := "<nil>"
-			if account != nil {
-				accountEmail = account.Email
-			}
-			logger.Warnf("[ProfileArn] Failed to resolve profile ARN for %s: %v", accountEmail, err)
-		}
+		finalizeKiroPayloadProfileArn(payload, account)
 	}
 
 	// Build endpoint list ordered by configuration.

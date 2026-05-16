@@ -270,6 +270,16 @@ func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
 	ctx.entry.PayloadTrimmedCount = result.TrimmedCount
 }
 
+func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.PayloadFinalBytes = finalBytes
+}
+
 func sortedAnthropicBetas(in map[string]bool) []string {
 	out := make([]string, 0, len(in))
 	for beta := range in {

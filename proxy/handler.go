@@ -1701,6 +1701,10 @@ func claudeUpstreamErrorStatusAndType(err error) (int, string) {
 
 // handleClaudeStream Claude 流式响应
 func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
+	if !h.finalizePayloadForClaudeAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2143,6 +2147,10 @@ func (h *Handler) checkOverageError(err error, accountID string) {
 
 // handleClaudeNonStream Claude 非流式响应
 func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
+	if !h.finalizePayloadForClaudeAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	var content string
 	var thinkingContent string
 	var toolUses []KiroToolUse
@@ -2435,8 +2443,32 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	}
 }
 
+func (h *Handler) finalizePayloadForClaudeAccount(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload) bool {
+	result, err := finalizeKiroPayloadForAccount(payload, account, defaultPayloadGuardOptions())
+	updateRequestLogPayloadFinalBytes(r, result.FinalBytes)
+	if err != nil {
+		h.sendClaudeError(w, 400, "invalid_request_error", err.Error())
+		return false
+	}
+	return true
+}
+
+func (h *Handler) finalizePayloadForOpenAIAccount(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload) bool {
+	result, err := finalizeKiroPayloadForAccount(payload, account, defaultPayloadGuardOptions())
+	updateRequestLogPayloadFinalBytes(r, result.FinalBytes)
+	if err != nil {
+		h.sendOpenAIError(w, 400, "invalid_request_error", err.Error())
+		return false
+	}
+	return true
+}
+
 // handleOpenAIStream OpenAI 流式响应
 func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
+	if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2845,6 +2877,10 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+	if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2947,6 +2983,10 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 
 // handleOpenAINonStream OpenAI 非流式响应
 func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, used map[string]bool, attempt int) (bool, error) {
+	if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	var content string
 	var reasoningContent string
 	var toolUses []KiroToolUse
@@ -3016,6 +3056,10 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+	if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		return true, nil
+	}
+
 	var content string
 	var reasoningContent string
 	var inputTokens, outputTokens int
