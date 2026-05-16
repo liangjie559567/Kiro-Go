@@ -71,6 +71,14 @@ func (b *modelBreakerState) canProbe(accountID, model string, now time.Time) boo
 	return e != nil && e.Status == breakerOpen && !now.Before(e.RetryAt) && !e.Probing
 }
 
+func (b *modelBreakerState) isClosed(accountID, model string) bool {
+	if b == nil {
+		return true
+	}
+	e := b.entries[breakerKey(accountID, model)]
+	return e == nil || e.Status == breakerClosed
+}
+
 func (b *modelBreakerState) markProbe(accountID, model string, now time.Time) {
 	if b == nil {
 		return

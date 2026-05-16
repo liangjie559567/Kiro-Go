@@ -431,7 +431,7 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 			seen[acc.ID] = true
 			continue
 		}
-		if !p.breakers.canUse(acc.ID, model, now) {
+		if !p.breakers.isClosed(acc.ID, model) {
 			seen[acc.ID] = true
 			continue
 		}
@@ -460,7 +460,7 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			continue
 		}
-		if !p.breakers.canUse(acc.ID, model, now) {
+		if !p.breakers.isClosed(acc.ID, model) {
 			continue
 		}
 		if cooldown, ok := p.cooldowns[acc.ID]; ok {
@@ -479,10 +479,14 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 }
 
 func (p *AccountPool) BeginNextForModelExcept(model string, excluded map[string]bool) (*config.Account, func()) {
-	return p.BeginNextForModelSessionExcept(model, "", excluded)
+	return p.beginNextForModelExcept(model, excluded, "", false)
 }
 
 func (p *AccountPool) BeginNextForModelSessionExcept(model, sessionKey string, excluded map[string]bool) (*config.Account, func()) {
+	return p.beginNextForModelExcept(model, excluded, sessionKey, true)
+}
+
+func (p *AccountPool) beginNextForModelExcept(model string, excluded map[string]bool, sessionKey string, allowBreakerProbe bool) (*config.Account, func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
@@ -493,23 +497,43 @@ func (p *AccountPool) BeginNextForModelSessionExcept(model, sessionKey string, e
 			if p.accounts[i].ID != sticky || !p.accountHasModel(sticky, model) || !p.accountUsableForModelLocked(&p.accounts[i], model, now) {
 				continue
 			}
-			p.reserveAccountForModelLocked(sticky, model, now)
+			p.reserveAccountForModelLocked(sticky, model, now, allowBreakerProbe)
 			return &p.accounts[i], p.releaseAccountRequestFunc(sticky)
 		}
 	}
 
 	acc := p.getNextForModelExceptLocked(model, excluded)
+	if acc == nil && allowBreakerProbe {
+		acc = p.nextBreakerProbeForModelLocked(model, excluded, now)
+	}
 	if acc == nil {
 		return nil, func() {}
 	}
-	p.reserveAccountForModelLocked(acc.ID, model, now)
+	p.reserveAccountForModelLocked(acc.ID, model, now, allowBreakerProbe)
 	p.breakers.rememberSticky(sessionKey, model, acc.ID, now)
 
 	return acc, p.releaseAccountRequestFunc(acc.ID)
 }
 
-func (p *AccountPool) reserveAccountForModelLocked(accountID, model string, now time.Time) {
-	if p.breakers.canProbe(accountID, model, now) {
+func (p *AccountPool) nextBreakerProbeForModelLocked(model string, excluded map[string]bool, now time.Time) *config.Account {
+	allowOverUsage := config.GetAllowOverUsage()
+	for i := range p.accounts {
+		acc := &p.accounts[i]
+		if excluded != nil && excluded[acc.ID] {
+			continue
+		}
+		if !p.accountHasModel(acc.ID, model) || !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
+			continue
+		}
+		if p.breakers.canProbe(acc.ID, model, now) {
+			return acc
+		}
+	}
+	return nil
+}
+
+func (p *AccountPool) reserveAccountForModelLocked(accountID, model string, now time.Time, allowBreakerProbe bool) {
+	if allowBreakerProbe && p.breakers.canProbe(accountID, model, now) {
 		p.breakers.markProbe(accountID, model, now)
 	}
 	health := p.runtimeHealthForLocked(accountID)
@@ -538,6 +562,13 @@ func (p *AccountPool) accountUsableForModelLocked(acc *config.Account, model str
 	if acc == nil {
 		return false
 	}
+	if !p.accountBaseUsableLocked(acc, now, config.GetAllowOverUsage()) {
+		return false
+	}
+	return p.breakers.canUse(acc.ID, model, now)
+}
+
+func (p *AccountPool) accountBaseUsableLocked(acc *config.Account, now time.Time, allowOverUsage bool) bool {
 	if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
 		return false
 	}
@@ -547,10 +578,10 @@ func (p *AccountPool) accountUsableForModelLocked(acc *config.Account, model str
 	if acc.ExpiresAt > 0 && now.Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
 		return false
 	}
-	if isOverUsageLimit(*acc) && !acc.AllowOverage && !config.GetAllowOverUsage() {
+	if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
 		return false
 	}
-	return p.breakers.canUse(acc.ID, model, now)
+	return true
 }
 
 func (p *AccountPool) isIdleHealthyLocked(id string) bool {

@@ -302,11 +302,7 @@ func requestStickyKey(r *http.Request, req *ClaudeRequest) string {
 			}
 		}
 	}
-	if req == nil {
-		return ""
-	}
-	model := MapModel(req.Model)
-	return buildConversationID(model, buildClaudeSystemPrompt(req.System, false), firstClaudeConversationAnchor(req.Messages))
+	return ""
 }
 
 func isOpus47CapacityLimit(err error, model string) bool {

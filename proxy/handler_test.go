@@ -105,6 +105,32 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 	}
 }
 
+func TestRequestStickyKeyRequiresClientIdentifier(t *testing.T) {
+	claudeReq := &ClaudeRequest{
+		Model:  "claude-sonnet-4.5",
+		System: "system prompt",
+		Messages: []ClaudeMessage{{
+			Role:    "user",
+			Content: "common prompt",
+		}},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	if got := requestStickyKey(req, claudeReq); got != "" {
+		t.Fatalf("expected no sticky key without client/session/request headers, got %q", got)
+	}
+
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	if got := requestStickyKey(req, claudeReq); got != "session-1" {
+		t.Fatalf("expected Claude Code session sticky key, got %q", got)
+	}
+	req.Header.Del("X-Claude-Code-Session-Id")
+	req.Header.Set("X-Request-Id", "req-1")
+	if got := requestStickyKey(req, claudeReq); got != "req-1" {
+		t.Fatalf("expected request id sticky key, got %q", got)
+	}
+}
+
 func TestValidateApiKeyAcceptsSecondaryClientKeyAndRejectsDisabled(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

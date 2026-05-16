@@ -329,6 +329,30 @@ func TestGetNextForModelRoundRobinStrategyPreservesConfiguredOrder(t *testing.T)
 	}
 }
 
+func TestGetNextForModelExceptSkipsExpiredOpenBreakerWhenAlternativeAvailable(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.5"})
+	p.SetModelList("acct-2", []string{"claude-sonnet-4.5"})
+	p.RecordModelFailure("acct-1", "claude-sonnet-4.5", FailureReasonRateLimited, time.Now().Add(-time.Second))
+
+	got := p.GetNextForModelExcept("claude-sonnet-4.5", nil)
+	if got == nil {
+		t.Fatalf("expected healthy alternative")
+	}
+	if got.ID != "acct-2" {
+		t.Fatalf("expected acct-2 while acct-1 breaker awaits probe lifecycle, got %q", got.ID)
+	}
+}
+
 func TestBeginNextForModelReservesDistinctIdleAccounts(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),
@@ -362,6 +386,37 @@ func TestBeginNextForModelReservesDistinctIdleAccounts(t *testing.T) {
 		if got := p.GetRuntimeHealth(id).ActiveConnections; got != 1 {
 			t.Fatalf("expected %s to have one reserved connection, got %d", id, got)
 		}
+	}
+}
+
+func TestBeginNextForModelExceptDoesNotMarkExpiredOpenBreakerHalfOpen(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.5"})
+	p.RecordModelFailure("acct-1", "claude-sonnet-4.5", FailureReasonRateLimited, time.Now().Add(-time.Second))
+
+	acc, release := p.BeginNextForModelExcept("claude-sonnet-4.5", nil)
+	release()
+	if acc != nil {
+		t.Fatalf("expected generic begin to skip expired-open breaker account, got %q", acc.ID)
+	}
+
+	p.mu.RLock()
+	entry := p.breakers.entries[breakerKey("acct-1", "claude-sonnet-4.5")]
+	p.mu.RUnlock()
+	if entry == nil {
+		t.Fatalf("expected breaker entry to remain for Claude probe lifecycle")
+	}
+	if entry.Status != breakerOpen || entry.Probing {
+		t.Fatalf("expected generic begin not to mark half-open probe, got %#v", entry)
 	}
 }
 
