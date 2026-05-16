@@ -957,8 +957,16 @@ func mergeClaudeToolsAndReferences(tools []ClaudeTool, refs []ClaudeToolReferenc
 
 	merged := make([]ClaudeTool, 0, len(tools)+len(refs))
 	merged = append(merged, tools...)
+	usedKiroNames := make(map[string]struct{}, len(tools)+len(refs))
+	for _, tool := range tools {
+		usedKiroNames[shortenToolName(sanitizeToolName(tool.Name))] = struct{}{}
+	}
 	for _, ref := range refs {
 		if ref.Name == "" || ref.InputSchema == nil {
+			continue
+		}
+		kiroName := shortenToolName(sanitizeToolName(ref.Name))
+		if _, exists := usedKiroNames[kiroName]; exists {
 			continue
 		}
 		desc := ref.Description
@@ -974,6 +982,7 @@ func mergeClaudeToolsAndReferences(tools []ClaudeTool, refs []ClaudeToolReferenc
 			Description: desc,
 			InputSchema: ref.InputSchema,
 		})
+		usedKiroNames[kiroName] = struct{}{}
 	}
 	return merged
 }

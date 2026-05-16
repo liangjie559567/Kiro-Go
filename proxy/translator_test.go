@@ -243,6 +243,54 @@ func TestClaudeToKiroIgnoresDeferredToolReferenceWithoutSchema(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroSkipsToolReferenceWhenSanitizedNameCollidesWithExplicitTool(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "read the file"}},
+		Tools: []ClaudeTool{{
+			Name:        "read_file",
+			Description: "Read explicit file",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{"type": "string"},
+				},
+			},
+		}},
+		ToolReferences: []ClaudeToolReference{{
+			Type:        "tool_reference",
+			ID:          "toolref_1",
+			Name:        "read-file",
+			Description: "Read referenced file",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{"type": "string"},
+				},
+			},
+		}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+	if ctx == nil {
+		t.Fatalf("expected tool context")
+	}
+	var readFileTools int
+	for _, tool := range ctx.Tools {
+		if tool.ToolSpecification.Name == "readFile" {
+			readFileTools++
+		}
+	}
+	if readFileTools != 1 {
+		t.Fatalf("expected one Kiro tool named readFile, got %d tools: %#v", readFileTools, ctx.Tools)
+	}
+	if got := payload.ToolNameMap["readFile"]; got != "read_file" {
+		t.Fatalf("expected explicit tool outward name to win, got %q", got)
+	}
+}
+
 func TestClaudeToKiroStripsClaudeCodeTransportSystemMetadata(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-opus-4-7",
