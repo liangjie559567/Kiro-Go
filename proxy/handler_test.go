@@ -1306,6 +1306,27 @@ func TestClaudeUpstreamErrorsMapToAnthropicErrorTypes(t *testing.T) {
 	}
 }
 
+func TestClaudeRateLimitErrorBuildsRetryAfterHeader(t *testing.T) {
+	resetAt := time.Now().Add(2500 * time.Millisecond)
+	headers := claudeErrorHeadersForUpstreamError(&rateLimitError{
+		endpoint: "Kiro IDE",
+		body:     `{"message":"rate limited"}`,
+		resetAt:  resetAt,
+	})
+
+	if got := headers.Get("Retry-After"); got != "2" && got != "3" {
+		t.Fatalf("expected Retry-After around reset time, got %q", got)
+	}
+}
+
+func TestClaudeNonRateLimitErrorDoesNotBuildRetryAfterHeader(t *testing.T) {
+	headers := claudeErrorHeadersForUpstreamError(errors.New("HTTP 503 from Kiro IDE"))
+
+	if got := headers.Get("Retry-After"); got != "" {
+		t.Fatalf("expected no Retry-After for unrelated error, got %q", got)
+	}
+}
+
 func TestClaudeStreamErrorEventUsesMappedAnthropicErrorType(t *testing.T) {
 	w := httptest.NewRecorder()
 	flusher, ok := interface{}(w).(http.Flusher)
@@ -2254,8 +2275,8 @@ func TestClaudeErrorSetsRequestIDAndRetryAfter(t *testing.T) {
 	w.Header().Set("request-id", "req_existing")
 	w.Header().Set("x-request-id", "req_existing")
 
-	h.sendClaudeErrorWithHeaders(w, http.StatusTooManyRequests, "rate_limit_error", "retry later", map[string]string{
-		"Retry-After": "7",
+	h.sendClaudeErrorWithHeaders(w, http.StatusTooManyRequests, "rate_limit_error", "retry later", http.Header{
+		"Retry-After": []string{"7"},
 	})
 
 	if w.Code != http.StatusTooManyRequests {

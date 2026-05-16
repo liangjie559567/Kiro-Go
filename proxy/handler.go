@@ -11,6 +11,7 @@ import (
 	"kiro-go/pool"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1484,13 +1485,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				}
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
-				h.sendClaudeError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				h.sendClaudeUpstreamError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error(), lastErr)
 				return
 			}
 			if lastErr != nil {
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
-				h.sendClaudeError(w, status, errType, lastErr.Error())
+				h.sendClaudeUpstreamError(w, status, errType, lastErr.Error(), lastErr)
 			} else {
 				h.recordFailure()
 				h.sendClaudeError(w, 503, "api_error", "No available accounts")
@@ -1542,7 +1543,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
-				h.sendClaudeError(w, status, errType, err.Error())
+				h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 			}
 			return
 		}
@@ -2193,7 +2194,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		h.recordFailure()
 		h.checkOverageError(err, account.ID)
 		status, errType := claudeUpstreamErrorStatusAndType(err)
-		h.sendClaudeError(w, status, errType, err.Error())
+		h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 		return true, err
 	}
 
@@ -2259,12 +2260,47 @@ func (h *Handler) sendClaudeError(w http.ResponseWriter, status int, errType, me
 	h.sendClaudeErrorWithHeaders(w, status, errType, message, nil)
 }
 
-func (h *Handler) sendClaudeErrorWithHeaders(w http.ResponseWriter, status int, errType, message string, headers map[string]string) {
-	for key, value := range headers {
+func (h *Handler) sendClaudeUpstreamError(w http.ResponseWriter, status int, errType, message string, err error) {
+	h.sendClaudeErrorWithHeaders(w, status, errType, message, claudeErrorHeadersForUpstreamError(err))
+}
+
+func claudeErrorHeadersForUpstreamError(err error) http.Header {
+	headers := http.Header{}
+	if err == nil {
+		return headers
+	}
+	status, errType := claudeUpstreamErrorStatusAndType(err)
+	if status != http.StatusTooManyRequests || errType != "rate_limit_error" {
+		return headers
+	}
+	resetAt := rateLimitResetFromError(err)
+	if resetAt.IsZero() {
+		return headers
+	}
+	delay := time.Until(resetAt)
+	if delay <= 0 {
+		return headers
+	}
+	seconds := int((delay + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	headers.Set("Retry-After", strconv.Itoa(seconds))
+	return headers
+}
+
+func (h *Handler) sendClaudeErrorWithHeaders(w http.ResponseWriter, status int, errType, message string, headers http.Header) {
+	for key, values := range headers {
 		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		if key != "" && value != "" {
-			w.Header().Set(key, value)
+		if key == "" {
+			continue
+		}
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				w.Header().Set(key, value)
+				break
+			}
 		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
