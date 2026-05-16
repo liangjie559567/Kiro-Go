@@ -105,6 +105,136 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 	}
 }
 
+func TestValidateApiKeyAcceptsSecondaryClientKeyAndRejectsDisabled(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateClientAccessConfig(config.ClientAccessConfig{
+		RequireApiKey: true,
+		ApiKey:        "sk-primary",
+		ClientApiKeys: []string{"sk-secondary", "#disabled#sk-disabled"},
+	}); err != nil {
+		t.Fatalf("update client access: %v", err)
+	}
+
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("Authorization", "Bearer sk-secondary")
+	if !h.validateApiKey(req) {
+		t.Fatalf("expected secondary client key to authenticate")
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("Authorization", "Bearer sk-disabled")
+	if h.validateApiKey(req) {
+		t.Fatalf("expected disabled client key to be rejected")
+	}
+}
+
+func TestValidateClientAccessAllowsLocalSub2apiAndRejectsRemoteWhenAllowlistSet(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateClientAccessConfig(config.ClientAccessConfig{
+		RequireApiKey:     false,
+		ClientIPAllowlist: []string{"127.0.0.1"},
+	}); err != nil {
+		t.Fatalf("update client access: %v", err)
+	}
+
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.RemoteAddr = "127.0.0.1:41234"
+	if !h.validateClientAccess(req) {
+		t.Fatalf("expected localhost sub2api-style caller to be allowed")
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.RemoteAddr = "203.0.113.10:41234"
+	if h.validateClientAccess(req) {
+		t.Fatalf("expected remote caller outside allowlist to be rejected")
+	}
+}
+
+func TestAdminSettingsRoundTripClientAccessFields(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{}
+	body := strings.NewReader(`{
+		"apiKey":"sk-primary",
+		"requireApiKey":true,
+		"clientApiKeys":["sk-secondary"],
+		"clientIPAllowlist":["127.0.0.1","10.0.0.0/8"],
+		"modelMappings":[{"id":"m1","enabled":true,"type":"alias","sourceModel":"my-opus","targetModels":["claude-opus-4.7"]}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/settings", body)
+	w := httptest.NewRecorder()
+	h.apiUpdateSettings(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected settings update 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/admin/api/settings", nil)
+	w = httptest.NewRecorder()
+	h.apiGetSettings(w, req)
+
+	var got struct {
+		ClientApiKeys     []string                  `json:"clientApiKeys"`
+		ClientIPAllowlist []string                  `json:"clientIPAllowlist"`
+		ModelMappings     []config.ModelMappingRule `json:"modelMappings"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if len(got.ClientApiKeys) != 1 || got.ClientApiKeys[0] != "sk-secondary" {
+		t.Fatalf("unexpected client api keys: %#v", got.ClientApiKeys)
+	}
+	if len(got.ClientIPAllowlist) != 2 {
+		t.Fatalf("unexpected allowlist: %#v", got.ClientIPAllowlist)
+	}
+	if len(got.ModelMappings) != 1 || got.ModelMappings[0].SourceModel != "my-opus" {
+		t.Fatalf("unexpected model mappings: %#v", got.ModelMappings)
+	}
+}
+
+func TestAdminSettingsPartialUpdatePreservesClientAccess(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateClientAccessConfig(config.ClientAccessConfig{
+		ApiKey:            "sk-primary",
+		RequireApiKey:     true,
+		ClientApiKeys:     []string{"sk-secondary"},
+		ClientIPAllowlist: []string{"127.0.0.1"},
+		ModelMappings:     []config.ModelMappingRule{{Enabled: true, Type: "alias", SourceModel: "my-opus", TargetModels: []string{"claude-opus-4.7"}}},
+	}); err != nil {
+		t.Fatalf("seed client access: %v", err)
+	}
+
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/settings", strings.NewReader(`{"allowOverUsage":true}`))
+	w := httptest.NewRecorder()
+	h.apiUpdateSettings(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected partial settings update 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	got := config.GetClientAccessConfig()
+	if got.ApiKey != "sk-primary" || !got.RequireApiKey {
+		t.Fatalf("expected auth settings to be preserved, got %#v", got)
+	}
+	if len(got.ClientApiKeys) != 1 || got.ClientApiKeys[0] != "sk-secondary" {
+		t.Fatalf("expected client keys preserved, got %#v", got.ClientApiKeys)
+	}
+	if len(got.ClientIPAllowlist) != 1 || got.ClientIPAllowlist[0] != "127.0.0.1" {
+		t.Fatalf("expected allowlist preserved, got %#v", got.ClientIPAllowlist)
+	}
+	if len(got.ModelMappings) != 1 || got.ModelMappings[0].SourceModel != "my-opus" {
+		t.Fatalf("expected model mappings preserved, got %#v", got.ModelMappings)
+	}
+}
+
 func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -915,8 +1045,8 @@ func TestHandleClaudeStreamOpus47CapacityLimitReturnsExplicitError(t *testing.T)
 
 	h.handleClaudeMessagesInternal(w, req)
 
-	if w.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected explicit 503 after capacity budget, got status %d body %q", w.Code, w.Body.String())
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected explicit 429 after capacity budget, got status %d body %q", w.Code, w.Body.String())
 	}
 	if strings.TrimSpace(w.Body.String()) == "" {
 		t.Fatalf("expected non-empty error body")
@@ -924,6 +1054,149 @@ func TestHandleClaudeStreamOpus47CapacityLimitReturnsExplicitError(t *testing.T)
 	if !strings.Contains(w.Body.String(), "INSUFFICIENT_MODEL_CAPACITY") {
 		t.Fatalf("expected upstream capacity reason in body, got %q", w.Body.String())
 	}
+}
+
+func TestClaudeUpstreamErrorsMapToAnthropicErrorTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantType   string
+	}{
+		{
+			name:       "rate limit",
+			err:        &rateLimitError{endpoint: "Kiro IDE", body: `{"message":"rate limited"}`, resetAt: time.Now().Add(time.Second)},
+			wantStatus: http.StatusTooManyRequests,
+			wantType:   "rate_limit_error",
+		},
+		{
+			name:       "upstream capacity",
+			err:        errors.New(`HTTP 429 from Kiro IDE: {"reason":"INSUFFICIENT_MODEL_CAPACITY"}`),
+			wantStatus: http.StatusTooManyRequests,
+			wantType:   "rate_limit_error",
+		},
+		{
+			name:       "upstream unavailable",
+			err:        errors.New("HTTP 503 from Kiro IDE"),
+			wantStatus: http.StatusServiceUnavailable,
+			wantType:   "overloaded_error",
+		},
+		{
+			name:       "http2 reset",
+			err:        errors.New("stream error: stream ID 397; INTERNAL_ERROR; received from peer"),
+			wantStatus: http.StatusServiceUnavailable,
+			wantType:   "overloaded_error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotStatus, gotType := claudeUpstreamErrorStatusAndType(tc.err)
+			if gotStatus != tc.wantStatus || gotType != tc.wantType {
+				t.Fatalf("expected %d/%s, got %d/%s", tc.wantStatus, tc.wantType, gotStatus, gotType)
+			}
+		})
+	}
+}
+
+func TestClaudeStreamErrorEventUsesMappedAnthropicErrorType(t *testing.T) {
+	w := httptest.NewRecorder()
+	flusher, ok := interface{}(w).(http.Flusher)
+	if !ok {
+		t.Fatalf("recorder should support flushing")
+	}
+
+	h := &Handler{}
+	h.sendClaudeStreamError(w, flusher, errors.New("stream error: stream ID 397; INTERNAL_ERROR; received from peer"))
+
+	body := w.Body.String()
+	if !strings.Contains(body, `"type":"overloaded_error"`) {
+		t.Fatalf("expected mapped overloaded_error in stream error, got %q", body)
+	}
+	if strings.Contains(body, `"type":"api_error"`) {
+		t.Fatalf("expected stream error not to fall back to api_error, got %q", body)
+	}
+}
+
+func TestHandleClaudeStreamToolUseStartsWithMessageStart(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-tool-stream",
+		Enabled:     true,
+		AccessToken: "token-tool-stream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_test_1",
+							"name":      "get_weather",
+							"input":     map[string]interface{}{"city": "Shanghai"},
+							"stop":      true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 11, "outputTokens": 7}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tools":[{"name":"get_weather","description":"Get weather","input_schema":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}],"tool_choice":{"type":"tool","name":"get_weather"},"messages":[{"role":"user","content":"Use the weather tool for Shanghai"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	events := collectSSEEvents(w.Body.String())
+	if len(events) < 2 {
+		t.Fatalf("expected multiple SSE events, got %v body %q", events, w.Body.String())
+	}
+	if events[0] != "message_start" {
+		t.Fatalf("expected message_start to be first SSE event for tool-only stream, got %v body %q", events, w.Body.String())
+	}
+	if events[1] != "content_block_start" {
+		t.Fatalf("expected tool content block after message_start, got %v body %q", events, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"type":"tool_use"`) {
+		t.Fatalf("expected tool_use content block, got %q", w.Body.String())
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func collectSSEEvents(body string) []string {
+	var events []string
+	for _, line := range strings.Split(body, "\n") {
+		if event, ok := strings.CutPrefix(line, "event: "); ok {
+			events = append(events, event)
+		}
+	}
+	return events
 }
 
 func TestHandleClaudeStreamOpus47CapacityLimitNeverReturnsEmptyBodyUnderConcurrency(t *testing.T) {
@@ -1352,15 +1625,30 @@ func TestFaviconServed(t *testing.T) {
 	}
 }
 
-func TestDashboardRefreshIncludesHealthCheckStatus(t *testing.T) {
+func TestDashboardRefreshRefreshesVisibleRuntimeData(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("..", "web", "index.html"))
 	if err != nil {
 		t.Fatalf("read admin page: %v", err)
 	}
 
 	html := string(body)
-	if !strings.Contains(html, "loadStats(), loadAccounts(), loadAutoRefreshConfig(), loadHealthCheckConfig()") {
-		t.Fatalf("expected dashboard polling to refresh health check status")
+	expectations := map[string]string{
+		"active tab state":               "let currentTab = 'accounts';",
+		"visible refresh coordinator":    "async function refreshVisibleData()",
+		"settings runtime refresh":       "loadRequestLogs()",
+		"auto refresh status only":       "loadAutoRefreshConfig({ updateFields: false })",
+		"health check status only":       "loadHealthCheckConfig({ updateFields: false })",
+		"detail modal state":             "let currentDetailAccountId = '';",
+		"detail draft preservation":      "getDetailDraftValues()",
+		"detail modal refresh":           "refreshOpenAccountDetail()",
+		"overlap guard":                  "refreshInFlight",
+		"switch tab immediate refresh":   "refreshVisibleData();",
+		"visible page immediate refresh": "document.addEventListener('visibilitychange'",
+	}
+	for name, needle := range expectations {
+		if !strings.Contains(html, needle) {
+			t.Fatalf("expected admin page refresh behavior %q to contain %q", name, needle)
+		}
 	}
 }
 

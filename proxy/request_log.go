@@ -26,10 +26,16 @@ type RequestLogEntry struct {
 	Model                    string    `json:"model,omitempty"`
 	AccountID                string    `json:"accountId,omitempty"`
 	Region                   string    `json:"region,omitempty"`
+	ClaudeCodeSessionID      string    `json:"claudeCodeSessionId,omitempty"`
+	ClaudeCodeAgentID        string    `json:"claudeCodeAgentId,omitempty"`
 	Stream                   bool      `json:"stream"`
 	StatusCode               int       `json:"statusCode"`
 	Outcome                  string    `json:"outcome"`
 	DurationMs               int64     `json:"durationMs"`
+	QueueWaitMs              int64     `json:"queueWaitMs,omitempty"`
+	FirstTokenMs             int64     `json:"firstTokenMs,omitempty"`
+	Attempts                 int       `json:"attempts,omitempty"`
+	ToolUseCount             int       `json:"toolUseCount,omitempty"`
 	InputTokens              int       `json:"inputTokens,omitempty"`
 	OutputTokens             int       `json:"outputTokens,omitempty"`
 	CacheReadInputTokens     int       `json:"cacheReadInputTokens,omitempty"`
@@ -47,6 +53,12 @@ type RequestLogBucket struct {
 	OutputTokens             int   `json:"outputTokens"`
 	CacheReadInputTokens     int   `json:"cacheReadInputTokens"`
 	CacheCreationInputTokens int   `json:"cacheCreationInputTokens"`
+	QueueWaitMs              int64 `json:"queueWaitMs"`
+	MaxQueueWaitMs           int64 `json:"maxQueueWaitMs"`
+	FirstTokenMs             int64 `json:"firstTokenMs"`
+	MaxFirstTokenMs          int64 `json:"maxFirstTokenMs"`
+	Attempts                 int   `json:"attempts"`
+	ToolUseCount             int   `json:"toolUseCount"`
 }
 
 type requestLogStore struct {
@@ -182,10 +194,12 @@ func (h *Handler) beginRequestLog(w http.ResponseWriter, r *http.Request) (*requ
 	ctx := &requestLogContext{
 		startedAt: time.Now(),
 		entry: RequestLogEntry{
-			Timestamp: time.Now().UTC(),
-			RequestID: requestID,
-			Method:    r.Method,
-			Endpoint:  r.URL.Path,
+			Timestamp:           time.Now().UTC(),
+			RequestID:           requestID,
+			Method:              r.Method,
+			Endpoint:            r.URL.Path,
+			ClaudeCodeSessionID: strings.TrimSpace(r.Header.Get("X-Claude-Code-Session-Id")),
+			ClaudeCodeAgentID:   strings.TrimSpace(r.Header.Get("X-Claude-Code-Agent-Id")),
 		},
 	}
 	recorder := &responseLogWriter{ResponseWriter: w}
@@ -236,6 +250,25 @@ func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheRead
 	ctx.entry.OutputTokens = outputTokens
 	ctx.entry.CacheReadInputTokens = cacheReadInputTokens
 	ctx.entry.CacheCreationInputTokens = cacheCreationInputTokens
+}
+
+func updateRequestLogReliability(r *http.Request, queueWaitMs int64, attempts int, firstTokenMs int64, toolUseCount int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	if queueWaitMs >= 0 {
+		ctx.entry.QueueWaitMs = queueWaitMs
+	}
+	if attempts > 0 {
+		ctx.entry.Attempts = attempts
+	}
+	if firstTokenMs > 0 {
+		ctx.entry.FirstTokenMs = firstTokenMs
+	}
+	if toolUseCount >= 0 {
+		ctx.entry.ToolUseCount = toolUseCount
+	}
 }
 
 func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter) {
@@ -390,6 +423,16 @@ func addRequestLogBucket(bucket *requestLogBucketAccumulator, entry RequestLogEn
 	bucket.OutputTokens += entry.OutputTokens
 	bucket.CacheReadInputTokens += entry.CacheReadInputTokens
 	bucket.CacheCreationInputTokens += entry.CacheCreationInputTokens
+	bucket.QueueWaitMs += entry.QueueWaitMs
+	if entry.QueueWaitMs > bucket.MaxQueueWaitMs {
+		bucket.MaxQueueWaitMs = entry.QueueWaitMs
+	}
+	bucket.FirstTokenMs += entry.FirstTokenMs
+	if entry.FirstTokenMs > bucket.MaxFirstTokenMs {
+		bucket.MaxFirstTokenMs = entry.FirstTokenMs
+	}
+	bucket.Attempts += entry.Attempts
+	bucket.ToolUseCount += entry.ToolUseCount
 }
 
 func (b requestLogBucketAccumulator) Export() RequestLogBucket {

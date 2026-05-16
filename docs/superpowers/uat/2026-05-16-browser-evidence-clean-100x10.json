@@ -1,0 +1,31 @@
+[
+  {
+    "name": "kiro_settings_tab",
+    "bad": [],
+    "errs": [],
+    "cons": [
+      {
+        "type": "verbose",
+        "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+      },
+      {
+        "type": "verbose",
+        "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+      },
+      {
+        "type": "verbose",
+        "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+      }
+    ],
+    "text": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n12\n账号\n2113\n请求\n1620\n成功\n493\n失败\n49.8M\nTokens\n511.1\nCredits\n账号\n设置\nAPI\nAPI 设置\n启用 API Key 验证\nAPI Key\n随机生成\n客户端 API Keys\n兼容旧 API Key。开启验证后，任意未禁用 Key 都可用于 Authorization: Bearer。\n来源 IP 白名单\n留空保持现有开放行为。直连本机用 127.0.0.1；Docker 下游需加入容器 IP 或 Docker 网段。\n模型映射规则\n格式：源模型 => 目标模型1,目标模型2。多个目标按轮询映射。\n保存设置\n自动刷新账号\n启用自动刷新\n刷新间隔（分钟）\n范围 5-1440 分钟，管理页面关闭后仍会在后端执行\n刷新范围\n仅启用账号\n所有账号\n正在运行: 否\n上次执行: 5/16/2026, 3:04:59 AM\n下次执行: 5/16/2026, 3:09:59 AM\n上次结果: 成功: 13, 失败: 0\n保存自动刷新设置\n账号健康检测\n启用定时健康检测\n检测间隔（分钟）\n范围 5-1440 分钟，仅检测启用账号；通过加载可用模型判断账号健康状态\n检测失败时自动禁用账号\n正在运行: 否\n上次执行: 5/16/2026, 3:04:22 AM\n下次执行: 5/16/2026, 3:09:22 AM\n上次结果: 成功: 12, 失败: 0, 已禁用: 0\n保存健康检测设置\n用量控制\n允许超额使用\n开启后，即使账号额度用尽也会继续使用该账号处理请求，不再因余额不足而报错\n保存设置\nThinking 模式设置\n触发后缀\n模型名称加此后缀即启用思考模式，如 claude-sonnet-4.5-thinking\nOpenAI API 输出格式\nreasoning_content (DeepSeek)\n<thinking> (Claude)\n<think> (OpenAI)\nClaude API 输出格式\n<thinking> (Claude)\n<think> (OpenAI)\n直接输出 (无标签)\n保存 Thinking 设置\nKiro 端点设置\n首选端点\n自动选择\nKiro IDE\nCodeWhisperer\nAmazonQ\n选择首选端点，自动选择模式下会根据可用性自动选择端点\n端点不可用时自动切换\n关闭后，仅使用选定的端点，不会自动切换到其他端点\n保存端点设置\n账号调度策略\n调度策略\n健康优先\n最少连接\n轮询\n健康优先会综合连接数、成功率和延迟；最少连接适合压测；轮询保留权重顺序。\n保存调度策略\n管理密码\n新密码\n修改密码\n出站代理设置\n代理类型\n直连（不使用代理）\nSOCKS5\nHTTP\n保存代理设置\nSystem Prompt 过滤\n内置过滤器\n替换 Claude Code CLI 系统提示\n检测到 Claude Code 内置系统提示时，替换为精简的后端提示词，避免泄露大量 CLI 指令到请求体。\n过滤环境噪音行\n移除系统提示中注入的环境变量、Git 状态、最近提交等噪音内容。\n移除边界标记\n移除 --- SYSTEM PROMPT --- / --- END SYSTEM PROMPT --- 等边界标记行。\n自定义过滤规则\n暂无自定义规则\n+ 正则替换规则\n+ 行级过滤规则\n保存过滤设置\n统计\n重置统计\n最近请求日志\n刷新\n清空\n总数 206，成功 205，失败 1，平均耗时 7677ms，输入 1.4M，输出 4.3K\n时间\t模型\t账号/区域\t状态\t耗时\tTokens\t错误\n5/16/2026, 3:05:22 AM\tclaude-opus-4-7\t1e7bad65-4a46-40d0-81bd-19fde0f14954 / us-east-1\t200\t1257ms\t5914 / 8\t-\n5/16/2026, 3:05:20 AM\tclaude-opus-4-7\t1e7bad65-4a46-40d0-81bd-19fde0f14954 / us-east-1\t200\t1149ms\t5910 / 8\t-\n5/16/2026, 2:55:48 AM\tclaude-opus-4-7\t95d9dcb5-f544-4bcb-9aee-ff1890938a82 / us-east-1\t200\t281520ms\t40623 / 77\t-\n5/16/2026, 2:49:34 AM\tclaude-opus-4-7\tfef84be2-f929-4ea2-afa9-5f8702016868 / us-east-1\t500\t547013ms\t0 / 0\tcontext deadline exceeded (Client.Timeout o",
+    "screenshot": "/www/Kiro-Go/docs/superpowers/uat/kiro-admin-settings-tab-100x10-20260516.png"
+  },
+  {
+    "name": "sub2api_accounts_clean",
+    "bad": [],
+    "errs": [],
+    "cons": [],
+    "text": "CGTall-AI\n\nSubscription to API Conversion Platform\n\nWelcome Back\n\nSign in to your account to continue\n\nEmail\nPassword\nSign In\n\nDon't have an account? Sign up\n\n© 2026 CGTall-AI. All rights reserved.",
+    "screenshot": "/www/Kiro-Go/docs/superpowers/uat/sub2api-accounts-clean-100x10-20260516.png"
+  }
+]

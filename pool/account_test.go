@@ -329,6 +329,42 @@ func TestGetNextForModelRoundRobinStrategyPreservesConfiguredOrder(t *testing.T)
 	}
 }
 
+func TestBeginNextForModelReservesDistinctIdleAccounts(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}, {ID: "acct-3"}},
+		totalAccounts: 3,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyLeastConnections)
+	for _, id := range []string{"acct-1", "acct-2", "acct-3"} {
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+	}
+
+	var releases []func()
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+	for i := 0; i < 3; i++ {
+		acc, release := p.BeginNextForModelExcept("claude-opus-4.7", nil)
+		if acc == nil {
+			t.Fatalf("expected account %d", i+1)
+		}
+		releases = append(releases, release)
+	}
+
+	for _, id := range []string{"acct-1", "acct-2", "acct-3"} {
+		if got := p.GetRuntimeHealth(id).ActiveConnections; got != 1 {
+			t.Fatalf("expected %s to have one reserved connection, got %d", id, got)
+		}
+	}
+}
+
 func TestRuntimeHealthRecordsLatencyAndFailureScore(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),

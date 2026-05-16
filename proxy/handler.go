@@ -574,8 +574,8 @@ func (h *Handler) validateApiKey(r *http.Request) bool {
 		return true
 	}
 
-	expectedKey := config.GetApiKey()
-	if expectedKey == "" {
+	allowedKeys := config.GetClientApiKeys()
+	if len(allowedKeys) == 0 {
 		return true
 	}
 
@@ -590,7 +590,16 @@ func (h *Handler) validateApiKey(r *http.Request) bool {
 		providedKey = apiKeyHeader
 	}
 
-	return providedKey == expectedKey
+	for _, allowedKey := range allowedKeys {
+		if providedKey == allowedKey {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Handler) validateClientAccess(r *http.Request) bool {
+	return config.IsClientIPAllowed(r.RemoteAddr) && h.validateApiKey(r)
 }
 
 // ServeHTTP 路由分发
@@ -621,25 +630,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	// API 端点（需要验证 API Key）
 	case path == "/v1/messages" || path == "/messages" || path == "/anthropic/v1/messages":
-		if !h.validateApiKey(r) {
+		if !h.validateClientAccess(r) {
 			h.sendClaudeError(w, 401, "authentication_error", "Invalid or missing API key")
 			return
 		}
 		h.handleClaudeMessages(w, r)
 	case path == "/v1/messages/count_tokens" || path == "/messages/count_tokens":
-		if !h.validateApiKey(r) {
+		if !h.validateClientAccess(r) {
 			h.sendClaudeError(w, 401, "authentication_error", "Invalid or missing API key")
 			return
 		}
 		h.handleCountTokens(w, r)
 	case path == "/v1/chat/completions" || path == "/chat/completions":
-		if !h.validateApiKey(r) {
+		if !h.validateClientAccess(r) {
 			h.sendOpenAIError(w, 401, "authentication_error", "Invalid or missing API key")
 			return
 		}
 		h.handleOpenAIChat(w, r)
 	case path == "/v1/responses" || path == "/responses":
-		if !h.validateApiKey(r) {
+		if !h.validateClientAccess(r) {
 			h.sendOpenAIError(w, 401, "authentication_error", "Invalid or missing API key")
 			return
 		}
@@ -667,7 +676,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 统计端点（需要 API Key 鉴权）
 	case path == "/v1/stats":
-		if !h.validateApiKey(r) {
+		if !h.validateClientAccess(r) {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(401)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid or missing API key"})
@@ -1433,7 +1442,7 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
-	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, true, deadline)
+	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, true, deadline)
 	if !ok {
 		return
 	}
@@ -1445,7 +1454,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	attempt := 0
 
 	for {
-		account := h.pool.GetNextForModelExcept(model, used)
+		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
+		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
@@ -1454,12 +1464,14 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 					continue
 				}
 				h.recordFailure()
-				h.sendClaudeError(w, 503, "api_error", "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
+				h.sendClaudeError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
 				return
 			}
 			if lastErr != nil {
 				h.recordFailure()
-				h.sendClaudeError(w, 503, "api_error", lastErr.Error())
+				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
+				h.sendClaudeError(w, status, errType, lastErr.Error())
 			} else {
 				h.recordFailure()
 				h.sendClaudeError(w, 503, "api_error", "No available accounts")
@@ -1472,26 +1484,25 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if err := h.ensureValidToken(account); err != nil {
 			h.recordAccountFailure(account.ID, err)
 			if attempt == 0 {
+				releaseRequest()
 				continue
 			}
+			releaseRequest()
 			h.sendClaudeError(w, 503, "api_error", "Token refresh failed: "+err.Error())
 			return
 		}
 
 		cacheUsage := h.promptCache.Compute(account.ID, cacheProfile)
 		var err error
+		var done bool
 		if stream {
-			var done bool
 			done, err = h.handleClaudeStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
-			if done {
-				return
-			}
 		} else {
-			var done bool
 			done, err = h.handleClaudeNonStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
-			if done {
-				return
-			}
+		}
+		releaseRequest()
+		if done {
+			return
 		}
 		lastErr = err
 		if shouldWaitAndRetryOpus47(err, model) {
@@ -1505,7 +1516,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if stream || attempt >= 1 {
 			if err != nil {
 				h.recordFailure()
-				h.sendClaudeError(w, 500, "api_error", err.Error())
+				status, errType := claudeUpstreamErrorStatusAndType(err)
+				h.sendClaudeError(w, status, errType, err.Error())
 			}
 			return
 		}
@@ -1515,7 +1527,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 
 func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
-	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, false, deadline)
+	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
 	}
@@ -1526,7 +1538,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 	attempt := 0
 
 	for {
-		account := h.pool.GetNextForModelExcept(model, used)
+		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
+		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
@@ -1553,25 +1566,24 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if err := h.ensureValidToken(account); err != nil {
 			h.recordAccountFailure(account.ID, err)
 			if attempt == 0 {
+				releaseRequest()
 				continue
 			}
+			releaseRequest()
 			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
 			return
 		}
 
 		var err error
+		var done bool
 		if stream {
-			var done bool
 			done, err = h.handleOpenAIStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
-			if done {
-				return
-			}
 		} else {
-			var done bool
 			done, err = h.handleOpenAINonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
-			if done {
-				return
-			}
+		}
+		releaseRequest()
+		if done {
+			return
 		}
 		lastErr = err
 		if shouldWaitAndRetryOpus47(err, model) {
@@ -1614,6 +1626,38 @@ func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, st
 	return nil, false
 }
 
+func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
+	startedAt := time.Now()
+	release, ok := h.acquireOpus47Admission(w, model, stream, claudeFormat, deadline)
+	if ok {
+		updateRequestLogReliability(r, time.Since(startedAt).Milliseconds(), 0, 0, -1)
+	}
+	return release, ok
+}
+
+func claudeUpstreamErrorStatusAndType(err error) (int, string) {
+	if err == nil {
+		return http.StatusInternalServerError, "api_error"
+	}
+	reason := classifyFailureReason(err)
+	msg := strings.ToLower(err.Error())
+	switch reason {
+	case pool.FailureReasonRateLimited:
+		return http.StatusTooManyRequests, "rate_limit_error"
+	case pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
+		if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") {
+			return http.StatusGatewayTimeout, "timeout_error"
+		}
+		return http.StatusServiceUnavailable, "overloaded_error"
+	case pool.FailureReasonAuthExpired:
+		return http.StatusUnauthorized, "authentication_error"
+	case pool.FailureReasonQuotaExhausted:
+		return http.StatusPaymentRequired, "billing_error"
+	default:
+		return http.StatusInternalServerError, "api_error"
+	}
+}
+
 // handleClaudeStream Claude 流式响应
 func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
@@ -1641,6 +1685,16 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	activeBlockType := ""
 	startInputTokens := estimatedInputTokens
 	streamStarted := false
+	upstreamStartedAt := time.Now()
+	firstTokenRecorded := false
+
+	recordFirstToken := func() {
+		if firstTokenRecorded {
+			return
+		}
+		firstTokenRecorded = true
+		updateRequestLogReliability(r, -1, 0, time.Since(upstreamStartedAt).Milliseconds(), -1)
+	}
 
 	startMessage := func() {
 		if streamStarted {
@@ -1918,6 +1972,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			if text == "" {
 				return
 			}
+			recordFirstToken()
 			if isThinking {
 				rawThinkingBuilder.WriteString(text)
 			} else {
@@ -1926,6 +1981,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			processClaudeText(text, isThinking, false)
 		},
 		OnToolUse: func(tu KiroToolUse) {
+			recordFirstToken()
 			// 先刷新缓冲区
 			processClaudeText("", false, true)
 			rawContentBuilder.WriteString(tu.Name)
@@ -1934,7 +1990,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			}
 
 			toolUses = append(toolUses, tu)
+			updateRequestLogReliability(r, -1, 0, 0, len(toolUses))
 			closeActiveBlock()
+			startMessage()
 
 			idx := nextContentIndex
 			nextContentIndex++
@@ -1980,11 +2038,10 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		},
 	}
 
-	releaseRequest := h.pool.BeginRequest(account.ID)
-	startedAt := time.Now()
+	upstreamStartedAt = time.Now()
+	startedAt := upstreamStartedAt
 	err := CallKiroAPI(account, payload, callback)
 	latency := time.Since(startedAt)
-	releaseRequest()
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
@@ -1994,10 +2051,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			return false, err
 		}
 		startMessage()
-		h.sendSSE(w, flusher, "error", map[string]interface{}{
-			"type":  "error",
-			"error": map[string]string{"type": "api_error", "message": err.Error()},
-		})
+		h.sendClaudeStreamError(w, flusher, err)
 		return true, err
 	}
 
@@ -2055,6 +2109,18 @@ func (h *Handler) sendSSE(w http.ResponseWriter, flusher http.Flusher, event str
 	jsonData, _ := json.Marshal(data)
 	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, string(jsonData))
 	flusher.Flush()
+}
+
+func (h *Handler) sendClaudeStreamError(w http.ResponseWriter, flusher http.Flusher, err error) {
+	_, errType := claudeUpstreamErrorStatusAndType(err)
+	message := "unknown upstream error"
+	if err != nil {
+		message = err.Error()
+	}
+	h.sendSSE(w, flusher, "error", map[string]interface{}{
+		"type":  "error",
+		"error": map[string]string{"type": errType, "message": message},
+	})
 }
 
 // backgroundStatsSaver 后台定时保存统计数据
@@ -2131,9 +2197,21 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	var inputTokens, outputTokens int
 	var credits float64
 	var realInputTokens int
+	var upstreamStartedAt time.Time
+	var firstTokenRecorded bool
+	recordFirstToken := func() {
+		if firstTokenRecorded || upstreamStartedAt.IsZero() {
+			return
+		}
+		firstTokenRecorded = true
+		updateRequestLogReliability(r, -1, 0, time.Since(upstreamStartedAt).Milliseconds(), -1)
+	}
 
 	callback := &KiroStreamCallback{
 		OnText: func(text string, isThinking bool) {
+			if text != "" {
+				recordFirstToken()
+			}
 			if isThinking {
 				thinkingContent += text
 			} else {
@@ -2141,7 +2219,9 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 			}
 		},
 		OnToolUse: func(tu KiroToolUse) {
+			recordFirstToken()
 			toolUses = append(toolUses, tu)
+			updateRequestLogReliability(r, -1, 0, 0, len(toolUses))
 		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
@@ -2158,11 +2238,10 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		},
 	}
 
-	releaseRequest := h.pool.BeginRequest(account.ID)
-	startedAt := time.Now()
+	upstreamStartedAt = time.Now()
+	startedAt := upstreamStartedAt
 	err := CallKiroAPI(account, payload, callback)
 	latency := time.Since(startedAt)
-	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
 		h.recordAccountFailure(account.ID, err)
@@ -2171,7 +2250,8 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		}
 		h.recordFailure()
 		h.checkOverageError(err, account.ID)
-		h.sendClaudeError(w, 500, "api_error", err.Error())
+		status, errType := claudeUpstreamErrorStatusAndType(err)
+		h.sendClaudeError(w, status, errType, err.Error())
 		return true, err
 	}
 
@@ -2314,7 +2394,7 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
-	releaseGate, ok := h.acquireOpus47Admission(w, model, stream, false, deadline)
+	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
 	}
@@ -2325,7 +2405,8 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	attempt := 0
 
 	for {
-		account := h.pool.GetNextForModelExcept(model, used)
+		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
+		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
@@ -2352,8 +2433,10 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		if err := h.ensureValidToken(account); err != nil {
 			h.recordAccountFailure(account.ID, err)
 			if attempt == 0 {
+				releaseRequest()
 				continue
 			}
+			releaseRequest()
 			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
 			return
 		}
@@ -2365,6 +2448,7 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		} else {
 			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, attempt)
 		}
+		releaseRequest()
 		if done {
 			return
 		}
@@ -3874,11 +3958,14 @@ func (h *Handler) apiGetStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) apiGetSettings(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"apiKey":         config.GetApiKey(),
-		"requireApiKey":  config.IsApiKeyRequired(),
-		"port":           config.GetPort(),
-		"host":           config.GetHost(),
-		"allowOverUsage": config.GetAllowOverUsage(),
+		"apiKey":            config.GetApiKey(),
+		"requireApiKey":     config.IsApiKeyRequired(),
+		"clientApiKeys":     config.GetClientAccessConfig().ClientApiKeys,
+		"clientIPAllowlist": config.GetClientAccessConfig().ClientIPAllowlist,
+		"modelMappings":     config.GetClientAccessConfig().ModelMappings,
+		"port":              config.GetPort(),
+		"host":              config.GetHost(),
+		"allowOverUsage":    config.GetAllowOverUsage(),
 	})
 }
 
@@ -3927,10 +4014,13 @@ func (h *Handler) apiUpdatePromptFilter(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) apiUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ApiKey         string `json:"apiKey"`
-		RequireApiKey  bool   `json:"requireApiKey"`
-		Password       string `json:"password"`
-		AllowOverUsage *bool  `json:"allowOverUsage,omitempty"`
+		ApiKey            *string                   `json:"apiKey,omitempty"`
+		RequireApiKey     *bool                     `json:"requireApiKey,omitempty"`
+		ClientApiKeys     []string                  `json:"clientApiKeys,omitempty"`
+		ClientIPAllowlist []string                  `json:"clientIPAllowlist,omitempty"`
+		ModelMappings     []config.ModelMappingRule `json:"modelMappings,omitempty"`
+		Password          string                    `json:"password"`
+		AllowOverUsage    *bool                     `json:"allowOverUsage,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(400)
@@ -3938,10 +4028,41 @@ func (h *Handler) apiUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := config.UpdateSettings(req.ApiKey, req.RequireApiKey, req.Password); err != nil {
+	currentAccess := config.GetClientAccessConfig()
+	apiKey := currentAccess.ApiKey
+	requireApiKey := currentAccess.RequireApiKey
+	if req.ApiKey != nil {
+		apiKey = *req.ApiKey
+	}
+	if req.RequireApiKey != nil {
+		requireApiKey = *req.RequireApiKey
+	}
+	if req.ClientApiKeys == nil {
+		req.ClientApiKeys = currentAccess.ClientApiKeys
+	}
+	if req.ClientIPAllowlist == nil {
+		req.ClientIPAllowlist = currentAccess.ClientIPAllowlist
+	}
+	if req.ModelMappings == nil {
+		req.ModelMappings = currentAccess.ModelMappings
+	}
+	if err := config.UpdateClientAccessConfig(config.ClientAccessConfig{
+		ApiKey:            apiKey,
+		RequireApiKey:     requireApiKey,
+		ClientApiKeys:     req.ClientApiKeys,
+		ClientIPAllowlist: req.ClientIPAllowlist,
+		ModelMappings:     req.ModelMappings,
+	}); err != nil {
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
+	}
+	if req.Password != "" {
+		if err := config.UpdateSettings(apiKey, requireApiKey, req.Password); err != nil {
+			w.WriteHeader(500)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
 	}
 
 	// 更新超额使用设置

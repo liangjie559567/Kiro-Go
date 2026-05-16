@@ -49,6 +49,7 @@ const ThinkingModePrompt = `<thinking_mode>enabled</thinking_mode>
 
 const minimalFallbackUserContent = "."
 const toolResultsContinuationPrefix = "Tool results:"
+const maxKiroHistoryPayloadBytes = 420 * 1024
 
 // ParseModelAndThinking 解析模型名称，返回实际模型和是否启用 thinking
 func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
@@ -60,6 +61,11 @@ func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
 	if strings.HasSuffix(lower, suffixLower) {
 		thinking = true
 		model = model[:len(model)-len(thinkingSuffix)]
+		lower = strings.ToLower(model)
+	}
+
+	if mapped := config.ResolveModelMapping(model); mapped != model {
+		model = mapped
 		lower = strings.ToLower(model)
 	}
 
@@ -230,7 +236,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		}
 	}
 
-	history = trimLeadingAssistantHistory(history)
+	history = trimKiroHistoryForPayloadSize(trimLeadingAssistantHistory(history), maxKiroHistoryPayloadBytes)
 
 	// 构建最终内容
 	finalContent := ""
@@ -284,6 +290,92 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	}
 
 	return payload
+}
+
+func trimKiroHistoryForPayloadSize(history []KiroHistoryMessage, maxBytes int) []KiroHistoryMessage {
+	if maxBytes <= 0 || len(history) <= 2 || kiroHistoryJSONSize(history) <= maxBytes {
+		return history
+	}
+	trimmed := append([]KiroHistoryMessage(nil), history...)
+	for len(trimmed) > 2 && kiroHistoryJSONSize(trimmed) > maxBytes {
+		removeCount := 1
+		if historyMessageHasToolUses(trimmed[0]) && len(trimmed) > 3 && historyMessageHasToolResults(trimmed[1]) {
+			removeCount = 2
+		}
+		trimmed = trimmed[removeCount:]
+	}
+	return dropOrphanedKiroToolMessages(trimmed)
+}
+
+func kiroHistoryJSONSize(history []KiroHistoryMessage) int {
+	data, err := json.Marshal(history)
+	if err != nil {
+		return 0
+	}
+	return len(data)
+}
+
+func historyMessageHasToolUses(message KiroHistoryMessage) bool {
+	return message.AssistantResponseMessage != nil && len(message.AssistantResponseMessage.ToolUses) > 0
+}
+
+func historyMessageHasToolResults(message KiroHistoryMessage) bool {
+	return message.UserInputMessage != nil &&
+		message.UserInputMessage.UserInputMessageContext != nil &&
+		len(message.UserInputMessage.UserInputMessageContext.ToolResults) > 0
+}
+
+func dropOrphanedKiroToolMessages(history []KiroHistoryMessage) []KiroHistoryMessage {
+	if len(history) == 0 {
+		return history
+	}
+	toolUses := make(map[string]bool)
+	toolResults := make(map[string]bool)
+	for _, message := range history {
+		if message.AssistantResponseMessage != nil {
+			for _, toolUse := range message.AssistantResponseMessage.ToolUses {
+				toolUses[toolUse.ToolUseID] = true
+			}
+		}
+		if message.UserInputMessage != nil && message.UserInputMessage.UserInputMessageContext != nil {
+			for _, result := range message.UserInputMessage.UserInputMessageContext.ToolResults {
+				toolResults[result.ToolUseID] = true
+			}
+		}
+	}
+
+	out := make([]KiroHistoryMessage, 0, len(history))
+	for _, message := range history {
+		if message.AssistantResponseMessage != nil && len(message.AssistantResponseMessage.ToolUses) > 0 {
+			kept := message.AssistantResponseMessage.ToolUses[:0]
+			for _, toolUse := range message.AssistantResponseMessage.ToolUses {
+				if toolResults[toolUse.ToolUseID] {
+					kept = append(kept, toolUse)
+				}
+			}
+			message.AssistantResponseMessage.ToolUses = kept
+			if message.AssistantResponseMessage.Content == "" && len(kept) == 0 {
+				continue
+			}
+		}
+		if message.UserInputMessage != nil && message.UserInputMessage.UserInputMessageContext != nil && len(message.UserInputMessage.UserInputMessageContext.ToolResults) > 0 {
+			kept := message.UserInputMessage.UserInputMessageContext.ToolResults[:0]
+			for _, result := range message.UserInputMessage.UserInputMessageContext.ToolResults {
+				if toolUses[result.ToolUseID] {
+					kept = append(kept, result)
+				}
+			}
+			message.UserInputMessage.UserInputMessageContext.ToolResults = kept
+			if len(message.UserInputMessage.UserInputMessageContext.Tools) == 0 && len(kept) == 0 {
+				message.UserInputMessage.UserInputMessageContext = nil
+			}
+			if message.UserInputMessage.Content == "" && message.UserInputMessage.UserInputMessageContext == nil {
+				continue
+			}
+		}
+		out = append(out, message)
+	}
+	return out
 }
 
 func buildClaudeSystemPrompt(system interface{}, thinking bool) string {
@@ -344,6 +436,8 @@ func stripSpoofedPromptFromUserContent(content string) string {
 		switch {
 		case trimmed == "":
 			out = append(out, line)
+		case isSystemPromptBoundaryLine(trimmed):
+			continue
 		case strings.HasPrefix(lower, "x-anthropic-billing-header:"):
 			continue
 		case strings.HasPrefix(trimmed, "<thinking_mode>") || strings.HasPrefix(trimmed, "</thinking_mode>"):
@@ -369,7 +463,7 @@ func stripLeadingSystemPromptBlock(content string) string {
 		if trimmed == "" {
 			continue
 		}
-		if strings.HasPrefix(trimmed, "--- SYSTEM PROMPT ---") {
+		if isSystemPromptStartBoundaryLine(trimmed) {
 			start = i
 			break
 		}
@@ -379,7 +473,7 @@ func stripLeadingSystemPromptBlock(content string) string {
 		return content
 	}
 	for i := start + 1; i < len(lines); i++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[i]), "--- END SYSTEM PROMPT ---") {
+		if isSystemPromptEndBoundaryLine(strings.TrimSpace(lines[i])) {
 			end = i
 			break
 		}
@@ -390,6 +484,23 @@ func stripLeadingSystemPromptBlock(content string) string {
 	remaining := strings.Join(lines[end+1:], "\n")
 	return strings.TrimSpace(remaining)
 }
+
+func isSystemPromptBoundaryLine(line string) bool {
+	return isSystemPromptStartBoundaryLine(line) || isSystemPromptEndBoundaryLine(line)
+}
+
+func isSystemPromptStartBoundaryLine(line string) bool {
+	return systemPromptBoundaryRe.MatchString(line)
+}
+
+func isSystemPromptEndBoundaryLine(line string) bool {
+	return endSystemPromptBoundaryRe.MatchString(line)
+}
+
+var (
+	systemPromptBoundaryRe    = regexp.MustCompile(`(?i)^\s*[-#>*\s]*(system\s+prompt)\s*[-#>*\s]*$`)
+	endSystemPromptBoundaryRe = regexp.MustCompile(`(?i)^\s*[-#>*\s]*(end\s+system\s+prompt)\s*[-#>*\s]*$`)
+)
 
 func isClaudeCodeTransportPromptLine(line string) bool {
 	switch strings.TrimSpace(line) {
@@ -1314,6 +1425,7 @@ func OpenAIToKiro(req *OpenAIRequest, thinking bool) *KiroPayload {
 		}
 	}
 
+	history = trimKiroHistoryForPayloadSize(trimLeadingAssistantHistory(history), maxKiroHistoryPayloadBytes)
 	if len(history) > 0 {
 		payload.ConversationState.History = history
 	}

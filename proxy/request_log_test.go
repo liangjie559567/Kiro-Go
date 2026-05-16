@@ -104,11 +104,14 @@ func TestAdminRequestStatsEndpointAggregatesRecentEntries(t *testing.T) {
 func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	req.Header.Set("X-Claude-Code-Session-Id", "sess-1")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-1")
 	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
 
 	updateRequestLogMetadata(loggedReq, "claude-opus-4.7", false)
 	updateRequestLogUpstream(loggedReq, "acct-1", "eu-west-1")
 	updateRequestLogUsage(loggedReq, 100, 25, 40, 5)
+	updateRequestLogReliability(loggedReq, 120, 2, 80, 3)
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
 
@@ -122,6 +125,12 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 	if entry.InputTokens != 100 || entry.OutputTokens != 25 || entry.CacheReadInputTokens != 40 || entry.CacheCreationInputTokens != 5 {
 		t.Fatalf("expected token usage metadata, got %#v", entry)
+	}
+	if entry.ClaudeCodeSessionID != "sess-1" || entry.ClaudeCodeAgentID != "agent-1" {
+		t.Fatalf("expected Claude Code metadata, got %#v", entry)
+	}
+	if entry.QueueWaitMs != 120 || entry.Attempts != 2 || entry.FirstTokenMs != 80 || entry.ToolUseCount != 3 {
+		t.Fatalf("expected reliability metadata, got %#v", entry)
 	}
 }
 

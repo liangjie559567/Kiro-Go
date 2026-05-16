@@ -14,9 +14,12 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // GenerateMachineId generates a UUID v4 format machine identifier.
@@ -142,6 +145,24 @@ type LoadBalanceConfig struct {
 	Strategy string `json:"strategy"`
 }
 
+type ModelMappingRule struct {
+	ID           string   `json:"id,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Enabled      bool     `json:"enabled"`
+	Type         string   `json:"type,omitempty"`
+	SourceModel  string   `json:"sourceModel"`
+	TargetModels []string `json:"targetModels"`
+	Weights      []int    `json:"weights,omitempty"`
+}
+
+type ClientAccessConfig struct {
+	ApiKey            string             `json:"apiKey,omitempty"`
+	RequireApiKey     bool               `json:"requireApiKey"`
+	ClientApiKeys     []string           `json:"clientApiKeys,omitempty"`
+	ClientIPAllowlist []string           `json:"clientIPAllowlist,omitempty"`
+	ModelMappings     []ModelMappingRule `json:"modelMappings,omitempty"`
+}
+
 func defaultLoadBalanceConfig() LoadBalanceConfig {
 	return LoadBalanceConfig{Strategy: LoadBalanceStrategyHealth}
 }
@@ -205,19 +226,22 @@ type PromptFilterRule struct {
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
-	Password        string                `json:"password"`         // Admin panel password
-	Port            int                   `json:"port"`             // HTTP server port (default: 8080)
-	Host            string                `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
-	ApiKey          string                `json:"apiKey,omitempty"` // API key for client authentication
-	RequireApiKey   bool                  `json:"requireApiKey"`    // Whether to enforce API key validation
-	KiroVersion     string                `json:"kiroVersion,omitempty"`
-	SystemVersion   string                `json:"systemVersion,omitempty"`
-	NodeVersion     string                `json:"nodeVersion,omitempty"`
-	Accounts        []Account             `json:"accounts"` // Registered Kiro accounts
-	AutoRefresh     AutoRefreshConfig     `json:"autoRefresh"`
-	HealthCheck     HealthCheckConfig     `json:"healthCheck"`
-	Opus47Admission Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
-	LoadBalance     LoadBalanceConfig     `json:"loadBalance,omitempty"`
+	Password          string                `json:"password"`         // Admin panel password
+	Port              int                   `json:"port"`             // HTTP server port (default: 8080)
+	Host              string                `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
+	ApiKey            string                `json:"apiKey,omitempty"` // API key for client authentication
+	RequireApiKey     bool                  `json:"requireApiKey"`    // Whether to enforce API key validation
+	ClientApiKeys     []string              `json:"clientApiKeys,omitempty"`
+	ClientIPAllowlist []string              `json:"clientIPAllowlist,omitempty"`
+	ModelMappings     []ModelMappingRule    `json:"modelMappings,omitempty"`
+	KiroVersion       string                `json:"kiroVersion,omitempty"`
+	SystemVersion     string                `json:"systemVersion,omitempty"`
+	NodeVersion       string                `json:"nodeVersion,omitempty"`
+	Accounts          []Account             `json:"accounts"` // Registered Kiro accounts
+	AutoRefresh       AutoRefreshConfig     `json:"autoRefresh"`
+	HealthCheck       HealthCheckConfig     `json:"healthCheck"`
+	Opus47Admission   Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
+	LoadBalance       LoadBalanceConfig     `json:"loadBalance,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -711,6 +735,56 @@ func GetApiKey() string {
 	return cfg.ApiKey
 }
 
+func GetClientApiKeys() []string {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	return effectiveClientApiKeysLocked()
+}
+
+func effectiveClientApiKeysLocked() []string {
+	keys := make([]string, 0, 1+len(cfg.ClientApiKeys))
+	add := func(key string) {
+		key = strings.TrimSpace(key)
+		if key == "" || strings.HasPrefix(key, "#disabled#") {
+			return
+		}
+		for _, existing := range keys {
+			if existing == key {
+				return
+			}
+		}
+		keys = append(keys, key)
+	}
+	add(cfg.ApiKey)
+	for _, key := range cfg.ClientApiKeys {
+		add(key)
+	}
+	return keys
+}
+
+func UpdateClientAccessConfig(in ClientAccessConfig) error {
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.ApiKey = strings.TrimSpace(in.ApiKey)
+	cfg.RequireApiKey = in.RequireApiKey
+	cfg.ClientApiKeys = normalizeStringList(in.ClientApiKeys)
+	cfg.ClientIPAllowlist = normalizeStringList(in.ClientIPAllowlist)
+	cfg.ModelMappings = normalizeModelMappings(in.ModelMappings)
+	return Save()
+}
+
+func GetClientAccessConfig() ClientAccessConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	return ClientAccessConfig{
+		ApiKey:            cfg.ApiKey,
+		RequireApiKey:     cfg.RequireApiKey,
+		ClientApiKeys:     append([]string(nil), cfg.ClientApiKeys...),
+		ClientIPAllowlist: append([]string(nil), cfg.ClientIPAllowlist...),
+		ModelMappings:     append([]ModelMappingRule(nil), cfg.ModelMappings...),
+	}
+}
+
 func IsApiKeyRequired() bool {
 	cfgLock.RLock()
 	defer cfgLock.RUnlock()
@@ -720,12 +794,142 @@ func IsApiKeyRequired() bool {
 func UpdateSettings(apiKey string, requireApiKey bool, password string) error {
 	cfgLock.Lock()
 	defer cfgLock.Unlock()
-	cfg.ApiKey = apiKey
+	cfg.ApiKey = strings.TrimSpace(apiKey)
 	cfg.RequireApiKey = requireApiKey
 	if password != "" {
 		cfg.Password = password
 	}
 	return Save()
+}
+
+func IsClientIPAllowed(remoteAddr string) bool {
+	cfgLock.RLock()
+	allowlist := append([]string(nil), cfg.ClientIPAllowlist...)
+	cfgLock.RUnlock()
+	if len(allowlist) == 0 {
+		return true
+	}
+	ipText := strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+		ipText = host
+	}
+	ip := net.ParseIP(strings.Trim(ipText, "[]"))
+	if ip == nil {
+		return false
+	}
+	for _, entry := range allowlist {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if allowedIP := net.ParseIP(strings.Trim(entry, "[]")); allowedIP != nil {
+			if allowedIP.Equal(ip) {
+				return true
+			}
+			continue
+		}
+		if _, network, err := net.ParseCIDR(entry); err == nil && network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+var modelMappingCursor uint64
+
+func ResolveModelMapping(requestedModel string) string {
+	requestedModel = strings.TrimSpace(requestedModel)
+	if requestedModel == "" {
+		return requestedModel
+	}
+	cfgLock.RLock()
+	if cfg == nil {
+		cfgLock.RUnlock()
+		return requestedModel
+	}
+	rules := append([]ModelMappingRule(nil), cfg.ModelMappings...)
+	cfgLock.RUnlock()
+	for _, rule := range rules {
+		if !rule.Enabled || strings.TrimSpace(rule.SourceModel) != requestedModel || len(rule.TargetModels) == 0 {
+			continue
+		}
+		ruleType := strings.ToLower(strings.TrimSpace(rule.Type))
+		if ruleType == "" || ruleType == "alias" || ruleType == "replace" {
+			return strings.TrimSpace(rule.TargetModels[0])
+		}
+		if ruleType == "loadbalance" {
+			return chooseWeightedModel(rule.TargetModels, rule.Weights)
+		}
+	}
+	return requestedModel
+}
+
+func chooseWeightedModel(targets []string, weights []int) string {
+	normalizedTargets := normalizeStringList(targets)
+	if len(normalizedTargets) == 0 {
+		return ""
+	}
+	if len(weights) != len(targets) {
+		idx := atomic.AddUint64(&modelMappingCursor, 1) - 1
+		return normalizedTargets[int(idx%uint64(len(normalizedTargets)))]
+	}
+	total := 0
+	for _, weight := range weights {
+		if weight > 0 {
+			total += weight
+		}
+	}
+	if total <= 0 {
+		return normalizedTargets[0]
+	}
+	tick := int((atomic.AddUint64(&modelMappingCursor, 1) - 1) % uint64(total))
+	cumulative := 0
+	for i, target := range targets {
+		weight := weights[i]
+		if weight <= 0 {
+			continue
+		}
+		cumulative += weight
+		if tick < cumulative {
+			return strings.TrimSpace(target)
+		}
+	}
+	return normalizedTargets[0]
+}
+
+func normalizeStringList(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		duplicate := false
+		for _, existing := range out {
+			if existing == value {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func normalizeModelMappings(rules []ModelMappingRule) []ModelMappingRule {
+	out := make([]ModelMappingRule, 0, len(rules))
+	for _, rule := range rules {
+		rule.SourceModel = strings.TrimSpace(rule.SourceModel)
+		rule.TargetModels = normalizeStringList(rule.TargetModels)
+		rule.Type = strings.ToLower(strings.TrimSpace(rule.Type))
+		if rule.SourceModel == "" || len(rule.TargetModels) == 0 {
+			continue
+		}
+		out = append(out, rule)
+	}
+	return out
 }
 
 func UpdateStats(totalReq, successReq, failedReq, totalTokens int, totalCredits float64) error {

@@ -234,6 +234,85 @@ func TestValidateLoadBalanceConfig(t *testing.T) {
 	}
 }
 
+func TestGetClientApiKeysMergesLegacyKeyAndSkipsDisabled(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfgLock.Lock()
+	cfg.ApiKey = " sk-legacy "
+	cfg.ClientApiKeys = []string{"sk-secondary", "#disabled#sk-disabled", "sk-secondary", " "}
+	cfgLock.Unlock()
+
+	got := GetClientApiKeys()
+	want := []string{"sk-legacy", "sk-secondary"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d keys, got %#v", len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("expected key %d to be %q, got %#v", i, want[i], got)
+		}
+	}
+}
+
+func TestClientIPAllowlistDefaultsOpenAndMatchesCIDR(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if !IsClientIPAllowed("203.0.113.10:4321") {
+		t.Fatalf("expected empty allowlist to preserve existing open behavior")
+	}
+
+	cfgLock.Lock()
+	cfg.ClientIPAllowlist = []string{"127.0.0.1", "10.8.0.0/16"}
+	cfgLock.Unlock()
+
+	if !IsClientIPAllowed("10.8.1.2:1234") {
+		t.Fatalf("expected CIDR allowlist to match client IP")
+	}
+	if IsClientIPAllowed("10.9.1.2:1234") {
+		t.Fatalf("expected non-matching client IP to be rejected")
+	}
+}
+
+func TestResolveModelMappingSupportsAliasAndWeightedRoundRobin(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfgLock.Lock()
+	cfg.ModelMappings = []ModelMappingRule{
+		{ID: "alias", Enabled: true, Type: "alias", SourceModel: "my-opus", TargetModels: []string{"claude-opus-4.7"}},
+		{ID: "lb", Enabled: true, Type: "loadbalance", SourceModel: "my-balanced", TargetModels: []string{"a", "b"}, Weights: []int{1, 2}},
+	}
+	cfgLock.Unlock()
+
+	if got := ResolveModelMapping("my-opus"); got != "claude-opus-4.7" {
+		t.Fatalf("expected alias mapping, got %q", got)
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 6; i++ {
+		seen[ResolveModelMapping("my-balanced")] = true
+	}
+	if !seen["a"] || !seen["b"] {
+		t.Fatalf("expected weighted mapping to rotate through both targets, got %#v", seen)
+	}
+	if got := ResolveModelMapping("claude-sonnet-4.6"); got != "claude-sonnet-4.6" {
+		t.Fatalf("expected unmapped model to stay unchanged, got %q", got)
+	}
+}
+
+func TestResolveModelMappingWithoutInitializedConfigDoesNotPanic(t *testing.T) {
+	oldCfg := cfg
+	cfg = nil
+	defer func() {
+		cfg = oldCfg
+	}()
+
+	if got := ResolveModelMapping("claude-opus-4-7"); got != "claude-opus-4-7" {
+		t.Fatalf("expected model to pass through without initialized config, got %q", got)
+	}
+}
+
 func TestUpdateAndClearAccountHealth(t *testing.T) {
 	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

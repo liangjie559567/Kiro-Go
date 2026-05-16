@@ -1,0 +1,21 @@
+{
+  "auth": {
+    "status": 200,
+    "hasAccess": true,
+    "hasRefresh": true,
+    "role": "admin",
+    "bodyKeys": [
+      "access_token",
+      "refresh_token",
+      "expires_in",
+      "token_type",
+      "user"
+    ]
+  },
+  "url": "http://127.0.0.1:18080/admin/accounts",
+  "text": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nAccount Management\n\nManage AI platform accounts and credentials\n\n🇺🇸\nEN\n$9997725.35\nAD\nadmin\nAdmin\nAll Platforms\nAll Types\nAll Status\nAll Privacy States\nAll Groups\nAuto Refresh\nMore Actions\nCreate Account\nBulk Edit Accounts\nUpdate Accounts\n\t\nNAME\n\t\nPLATFORM/TYPE\n\t\nCAPACITY\n\t\nSTATUS\n\t\nSCHEDULABLE\n\t\nGROUPS\n\t\nUSAGE WINDOWS\n\t\nLAST USED\n\t\nEXPIRES AT\n\t\nACTIONS\n\n\t\nkiro_claude_01\n\t\nAnthropic\nKey\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nclaude\n\t\n412 req\n21.0M\nA $85.19\nU $85.19\n\t1m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai001\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nRate Limited\nAuto resumes in 3d 17h\n429\nRate limited and removed from scheduling. Auto resumes at 05/19/2026, 20:34:21\n\t\n\t\nopenai\n\t\n10 req\n1.7M\nA $1.99\nU $1.99\n5h\n3%\n36m\n1.7K req\n169.6M\nA $145.19\nU $145.19\n7d\n100%\n3d 17h\n\t4h ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai002\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n17 req\n131.9K\nA $0.51\nU $0.51\n5h\n1%\n4h 17m\n1.5K req\n143.8M\nA $117.82\nU $117.82\n7d\n84%\n3d 18h\n\t20m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai003\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n13 req\n1.8K\nA $0.02\nU $0.02\n5h\n0%\n现在\n1.3K req\n97.4M\nA $85.43\nU $85.43\n7d\n63%\n3d 20h\n\t21m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai004\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n14 req\n1.4K\nA $0.01\nU $0.01\n5h\n1%\n20m\n1.4K req\n112.8M\nA $95.26\nU $95.26\n7d\n70%\n3d 20h\n\t2m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai005\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nRate Limited\nAuto resumes in 3d 19h\n429\nRate limited and removed from scheduling. Auto resumes at 05/19/2026, 22:09:18\n\t\n\t\nopenai\n\t\n5h\n1%\n4h 56m\n1.7K req\n171.1M\nA $143.39\nU $143.39\n7d\n100%\n3d 19h\n\t9h ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai006\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n27 req\n1.0M\nA $1.24\nU $1.24\n5h\n6%\n28m\n1.4K req\n112.2M\nA $113.98\nU $113.98\n7d\n71%\n3d 20h\n\t3m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai007\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nRate Limited\nAuto resumes in 3d 20h\n429\nRate limited and removed from scheduling. Auto resumes at 05/19/2026, 23:10:43\n\t\n\t\nopenai\n\t\n5h\n1%\n4h 56m\n1.6K req\n164.1M\nA $148.85\nU $148.85\n7d\n100%\n3d 20h\n\t5h ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai008\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto",
+  "bad": [],
+  "errs": [],
+  "consoleCount": 0,
+  "screenshot": "/www/Kiro-Go/docs/superpowers/uat/sub2api-accounts-auth-100x10-20260516.png"
+}

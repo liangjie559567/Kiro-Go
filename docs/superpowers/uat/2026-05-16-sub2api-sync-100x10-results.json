@@ -1,0 +1,1023 @@
+{
+  "batch": "kiro-opt-sync-20260516025520",
+  "mode": "sync",
+  "url": "http://127.0.0.1:18080/v1/messages",
+  "model": "claude-opus-4-7",
+  "requests": 100,
+  "concurrency": 10,
+  "duration_ms": 38582,
+  "http_200": 99,
+  "correct": 99,
+  "failed": 1,
+  "latency_ms": {
+    "min": 1064,
+    "max": 30094,
+    "avg": 3491.01,
+    "p50": 1573,
+    "p90": 7536,
+    "p95": 8512,
+    "p99": 11468
+  },
+  "results": [
+    {
+      "index": 1,
+      "request_id": "c1b0a560-f8e1-4773-8232-fff382ab1cc0",
+      "status": 200,
+      "latency_ms": 1389,
+      "marker": "kiro-opt-sync-20260516025520-001-82aaa5a1",
+      "text": "kiro-opt-sync-20260516025520-001-82aaa5a1",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 2,
+      "request_id": "7561a822-484e-4802-bd39-ecb1a201fc7c",
+      "status": 200,
+      "latency_ms": 1713,
+      "marker": "kiro-opt-sync-20260516025520-002-79a2dc47",
+      "text": "kiro-opt-sync-20260516025520-002-79a2dc47",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 3,
+      "request_id": "dc673d02-4bc5-47a7-a7dc-97474f6dd052",
+      "status": 200,
+      "latency_ms": 1446,
+      "marker": "kiro-opt-sync-20260516025520-003-68001eb8",
+      "text": "kiro-opt-sync-20260516025520-003-68001eb8",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 4,
+      "request_id": "01edb143-be72-4948-b0a8-c61305fdc725",
+      "status": 200,
+      "latency_ms": 7536,
+      "marker": "kiro-opt-sync-20260516025520-004-a1fe2541",
+      "text": "kiro-opt-sync-20260516025520-004-a1fe2541",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 5,
+      "request_id": "bee93d3c-caf8-4a10-9291-31396832c460",
+      "status": 200,
+      "latency_ms": 1327,
+      "marker": "kiro-opt-sync-20260516025520-005-e253831f",
+      "text": "kiro-opt-sync-20260516025520-005-e253831f",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 6,
+      "request_id": "bca3598b-a086-45bf-9596-1cdefeaf08a5",
+      "status": 200,
+      "latency_ms": 1469,
+      "marker": "kiro-opt-sync-20260516025520-006-56803de4",
+      "text": "kiro-opt-sync-20260516025520-006-56803de4",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 7,
+      "request_id": "f0c1eda1-7373-4ef1-a0a7-be035be0fc7c",
+      "status": 429,
+      "latency_ms": 30094,
+      "marker": "kiro-opt-sync-20260516025520-007-03fcd1d4",
+      "text": "{\"error\":{\"message\":\"Concurrency limit exceeded for user, please retry later\",\"type\":\"rate_limit_error\"},\"type\":\"error\"}",
+      "correct": false,
+      "error": "{\"error\":{\"message\":\"Concurrency limit exceeded for user, please retry later\",\"type\":\"rate_limit_error\"},\"type\":\"error\"}"
+    },
+    {
+      "index": 8,
+      "request_id": "e6872321-b6f1-4d1c-9490-f57551006d1b",
+      "status": 200,
+      "latency_ms": 1206,
+      "marker": "kiro-opt-sync-20260516025520-008-04709363",
+      "text": "kiro-opt-sync-20260516025520-008-04709363",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 9,
+      "request_id": "a7059fb4-1a2f-4cda-8d14-6aaa75ef1b9c",
+      "status": 200,
+      "latency_ms": 1362,
+      "marker": "kiro-opt-sync-20260516025520-009-9040947f",
+      "text": "kiro-opt-sync-20260516025520-009-9040947f",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 10,
+      "request_id": "db23804d-b7de-4acd-ab40-0fbf9724aef7",
+      "status": 200,
+      "latency_ms": 8011,
+      "marker": "kiro-opt-sync-20260516025520-010-536b68e3",
+      "text": "kiro-opt-sync-20260516025520-010-536b68e3",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 11,
+      "request_id": "c65aba11-077b-4418-a19f-00925d8d6209",
+      "status": 200,
+      "latency_ms": 2663,
+      "marker": "kiro-opt-sync-20260516025520-011-58805325",
+      "text": "kiro-opt-sync-20260516025520-011-58805325",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 12,
+      "request_id": "c63a5e25-4f4c-4940-95ce-f7dd68237517",
+      "status": 200,
+      "latency_ms": 6794,
+      "marker": "kiro-opt-sync-20260516025520-012-b9cd562d",
+      "text": "kiro-opt-sync-20260516025520-012-b9cd562d",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 13,
+      "request_id": "5f5a6588-9836-4681-9754-0c3576b5bac0",
+      "status": 200,
+      "latency_ms": 1228,
+      "marker": "kiro-opt-sync-20260516025520-013-99e608a8",
+      "text": "kiro-opt-sync-20260516025520-013-99e608a8",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 14,
+      "request_id": "bb23f429-c276-48a7-b05e-f7517e7ea1d0",
+      "status": 200,
+      "latency_ms": 1151,
+      "marker": "kiro-opt-sync-20260516025520-014-7ccca2d7",
+      "text": "kiro-opt-sync-20260516025520-014-7ccca2d7",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 15,
+      "request_id": "fc17dcad-2ee0-40d5-b159-0bb5cf859b1d",
+      "status": 200,
+      "latency_ms": 1299,
+      "marker": "kiro-opt-sync-20260516025520-015-0d2424e6",
+      "text": "kiro-opt-sync-20260516025520-015-0d2424e6",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 16,
+      "request_id": "1ec6500a-0c2a-412d-9bff-2b68e4682c73",
+      "status": 200,
+      "latency_ms": 1196,
+      "marker": "kiro-opt-sync-20260516025520-016-41fe9683",
+      "text": "kiro-opt-sync-20260516025520-016-41fe9683",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 17,
+      "request_id": "498facb4-5149-4ca0-a1c4-05081b1acab6",
+      "status": 200,
+      "latency_ms": 7869,
+      "marker": "kiro-opt-sync-20260516025520-017-cb000bb2",
+      "text": "kiro-opt-sync-20260516025520-017-cb000bb2",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 18,
+      "request_id": "74696634-f218-41dd-9e43-7a982f191598",
+      "status": 200,
+      "latency_ms": 1589,
+      "marker": "kiro-opt-sync-20260516025520-018-2811e339",
+      "text": "kiro-opt-sync-20260516025520-018-2811e339",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 19,
+      "request_id": "0ead32b3-b631-48c5-803a-c0dfc8aeefe4",
+      "status": 200,
+      "latency_ms": 1401,
+      "marker": "kiro-opt-sync-20260516025520-019-3277ec9c",
+      "text": "kiro-opt-sync-20260516025520-019-3277ec9c",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 20,
+      "request_id": "c8fc51a6-7004-487d-a105-6526da26d9b0",
+      "status": 200,
+      "latency_ms": 1194,
+      "marker": "kiro-opt-sync-20260516025520-020-384bdf47",
+      "text": "kiro-opt-sync-20260516025520-020-384bdf47",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 21,
+      "request_id": "2ce0266b-fd2c-46df-9017-1eb5d617a8e4",
+      "status": 200,
+      "latency_ms": 2689,
+      "marker": "kiro-opt-sync-20260516025520-021-9d0d9429",
+      "text": "kiro-opt-sync-20260516025520-021-9d0d9429",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 22,
+      "request_id": "b2c5197e-b9e4-4c9f-b209-1889fde80d00",
+      "status": 200,
+      "latency_ms": 5221,
+      "marker": "kiro-opt-sync-20260516025520-022-e234786f",
+      "text": "kiro-opt-sync-20260516025520-022-e234786f",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 23,
+      "request_id": "3ffc7532-d35d-4398-9d3d-3deb2509d859",
+      "status": 200,
+      "latency_ms": 5142,
+      "marker": "kiro-opt-sync-20260516025520-023-d252f954",
+      "text": "kiro-opt-sync-20260516025520-023-d252f954",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 24,
+      "request_id": "a70d03ce-3457-4a75-a953-be06f1930f95",
+      "status": 200,
+      "latency_ms": 1248,
+      "marker": "kiro-opt-sync-20260516025520-024-784aac48",
+      "text": "kiro-opt-sync-20260516025520-024-784aac48",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 25,
+      "request_id": "9660c6ae-cb61-42a0-b71a-385b72dd4ac5",
+      "status": 200,
+      "latency_ms": 1302,
+      "marker": "kiro-opt-sync-20260516025520-025-b1c67e42",
+      "text": "kiro-opt-sync-20260516025520-025-b1c67e42",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 26,
+      "request_id": "ea8abfda-f9a6-4faf-922b-bd77f096e2c7",
+      "status": 200,
+      "latency_ms": 5964,
+      "marker": "kiro-opt-sync-20260516025520-026-0d02fe16",
+      "text": "kiro-opt-sync-20260516025520-026-0d02fe16",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 27,
+      "request_id": "d5945750-b3c7-4ab1-9dbf-b609603a5c3e",
+      "status": 200,
+      "latency_ms": 5653,
+      "marker": "kiro-opt-sync-20260516025520-027-bb9a84d3",
+      "text": "kiro-opt-sync-20260516025520-027-bb9a84d3",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 28,
+      "request_id": "45d35d80-513b-4971-a992-7dd0e26f6fe7",
+      "status": 200,
+      "latency_ms": 2697,
+      "marker": "kiro-opt-sync-20260516025520-028-512b083c",
+      "text": "kiro-opt-sync-20260516025520-028-512b083c",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 29,
+      "request_id": "86f9dd03-88f8-4bbf-b020-c3688fb83888",
+      "status": 200,
+      "latency_ms": 6334,
+      "marker": "kiro-opt-sync-20260516025520-029-da685d6f",
+      "text": "kiro-opt-sync-20260516025520-029-da685d6f",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 30,
+      "request_id": "773e075e-d632-433e-b06f-701856408da7",
+      "status": 200,
+      "latency_ms": 7359,
+      "marker": "kiro-opt-sync-20260516025520-030-3ed708bc",
+      "text": "kiro-opt-sync-20260516025520-030-3ed708bc",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 31,
+      "request_id": "a81ac0b2-b008-43ea-b387-176500fca8fe",
+      "status": 200,
+      "latency_ms": 11468,
+      "marker": "kiro-opt-sync-20260516025520-031-a5fa3991",
+      "text": "kiro-opt-sync-20260516025520-031-a5fa3991",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 32,
+      "request_id": "2c42b0f3-93ed-4656-8834-0cf9185f9555",
+      "status": 200,
+      "latency_ms": 1697,
+      "marker": "kiro-opt-sync-20260516025520-032-1fff2828",
+      "text": "kiro-opt-sync-20260516025520-032-1fff2828",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 33,
+      "request_id": "31e16915-8e90-4272-886f-102f6c21356a",
+      "status": 200,
+      "latency_ms": 1301,
+      "marker": "kiro-opt-sync-20260516025520-033-c75fcac6",
+      "text": "kiro-opt-sync-20260516025520-033-c75fcac6",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 34,
+      "request_id": "b27f7131-5f3e-4b03-b7d0-8ebba9ed3af2",
+      "status": 200,
+      "latency_ms": 7266,
+      "marker": "kiro-opt-sync-20260516025520-034-04cfc8d5",
+      "text": "kiro-opt-sync-20260516025520-034-04cfc8d5",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 35,
+      "request_id": "5c267800-a82d-4800-a3a6-e23327e77bd5",
+      "status": 200,
+      "latency_ms": 3572,
+      "marker": "kiro-opt-sync-20260516025520-035-45f5de08",
+      "text": "kiro-opt-sync-20260516025520-035-45f5de08",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 36,
+      "request_id": "1ee20b03-a411-4d88-a062-678733cecf84",
+      "status": 200,
+      "latency_ms": 1275,
+      "marker": "kiro-opt-sync-20260516025520-036-899351fb",
+      "text": "kiro-opt-sync-20260516025520-036-899351fb",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 37,
+      "request_id": "06c7f319-4270-4f0f-95e2-3c5796b86c93",
+      "status": 200,
+      "latency_ms": 3861,
+      "marker": "kiro-opt-sync-20260516025520-037-aad7acc9",
+      "text": "kiro-opt-sync-20260516025520-037-aad7acc9",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 38,
+      "request_id": "25381b2f-b065-469b-99be-720ea9418162",
+      "status": 200,
+      "latency_ms": 1421,
+      "marker": "kiro-opt-sync-20260516025520-038-15a7f03a",
+      "text": "kiro-opt-sync-20260516025520-038-15a7f03a",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 39,
+      "request_id": "797b4dcf-8253-422e-a1e9-8c21880b0e75",
+      "status": 200,
+      "latency_ms": 1428,
+      "marker": "kiro-opt-sync-20260516025520-039-a0aa6830",
+      "text": "kiro-opt-sync-20260516025520-039-a0aa6830",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 40,
+      "request_id": "7e1d8cf4-2aff-4d59-aee9-81f2e0e11107",
+      "status": 200,
+      "latency_ms": 1308,
+      "marker": "kiro-opt-sync-20260516025520-040-070c4cbd",
+      "text": "kiro-opt-sync-20260516025520-040-070c4cbd",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 41,
+      "request_id": "d82f480a-725b-481d-ab4a-8f8b4efe9fd1",
+      "status": 200,
+      "latency_ms": 1290,
+      "marker": "kiro-opt-sync-20260516025520-041-a4203690",
+      "text": "kiro-opt-sync-20260516025520-041-a4203690",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 42,
+      "request_id": "85795611-72a8-437e-9ee1-a591c4e87f70",
+      "status": 200,
+      "latency_ms": 6508,
+      "marker": "kiro-opt-sync-20260516025520-042-8e9288ad",
+      "text": "kiro-opt-sync-20260516025520-042-8e9288ad",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 43,
+      "request_id": "d366d2ba-099c-449a-b629-56f5ed73c381",
+      "status": 200,
+      "latency_ms": 1294,
+      "marker": "kiro-opt-sync-20260516025520-043-df5d3c2e",
+      "text": "kiro-opt-sync-20260516025520-043-df5d3c2e",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 44,
+      "request_id": "254431e3-c5e7-4cd9-a4ca-2da954464556",
+      "status": 200,
+      "latency_ms": 3126,
+      "marker": "kiro-opt-sync-20260516025520-044-9a01a5f9",
+      "text": "kiro-opt-sync-20260516025520-044-9a01a5f9",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 45,
+      "request_id": "aadac1da-bbde-4bf1-89fc-eddb538e9a3f",
+      "status": 200,
+      "latency_ms": 1304,
+      "marker": "kiro-opt-sync-20260516025520-045-fb5b9da4",
+      "text": "kiro-opt-sync-20260516025520-045-fb5b9da4",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 46,
+      "request_id": "a5a8a844-b0dd-4bfd-bdef-038a6a23a717",
+      "status": 200,
+      "latency_ms": 1541,
+      "marker": "kiro-opt-sync-20260516025520-046-76ef8a69",
+      "text": "kiro-opt-sync-20260516025520-046-76ef8a69",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 47,
+      "request_id": "62e0b8cd-cd16-4386-9d73-0bde73be2ca8",
+      "status": 200,
+      "latency_ms": 1221,
+      "marker": "kiro-opt-sync-20260516025520-047-cefd5f99",
+      "text": "kiro-opt-sync-20260516025520-047-cefd5f99",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 48,
+      "request_id": "eae3992e-65ea-4e9b-8f0f-23b30e332267",
+      "status": 200,
+      "latency_ms": 6748,
+      "marker": "kiro-opt-sync-20260516025520-048-6d15ee76",
+      "text": "kiro-opt-sync-20260516025520-048-6d15ee76",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 49,
+      "request_id": "19433927-a8a7-4cad-8b0a-84717734d803",
+      "status": 200,
+      "latency_ms": 1240,
+      "marker": "kiro-opt-sync-20260516025520-049-99432ed3",
+      "text": "kiro-opt-sync-20260516025520-049-99432ed3",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 50,
+      "request_id": "eeb860a8-3145-4eae-8775-e3423a276871",
+      "status": 200,
+      "latency_ms": 4974,
+      "marker": "kiro-opt-sync-20260516025520-050-14e9f894",
+      "text": "kiro-opt-sync-20260516025520-050-14e9f894",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 51,
+      "request_id": "28b21e97-d642-4610-b340-0c375f209ac5",
+      "status": 200,
+      "latency_ms": 2159,
+      "marker": "kiro-opt-sync-20260516025520-051-bdf1ca21",
+      "text": "kiro-opt-sync-20260516025520-051-bdf1ca21",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 52,
+      "request_id": "bb1ea3be-2aa7-435e-8a78-d001f6693296",
+      "status": 200,
+      "latency_ms": 2290,
+      "marker": "kiro-opt-sync-20260516025520-052-6d24237e",
+      "text": "kiro-opt-sync-20260516025520-052-6d24237e",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 53,
+      "request_id": "dc21c54d-ad71-4da0-bb4c-671cca361a08",
+      "status": 200,
+      "latency_ms": 1385,
+      "marker": "kiro-opt-sync-20260516025520-053-d5eade3a",
+      "text": "kiro-opt-sync-20260516025520-053-d5eade3a",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 54,
+      "request_id": "8ef99b63-9593-4dbc-bede-9ee60dbd3497",
+      "status": 200,
+      "latency_ms": 1813,
+      "marker": "kiro-opt-sync-20260516025520-054-654c8376",
+      "text": "kiro-opt-sync-20260516025520-054-654c8376",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 55,
+      "request_id": "b148c575-fdfe-4313-9660-e9abce139f20",
+      "status": 200,
+      "latency_ms": 1146,
+      "marker": "kiro-opt-sync-20260516025520-055-7b6c898c",
+      "text": "kiro-opt-sync-20260516025520-055-7b6c898c",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 56,
+      "request_id": "7e8c9ea6-c7de-4f87-a82e-08c58ce68e22",
+      "status": 200,
+      "latency_ms": 1207,
+      "marker": "kiro-opt-sync-20260516025520-056-31284f01",
+      "text": "kiro-opt-sync-20260516025520-056-31284f01",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 57,
+      "request_id": "28b31bb9-04a6-4ade-a397-8fed88b1beea",
+      "status": 200,
+      "latency_ms": 1494,
+      "marker": "kiro-opt-sync-20260516025520-057-6ff538ce",
+      "text": "kiro-opt-sync-20260516025520-057-6ff538ce",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 58,
+      "request_id": "419ddcb0-6888-42c9-88c6-c90d04aa10d5",
+      "status": 200,
+      "latency_ms": 2487,
+      "marker": "kiro-opt-sync-20260516025520-058-a8526098",
+      "text": "kiro-opt-sync-20260516025520-058-a8526098",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 59,
+      "request_id": "e7bd686f-c5e4-4de6-9cf3-8b67be7650c9",
+      "status": 200,
+      "latency_ms": 1269,
+      "marker": "kiro-opt-sync-20260516025520-059-a5ab29c8",
+      "text": "kiro-opt-sync-20260516025520-059-a5ab29c8",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 60,
+      "request_id": "bea8ee47-93da-4157-ab2b-d27968912033",
+      "status": 200,
+      "latency_ms": 1267,
+      "marker": "kiro-opt-sync-20260516025520-060-42836cd0",
+      "text": "kiro-opt-sync-20260516025520-060-42836cd0",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 61,
+      "request_id": "1f58d052-8f5d-41ee-88e3-038f54a0448d",
+      "status": 200,
+      "latency_ms": 1217,
+      "marker": "kiro-opt-sync-20260516025520-061-b649b7c3",
+      "text": "kiro-opt-sync-20260516025520-061-b649b7c3",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 62,
+      "request_id": "8c726106-befb-47b1-9345-c763089a0f84",
+      "status": 200,
+      "latency_ms": 4030,
+      "marker": "kiro-opt-sync-20260516025520-062-867cebbe",
+      "text": "kiro-opt-sync-20260516025520-062-867cebbe",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 63,
+      "request_id": "bf7c52ff-ab7d-4570-bd10-4e90fcb4a144",
+      "status": 200,
+      "latency_ms": 1365,
+      "marker": "kiro-opt-sync-20260516025520-063-0cc37215",
+      "text": "kiro-opt-sync-20260516025520-063-0cc37215",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 64,
+      "request_id": "dbdf32c4-1f19-4662-88ed-049312fbd688",
+      "status": 200,
+      "latency_ms": 1231,
+      "marker": "kiro-opt-sync-20260516025520-064-bbc4902e",
+      "text": "kiro-opt-sync-20260516025520-064-bbc4902e",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 65,
+      "request_id": "b580c7d0-ccc8-4e47-9394-b8d4041a9e86",
+      "status": 200,
+      "latency_ms": 4497,
+      "marker": "kiro-opt-sync-20260516025520-065-8414abf7",
+      "text": "kiro-opt-sync-20260516025520-065-8414abf7",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 66,
+      "request_id": "36dd4c88-184a-4c5c-9288-5fc5397ffbaf",
+      "status": 200,
+      "latency_ms": 1229,
+      "marker": "kiro-opt-sync-20260516025520-066-19739d3f",
+      "text": "kiro-opt-sync-20260516025520-066-19739d3f",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 67,
+      "request_id": "ac83e93a-d93e-47a1-8243-df3d8015a8a3",
+      "status": 200,
+      "latency_ms": 1432,
+      "marker": "kiro-opt-sync-20260516025520-067-c3e9ba96",
+      "text": "kiro-opt-sync-20260516025520-067-c3e9ba96",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 68,
+      "request_id": "08cfd939-566f-41e5-a9b3-17140656be99",
+      "status": 200,
+      "latency_ms": 3516,
+      "marker": "kiro-opt-sync-20260516025520-068-7b13e9c8",
+      "text": "kiro-opt-sync-20260516025520-068-7b13e9c8",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 69,
+      "request_id": "d8532d4f-02a1-4c38-9131-66fcd6dea57b",
+      "status": 200,
+      "latency_ms": 8512,
+      "marker": "kiro-opt-sync-20260516025520-069-f3b9d50d",
+      "text": "kiro-opt-sync-20260516025520-069-f3b9d50d",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 70,
+      "request_id": "77b6ff22-bed5-4155-8c69-e84658faf88e",
+      "status": 200,
+      "latency_ms": 1298,
+      "marker": "kiro-opt-sync-20260516025520-070-5bcd4a2d",
+      "text": "kiro-opt-sync-20260516025520-070-5bcd4a2d",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 71,
+      "request_id": "695a006b-28d8-4bc0-ae4a-614b47d7b06b",
+      "status": 200,
+      "latency_ms": 1064,
+      "marker": "kiro-opt-sync-20260516025520-071-b10b1bab",
+      "text": "kiro-opt-sync-20260516025520-071-b10b1bab",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 72,
+      "request_id": "34c17055-abb3-4999-be47-d9632b3dad95",
+      "status": 200,
+      "latency_ms": 9389,
+      "marker": "kiro-opt-sync-20260516025520-072-e3339d59",
+      "text": "kiro-opt-sync-20260516025520-072-e3339d59",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 73,
+      "request_id": "cd2949f1-c682-43b5-83bd-b0d0f419298a",
+      "status": 200,
+      "latency_ms": 7320,
+      "marker": "kiro-opt-sync-20260516025520-073-2e15c666",
+      "text": "kiro-opt-sync-20260516025520-073-2e15c666",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 74,
+      "request_id": "378896d6-72a8-4b8e-848e-44bb74dd0c5d",
+      "status": 200,
+      "latency_ms": 1142,
+      "marker": "kiro-opt-sync-20260516025520-074-646e1949",
+      "text": "kiro-opt-sync-20260516025520-074-646e1949",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 75,
+      "request_id": "5b6a2d07-006b-4543-86d0-1d608c8ec9a0",
+      "status": 200,
+      "latency_ms": 3791,
+      "marker": "kiro-opt-sync-20260516025520-075-724a48b4",
+      "text": "kiro-opt-sync-20260516025520-075-724a48b4",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 76,
+      "request_id": "98c1bb4c-b031-42c1-8893-810ebb1bc119",
+      "status": 200,
+      "latency_ms": 1216,
+      "marker": "kiro-opt-sync-20260516025520-076-884ec1f5",
+      "text": "kiro-opt-sync-20260516025520-076-884ec1f5",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 77,
+      "request_id": "b2ddef2b-a2e5-4a9c-8004-41bb46c9ca47",
+      "status": 200,
+      "latency_ms": 1407,
+      "marker": "kiro-opt-sync-20260516025520-077-6064745e",
+      "text": "kiro-opt-sync-20260516025520-077-6064745e",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 78,
+      "request_id": "46087f22-12a7-408b-b882-12328452b088",
+      "status": 200,
+      "latency_ms": 2951,
+      "marker": "kiro-opt-sync-20260516025520-078-50e6e079",
+      "text": "kiro-opt-sync-20260516025520-078-50e6e079",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 79,
+      "request_id": "b6292168-1d0d-4685-8979-9c531f6290f6",
+      "status": 200,
+      "latency_ms": 8686,
+      "marker": "kiro-opt-sync-20260516025520-079-03bebad7",
+      "text": "kiro-opt-sync-20260516025520-079-03bebad7",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 80,
+      "request_id": "94b1bdfe-7983-4d1c-a71e-474c4004b97e",
+      "status": 200,
+      "latency_ms": 11228,
+      "marker": "kiro-opt-sync-20260516025520-080-e47cbd52",
+      "text": "kiro-opt-sync-20260516025520-080-e47cbd52",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 81,
+      "request_id": "567babb7-ba84-4924-be20-057323f1a47a",
+      "status": 200,
+      "latency_ms": 7385,
+      "marker": "kiro-opt-sync-20260516025520-081-7801df78",
+      "text": "kiro-opt-sync-20260516025520-081-7801df78",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 82,
+      "request_id": "8ca307f9-4f92-467b-af14-370c15d5ac90",
+      "status": 200,
+      "latency_ms": 7040,
+      "marker": "kiro-opt-sync-20260516025520-082-8569b2fc",
+      "text": "kiro-opt-sync-20260516025520-082-8569b2fc",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 83,
+      "request_id": "d9aa30ea-071a-47f4-9a1b-78e493b65bd4",
+      "status": 200,
+      "latency_ms": 6168,
+      "marker": "kiro-opt-sync-20260516025520-083-4e9ae640",
+      "text": "kiro-opt-sync-20260516025520-083-4e9ae640",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 84,
+      "request_id": "15e8df9e-5350-4e5e-af87-579d2dd632dd",
+      "status": 200,
+      "latency_ms": 1301,
+      "marker": "kiro-opt-sync-20260516025520-084-e7b657f4",
+      "text": "kiro-opt-sync-20260516025520-084-e7b657f4",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 85,
+      "request_id": "c7185f8a-1513-49ec-8f6f-004dc09863d9",
+      "status": 200,
+      "latency_ms": 1415,
+      "marker": "kiro-opt-sync-20260516025520-085-9840ed8b",
+      "text": "kiro-opt-sync-20260516025520-085-9840ed8b",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 86,
+      "request_id": "1442ea70-5f9b-4aaa-9996-f68668eaabd5",
+      "status": 200,
+      "latency_ms": 1432,
+      "marker": "kiro-opt-sync-20260516025520-086-decf0f07",
+      "text": "kiro-opt-sync-20260516025520-086-decf0f07",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 87,
+      "request_id": "85ddead1-4e99-4a1b-9454-12a6720be583",
+      "status": 200,
+      "latency_ms": 1371,
+      "marker": "kiro-opt-sync-20260516025520-087-1a78ca5d",
+      "text": "kiro-opt-sync-20260516025520-087-1a78ca5d",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 88,
+      "request_id": "3ed54364-4d23-4a05-91fe-1a90f0841b44",
+      "status": 200,
+      "latency_ms": 2349,
+      "marker": "kiro-opt-sync-20260516025520-088-e0eab224",
+      "text": "kiro-opt-sync-20260516025520-088-e0eab224",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 89,
+      "request_id": "39bcad22-eb83-4e73-bdeb-143d6e9afef7",
+      "status": 200,
+      "latency_ms": 1297,
+      "marker": "kiro-opt-sync-20260516025520-089-fa3e7ae0",
+      "text": "kiro-opt-sync-20260516025520-089-fa3e7ae0",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 90,
+      "request_id": "581baf50-b573-416b-b654-0e84ac8c1e6c",
+      "status": 200,
+      "latency_ms": 8144,
+      "marker": "kiro-opt-sync-20260516025520-090-7567aa75",
+      "text": "kiro-opt-sync-20260516025520-090-7567aa75",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 91,
+      "request_id": "777e7c35-9c64-44b6-89f4-47f95294380a",
+      "status": 200,
+      "latency_ms": 4974,
+      "marker": "kiro-opt-sync-20260516025520-091-1a6d03ed",
+      "text": "kiro-opt-sync-20260516025520-091-1a6d03ed",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 92,
+      "request_id": "1b1d219d-26d1-464c-8a2f-5e7a4395a6fa",
+      "status": 200,
+      "latency_ms": 2331,
+      "marker": "kiro-opt-sync-20260516025520-092-a5ed78e3",
+      "text": "kiro-opt-sync-20260516025520-092-a5ed78e3",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 93,
+      "request_id": "701f1bea-4818-4269-bc03-1075d334b5ac",
+      "status": 200,
+      "latency_ms": 1195,
+      "marker": "kiro-opt-sync-20260516025520-093-fe6665c8",
+      "text": "kiro-opt-sync-20260516025520-093-fe6665c8",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 94,
+      "request_id": "931a0e76-da88-44d9-b8cb-0cb175c885ec",
+      "status": 200,
+      "latency_ms": 1281,
+      "marker": "kiro-opt-sync-20260516025520-094-b1f239d7",
+      "text": "kiro-opt-sync-20260516025520-094-b1f239d7",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 95,
+      "request_id": "08421dd5-1869-4333-9e03-005b1464c1fc",
+      "status": 200,
+      "latency_ms": 7560,
+      "marker": "kiro-opt-sync-20260516025520-095-c93868a2",
+      "text": "kiro-opt-sync-20260516025520-095-c93868a2",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 96,
+      "request_id": "ab9d3521-6115-43ce-8bf5-49bb8f74a0f0",
+      "status": 200,
+      "latency_ms": 2561,
+      "marker": "kiro-opt-sync-20260516025520-096-cb169d4c",
+      "text": "kiro-opt-sync-20260516025520-096-cb169d4c",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 97,
+      "request_id": "f62aee57-224b-4f25-950f-2e81c1558ef6",
+      "status": 200,
+      "latency_ms": 1391,
+      "marker": "kiro-opt-sync-20260516025520-097-6cbe223d",
+      "text": "kiro-opt-sync-20260516025520-097-6cbe223d",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 98,
+      "request_id": "f2d34f14-adb2-4c4e-a823-5bedbf0d05b8",
+      "status": 200,
+      "latency_ms": 3292,
+      "marker": "kiro-opt-sync-20260516025520-098-497ecedf",
+      "text": "kiro-opt-sync-20260516025520-098-497ecedf",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 99,
+      "request_id": "531b8692-10ef-495d-b93e-c8b88cd8d117",
+      "status": 200,
+      "latency_ms": 1573,
+      "marker": "kiro-opt-sync-20260516025520-099-a60d5ea1",
+      "text": "kiro-opt-sync-20260516025520-099-a60d5ea1",
+      "correct": true,
+      "error": ""
+    },
+    {
+      "index": 100,
+      "request_id": "1ce846c0-d261-4134-8725-fdd9285cfabe",
+      "status": 200,
+      "latency_ms": 2614,
+      "marker": "kiro-opt-sync-20260516025520-100-67b95a7a",
+      "text": "kiro-opt-sync-20260516025520-100-67b95a7a",
+      "correct": true,
+      "error": ""
+    }
+  ]
+}

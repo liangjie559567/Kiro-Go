@@ -968,10 +968,25 @@
                         <span data-i18n="settings.enableApiKey"></span>
                     </label>
                 </div>
-                <div class="form-group"><label>API Key</label><div style="display:flex;gap:8px;align-items:stretch"><input type="text" id="apiKeyInput" style="flex:1"
-                        data-i18n-placeholder="settings.apiKeyPlaceholder"><button class="btn btn-sm btn-secondary" onclick="generateApiKey()" data-i18n="settings.generateApiKey"></button></div></div>
-                <button class="btn btn-primary" onclick="saveSettings()" data-i18n="common.save"></button>
-            </div>
+	                <div class="form-group"><label>API Key</label><div style="display:flex;gap:8px;align-items:stretch"><input type="text" id="apiKeyInput" style="flex:1"
+	                        data-i18n-placeholder="settings.apiKeyPlaceholder"><button class="btn btn-sm btn-secondary" onclick="generateApiKey()" data-i18n="settings.generateApiKey"></button></div></div>
+	                <div class="form-group">
+	                    <label data-i18n="settings.clientApiKeys"></label>
+	                    <textarea id="clientApiKeysInput" rows="4" data-i18n-placeholder="settings.clientApiKeysPlaceholder"></textarea>
+	                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block" data-i18n="settings.clientApiKeysHint"></small>
+	                </div>
+	                <div class="form-group">
+	                    <label data-i18n="settings.clientIPAllowlist"></label>
+	                    <textarea id="clientIPAllowlistInput" rows="3" data-i18n-placeholder="settings.clientIPAllowlistPlaceholder"></textarea>
+	                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block" data-i18n="settings.clientIPAllowlistHint"></small>
+	                </div>
+	                <div class="form-group">
+	                    <label data-i18n="settings.modelMappings"></label>
+	                    <textarea id="modelMappingsInput" rows="5" data-i18n-placeholder="settings.modelMappingsPlaceholder"></textarea>
+	                    <small style="color:#64748b;font-size:12px;margin-top:4px;display:block" data-i18n="settings.modelMappingsHint"></small>
+	                </div>
+	                <button class="btn btn-primary" onclick="saveSettings()" data-i18n="common.save"></button>
+	            </div>
             <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="settings.autoRefresh"></span></div>
                 <div class="form-group">
@@ -1316,10 +1331,19 @@
                 'time.hours': '小时',
                 'time.days': '天',
                 'settings.apiSettings': 'API 设置',
-                'settings.enableApiKey': '启用 API Key 验证',
-                'settings.apiKeyPlaceholder': '留空则不验证',
-                'settings.generateApiKey': '随机生成',
-                'settings.autoRefresh': '自动刷新账号',
+	                'settings.enableApiKey': '启用 API Key 验证',
+	                'settings.apiKeyPlaceholder': '留空则不验证',
+	                'settings.generateApiKey': '随机生成',
+	                'settings.clientApiKeys': '客户端 API Keys',
+	                'settings.clientApiKeysPlaceholder': '每行一个 Key；以 #disabled# 开头可临时禁用',
+	                'settings.clientApiKeysHint': '兼容旧 API Key。开启验证后，任意未禁用 Key 都可用于 Authorization: Bearer。',
+	                'settings.clientIPAllowlist': '来源 IP 白名单',
+	                'settings.clientIPAllowlistPlaceholder': '留空不限制\n127.0.0.1\n10.0.0.0/8',
+	                'settings.clientIPAllowlistHint': '留空保持现有开放行为。直连本机用 127.0.0.1；Docker 下游需加入容器 IP 或 Docker 网段。',
+	                'settings.modelMappings': '模型映射规则',
+	                'settings.modelMappingsPlaceholder': 'my-opus => claude-opus-4.7\nmy-balanced => claude-sonnet-4.6, claude-opus-4.7',
+	                'settings.modelMappingsHint': '格式：源模型 => 目标模型1,目标模型2。多个目标按轮询映射。',
+	                'settings.autoRefresh': '自动刷新账号',
                 'settings.autoRefreshEnabled': '启用自动刷新',
                 'settings.autoRefreshInterval': '刷新间隔（分钟）',
                 'settings.autoRefreshIntervalHint': '范围 5-1440 分钟，管理页面关闭后仍会在后端执行',
@@ -1657,10 +1681,19 @@
                 'time.hours': 'hr',
                 'time.days': 'd',
                 'settings.apiSettings': 'API Settings',
-                'settings.enableApiKey': 'Enable API Key Verification',
-                'settings.apiKeyPlaceholder': 'Leave empty to disable',
-                'settings.generateApiKey': 'Generate',
-                'settings.autoRefresh': 'Auto Account Refresh',
+	                'settings.enableApiKey': 'Enable API Key Verification',
+	                'settings.apiKeyPlaceholder': 'Leave empty to disable',
+	                'settings.generateApiKey': 'Generate',
+	                'settings.clientApiKeys': 'Client API Keys',
+	                'settings.clientApiKeysPlaceholder': 'One key per line; prefix with #disabled# to disable temporarily',
+	                'settings.clientApiKeysHint': 'Backward compatible with the legacy API key. Any enabled key can authenticate as Authorization: Bearer.',
+	                'settings.clientIPAllowlist': 'Client IP Allowlist',
+	                'settings.clientIPAllowlistPlaceholder': 'Empty means unrestricted\n127.0.0.1\n10.0.0.0/8',
+	                'settings.clientIPAllowlistHint': 'Empty preserves current open behavior. Use 127.0.0.1 for host-local calls; Docker downstreams need the container IP or Docker subnet.',
+	                'settings.modelMappings': 'Model Mappings',
+	                'settings.modelMappingsPlaceholder': 'my-opus => claude-opus-4.7\nmy-balanced => claude-sonnet-4.6, claude-opus-4.7',
+	                'settings.modelMappingsHint': 'Format: source => target1,target2. Multiple targets rotate in order.',
+	                'settings.autoRefresh': 'Auto Account Refresh',
                 'settings.autoRefreshEnabled': 'Enable automatic refresh',
                 'settings.autoRefreshInterval': 'Refresh interval (minutes)',
                 'settings.autoRefreshIntervalHint': 'Allowed range: 5-1440 minutes. Runs in the backend even when the admin page is closed.',
@@ -1984,6 +2017,9 @@
         let selectedAccounts = new Set();
         let filterKeyword = '';
         let filterStatus = 'all';
+        let currentTab = 'accounts';
+        let currentDetailAccountId = '';
+        let refreshInFlight = false;
 
         // 隐私模式状态管理
         let privacyModeEnabled = true;
@@ -2122,6 +2158,7 @@
             const res = await fetch('/admin/api/accounts', { headers: { 'X-Admin-Password': password } });
             accountsData = await res.json();
             renderAccounts();
+            refreshOpenAccountDetail();
         }
         function getFilteredAccounts() {
             return accountsData.filter(a => {
@@ -2409,9 +2446,37 @@
             } catch (e) { alert(t('accounts.refreshFailed')); }
             if (card) card.classList.remove('loading');
         }
-        async function showDetail(id) {
-            const a = accountsData.find(x => x.id === id);
-            if (!a) return;
+        function getDetailDraftValues() {
+            const modal = document.getElementById('detailModal');
+            if (!modal || !modal.classList.contains('active')) return {};
+            const activeId = document.activeElement ? document.activeElement.id : '';
+            const draft = { activeId };
+            const editableIds = ['machineIdInput', 'weightInput', 'allowOverageInput', 'overageWeightInput', 'proxyURLInput'];
+            if (editableIds.includes(activeId)) {
+                const el = document.getElementById(activeId);
+                if (el) draft[activeId] = el.type === 'checkbox' ? el.checked : el.value;
+            }
+            const modelsList = document.getElementById('modelsList');
+            if (modelsList) draft.modelsListHTML = modelsList.innerHTML;
+            return draft;
+        }
+        function restoreDetailDraftValues(draft) {
+            if (!draft) return;
+            ['machineIdInput', 'weightInput', 'allowOverageInput', 'overageWeightInput', 'proxyURLInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el || draft[id] === undefined) return;
+                if (el.type === 'checkbox') el.checked = draft[id];
+                else el.value = draft[id];
+            });
+            const modelsList = document.getElementById('modelsList');
+            if (modelsList && draft.modelsListHTML !== undefined) modelsList.innerHTML = draft.modelsListHTML;
+            if (draft.activeId) {
+                const activeEl = document.getElementById(draft.activeId);
+                if (activeEl) activeEl.focus();
+            }
+        }
+        function renderAccountDetail(a, draft) {
+            const id = a.id;
             const cooldownText = isCoolingDown(a)
                 ? new Date(a.cooldownUntil * 1000).toLocaleString() + ' (' + formatCooldownRemaining(a.cooldownUntil) + ')'
                 : (a.cooldownUntil ? new Date(a.cooldownUntil * 1000).toLocaleString() : '-');
@@ -2471,7 +2536,25 @@
                 '<div class="detail-item"><div class="detail-label">' + t('detail.cooldownUntil') + '</div><div class="detail-value">' + cooldownText + '</div></div>' +
                 '</div></div>' +
                 '<div class="detail-section"><h4>' + t('detail.models') + ' <button class="btn btn-sm btn-secondary" onclick="loadModels(\'' + id + '\')" style="margin-left:8px">' + t('detail.loadModels') + '</button> <button class="btn btn-sm btn-secondary" onclick="refreshAccountModels(\'' + id + '\')" style="margin-left:4px">' + t('detail.refreshModelCache') + '</button></h4><div id="modelsList" class="model-list"></div></div>';
+            restoreDetailDraftValues(draft);
+        }
+        async function showDetail(id) {
+            const a = accountsData.find(x => x.id === id);
+            if (!a) return;
+            currentDetailAccountId = id;
+            renderAccountDetail(a);
             document.getElementById('detailModal').classList.add('active');
+        }
+        function refreshOpenAccountDetail() {
+            if (!currentDetailAccountId) return;
+            const modal = document.getElementById('detailModal');
+            if (!modal || !modal.classList.contains('active')) return;
+            const a = accountsData.find(x => x.id === currentDetailAccountId);
+            if (!a) {
+                closeDetailModal();
+                return;
+            }
+            renderAccountDetail(a, getDetailDraftValues());
         }
         async function loadModels(id) {
             const container = document.getElementById('modelsList');
@@ -2500,7 +2583,10 @@
                 }
             } catch (e) { container.innerHTML = '<p style="color:#ef4444">' + t('detail.loadFailed') + '</p>'; }
         }
-        function closeDetailModal() { document.getElementById('detailModal').classList.remove('active'); }
+        function closeDetailModal() {
+            currentDetailAccountId = '';
+            document.getElementById('detailModal').classList.remove('active');
+        }
         async function generateMachineId() {
             try {
                 const res = await fetch('/admin/api/generate-machine-id', { headers: { 'X-Admin-Password': password } });
@@ -2713,12 +2799,15 @@
                 if (acc) acc.weight = weight;
             } catch (e) { /* silent */ }
         }
-        async function loadSettings() {
-            const res = await fetch('/admin/api/settings', { headers: { 'X-Admin-Password': password } });
-            const d = await res.json();
-            document.getElementById('requireApiKey').checked = d.requireApiKey;
-            document.getElementById('apiKeyInput').value = d.apiKey || '';
-            document.getElementById('allowOverUsage').checked = d.allowOverUsage || false;
+	        async function loadSettings() {
+	            const res = await fetch('/admin/api/settings', { headers: { 'X-Admin-Password': password } });
+	            const d = await res.json();
+	            document.getElementById('requireApiKey').checked = d.requireApiKey;
+	            document.getElementById('apiKeyInput').value = d.apiKey || '';
+	            document.getElementById('clientApiKeysInput').value = (d.clientApiKeys || []).join('\n');
+	            document.getElementById('clientIPAllowlistInput').value = (d.clientIPAllowlist || []).join('\n');
+	            document.getElementById('modelMappingsInput').value = formatModelMappings(d.modelMappings || []);
+	            document.getElementById('allowOverUsage').checked = d.allowOverUsage || false;
             loadThinkingConfig();
             loadEndpointConfig();
             loadLoadBalanceConfig();
@@ -2749,14 +2838,17 @@
             ].filter(Boolean);
             document.getElementById('autoRefreshLastResult').textContent = results.length ? results.join(', ') : '-';
         }
-        async function loadAutoRefreshConfig() {
+        async function loadAutoRefreshConfig(options) {
+            const updateFields = !options || options.updateFields !== false;
             try {
                 const res = await fetch('/admin/api/auto-refresh', { headers: { 'X-Admin-Password': password } });
                 const d = await res.json();
                 const settings = d.settings || {};
-                document.getElementById('autoRefreshEnabled').checked = !!settings.enabled;
-                document.getElementById('autoRefreshInterval').value = settings.intervalMinutes || 60;
-                document.getElementById('autoRefreshScope').value = settings.scope || 'enabled';
+                if (updateFields) {
+                    document.getElementById('autoRefreshEnabled').checked = !!settings.enabled;
+                    document.getElementById('autoRefreshInterval').value = settings.intervalMinutes || 60;
+                    document.getElementById('autoRefreshScope').value = settings.scope || 'enabled';
+                }
                 renderAutoRefreshStatus(d.status);
             } catch (e) {
                 renderAutoRefreshStatus();
@@ -2804,14 +2896,17 @@
             ].filter(Boolean);
             document.getElementById('healthCheckLastResult').textContent = results.length ? results.join(', ') : '-';
         }
-        async function loadHealthCheckConfig() {
+        async function loadHealthCheckConfig(options) {
+            const updateFields = !options || options.updateFields !== false;
             try {
                 const res = await fetch('/admin/api/health-check', { headers: { 'X-Admin-Password': password } });
                 const d = await res.json();
                 const settings = d.settings || {};
-                document.getElementById('healthCheckEnabled').checked = !!settings.enabled;
-                document.getElementById('healthCheckInterval').value = settings.intervalMinutes || 60;
-                document.getElementById('healthCheckAutoDisable').checked = !!settings.autoDisableUnhealthy;
+                if (updateFields) {
+                    document.getElementById('healthCheckEnabled').checked = !!settings.enabled;
+                    document.getElementById('healthCheckInterval').value = settings.intervalMinutes || 60;
+                    document.getElementById('healthCheckAutoDisable').checked = !!settings.autoDisableUnhealthy;
+                }
                 renderHealthCheckStatus(d.status);
             } catch (e) {
                 renderHealthCheckStatus();
@@ -2920,13 +3015,20 @@
                 const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : '-';
                 const statusColor = log.outcome === 'success' ? '#059669' : '#dc2626';
                 const tokenText = (log.inputTokens || 0) + ' / ' + (log.outputTokens || 0);
+                const latencyText = (log.durationMs || 0) + 'ms';
+                const reliability = [
+                    'q:' + (log.queueWaitMs || 0) + 'ms',
+                    'ft:' + (log.firstTokenMs || 0) + 'ms',
+                    'try:' + (log.attempts || 1),
+                    'tool:' + (log.toolUseCount || 0)
+                ].join(' ');
                 const accountText = [log.accountId || '-', log.region || ''].filter(Boolean).join(' / ');
                 return '<tr style="border-bottom:1px solid #f1f5f9">' +
                     '<td style="padding:8px;white-space:nowrap">' + escapeHtml(ts) + '</td>' +
                     '<td style="padding:8px">' + escapeHtml(log.model || '-') + '</td>' +
                     '<td style="padding:8px">' + escapeHtml(accountText) + '</td>' +
                     '<td style="padding:8px;color:' + statusColor + '">' + (log.statusCode || '-') + '</td>' +
-                    '<td style="padding:8px">' + (log.durationMs || 0) + 'ms</td>' +
+                    '<td style="padding:8px" title="' + escapeHtml(reliability) + '">' + escapeHtml(latencyText) + '<br><small style="color:#64748b">' + escapeHtml(reliability) + '</small></td>' +
                     '<td style="padding:8px">' + escapeHtml(tokenText) + '</td>' +
                     '<td style="padding:8px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + escapeHtml(log.error || '') + '">' + escapeHtml(log.error || log.errorType || '-') + '</td>' +
                     '</tr>';
@@ -3036,24 +3138,44 @@
         function removeRule(i) { promptRules.splice(i, 1); renderPromptRules(); }
         function toggleRule(i) { promptRules[i].enabled = !promptRules[i].enabled; renderPromptRules(); }
         function updateRule(i, field, value) { promptRules[i][field] = value; }
-        function generateApiKey() {
-            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let key = 'sk-';
-            for (let i = 0; i < 32; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
-            document.getElementById('apiKeyInput').value = key;
-        }
-        async function saveSettings() {
-            const requireApiKey = document.getElementById('requireApiKey').checked;
-            const apiKeyInput = document.getElementById('apiKeyInput');
-            if (requireApiKey && !apiKeyInput.value.trim()) {
-                generateApiKey();
-            }
-            await fetch('/admin/api/settings', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-                body: JSON.stringify({ requireApiKey, apiKey: apiKeyInput.value })
-            });
-            alert(t('detail.saved'));
-        }
+	        function generateApiKey() {
+	            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	            let key = 'sk-';
+	            for (let i = 0; i < 32; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
+	            document.getElementById('apiKeyInput').value = key;
+	        }
+	        function parseLines(value) {
+	            return String(value || '').split(/[\n,]+/).map(v => v.trim()).filter(Boolean);
+	        }
+	        function formatModelMappings(rules) {
+	            return (rules || []).filter(r => r && r.sourceModel && Array.isArray(r.targetModels) && r.targetModels.length)
+	                .map(r => `${r.sourceModel} => ${r.targetModels.join(', ')}`).join('\n');
+	        }
+	        function parseModelMappings(value) {
+	            return String(value || '').split('\n').map(line => line.trim()).filter(Boolean).map((line, idx) => {
+	                const parts = line.split('=>');
+	                if (parts.length < 2) return null;
+	                const sourceModel = parts[0].trim();
+	                const targetModels = parts.slice(1).join('=>').split(',').map(v => v.trim()).filter(Boolean);
+	                if (!sourceModel || targetModels.length === 0) return null;
+	                return { id: 'ui-' + idx + '-' + sourceModel, name: sourceModel, enabled: true, type: targetModels.length > 1 ? 'loadbalance' : 'alias', sourceModel, targetModels };
+	            }).filter(Boolean);
+	        }
+	        async function saveSettings() {
+	            const requireApiKey = document.getElementById('requireApiKey').checked;
+	            const apiKeyInput = document.getElementById('apiKeyInput');
+	            if (requireApiKey && !apiKeyInput.value.trim()) {
+	                generateApiKey();
+	            }
+	            const clientApiKeys = parseLines(document.getElementById('clientApiKeysInput').value);
+	            const clientIPAllowlist = parseLines(document.getElementById('clientIPAllowlistInput').value);
+	            const modelMappings = parseModelMappings(document.getElementById('modelMappingsInput').value);
+	            await fetch('/admin/api/settings', {
+	                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+	                body: JSON.stringify({ requireApiKey, apiKey: apiKeyInput.value, clientApiKeys, clientIPAllowlist, modelMappings })
+	            });
+	            alert(t('detail.saved'));
+	        }
         async function saveOverUsageConfig() {
             const allowOverUsage = document.getElementById('allowOverUsage').checked;
             await fetch('/admin/api/settings', {
@@ -3080,9 +3202,11 @@
             loadStats();
         }
         function switchTab(tab) {
+            currentTab = tab;
             document.querySelectorAll('.tab').forEach(tabEl => tabEl.classList.toggle('active', tabEl.dataset.tab === tab));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
+            refreshVisibleData();
         }
         async function toggleAccount(id, enabled) {
             await fetch('/admin/api/accounts/' + id, {
@@ -3398,11 +3522,36 @@
                 } else alert(t('common.failed') + ': ' + d.error);
             }
         }
-        async function refreshDashboardData() {
+        function isMainVisible() {
             if (document.getElementById('mainPage').classList.contains('hidden')) return;
-            await Promise.all([loadStats(), loadAccounts(), loadAutoRefreshConfig(), loadHealthCheckConfig()]);
+            return true;
+        }
+        async function refreshSettingsRuntimeData() {
+            await Promise.all([
+                loadAutoRefreshConfig({ updateFields: false }),
+                loadHealthCheckConfig({ updateFields: false }),
+                loadRequestLogs()
+            ]);
+        }
+        async function refreshVisibleData() {
+            if (!isMainVisible() || refreshInFlight) return;
+            refreshInFlight = true;
+            try {
+                const tasks = [loadStats()];
+                if (currentTab === 'accounts' || currentDetailAccountId) tasks.push(loadAccounts());
+                if (currentTab === 'settings') tasks.push(refreshSettingsRuntimeData());
+                await Promise.all(tasks);
+            } finally {
+                refreshInFlight = false;
+            }
+        }
+        async function refreshDashboardData() {
+            await refreshVisibleData();
         }
         setInterval(refreshDashboardData, 10000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) refreshVisibleData();
+        });
 
         // ==================== 版本检查 ====================
         let currentVersion = '';

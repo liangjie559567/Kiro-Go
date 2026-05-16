@@ -340,6 +340,11 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	return p.getNextForModelExceptLocked(model, excluded)
+}
+
+func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[string]bool) *config.Account {
+	p.ensureStateLocked()
 	if len(p.accounts) == 0 {
 		return nil
 	}
@@ -420,6 +425,35 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 		}
 	}
 	return best
+}
+
+func (p *AccountPool) BeginNextForModelExcept(model string, excluded map[string]bool) (*config.Account, func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+
+	acc := p.getNextForModelExceptLocked(model, excluded)
+	if acc == nil {
+		return nil, func() {}
+	}
+	health := p.runtimeHealthForLocked(acc.ID)
+	health.activeConnections++
+	health.lastUpdatedAt = time.Now().Unix()
+
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			p.ensureStateLocked()
+			health := p.runtimeHealthForLocked(acc.ID)
+			if health.activeConnections > 0 {
+				health.activeConnections--
+			}
+			health.lastUpdatedAt = time.Now().Unix()
+		})
+	}
+	return acc, release
 }
 
 func (p *AccountPool) isIdleHealthyLocked(id string) bool {

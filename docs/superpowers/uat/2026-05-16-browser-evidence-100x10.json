@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-05-15T19:03:07.923Z",
+  "pages": [
+    {
+      "name": "kiro_admin_settings",
+      "consoleMessages": [
+        {
+          "type": "verbose",
+          "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+        },
+        {
+          "type": "verbose",
+          "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+        },
+        {
+          "type": "verbose",
+          "text": "[DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o"
+        }
+      ],
+      "pageErrors": [],
+      "badResponses": [],
+      "title": "Kiro-Go",
+      "visibleText": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n12\n账号\n2110\n请求\n1618\n成功\n492\n失败\n49.8M\nTokens\n511.0\nCredits\n账号\n设置\nAPI\n账号列表\n隐私模式\n导出\n刷新模型缓存\n添加账号\n全选\n全部\n已启用\n已禁用\n已封禁\nro***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n94.0 / 1000\n9.4%\n293\n请求\n10.3M\nTokens\n94.7\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n107.0 / 1000\n10.7%\n289\n请求\n11.5M\nTokens\n106.9\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n82.0 / 1000\n8.2%\n238\n请求\n8.2M\nTokens\n82.0\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nru***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n101.0 / 1000\n10.1%\n214\n请求\n8.6M\nTokens\n101.5\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n107.0 / 1000\n10.7%\n204\n请求\n10.0M\nTokens\n107.2\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nch***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n57.0 / 1000\n5.7%\n195\n请求\n6.2M\nTokens\n58.4\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nle***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n67.0 / 1000\n6.7%\n198\n请求\n7.7M\nTokens\n66.8\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nvi***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n82.0 / 1000\n8.2%\n208\n请求\n9.3M\nTokens\n81.9\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nje***@gm***.com\nFREE\nW:2\nGoogle\n正常\n已禁用\n启用\n测试\n删除\n主配额\n16.0 / 50\n32.0%\n0\n请求\n0\nTokens\n0.0\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nwa***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n59.0 / 1000\n5.9%\n262\n请求\n7.3M\nTokens\n59.0\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nsf***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n51.0 / 1000\n5.1%\n190\n请求\n4.7M\nTokens\n51.0\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nwa***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n23.0 / 1000\n2.3%\n161\n请求\n2.9M\nTokens\n23.6\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nma***@gm***.com\nPRO\nW:2\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n35.0 / 1000\n3.5%\n205\n请求\n3.5M\nTokens\n35.5\nCredits\n56分钟\n到期\n0\n1\n2\n3\n4\n5\n权重",
+      "health": {
+        "statusCode": 200,
+        "accounts": 12,
+        "settingsCode": 200,
+        "requireApiKey": true,
+        "allowOverUsage": true,
+        "promptCode": 200,
+        "filterClaudeCode": true,
+        "filterEnvNoise": true,
+        "filterStripBoundaries": true,
+        "statsCode": 200,
+        "requestStatsKeys": [
+          "averageDurationMs",
+          "byEndpoint",
+          "byModel",
+          "cacheCreationInputTokens",
+          "cacheReadInputTokens",
+          "failed",
+          "inputTokens",
+          "outputTokens",
+          "success",
+          "total"
+        ]
+      },
+      "screenshot": "/www/Kiro-Go/docs/superpowers/uat/kiro-admin-settings-100x10-20260516.png"
+    },
+    {
+      "name": "sub2api_admin",
+      "consoleMessages": [],
+      "pageErrors": [],
+      "badResponses": [],
+      "urlAfterLogin": "http://127.0.0.1:18080/dashboard",
+      "title": "Dashboard - CGTall-AI",
+      "visibleText": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nDashboard\n\nWelcome back! Here's an overview of your account.\n\n🇺🇸\nEN\n$9997727.01\nAD\nadmin\nAdmin\n\nBalance\n\n$9,997,727.01\n\nAvailable\n\nAPI Keys\n\n2\n\n2 Active\n\nToday Requests\n\n1364\n\nTotal: 25,527\n\nToday Cost\n\n$167.7862 / $167.7862\n\nTotal: $2271.9857 / $2271.9857\n\nToday Tokens\n\n130.3M\n\nInput: 12.2M / Output: 443.6K\n\nTotal Tokens\n\n2285.4M\n\nInput: 151.8M / Output: 10.0M\n\nPerformance\n\n4\n\nRPM\n\n22.6K\n\nTPM\n\nAvg Response\n\n12.35s\n\nAverage time\n\nTime Range:\nMay 9 - May 15\nRefresh\nGranularity:\nDay\nModel Distribution\nModel\tRequests\tTokens\tActual\tStandard\ngpt-5.5\t18,319\t2087.4M\t$1820.4011\t$1820.4011\nclaude-opus-4-7\t1,148\t66.3M\t$278.7000\t$278.7000\nclaude-sonnet-4-5-20250929\t206\t863.5K\t$2.5936\t$2.5936\ngpt-5.4\t4,205\t302.7K\t$1.0195\t$1.0195\ngpt-5.2\t21\t120.4K\t$0.4590\t$0.4590\ngpt-5.4-mini\t114\t36.6K\t$0.0516\t$0.0516\nclaude-opus-4-6\t128\t24.3K\t$0.1518\t$0.1518\ngpt-image-2\t5\t19.2K\t$0.8040\t$0.8040\nclaude-sonnet-4-6\t1\t4.1K\t$0.0124\t$0.0124\ngpt-image-1.5\t1\t1.9K\t$0.0000\t$0.0000\ngpt-image-1\t1\t1.7K\t$0.0000\t$0.0000\ngpt-5.2-pro\t2\t54\t$0.0026\t$0.0026\ngpt-5.2-2025-12-11\t2\t54\t$0.0002\t$0.0002\ngpt-5.3-codex\t2\t54\t$0.0002\t$0.0002\ngpt-5.2-chat-latest\t2\t54\t$0.0002\t$0.0002\ncodex-auto-review\t2\t54\t$0.0005\t$0.0005\ngpt-5.2-pro-2025-12-11\t2\t54\t$0.0026\t$0.0026\ngpt-5.4-2026-03-05\t2\t54\t$0.0003\t$0.0003\nToken Usage Trend\nRecent Usage\nLast 7 days\n\ngpt-5.5\n\n05/15/2026, 23:59:59\n\n$0.0750 / $0.0750\n\n2,916 tokens\n\ngpt-5.5\n\n05/15/2026, 23:59:55\n\n$0.0705 / $0.0705\n\n826 tokens\n\ngpt-5.5\n\n05/15/2026, 23:59:43\n\n$0.0608 / $0.0608\n\n425 tokens\n\ngpt-5.5\n\n05/15/2026, 23:59:39\n\n$0.0645 / $0.0645\n\n84",
+      "screenshotDashboard": "/www/Kiro-Go/docs/superpowers/uat/sub2api-dashboard-100x10-20260516.png",
+      "accountsUrl": "http://127.0.0.1:18080/admin/accounts",
+      "accountsText": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nAccount Management\n\nManage AI platform accounts and credentials\n\n🇺🇸\nEN\n$9997726.96\nAD\nadmin\nAdmin\nAll Platforms\nAll Types\nAll Status\nAll Privacy States\nAll Groups\nAuto Refresh\nMore Actions\nCreate Account\nBulk Edit Accounts\nUpdate Accounts\n\t\nNAME\n\t\nPLATFORM/TYPE\n\t\nCAPACITY\n\t\nSTATUS\n\t\nSCHEDULABLE\n\t\nGROUPS\n\t\nUSAGE WINDOWS\n\t\nLAST USED\n\t\nEXPIRES AT\n\t\nACTIONS\n\n\t\nkiro_claude_01\n\t\nAnthropic\nKey\n\t\n1\n/\n10\n\t\nActive\n\t\n\t\nclaude\n\t\n410 req\n21.0M\nA $85.13\nU $85.13\n\t2m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai001\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nRate Limited\nAuto resumes in 3d 17h\n429\nRate limited and removed from scheduling. Auto resumes at 05/19/2026, 20:34:21\n\t\n\t\nopenai\n\t\n10 req\n1.7M\nA $1.99\nU $1.99\n5h\n3%\n40m\n1.7K req\n169.6M\nA $145.19\nU $145.19\n7d\n100%\n3d 17h\n\t4h ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai002\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n17 req\n131.9K\nA $0.51\nU $0.51\n5h\n1%\n4h 21m\n1.5K req\n143.8M\nA $117.82\nU $117.82\n7d\n84%\n3d 18h\n\t16m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai003\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n13 req\n1.8K\nA $0.02\nU $0.02\n5h\n0%\n现在\n1.3K req\n97.4M\nA $85.43\nU $85.43\n7d\n63%\n3d 20h\n\t17m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai004\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nActive\n\t\n\t\nopenai\n\t\n14 req\n1.5K\nA $0.01\nU $0.01\n5h\n1%\n24m\n1.4K req\n112.8M\nA $95.26\nU $95.26\n7d\n70%\n3d 20h\n\t11m ago\t\n-\n\t\nEdit\nDelete\nMore\n\n\t\nopenai005\n\t\nOpenAI\nOAuth\nPlus\nPrivate\nCompact Auto\n\t\n0\n/\n10\n\t\nRate Limited\nAuto resumes in 3d 19h\n429\nRate limited and removed from sc",
+      "screenshotAccounts": "/www/Kiro-Go/docs/superpowers/uat/sub2api-accounts-100x10-20260516.png"
+    }
+  ]
+}
