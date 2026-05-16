@@ -14,7 +14,7 @@ Date: 2026-05-16
 Run:
 
 ```bash
-go test ./proxy -run 'TestEstimateClaudeRequestInputTokensIncludes|TestClaudeSSEWriter|TestClaudeCode2143WireFixtureParsesAndPreservesCompatibilityFields|TestClaudeCodeToolReferenceFixtureParses|TestRequestLogCapturesClaudeCodeCompatibilityMetadata' -count=1 -v
+go test ./proxy -run 'TestEstimateClaudeRequestInputTokensIncludesToolReferencesAndToolCacheControl|TestEstimateClaudeRequestInputTokensIncludesThinkingBudget|TestClaudeSSEWriter|TestClaudeCode2143WireFixtureParsesAndPreservesCompatibilityFields|TestClaudeCodeToolReferenceFixtureParses|TestRequestLogCapturesClaudeCodeCompatibilityMetadata' -count=1 -v
 ```
 
 Expected:
