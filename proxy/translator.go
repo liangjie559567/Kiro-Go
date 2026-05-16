@@ -267,7 +267,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	}
 
 	// 转换工具
-	kiroTools, toolNameMap := convertClaudeTools(req.Tools)
+	kiroTools, toolNameMap := convertClaudeTools(mergeClaudeToolsAndReferences(req.Tools, req.ToolReferences))
 
 	// 构建 payload
 	payload := &KiroPayload{}
@@ -948,6 +948,34 @@ func convertClaudeTools(tools []ClaudeTool) ([]KiroToolWrapper, map[string]strin
 		result = append(result, w)
 	}
 	return result, nameMap
+}
+
+func mergeClaudeToolsAndReferences(tools []ClaudeTool, refs []ClaudeToolReference) []ClaudeTool {
+	if len(refs) == 0 {
+		return tools
+	}
+
+	merged := make([]ClaudeTool, 0, len(tools)+len(refs))
+	merged = append(merged, tools...)
+	for _, ref := range refs {
+		if ref.Name == "" || ref.InputSchema == nil {
+			continue
+		}
+		desc := ref.Description
+		if desc == "" {
+			desc = ref.Title
+		}
+		if desc == "" {
+			desc = "Claude Code tool reference " + ref.Name
+		}
+		merged = append(merged, ClaudeTool{
+			Type:        ref.Type,
+			Name:        ref.Name,
+			Description: desc,
+			InputSchema: ref.InputSchema,
+		})
+	}
+	return merged
 }
 
 // ensureObjectSchema ensures the JSON schema has "type": "object" at the top level

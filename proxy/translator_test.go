@@ -197,6 +197,52 @@ func TestClaudeConversationIDStableFromAnchor(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroExpandsToolReferencesWithSchema(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "read the file"}},
+		ToolReferences: []ClaudeToolReference{{
+			Type:        "tool_reference",
+			ID:          "toolref_1",
+			Name:        "mcp__filesystem__read_file",
+			Description: "Read a file",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{"type": "string"},
+				},
+				"required": []interface{}{"path"},
+			},
+		}},
+	}
+	payload := ClaudeToKiro(req, false)
+	if len(payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools) != 1 {
+		t.Fatalf("expected one Kiro tool, got %#v", payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext)
+	}
+	tool := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools[0]
+	if tool.ToolSpecification.Name == "mcp__filesystem__read_file" {
+		t.Fatalf("expected Kiro-safe sanitized name")
+	}
+	if got := payload.ToolNameMap[tool.ToolSpecification.Name]; got != "mcp__filesystem__read_file" {
+		t.Fatalf("expected outward name mapping, got %q", got)
+	}
+}
+
+func TestClaudeToKiroIgnoresDeferredToolReferenceWithoutSchema(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:          "claude-sonnet-4.5",
+		MaxTokens:      64,
+		Messages:       []ClaudeMessage{{Role: "user", Content: "hi"}},
+		ToolReferences: []ClaudeToolReference{{Type: "tool_reference", ID: "toolref_1", Name: "mcp__late__tool", DeferLoading: true}},
+	}
+	payload := ClaudeToKiro(req, false)
+	if payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext != nil &&
+		len(payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools) != 0 {
+		t.Fatalf("expected deferred unresolved reference to be accepted but not converted")
+	}
+}
+
 func TestClaudeToKiroStripsClaudeCodeTransportSystemMetadata(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-opus-4-7",

@@ -1189,6 +1189,85 @@ func TestHandleClaudeStreamToolUseStartsWithMessageStart(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeStreamToolReferenceRestoresOriginalToolName(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-toolref-stream",
+		Enabled:     true,
+		AccessToken: "token-toolref-stream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var kiroToolName string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			var payload KiroPayload
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode kiro payload: %v", err)
+			}
+			ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+			if ctx == nil || len(ctx.Tools) != 1 {
+				t.Fatalf("expected one tool in Kiro payload, got %#v", ctx)
+			}
+			kiroToolName = ctx.Tools[0].ToolSpecification.Name
+			if kiroToolName == "mcp__filesystem__read_file" {
+				t.Fatalf("expected Kiro payload to use sanitized name")
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_ref_1",
+							"name":      kiroToolName,
+							"input":     map[string]interface{}{"path": "README.md"},
+							"stop":      true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 11, "outputTokens": 7}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tool_reference":[{"type":"tool_reference","id":"toolref_1","name":"mcp__filesystem__read_file","description":"Read a file","input_schema":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}],"messages":[{"role":"user","content":"read README"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	respBody := w.Body.String()
+	if !strings.Contains(respBody, `"name":"mcp__filesystem__read_file"`) {
+		t.Fatalf("expected streamed tool_use to restore original name, got %q", respBody)
+	}
+	if strings.Contains(respBody, `"name":"`+kiroToolName+`"`) {
+		t.Fatalf("expected streamed tool_use not to expose sanitized name %q, got %q", kiroToolName, respBody)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func collectSSEEvents(body string) []string {
 	var events []string
 	for _, line := range strings.Split(body, "\n") {
