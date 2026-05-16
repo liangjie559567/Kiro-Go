@@ -6,9 +6,32 @@ const model = process.env.SUB2API_MODEL || 'claude-sonnet-4.5';
 const keyPath = process.env.SUB2API_KEY_FILE || '/tmp/sub2api_claude_key';
 const outDir = process.env.SUB2API_SMOKE_OUT || '/www/Kiro-Go/docs/superpowers/uat/sub2api-smoke';
 const runId = process.env.SUB2API_SMOKE_RUN_ID || `sub2api-smoke-${Date.now()}`;
-const apiKey = fs.readFileSync(keyPath, 'utf8').trim();
+let apiKey = '';
 
 fs.mkdirSync(outDir, {recursive: true});
+
+const results = {
+  runId,
+  base,
+  model,
+  keyPath,
+  startedAt: new Date().toISOString(),
+};
+
+function errorDetails(err) {
+  return {
+    message: err && err.message ? err.message : String(err),
+    code: err && err.code,
+    stack: err && err.stack,
+  };
+}
+
+function writeArtifact() {
+  results.finishedAt = new Date().toISOString();
+  const out = path.join(outDir, `${runId}.json`);
+  fs.writeFileSync(out, JSON.stringify(results, null, 2));
+  return out;
+}
 
 function requestHeaders(endpoint) {
   return {
@@ -33,6 +56,7 @@ function extractClaudeText(body) {
 function parseSSE(raw) {
   const events = [];
   const text = [];
+  const parseErrors = [];
   let currentEvent = '';
   let dataLines = [];
 
@@ -56,6 +80,11 @@ function parseSSE(raw) {
       }
     } catch (err) {
       events.push('parse_error');
+      parseErrors.push({
+        event,
+        dataPreview: data.slice(0, 500),
+        error: err && err.message ? err.message : String(err),
+      });
     }
   }
 
@@ -78,6 +107,7 @@ function parseSSE(raw) {
   return {
     events,
     text: text.join(''),
+    parseErrors,
     hasMessageStart: events.includes('message_start'),
     hasMessageStop: events.includes('message_stop'),
   };
@@ -99,6 +129,17 @@ async function requestJSON(endpoint, payload) {
   };
 }
 
+async function runProbe(name, fn) {
+  try {
+    results[name] = await fn();
+  } catch (err) {
+    results[name] = {
+      ok: false,
+      error: errorDetails(err),
+    };
+  }
+}
+
 function parseJSON(raw) {
   try {
     return JSON.parse(raw);
@@ -108,102 +149,131 @@ function parseJSON(raw) {
 }
 
 async function main() {
+  try {
+    apiKey = fs.readFileSync(keyPath, 'utf8').trim();
+  } catch (err) {
+    results.error = {
+      phase: 'read_api_key',
+      ...errorDetails(err),
+    };
+    results.passed = false;
+    const out = writeArtifact();
+    console.log(JSON.stringify({out, passed: results.passed, results}, null, 2));
+    process.exit(1);
+  }
+
   const marker = `${runId}-marker`;
   const messages = [{role: 'user', content: `Return exactly this marker and nothing else: ${marker}`}];
-  const results = {
-    runId,
-    base,
-    model,
-    startedAt: new Date().toISOString(),
-  };
 
-  const modelsStarted = Date.now();
-  const modelsRes = await fetch(`${base}/v1/models`, {
-    method: 'GET',
-    headers: requestHeaders('/v1/models'),
+  await runProbe('models', async () => {
+    const started = Date.now();
+    const res = await fetch(`${base}/v1/models`, {
+      method: 'GET',
+      headers: requestHeaders('/v1/models'),
+    });
+    const raw = await res.text();
+    const body = parseJSON(raw);
+    return {
+      status: res.status,
+      ok: res.ok,
+      durationMs: Date.now() - started,
+      modelCount: body && Array.isArray(body.data) ? body.data.length : undefined,
+      rawPreview: res.ok ? undefined : raw.slice(0, 1000),
+    };
   });
-  const modelsRaw = await modelsRes.text();
-  const modelsBody = parseJSON(modelsRaw);
-  results.models = {
-    status: modelsRes.status,
-    ok: modelsRes.ok,
-    durationMs: Date.now() - modelsStarted,
-    modelCount: modelsBody && Array.isArray(modelsBody.data) ? modelsBody.data.length : undefined,
-    rawPreview: modelsRes.ok ? undefined : modelsRaw.slice(0, 1000),
-  };
 
-  const count = await requestJSON('/v1/messages/count_tokens', {
-    model,
-    messages,
+  await runProbe('countTokens', async () => {
+    const count = await requestJSON('/v1/messages/count_tokens', {
+      model,
+      messages,
+    });
+    const body = parseJSON(count.raw);
+    return {
+      status: count.status,
+      ok: count.ok,
+      durationMs: count.durationMs,
+      body,
+      positiveInputTokens: Boolean(body && Number(body.input_tokens) > 0),
+      rawPreview: count.ok ? undefined : count.raw.slice(0, 1000),
+    };
   });
-  const countBody = parseJSON(count.raw);
-  results.countTokens = {
-    status: count.status,
-    ok: count.ok,
-    durationMs: count.durationMs,
-    body: countBody,
-    positiveInputTokens: Boolean(countBody && Number(countBody.input_tokens) > 0),
-    rawPreview: count.ok ? undefined : count.raw.slice(0, 1000),
-  };
 
-  const sync = await requestJSON('/v1/messages', {
-    model,
-    max_tokens: 64,
-    stream: false,
-    messages,
+  await runProbe('sync', async () => {
+    const sync = await requestJSON('/v1/messages', {
+      model,
+      max_tokens: 64,
+      stream: false,
+      messages,
+    });
+    const body = parseJSON(sync.raw);
+    const text = extractClaudeText(body);
+    return {
+      status: sync.status,
+      ok: sync.ok,
+      durationMs: sync.durationMs,
+      text,
+      textTrimmed: text.trim(),
+      correct: sync.ok && text === marker,
+      stopReason: body && body.stop_reason,
+      usage: body && body.usage,
+      rawPreview: sync.ok && text === marker ? undefined : sync.raw.slice(0, 1000),
+    };
   });
-  const syncBody = parseJSON(sync.raw);
-  const syncText = extractClaudeText(syncBody).trim();
-  results.sync = {
-    status: sync.status,
-    ok: sync.ok,
-    durationMs: sync.durationMs,
-    text: syncText,
-    correct: sync.ok && syncText === marker,
-    stopReason: syncBody && syncBody.stop_reason,
-    usage: syncBody && syncBody.usage,
-    rawPreview: sync.ok && syncText === marker ? undefined : sync.raw.slice(0, 1000),
-  };
 
-  const stream = await requestJSON('/v1/messages', {
-    model,
-    max_tokens: 64,
-    stream: true,
-    messages,
+  await runProbe('stream', async () => {
+    const stream = await requestJSON('/v1/messages', {
+      model,
+      max_tokens: 64,
+      stream: true,
+      messages,
+    });
+    const parsed = parseSSE(stream.raw);
+    const text = parsed.text;
+    return {
+      status: stream.status,
+      ok: stream.ok,
+      durationMs: stream.durationMs,
+      text,
+      textTrimmed: text.trim(),
+      correct: stream.ok && text === marker,
+      hasMessageStart: parsed.hasMessageStart,
+      hasMessageStop: parsed.hasMessageStop,
+      eventCount: parsed.events.length,
+      events: parsed.events,
+      parseErrors: parsed.parseErrors,
+      parseErrorCount: parsed.parseErrors.length,
+      rawPreview: stream.ok && text === marker && parsed.hasMessageStop && parsed.parseErrors.length === 0 ? undefined : stream.raw.slice(0, 1000),
+    };
   });
-  const parsedStream = parseSSE(stream.raw);
-  const streamText = parsedStream.text.trim();
-  results.stream = {
-    status: stream.status,
-    ok: stream.ok,
-    durationMs: stream.durationMs,
-    text: streamText,
-    correct: stream.ok && streamText === marker,
-    hasMessageStart: parsedStream.hasMessageStart,
-    hasMessageStop: parsedStream.hasMessageStop,
-    eventCount: parsedStream.events.length,
-    events: parsedStream.events,
-    rawPreview: stream.ok && streamText === marker && parsedStream.hasMessageStop ? undefined : stream.raw.slice(0, 1000),
-  };
 
-  results.finishedAt = new Date().toISOString();
   results.passed = Boolean(
-    results.models.ok &&
-    results.countTokens.ok &&
+    results.models && results.models.ok &&
+    results.countTokens && results.countTokens.ok &&
     results.countTokens.positiveInputTokens &&
-    results.sync.correct &&
-    results.stream.correct &&
-    results.stream.hasMessageStop
+    results.sync && results.sync.correct &&
+    results.stream && results.stream.correct &&
+    results.stream.hasMessageStop &&
+    results.stream.parseErrorCount === 0
   );
 
-  const out = path.join(outDir, `${runId}.json`);
-  fs.writeFileSync(out, JSON.stringify(results, null, 2));
+  const out = writeArtifact();
   console.log(JSON.stringify({out, passed: results.passed, results}, null, 2));
 
   if (!results.passed) process.exit(1);
 }
 
 main().catch((err) => {
+  results.error = {
+    phase: 'main',
+    ...errorDetails(err),
+  };
+  results.passed = false;
+  try {
+    const out = writeArtifact();
+    console.log(JSON.stringify({out, passed: results.passed, results}, null, 2));
+  } catch (writeErr) {
+    console.error(writeErr && writeErr.stack || writeErr);
+  }
   console.error(err && err.stack || err);
   process.exit(1);
 });
