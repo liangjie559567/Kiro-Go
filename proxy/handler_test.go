@@ -464,6 +464,43 @@ func TestHandleOpenAIResponsesPayloadGuardRejectsAfterProfileArnFinalization(t *
 	}
 }
 
+func TestHandleOpenAIResponsesPayloadGuardRunsBeforeTokenRefreshFailure(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:           "acct-profile-before-refresh",
+		Enabled:      true,
+		AccessToken:  "expired-token",
+		RefreshToken: "bad-refresh-token",
+		ProfileArn:   "arn:aws:codewhisperer:profile/" + strings.Repeat("p", 250*1024),
+		ExpiresAt:    time.Now().Add(time.Duration(tokenRefreshSkewSeconds/2) * time.Second).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	input := strings.Repeat("x", defaultPayloadGuardOptions().HardLimitBytes-200*1024)
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"` + input + `","max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected payload guard status 400 before token refresh, got %d body %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"invalid_request_error"`) || !strings.Contains(w.Body.String(), "ProfileArn") {
+		t.Fatalf("expected ProfileArn payload guard response, got %s", w.Body.String())
+	}
+	if health := p.GetRuntimeHealth("acct-profile-before-refresh"); health.ActiveConnections != 0 || health.RecentFailures != 0 || health.RecentSuccesses != 0 {
+		t.Fatalf("expected no account health changes before token refresh failure, got %#v", health)
+	}
+}
+
 type testEventStreamMessage struct {
 	eventType string
 	payload   map[string]interface{}

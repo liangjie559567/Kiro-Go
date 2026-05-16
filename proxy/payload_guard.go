@@ -102,6 +102,9 @@ func finalizeKiroPayloadForAccount(payload *KiroPayload, account *config.Account
 	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" {
 		finalizeKiroPayloadProfileArn(payload, account)
 	}
+	if payload != nil {
+		payload.ProfileArnFinalized = true
+	}
 	result := payloadGuardResult{FinalBytes: kiroPayloadJSONSize(payload)}
 	if result.FinalBytes > opts.HardLimitBytes {
 		return result, fmt.Errorf("Kiro payload exceeds hard limit after ProfileArn finalization: %d bytes", result.FinalBytes)

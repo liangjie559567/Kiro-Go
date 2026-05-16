@@ -286,6 +286,10 @@ type KiroPayload struct {
 	// in tool_use responses so the client can match them to its tool registry.
 	// Not serialized to the Kiro API request body.
 	ToolNameMap map[string]string `json:"-"`
+
+	// ProfileArnFinalized indicates guarded handler paths have already resolved
+	// or intentionally left ProfileArn empty, so CallKiroAPI must not mutate it.
+	ProfileArnFinalized bool `json:"-"`
 }
 
 type KiroUserInputMessage struct {
@@ -432,7 +436,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		callback = &wrapped
 	}
 
-	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" {
+	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" && !payload.ProfileArnFinalized {
 		finalizeKiroPayloadProfileArn(payload, account)
 	}
 

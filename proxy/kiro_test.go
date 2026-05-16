@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"kiro-go/config"
 	"net/http"
@@ -145,6 +147,52 @@ func TestCallKiroAPIUsesAccountRegionForStreamingEndpoint(t *testing.T) {
 	}
 	if requestedRequestHost != "q.eu-central-1.amazonaws.com" {
 		t.Fatalf("expected request Host header to match regional q host, got %q", requestedRequestHost)
+	}
+}
+
+func TestCallKiroAPIDoesNotMutateFinalizedProfileArn(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.6",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+	payload.ProfileArnFinalized = true
+
+	var capturedProfileArn interface{}
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			var body map[string]interface{}
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				t.Fatalf("decode request body: %v", err)
+			}
+			capturedProfileArn = body["profileArn"]
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 1, "outputTokens": 1}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	err := CallKiroAPI(&config.Account{
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/should-not-be-added",
+	}, payload, &KiroStreamCallback{})
+	if err != nil {
+		t.Fatalf("call kiro api: %v", err)
+	}
+	if payload.ProfileArn != "" {
+		t.Fatalf("expected finalized empty profile ARN not to be mutated, got %q", payload.ProfileArn)
+	}
+	if capturedProfileArn != nil {
+		t.Fatalf("expected serialized request to omit profileArn, got %#v", capturedProfileArn)
 	}
 }
 
