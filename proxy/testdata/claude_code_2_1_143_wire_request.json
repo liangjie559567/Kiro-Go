@@ -1,0 +1,85 @@
+{
+  "headers": {
+    "anthropic-version": "2023-06-01",
+    "anthropic-beta": "fine-grained-tool-streaming-2025-05-14,tool-search-2025-10-19,prompt-caching-2024-07-31",
+    "user-agent": "claude-cli/2.1.143",
+    "x-claude-code-session-id": "session_test_123",
+    "x-claude-code-agent-id": "agent_test_123",
+    "x-request-id": "client_req_test_123"
+  },
+  "body": {
+    "model": "claude-sonnet-4.5",
+    "max_tokens": 1024,
+    "stream": true,
+    "system": [
+      {
+        "type": "text",
+        "text": "x-anthropic-billing-header: cc_version=2.1.143; cc_entrypoint=cli; cch=00000;"
+      },
+      {
+        "type": "text",
+        "text": "You are Claude Code, Anthropic's official CLI for Claude."
+      },
+      {
+        "type": "text",
+        "text": "# Using your tools\nUse tools when needed.",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      }
+    ],
+    "tools": [
+      {
+        "name": "write_file",
+        "description": "Write a file",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": ["path", "content"]
+        },
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "eager_input_streaming": true
+      },
+      {
+        "name": "web_search",
+        "type": "web_search_20260209",
+        "max_uses": 2
+      }
+    ],
+    "tool_reference": [
+      {
+        "type": "tool_reference",
+        "id": "toolref_1",
+        "name": "mcp__filesystem__read_file",
+        "description": "Read a file",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        },
+        "defer_loading": false
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read README and search latest docs."
+      }
+    ]
+  }
+}

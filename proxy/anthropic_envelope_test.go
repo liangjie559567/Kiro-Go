@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +76,84 @@ func TestClaudeRequestAcceptsToolReferences(t *testing.T) {
 	}
 	if req.ToolReferences[0].Name != "mcp__fs__read_file" {
 		t.Fatalf("unexpected tool reference name %q", req.ToolReferences[0].Name)
+	}
+}
+
+func TestClaudeRequestPreservesToolCacheControlAndEagerStreaming(t *testing.T) {
+	var req ClaudeRequest
+	if err := json.Unmarshal([]byte(`{
+		"model":"claude-sonnet-4.5",
+		"max_tokens":64,
+		"tools":[{
+			"name":"write_file",
+			"description":"Write a file",
+			"input_schema":{"type":"object"},
+			"cache_control":{"type":"ephemeral","ttl":"1h"},
+			"eager_input_streaming":true
+		}],
+		"messages":[{"role":"user","content":"hi"}]
+	}`), &req); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(req.Tools) != 1 {
+		t.Fatalf("expected one tool, got %#v", req.Tools)
+	}
+	if req.Tools[0].CacheControl == nil || req.Tools[0].CacheControl["ttl"] != "1h" {
+		t.Fatalf("expected tool cache_control to be preserved, got %#v", req.Tools[0].CacheControl)
+	}
+	if !req.Tools[0].EagerInputStreaming {
+		t.Fatalf("expected eager_input_streaming to be preserved")
+	}
+}
+
+func TestClaudeCode2143WireFixtureParsesAndPreservesCompatibilityFields(t *testing.T) {
+	raw, err := os.ReadFile("testdata/claude_code_2_1_143_wire_request.json")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	var fixture struct {
+		Headers map[string]string      `json:"headers"`
+		Body    map[string]interface{} `json:"body"`
+	}
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatalf("decode fixture: %v", err)
+	}
+	body, err := json.Marshal(fixture.Body)
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	httpReq := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	for key, value := range fixture.Headers {
+		httpReq.Header.Set(key, value)
+	}
+
+	env, err := parseAnthropicEnvelope(httpReq, body)
+	if err != nil {
+		t.Fatalf("parse envelope: %v", err)
+	}
+	if !env.HasBeta("fine-grained-tool-streaming-2025-05-14") || !env.HasBetaPrefix("tool-search") {
+		t.Fatalf("expected Claude Code beta flags, got %#v", env.Betas)
+	}
+	if env.SessionID != "session_test_123" || env.AgentID != "agent_test_123" {
+		t.Fatalf("expected Claude Code session metadata, got session=%q agent=%q", env.SessionID, env.AgentID)
+	}
+	if len(env.Request.Tools) != 2 || !env.Request.Tools[0].EagerInputStreaming {
+		t.Fatalf("expected tools and eager_input_streaming, got %#v", env.Request.Tools)
+	}
+	if env.Request.Tools[0].CacheControl == nil || env.Request.Tools[0].CacheControl["ttl"] != "1h" {
+		t.Fatalf("expected tool cache_control, got %#v", env.Request.Tools[0].CacheControl)
+	}
+	if env.Request.Tools[1].Type != "web_search_20260209" {
+		t.Fatalf("expected latest web search tool type, got %#v", env.Request.Tools[1])
+	}
+	if len(env.Request.ToolReferences) != 1 || env.Request.ToolReferences[0].Name != "mcp__filesystem__read_file" {
+		t.Fatalf("expected tool reference, got %#v", env.Request.ToolReferences)
+	}
+	payload := ClaudeToKiro(&env.Request, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	for _, forbidden := range []string{"SYSTEM PROMPT", "x-anthropic-billing-header", "Anthropic's official CLI"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("expected fixture payload to avoid %q, got %q", forbidden, content)
+		}
 	}
 }

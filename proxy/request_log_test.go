@@ -170,6 +170,56 @@ func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	req.Header.Set("x-request-id", "client_req_test_123")
+	req.Header.Set("x-claude-code-session-id", "session_test_123")
+	req.Header.Set("x-claude-code-agent-id", "agent_test_123")
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogAnthropic(loggedReq, &anthropicEnvelope{
+		AnthropicRequestID: "client_req_test_123",
+		AnthropicVersion:   "2023-06-01",
+		Betas:              parseAnthropicBetas("claude-code-20250219,interleaved-thinking-2025-05-14"),
+		Request: ClaudeRequest{
+			ToolReferences: []ClaudeToolReference{{
+				Type: "tool_reference",
+				ID:   "toolref_1",
+				Name: "mcp__filesystem__read_file",
+			}},
+		},
+	})
+	updateRequestLogMetadata(loggedReq, "claude-sonnet-4.5", true)
+	updateRequestLogReliability(loggedReq, 12, 2, 345, 1)
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.RequestID != "client_req_test_123" || entry.AnthropicRequestID != "client_req_test_123" {
+		t.Fatalf("expected request ids to be captured, got %#v", entry)
+	}
+	if entry.ClaudeCodeSessionID != "session_test_123" || entry.ClaudeCodeAgentID != "agent_test_123" {
+		t.Fatalf("expected Claude Code metadata, got %#v", entry)
+	}
+	if entry.Model != "claude-sonnet-4.5" || !entry.Stream {
+		t.Fatalf("expected model and stream metadata, got %#v", entry)
+	}
+	if entry.ToolReferenceCount != 1 {
+		t.Fatalf("expected one tool reference, got %#v", entry)
+	}
+	if entry.FirstTokenMs != 345 || entry.Attempts != 2 {
+		t.Fatalf("expected reliability metadata, got %#v", entry)
+	}
+	if got, want := strings.Join(entry.AnthropicBetas, ","), "claude-code-20250219,interleaved-thinking-2025-05-14"; got != want {
+		t.Fatalf("unexpected betas %q", got)
+	}
+}
+
 func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
