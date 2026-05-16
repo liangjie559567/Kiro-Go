@@ -44,6 +44,54 @@ func TestClaudeSSEWriterChunksToolInput(t *testing.T) {
 	)
 }
 
+func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
+	w := httptest.NewRecorder()
+	writer := newClaudeSSEWriter(w, "msg_test", "claude-sonnet-4.5", buildClaudeUsageMap(10, 0, promptCacheUsage{}, false), 16)
+	writer.ThinkingDelta("reason")
+	writer.TextDelta("answer")
+	writer.ToolUse(KiroToolUse{
+		ToolUseID: "toolu_1",
+		Name:      "readFile",
+		Input:     map[string]interface{}{"path": "/tmp/example.txt"},
+	})
+	writer.Stop("tool_use", buildClaudeUsageMap(10, 2, promptCacheUsage{}, false))
+
+	mustContainInOrder(t, w.Body.String(),
+		"event: message_start",
+		`"type":"thinking"`,
+		`"type":"thinking_delta"`,
+		"event: content_block_stop",
+		`"type":"text"`,
+		`"type":"text_delta"`,
+		"event: content_block_stop",
+		`"type":"tool_use"`,
+		`"type":"input_json_delta"`,
+		"event: content_block_stop",
+		"event: message_delta",
+		`"stop_reason":"tool_use"`,
+		"event: message_stop",
+	)
+}
+
+func TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop(t *testing.T) {
+	w := httptest.NewRecorder()
+	writer := newClaudeSSEWriter(w, "msg_test", "claude-sonnet-4.5", buildClaudeUsageMap(10, 0, promptCacheUsage{}, false), 4096)
+	writer.TextDelta("partial")
+	writer.Error("overloaded_error", "upstream reset")
+
+	body := w.Body.String()
+	mustContainInOrder(t, body,
+		"event: message_start",
+		`"type":"text_delta"`,
+		"event: content_block_stop",
+		"event: error",
+		`"type":"overloaded_error"`,
+	)
+	if strings.Contains(body, "event: message_stop") {
+		t.Fatalf("expected post-start error not to emit message_stop, body:\n%s", body)
+	}
+}
+
 func TestClaudeSSEWriterPingAndError(t *testing.T) {
 	w := httptest.NewRecorder()
 	writer := newClaudeSSEWriter(w, "msg_test", "claude-sonnet-4.5", buildClaudeUsageMap(10, 0, promptCacheUsage{}, false), 4096)
