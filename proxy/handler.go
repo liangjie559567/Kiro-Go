@@ -255,6 +255,21 @@ func (h *Handler) recordAccountFailure(accountID string, err error) pool.Failure
 	return reason
 }
 
+func (h *Handler) recordAccountModelFailure(accountID, model string, err error) pool.FailureReason {
+	reason := h.recordAccountFailure(accountID, err)
+	if h.pool != nil {
+		h.pool.RecordModelFailure(accountID, model, reason, rateLimitResetFromError(err))
+	}
+	return reason
+}
+
+func rateLimitResetFromError(err error) time.Time {
+	if resetErr, ok := err.(rateLimitResetError); ok {
+		return resetErr.RateLimitResetAt()
+	}
+	return time.Time{}
+}
+
 func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
 	if attempt > 0 {
 		return false
@@ -272,6 +287,26 @@ func isOpus47Model(model string) bool {
 	normalized = strings.TrimSuffix(normalized, config.GetThinkingConfig().Suffix)
 	normalized = strings.ReplaceAll(normalized, ".", "-")
 	return normalized == "claude-opus-4-7" || normalized == "claude-opus-4.7"
+}
+
+func requestStickyKey(r *http.Request, req *ClaudeRequest) string {
+	if r != nil {
+		for _, name := range []string{
+			"x-claude-code-session-id",
+			"x-claude-session-id",
+			"x-request-id",
+			"request-id",
+		} {
+			if value := strings.TrimSpace(r.Header.Get(name)); value != "" {
+				return value
+			}
+		}
+	}
+	if req == nil {
+		return ""
+	}
+	model := MapModel(req.Model)
+	return buildConversationID(model, buildClaudeSystemPrompt(req.System, false), firstClaudeConversationAnchor(req.Messages))
 }
 
 func isOpus47CapacityLimit(err error, model string) bool {
@@ -1455,10 +1490,11 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	var lastErr error
 	used := make(map[string]bool)
 	attempt := 0
+	sessionKey := requestStickyKey(r, effectiveReq)
 
 	for {
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
-		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
+		account, releaseRequest := h.pool.BeginNextForModelSessionExcept(model, sessionKey, used)
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
@@ -1485,7 +1521,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
 		if err := h.ensureValidToken(account); err != nil {
-			h.recordAccountFailure(account.ID, err)
+			h.recordAccountModelFailure(account.ID, model, err)
 			if attempt == 0 {
 				releaseRequest()
 				continue
@@ -1950,7 +1986,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			outputTokens = outTok
 		},
 		OnError: func(err error) {
-			h.recordAccountFailure(account.ID, err)
+			h.recordAccountModelFailure(account.ID, model, err)
 		},
 		OnCredits: func(c float64) {
 			credits = c
@@ -1967,7 +2003,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
-		h.recordAccountFailure(account.ID, err)
+		h.recordAccountModelFailure(account.ID, model, err)
 		h.checkOverageError(err, account.ID)
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
 			return false, err
@@ -2004,6 +2040,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
+	h.pool.RecordModelSuccess(account.ID, model)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 	h.promptCache.Update(account.ID, cacheProfile)
 
@@ -2141,7 +2178,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 			outputTokens = outTok
 		},
 		OnError: func(err error) {
-			h.recordAccountFailure(account.ID, err)
+			h.recordAccountModelFailure(account.ID, model, err)
 		},
 		OnCredits: func(c float64) {
 			credits = c
@@ -2157,7 +2194,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	latency := time.Since(startedAt)
 	if err != nil {
 		reason := classifyFailureReason(err)
-		h.recordAccountFailure(account.ID, err)
+		h.recordAccountModelFailure(account.ID, model, err)
 		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
 			return false, err
 		}
@@ -2189,6 +2226,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
+	h.pool.RecordModelSuccess(account.ID, model)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 	h.promptCache.Update(account.ID, cacheProfile)
 

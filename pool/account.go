@@ -115,6 +115,7 @@ type AccountPool struct {
 	failures      map[string]FailureReason   // Last failure classification
 	modelLists    map[string]map[string]bool // accountID -> set of modelIDs
 	runtimeHealth map[string]*runtimeHealthState
+	breakers      *modelBreakerState
 	strategy      Strategy
 }
 
@@ -132,6 +133,7 @@ func GetPool() *AccountPool {
 			failures:      make(map[string]FailureReason),
 			modelLists:    make(map[string]map[string]bool),
 			runtimeHealth: make(map[string]*runtimeHealthState),
+			breakers:      newModelBreakerState(),
 			strategy:      Strategy(config.GetLoadBalanceConfig().Strategy),
 		}
 		pool.Reload()
@@ -154,6 +156,9 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.runtimeHealth == nil {
 		p.runtimeHealth = make(map[string]*runtimeHealthState)
+	}
+	if p.breakers == nil {
+		p.breakers = newModelBreakerState()
 	}
 	if p.strategy == "" {
 		p.strategy = StrategyHealth
@@ -343,6 +348,45 @@ func (p *AccountPool) GetNextForModelExcept(model string, excluded map[string]bo
 	return p.getNextForModelExceptLocked(model, excluded)
 }
 
+func (p *AccountPool) RememberSticky(sessionKey, model, accountID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	p.breakers.rememberSticky(sessionKey, model, accountID, time.Now())
+}
+
+func (p *AccountPool) RecordModelSuccess(accountID, model string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	p.breakers.success(accountID, model)
+}
+
+func (p *AccountPool) RecordModelFailure(accountID, model string, reason FailureReason, retryAt time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+
+	now := time.Now()
+	delay := 30 * time.Second
+	switch reason {
+	case FailureReasonRateLimited:
+		delay = time.Minute
+	case FailureReasonAuthExpired:
+		delay = 10 * time.Minute
+	case FailureReasonQuotaExhausted, FailureReasonSuspended:
+		delay = time.Hour
+	case FailureReasonTransientNetwork, FailureReasonUpstream5xx:
+		delay = 30 * time.Second
+	}
+	if retryAt.After(now) {
+		delay = retryAt.Sub(now)
+	} else if !retryAt.IsZero() {
+		delay = time.Nanosecond
+	}
+	p.breakers.open(accountID, model, reason, now, delay)
+}
+
 func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[string]bool) *config.Account {
 	p.ensureStateLocked()
 	if len(p.accounts) == 0 {
@@ -387,6 +431,10 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 			seen[acc.ID] = true
 			continue
 		}
+		if !p.breakers.canUse(acc.ID, model, now) {
+			seen[acc.ID] = true
+			continue
+		}
 		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
 			best = acc
 		}
@@ -412,6 +460,9 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			continue
 		}
+		if !p.breakers.canUse(acc.ID, model, now) {
+			continue
+		}
 		if cooldown, ok := p.cooldowns[acc.ID]; ok {
 			if now.Before(cooldown) {
 				continue
@@ -428,32 +479,78 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 }
 
 func (p *AccountPool) BeginNextForModelExcept(model string, excluded map[string]bool) (*config.Account, func()) {
+	return p.BeginNextForModelSessionExcept(model, "", excluded)
+}
+
+func (p *AccountPool) BeginNextForModelSessionExcept(model, sessionKey string, excluded map[string]bool) (*config.Account, func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
+
+	now := time.Now()
+	if sticky := p.breakers.stickyAccount(sessionKey, model, now); sticky != "" && (excluded == nil || !excluded[sticky]) {
+		for i := range p.accounts {
+			if p.accounts[i].ID != sticky || !p.accountHasModel(sticky, model) || !p.accountUsableForModelLocked(&p.accounts[i], model, now) {
+				continue
+			}
+			p.reserveAccountForModelLocked(sticky, model, now)
+			return &p.accounts[i], p.releaseAccountRequestFunc(sticky)
+		}
+	}
 
 	acc := p.getNextForModelExceptLocked(model, excluded)
 	if acc == nil {
 		return nil, func() {}
 	}
-	health := p.runtimeHealthForLocked(acc.ID)
-	health.activeConnections++
-	health.lastUpdatedAt = time.Now().Unix()
+	p.reserveAccountForModelLocked(acc.ID, model, now)
+	p.breakers.rememberSticky(sessionKey, model, acc.ID, now)
 
+	return acc, p.releaseAccountRequestFunc(acc.ID)
+}
+
+func (p *AccountPool) reserveAccountForModelLocked(accountID, model string, now time.Time) {
+	if p.breakers.canProbe(accountID, model, now) {
+		p.breakers.markProbe(accountID, model, now)
+	}
+	health := p.runtimeHealthForLocked(accountID)
+	health.activeConnections++
+	health.lastUpdatedAt = now.Unix()
+}
+
+func (p *AccountPool) releaseAccountRequestFunc(accountID string) func() {
 	var once sync.Once
 	release := func() {
 		once.Do(func() {
 			p.mu.Lock()
 			defer p.mu.Unlock()
 			p.ensureStateLocked()
-			health := p.runtimeHealthForLocked(acc.ID)
+			health := p.runtimeHealthForLocked(accountID)
 			if health.activeConnections > 0 {
 				health.activeConnections--
 			}
 			health.lastUpdatedAt = time.Now().Unix()
 		})
 	}
-	return acc, release
+	return release
+}
+
+func (p *AccountPool) accountUsableForModelLocked(acc *config.Account, model string, now time.Time) bool {
+	if acc == nil {
+		return false
+	}
+	if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
+		return false
+	}
+	if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+		return false
+	}
+	if acc.ExpiresAt > 0 && now.Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
+		return false
+	}
+	if isOverUsageLimit(*acc) && !acc.AllowOverage && !config.GetAllowOverUsage() {
+		return false
+	}
+	return p.breakers.canUse(acc.ID, model, now)
 }
 
 func (p *AccountPool) isIdleHealthyLocked(id string) bool {

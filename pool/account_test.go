@@ -365,6 +365,62 @@ func TestBeginNextForModelReservesDistinctIdleAccounts(t *testing.T) {
 	}
 }
 
+func TestBeginNextForModelSessionExceptPrefersStickyAccountWhenHealthy(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.5"})
+	p.SetModelList("acct-2", []string{"claude-sonnet-4.5"})
+	p.RememberSticky("session-1", "claude-sonnet-4.5", "acct-2")
+
+	acc, release := p.BeginNextForModelSessionExcept("claude-sonnet-4.5", "session-1", nil)
+	defer release()
+
+	if acc == nil {
+		t.Fatalf("expected sticky account")
+	}
+	if acc.ID != "acct-2" {
+		t.Fatalf("expected sticky acct-2, got %q", acc.ID)
+	}
+	if got := p.GetRuntimeHealth("acct-2").ActiveConnections; got != 1 {
+		t.Fatalf("expected sticky account reservation, got %d active connections", got)
+	}
+}
+
+func TestBeginNextForModelSessionExceptSkipsBreakerOpenAccount(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.5"})
+	p.SetModelList("acct-2", []string{"claude-sonnet-4.5"})
+	p.RememberSticky("session-1", "claude-sonnet-4.5", "acct-1")
+	p.RecordModelFailure("acct-1", "claude-sonnet-4.5", FailureReasonRateLimited, time.Now().Add(time.Minute))
+
+	acc, release := p.BeginNextForModelSessionExcept("claude-sonnet-4.5", "session-1", nil)
+	defer release()
+
+	if acc == nil {
+		t.Fatalf("expected fallback account")
+	}
+	if acc.ID != "acct-2" {
+		t.Fatalf("expected acct-2 after breaker-open sticky escape, got %q", acc.ID)
+	}
+}
+
 func TestRuntimeHealthRecordsLatencyAndFailureScore(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),
