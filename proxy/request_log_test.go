@@ -170,6 +170,30 @@ func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
 	}
 }
 
+func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogPayload(loggedReq, payloadGuardResult{
+		OriginalBytes: 4096,
+		FinalBytes:    1024,
+		Trimmed:       true,
+		TrimmedCount:  3,
+	})
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.PayloadOriginalBytes != 4096 || entry.PayloadFinalBytes != 1024 || !entry.PayloadTrimmed || entry.PayloadTrimmedCount != 3 {
+		t.Fatalf("expected payload guard metadata, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

@@ -1128,6 +1128,16 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 
 	// 转换请求
 	kiroPayload := ClaudeToKiro(&req, thinking)
+	guardResult, guardErr := guardKiroPayload(kiroPayload, defaultPayloadGuardOptions())
+	if guardErr == nil && guardResult.RecoveryNote != "" {
+		applyTruncationRecoveryNote(kiroPayload, guardResult.RecoveryNote)
+		guardResult.FinalBytes = kiroPayloadJSONSize(kiroPayload)
+	}
+	updateRequestLogPayload(r, guardResult)
+	if guardErr != nil {
+		h.sendClaudeError(w, 400, "invalid_request_error", guardErr.Error())
+		return
+	}
 	h.handleClaudeWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
 }
 

@@ -33,6 +33,10 @@ type RequestLogEntry struct {
 	AnthropicVersion         string    `json:"anthropicVersion,omitempty"`
 	AnthropicBetas           []string  `json:"anthropicBetas,omitempty"`
 	ToolReferenceCount       int       `json:"toolReferenceCount,omitempty"`
+	PayloadOriginalBytes     int       `json:"payloadOriginalBytes,omitempty"`
+	PayloadFinalBytes        int       `json:"payloadFinalBytes,omitempty"`
+	PayloadTrimmed           bool      `json:"payloadTrimmed,omitempty"`
+	PayloadTrimmedCount      int       `json:"payloadTrimmedCount,omitempty"`
 	Stream                   bool      `json:"stream"`
 	StatusCode               int       `json:"statusCode"`
 	Outcome                  string    `json:"outcome"`
@@ -251,6 +255,19 @@ func updateRequestLogAnthropic(r *http.Request, env *anthropicEnvelope) {
 	ctx.entry.AnthropicVersion = env.AnthropicVersion
 	ctx.entry.AnthropicBetas = sortedAnthropicBetas(env.Betas)
 	ctx.entry.ToolReferenceCount = len(env.Request.ToolReferences)
+}
+
+func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.PayloadOriginalBytes = result.OriginalBytes
+	ctx.entry.PayloadFinalBytes = result.FinalBytes
+	ctx.entry.PayloadTrimmed = result.Trimmed
+	ctx.entry.PayloadTrimmedCount = result.TrimmedCount
 }
 
 func sortedAnthropicBetas(in map[string]bool) []string {
