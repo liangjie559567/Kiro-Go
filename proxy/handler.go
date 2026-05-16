@@ -829,35 +829,13 @@ func modelSupportsImage(inputTypes []string) bool {
 }
 
 func buildModelInfo(id, ownedBy string, supportsImage bool) map[string]interface{} {
-	modalities := []string{"text"}
-	if supportsImage {
-		modalities = append(modalities, "image")
-	}
-	modalitiesMap := map[string][]string{
-		"input":  modalities,
-		"output": []string{"text"},
-	}
-
 	return map[string]interface{}{
-		"id":               id,
-		"object":           "model",
-		"owned_by":         ownedBy,
-		"supports_image":   supportsImage,
-		"input_modalities": modalities,
-		"modalities":       modalitiesMap,
-		"capabilities": map[string]bool{
-			"vision":       supportsImage,
-			"image":        supportsImage,
-			"image_vision": supportsImage,
-		},
-		"info": map[string]interface{}{
-			"meta": map[string]interface{}{
-				"capabilities": map[string]bool{
-					"vision":       supportsImage,
-					"image_vision": supportsImage,
-				},
-			},
-		},
+		"id":           id,
+		"type":         "model",
+		"object":       "model",
+		"display_name": id,
+		"created_at":   int64(0),
+		"owned_by":     ownedBy,
 	}
 }
 
@@ -2278,6 +2256,17 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) sendClaudeError(w http.ResponseWriter, status int, errType, message string) {
+	h.sendClaudeErrorWithHeaders(w, status, errType, message, nil)
+}
+
+func (h *Handler) sendClaudeErrorWithHeaders(w http.ResponseWriter, status int, errType, message string, headers map[string]string) {
+	for key, value := range headers {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key != "" && value != "" {
+			w.Header().Set(key, value)
+		}
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]interface{}{

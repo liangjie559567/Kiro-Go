@@ -1,0 +1,30 @@
+{
+  "model": "claude-sonnet-4.5",
+  "max_tokens": 256,
+  "stream": false,
+  "tool_reference": [
+    {
+      "type": "tool_reference",
+      "id": "toolref_1",
+      "name": "mcp__filesystem__read_file",
+      "title": "Read file",
+      "description": "Read a file from the workspace",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": ["path"]
+      },
+      "defer_loading": true
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "Read README.md"
+    }
+  ]
+}

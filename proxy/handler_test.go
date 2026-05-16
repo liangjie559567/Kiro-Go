@@ -2208,7 +2208,103 @@ func TestBuildAnthropicModelsResponseGeneratesThinkingVariants(t *testing.T) {
 	if models[1]["id"] != "claude-sonnet-4.5-thinking" {
 		t.Fatalf("unexpected thinking model id: %#v", models[1]["id"])
 	}
-	if supportsImage, ok := models[0]["supports_image"].(bool); !ok || !supportsImage {
-		t.Fatalf("expected image capability to be preserved, got %#v", models[0]["supports_image"])
+	for _, field := range []string{"type", "object", "display_name", "created_at", "owned_by"} {
+		if _, ok := models[0][field]; !ok {
+			t.Fatalf("expected Anthropic model field %q in %#v", field, models[0])
+		}
+	}
+	for _, field := range []string{"supports_image", "input_modalities", "modalities", "capabilities", "info"} {
+		if _, ok := models[0][field]; ok {
+			t.Fatalf("expected public Anthropic model to exclude %q: %#v", field, models[0])
+		}
+	}
+}
+
+func TestAnthropicModelsResponseIncludesAliasesWithoutExtraFields(t *testing.T) {
+	models := buildAnthropicModelsResponse([]ModelInfo{{
+		ModelId:    "claude-sonnet-4.5",
+		InputTypes: []string{"text", "image"},
+	}}, "-thinking")
+	models = append(models, buildModelInfo("auto", "kiro-proxy", true))
+
+	seenAuto := false
+	for _, model := range models {
+		if model["id"] == "auto" {
+			seenAuto = true
+		}
+		for _, field := range []string{"id", "type", "object", "display_name", "created_at", "owned_by"} {
+			if _, ok := model[field]; !ok {
+				t.Fatalf("model %v missing Anthropic field %q", model["id"], field)
+			}
+		}
+		for _, field := range []string{"supports_image", "input_modalities", "modalities", "capabilities", "info"} {
+			if _, ok := model[field]; ok {
+				t.Fatalf("model %v contains non-Anthropic field %q", model["id"], field)
+			}
+		}
+	}
+	if !seenAuto {
+		t.Fatalf("expected alias model auto in response: %#v", models)
+	}
+}
+
+func TestClaudeErrorSetsRequestIDAndRetryAfter(t *testing.T) {
+	h := &Handler{}
+	w := httptest.NewRecorder()
+	w.Header().Set("request-id", "req_existing")
+	w.Header().Set("x-request-id", "req_existing")
+
+	h.sendClaudeErrorWithHeaders(w, http.StatusTooManyRequests, "rate_limit_error", "retry later", map[string]string{
+		"Retry-After": "7",
+	})
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected status 429, got %d", w.Code)
+	}
+	if got := w.Header().Get("request-id"); got != "req_existing" {
+		t.Fatalf("request-id = %q", got)
+	}
+	if got := w.Header().Get("x-request-id"); got != "req_existing" {
+		t.Fatalf("x-request-id = %q", got)
+	}
+	if got := w.Header().Get("Retry-After"); got != "7" {
+		t.Fatalf("Retry-After = %q", got)
+	}
+	var body struct {
+		Type  string `json:"type"`
+		Error struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error body: %v", err)
+	}
+	if body.Type != "error" || body.Error.Type != "rate_limit_error" || body.Error.Message != "retry later" {
+		t.Fatalf("unexpected error body: %#v", body)
+	}
+}
+
+func TestClaudeCodeToolReferenceFixtureParses(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("testdata", "claude_code_tool_reference_message.json"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
+	req.Header.Set("anthropic-beta", "tool-search-2025-10-19")
+
+	env, err := parseAnthropicEnvelope(req, body)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if !env.HasBetaPrefix("tool-search") {
+		t.Fatalf("expected tool-search beta")
+	}
+	if len(env.Request.ToolReferences) != 1 {
+		t.Fatalf("expected one tool_reference, got %#v", env.Request.ToolReferences)
+	}
+	ref := env.Request.ToolReferences[0]
+	if ref.Type != "tool_reference" || ref.Name == "" {
+		t.Fatalf("unexpected tool_reference: %#v", ref)
 	}
 }
