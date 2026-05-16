@@ -56,7 +56,8 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 	})
 	writer.Stop("tool_use", buildClaudeUsageMap(10, 2, promptCacheUsage{}, false))
 
-	mustContainInOrder(t, w.Body.String(),
+	body := w.Body.String()
+	mustContainInOrder(t, body,
 		"event: message_start",
 		`"type":"thinking"`,
 		`"type":"thinking_delta"`,
@@ -65,12 +66,19 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 		`"type":"text_delta"`,
 		"event: content_block_stop",
 		`"type":"tool_use"`,
+		`"id":"toolu_1"`,
+		`"name":"readFile"`,
 		`"type":"input_json_delta"`,
 		"event: content_block_stop",
 		"event: message_delta",
 		`"stop_reason":"tool_use"`,
 		"event: message_stop",
 	)
+	mustContain(t, body,
+		`"thinking":"reason"`,
+		`"text":"answer"`,
+	)
+	mustContain(t, collectToolInputJSONDeltas(t, body), `"/tmp/example.txt"`)
 }
 
 func TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop(t *testing.T) {
@@ -86,6 +94,10 @@ func TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop(t *testing.T) {
 		"event: content_block_stop",
 		"event: error",
 		`"type":"overloaded_error"`,
+	)
+	mustContain(t, body,
+		`"text":"partial"`,
+		`"message":"upstream reset"`,
 	)
 	if strings.Contains(body, "event: message_stop") {
 		t.Fatalf("expected post-start error not to emit message_stop, body:\n%s", body)
@@ -127,4 +139,36 @@ func mustContainInOrder(t *testing.T, body string, parts ...string) {
 		}
 		pos += idx + len(part)
 	}
+}
+
+func mustContain(t *testing.T, body string, parts ...string) {
+	t.Helper()
+	for _, part := range parts {
+		if !strings.Contains(body, part) {
+			t.Fatalf("missing %q in body:\n%s", part, body)
+		}
+	}
+}
+
+func collectToolInputJSONDeltas(t *testing.T, body string) string {
+	t.Helper()
+	var inputJSON strings.Builder
+	for _, line := range strings.Split(body, "\n") {
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		var event struct {
+			Delta struct {
+				Type        string `json:"type"`
+				PartialJSON string `json:"partial_json"`
+			} `json:"delta"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &event); err != nil {
+			continue
+		}
+		if event.Delta.Type == "input_json_delta" {
+			inputJSON.WriteString(event.Delta.PartialJSON)
+		}
+	}
+	return inputJSON.String()
 }
