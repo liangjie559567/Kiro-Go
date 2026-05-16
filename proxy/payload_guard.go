@@ -73,6 +73,28 @@ func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGu
 	return result, nil
 }
 
+func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGuardResult, error) {
+	result, err := guardKiroPayload(payload, opts)
+	if err != nil {
+		return result, err
+	}
+	return applyTruncationRecoveryNoteWithLimit(payload, result, opts)
+}
+
+func applyTruncationRecoveryNoteWithLimit(payload *KiroPayload, result payloadGuardResult, opts payloadGuardOptions) (payloadGuardResult, error) {
+	opts = normalizePayloadGuardOptions(opts)
+	if result.RecoveryNote == "" {
+		result.FinalBytes = kiroPayloadJSONSize(payload)
+		return result, nil
+	}
+	applyTruncationRecoveryNote(payload, result.RecoveryNote)
+	result.FinalBytes = kiroPayloadJSONSize(payload)
+	if result.FinalBytes > opts.HardLimitBytes {
+		return result, fmt.Errorf("Kiro payload exceeds hard limit after recovery note: %d bytes", result.FinalBytes)
+	}
+	return result, nil
+}
+
 func normalizePayloadGuardOptions(opts payloadGuardOptions) payloadGuardOptions {
 	if opts.SoftLimitBytes <= 0 {
 		opts.SoftLimitBytes = maxKiroHistoryPayloadBytes

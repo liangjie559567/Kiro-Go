@@ -320,6 +320,104 @@ func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	t.Fatalf("expected async account stats update to complete")
 }
 
+func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-openai-guard",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"messages":[
+			{"role":"user","content":"run tool"},
+			{"role":"assistant","tool_calls":[{"id":"call_now","type":"function","function":{"name":"read_file","arguments":"{}"}}]},
+			{"role":"tool","tool_call_id":"call_now","content":"` + strings.Repeat("x", 1024*1024) + `"}
+		],
+		"max_tokens":16
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"invalid_request_error"`) || !strings.Contains(w.Body.String(), "current tool_result") {
+		t.Fatalf("expected OpenAI invalid_request_error payload guard response, got %s", w.Body.String())
+	}
+	if health := p.GetRuntimeHealth("acct-openai-guard"); health.ActiveConnections != 0 || health.RecentFailures != 0 || health.RecentSuccesses != 0 {
+		t.Fatalf("expected no account health changes before selection, got %#v", health)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].AccountID != "" {
+		t.Fatalf("expected no selected account in request log, got %#v", logs[0])
+	}
+	if logs[0].PayloadOriginalBytes == 0 {
+		t.Fatalf("expected payload byte metadata, got %#v", logs[0])
+	}
+}
+
+func TestHandleOpenAIResponsesPayloadGuardRejectsBeforeAccountSelection(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-responses-guard",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"` + strings.Repeat("x", 1024*1024) + `","max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d body %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"invalid_request_error"`) || !strings.Contains(w.Body.String(), "payload remains too large") {
+		t.Fatalf("expected OpenAI invalid_request_error payload guard response, got %s", w.Body.String())
+	}
+	if health := p.GetRuntimeHealth("acct-responses-guard"); health.ActiveConnections != 0 || health.RecentFailures != 0 || health.RecentSuccesses != 0 {
+		t.Fatalf("expected no account health changes before selection, got %#v", health)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].AccountID != "" {
+		t.Fatalf("expected no selected account in request log, got %#v", logs[0])
+	}
+	if logs[0].PayloadOriginalBytes == 0 {
+		t.Fatalf("expected payload byte metadata, got %#v", logs[0])
+	}
+}
+
 type testEventStreamMessage struct {
 	eventType string
 	payload   map[string]interface{}

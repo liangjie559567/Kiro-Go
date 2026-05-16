@@ -1128,11 +1128,7 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 
 	// 转换请求
 	kiroPayload := ClaudeToKiro(&req, thinking)
-	guardResult, guardErr := guardKiroPayload(kiroPayload, defaultPayloadGuardOptions())
-	if guardErr == nil && guardResult.RecoveryNote != "" {
-		applyTruncationRecoveryNote(kiroPayload, guardResult.RecoveryNote)
-		guardResult.FinalBytes = kiroPayloadJSONSize(kiroPayload)
-	}
+	guardResult, guardErr := prepareGuardedKiroPayload(kiroPayload, defaultPayloadGuardOptions())
 	updateRequestLogPayload(r, guardResult)
 	if guardErr != nil {
 		h.sendClaudeError(w, 400, "invalid_request_error", guardErr.Error())
@@ -2312,6 +2308,12 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 	estimatedInputTokens := estimateOpenAIRequestInputTokens(&req)
 
 	kiroPayload := OpenAIToKiro(&req, thinking)
+	guardResult, guardErr := prepareGuardedKiroPayload(kiroPayload, defaultPayloadGuardOptions())
+	updateRequestLogPayload(r, guardResult)
+	if guardErr != nil {
+		h.sendOpenAIError(w, 400, "invalid_request_error", guardErr.Error())
+		return
+	}
 	h.handleOpenAIWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
 }
 
@@ -2346,6 +2348,12 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 	estimatedInputTokens := estimateOpenAIRequestInputTokens(req)
 
 	kiroPayload := OpenAIToKiro(req, thinking)
+	guardResult, guardErr := prepareGuardedKiroPayload(kiroPayload, defaultPayloadGuardOptions())
+	updateRequestLogPayload(r, guardResult)
+	if guardErr != nil {
+		h.sendOpenAIError(w, 400, "invalid_request_error", guardErr.Error())
+		return
+	}
 	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
 }
 

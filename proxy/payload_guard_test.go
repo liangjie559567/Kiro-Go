@@ -116,6 +116,26 @@ func TestApplyTruncationRecoveryNote(t *testing.T) {
 	}
 }
 
+func TestApplyTruncationRecoveryNoteRejectsOverHardLimit(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.ChatTriggerType = "MANUAL"
+	payload.ConversationState.ConversationID = "conv-1"
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: strings.Repeat("x", 900),
+		ModelID: "claude-sonnet-4.5",
+		Origin:  "AI_EDITOR",
+	}
+
+	result := payloadGuardResult{FinalBytes: kiroPayloadJSONSize(payload), RecoveryNote: strings.Repeat("n", 200)}
+	_, err := applyTruncationRecoveryNoteWithLimit(payload, result, payloadGuardOptions{SoftLimitBytes: 128, HardLimitBytes: result.FinalBytes + 32})
+	if err == nil {
+		t.Fatalf("expected hard-limit error after recovery note")
+	}
+	if !strings.Contains(err.Error(), "recovery note") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestHasOrphanedKiroToolMessagesDetectsToolUseAndToolResultOrphans(t *testing.T) {
 	history := []KiroHistoryMessage{
 		{AssistantResponseMessage: &KiroAssistantResponseMessage{
