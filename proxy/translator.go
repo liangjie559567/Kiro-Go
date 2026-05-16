@@ -154,6 +154,8 @@ type ClaudeTool struct {
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	InputSchema interface{} `json:"input_schema"`
+	CacheControl        map[string]interface{} `json:"cache_control,omitempty"`
+	EagerInputStreaming bool                   `json:"eager_input_streaming,omitempty"`
 	MaxUses     int         `json:"max_uses,omitempty"`
 }
 
