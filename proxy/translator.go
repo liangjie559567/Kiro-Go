@@ -105,16 +105,18 @@ func MapModel(model string) string {
 // ==================== Claude API 类型 ====================
 
 type ClaudeRequest struct {
-	Model       string                `json:"model"`
-	Messages    []ClaudeMessage       `json:"messages"`
-	MaxTokens   int                   `json:"max_tokens"`
-	Temperature float64               `json:"temperature,omitempty"`
-	TopP        float64               `json:"top_p,omitempty"`
-	Stream      bool                  `json:"stream,omitempty"`
-	System      interface{}           `json:"system,omitempty"` // string or []SystemBlock
-	Thinking    *ClaudeThinkingConfig `json:"thinking,omitempty"`
-	Tools       []ClaudeTool          `json:"tools,omitempty"`
-	ToolChoice  interface{}           `json:"tool_choice,omitempty"`
+	Model          string                 `json:"model"`
+	Messages       []ClaudeMessage        `json:"messages"`
+	MaxTokens      int                    `json:"max_tokens"`
+	Temperature    float64                `json:"temperature,omitempty"`
+	TopP           float64                `json:"top_p,omitempty"`
+	Stream         bool                   `json:"stream,omitempty"`
+	System         interface{}            `json:"system,omitempty"` // string or []SystemBlock
+	Thinking       *ClaudeThinkingConfig  `json:"thinking,omitempty"`
+	Tools          []ClaudeTool           `json:"tools,omitempty"`
+	ToolReferences []ClaudeToolReference  `json:"tool_reference,omitempty"`
+	ToolChoice     interface{}            `json:"tool_choice,omitempty"`
+	Extra          map[string]interface{} `json:"-"`
 }
 
 type ClaudeThinkingConfig struct {
@@ -153,6 +155,17 @@ type ClaudeTool struct {
 	Description string      `json:"description"`
 	InputSchema interface{} `json:"input_schema"`
 	MaxUses     int         `json:"max_uses,omitempty"`
+}
+
+type ClaudeToolReference struct {
+	Type         string          `json:"type,omitempty"`
+	ID           string          `json:"id,omitempty"`
+	Name         string          `json:"name,omitempty"`
+	Title        string          `json:"title,omitempty"`
+	Description  string          `json:"description,omitempty"`
+	InputSchema  interface{}     `json:"input_schema,omitempty"`
+	DeferLoading bool            `json:"defer_loading,omitempty"`
+	Raw          json.RawMessage `json:"-"`
 }
 
 type ClaudeResponse struct {

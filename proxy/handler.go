@@ -1068,11 +1068,14 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var req ClaudeRequest
-	if err := json.Unmarshal(body, &req); err != nil {
+	env, err := parseAnthropicEnvelope(r, body)
+	if err != nil {
 		h.sendClaudeError(w, 400, "invalid_request_error", "Invalid JSON: "+err.Error())
 		return
 	}
+	writeAnthropicRequestIDHeaders(w, env)
+	req := env.Request
+	updateRequestLogAnthropic(r, env)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateClaudeRequestShape(&req); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)

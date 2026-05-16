@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,10 @@ type RequestLogEntry struct {
 	Region                   string    `json:"region,omitempty"`
 	ClaudeCodeSessionID      string    `json:"claudeCodeSessionId,omitempty"`
 	ClaudeCodeAgentID        string    `json:"claudeCodeAgentId,omitempty"`
+	AnthropicRequestID       string    `json:"anthropicRequestId,omitempty"`
+	AnthropicVersion         string    `json:"anthropicVersion,omitempty"`
+	AnthropicBetas           []string  `json:"anthropicBetas,omitempty"`
+	ToolReferenceCount       int       `json:"toolReferenceCount,omitempty"`
 	Stream                   bool      `json:"stream"`
 	StatusCode               int       `json:"statusCode"`
 	Outcome                  string    `json:"outcome"`
@@ -123,6 +128,7 @@ type requestLogContextKey struct{}
 
 type requestLogContext struct {
 	startedAt time.Time
+	mu        sync.Mutex
 	entry     RequestLogEntry
 }
 
@@ -228,8 +234,32 @@ func updateRequestLogMetadata(r *http.Request, model string, stream bool) {
 	if ctx == nil {
 		return
 	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.entry.Model = model
 	ctx.entry.Stream = stream
+}
+
+func updateRequestLogAnthropic(r *http.Request, env *anthropicEnvelope) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil || env == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.AnthropicRequestID = env.AnthropicRequestID
+	ctx.entry.AnthropicVersion = env.AnthropicVersion
+	ctx.entry.AnthropicBetas = sortedAnthropicBetas(env.Betas)
+	ctx.entry.ToolReferenceCount = len(env.Request.ToolReferences)
+}
+
+func sortedAnthropicBetas(in map[string]bool) []string {
+	out := make([]string, 0, len(in))
+	for beta := range in {
+		out = append(out, beta)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func updateRequestLogUpstream(r *http.Request, accountID, region string) {
@@ -237,6 +267,8 @@ func updateRequestLogUpstream(r *http.Request, accountID, region string) {
 	if ctx == nil {
 		return
 	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.entry.AccountID = strings.TrimSpace(accountID)
 	ctx.entry.Region = strings.TrimSpace(region)
 }
@@ -246,6 +278,8 @@ func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheRead
 	if ctx == nil {
 		return
 	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.entry.InputTokens = inputTokens
 	ctx.entry.OutputTokens = outputTokens
 	ctx.entry.CacheReadInputTokens = cacheReadInputTokens
@@ -257,6 +291,8 @@ func updateRequestLogReliability(r *http.Request, queueWaitMs int64, attempts in
 	if ctx == nil {
 		return
 	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	if queueWaitMs >= 0 {
 		ctx.entry.QueueWaitMs = queueWaitMs
 	}
@@ -279,7 +315,9 @@ func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter
 	if status == 0 {
 		status = http.StatusOK
 	}
+	ctx.mu.Lock()
 	entry := ctx.entry
+	ctx.mu.Unlock()
 	entry.StatusCode = status
 	entry.DurationMs = time.Since(ctx.startedAt).Milliseconds()
 	entry.Error = extractResponseErrorSummary(rw.body.String())

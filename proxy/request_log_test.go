@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -131,6 +132,84 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 	if entry.QueueWaitMs != 120 || entry.Attempts != 2 || entry.FirstTokenMs != 80 || entry.ToolUseCount != 3 {
 		t.Fatalf("expected reliability metadata, got %#v", entry)
+	}
+}
+
+func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogAnthropic(loggedReq, &anthropicEnvelope{
+		AnthropicRequestID: "req_test_123",
+		AnthropicVersion:   "2023-06-01",
+		Betas: map[string]bool{
+			"tool-search-2025-10-19":                 true,
+			"fine-grained-tool-streaming-2025-05-14": true,
+		},
+		Request: ClaudeRequest{
+			ToolReferences: []ClaudeToolReference{{Name: "mcp__fs__read_file"}},
+		},
+	})
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.AnthropicRequestID != "req_test_123" || entry.AnthropicVersion != "2023-06-01" {
+		t.Fatalf("expected Anthropic metadata, got %#v", entry)
+	}
+	if got, want := strings.Join(entry.AnthropicBetas, ","), "fine-grained-tool-streaming-2025-05-14,tool-search-2025-10-19"; got != want {
+		t.Fatalf("unexpected betas %q", got)
+	}
+	if entry.ToolReferenceCount != 1 {
+		t.Fatalf("expected one tool reference, got %#v", entry)
+	}
+}
+
+func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			updateRequestLogAnthropic(loggedReq, &anthropicEnvelope{
+				AnthropicRequestID: "req_test_123",
+				AnthropicVersion:   "2023-06-01",
+				Betas:              map[string]bool{"tool-search-2025-10-19": true},
+				Request:            ClaudeRequest{ToolReferences: []ClaudeToolReference{{Name: "mcp__fs__read_file"}}},
+			})
+		}()
+		go func() {
+			defer wg.Done()
+			updateRequestLogMetadata(loggedReq, "claude-sonnet-4.5", true)
+		}()
+		go func() {
+			defer wg.Done()
+			updateRequestLogUsage(loggedReq, 100, 25, 40, 5)
+		}()
+	}
+	wg.Wait()
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.AnthropicRequestID != "req_test_123" || entry.Model != "claude-sonnet-4.5" || !entry.Stream {
+		t.Fatalf("expected concurrent metadata updates, got %#v", entry)
+	}
+	if entry.InputTokens != 100 || entry.OutputTokens != 25 || entry.CacheReadInputTokens != 40 || entry.CacheCreationInputTokens != 5 {
+		t.Fatalf("expected token usage metadata, got %#v", entry)
 	}
 }
 
