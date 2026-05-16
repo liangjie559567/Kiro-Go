@@ -212,7 +212,7 @@ func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	if entry.ToolReferenceCount != 1 {
 		t.Fatalf("expected one tool reference, got %#v", entry)
 	}
-	if entry.FirstTokenMs != 345 || entry.Attempts != 2 {
+	if entry.QueueWaitMs != 12 || entry.Attempts != 2 || entry.FirstTokenMs != 345 || entry.ToolUseCount != 1 {
 		t.Fatalf("expected reliability metadata, got %#v", entry)
 	}
 	if got, want := strings.Join(entry.AnthropicBetas, ","), "claude-code-20250219,interleaved-thinking-2025-05-14"; got != want {

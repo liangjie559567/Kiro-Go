@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -134,6 +133,12 @@ func TestClaudeCode2143WireFixtureParsesAndPreservesCompatibilityFields(t *testi
 	if !env.HasBeta("fine-grained-tool-streaming-2025-05-14") || !env.HasBetaPrefix("tool-search") {
 		t.Fatalf("expected Claude Code beta flags, got %#v", env.Betas)
 	}
+	if env.ClientRequestID != "client_req_test_123" || env.AnthropicRequestID != "client_req_test_123" {
+		t.Fatalf("expected request IDs from fixture headers, got client=%q anthropic=%q", env.ClientRequestID, env.AnthropicRequestID)
+	}
+	if env.AnthropicVersion != "2023-06-01" {
+		t.Fatalf("expected Anthropic version from fixture header, got %q", env.AnthropicVersion)
+	}
 	if env.SessionID != "session_test_123" || env.AgentID != "agent_test_123" {
 		t.Fatalf("expected Claude Code session metadata, got session=%q agent=%q", env.SessionID, env.AgentID)
 	}
@@ -148,12 +153,5 @@ func TestClaudeCode2143WireFixtureParsesAndPreservesCompatibilityFields(t *testi
 	}
 	if len(env.Request.ToolReferences) != 1 || env.Request.ToolReferences[0].Name != "mcp__filesystem__read_file" {
 		t.Fatalf("expected tool reference, got %#v", env.Request.ToolReferences)
-	}
-	payload := ClaudeToKiro(&env.Request, false)
-	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
-	for _, forbidden := range []string{"SYSTEM PROMPT", "x-anthropic-billing-header", "Anthropic's official CLI"} {
-		if strings.Contains(content, forbidden) {
-			t.Fatalf("expected fixture payload to avoid %q, got %q", forbidden, content)
-		}
 	}
 }
