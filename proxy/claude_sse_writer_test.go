@@ -59,9 +59,6 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 
 	body := w.Body.String()
 	frames := parseSSEFrames(t, body)
-	if len(frames) != 13 {
-		t.Fatalf("expected 13 SSE frames, got %d frames=%v body:\n%s", len(frames), frameEvents(frames), body)
-	}
 
 	assertFrameEvent(t, frames, 0, "message_start")
 
@@ -96,11 +93,20 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 	assertNestedString(t, frames[7], "content_block", "name", "readFile")
 
 	var toolInputJSON strings.Builder
-	for i := 8; i < 10; i++ {
-		assertFrameEvent(t, frames, i, "content_block_delta")
-		assertFrameIndex(t, frames[i], 2)
-		assertNestedString(t, frames[i], "delta", "type", "input_json_delta")
-		toolInputJSON.WriteString(requireNestedString(t, frames[i], "delta", "partial_json"))
+	next := 8
+	for ; next < len(frames); next++ {
+		if frames[next].event == "content_block_stop" {
+			break
+		}
+		if frames[next].event != "content_block_delta" {
+			t.Fatalf("frame %d event = %q, want tool input delta or content_block_stop", next, frames[next].event)
+		}
+		assertFrameIndex(t, frames[next], 2)
+		assertNestedString(t, frames[next], "delta", "type", "input_json_delta")
+		toolInputJSON.WriteString(requireNestedString(t, frames[next], "delta", "partial_json"))
+	}
+	if toolInputJSON.Len() == 0 {
+		t.Fatalf("expected at least one tool input_json_delta before tool stop, frames=%v", frameEvents(frames))
 	}
 	var toolInput map[string]interface{}
 	if err := json.Unmarshal([]byte(toolInputJSON.String()), &toolInput); err != nil {
@@ -110,13 +116,19 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 		t.Fatalf("unexpected reconstructed tool input: %#v", toolInput)
 	}
 
-	assertFrameEvent(t, frames, 10, "content_block_stop")
-	assertFrameIndex(t, frames[10], 2)
+	assertFrameEvent(t, frames, next, "content_block_stop")
+	assertFrameIndex(t, frames[next], 2)
+	next++
 
-	assertFrameEvent(t, frames, 11, "message_delta")
-	assertNestedString(t, frames[11], "delta", "stop_reason", "tool_use")
+	assertFrameEvent(t, frames, next, "message_delta")
+	assertNestedString(t, frames[next], "delta", "stop_reason", "tool_use")
+	next++
 
-	assertFrameEvent(t, frames, 12, "message_stop")
+	assertFrameEvent(t, frames, next, "message_stop")
+	next++
+	if next != len(frames) {
+		t.Fatalf("unexpected frames after message_stop: events=%v", frameEvents(frames[next:]))
+	}
 }
 
 func TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop(t *testing.T) {
