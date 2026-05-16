@@ -52,17 +52,63 @@ func estimateClaudeRequestInputTokens(req *ClaudeRequest) int {
 	}
 
 	total := estimateClaudeValueTokens(req.System)
+	total += estimateClaudeThinkingConfigTokens(req.Thinking)
 
 	for _, msg := range req.Messages {
+		total += estimateApproxTokens(msg.Role)
 		total += estimateClaudeValueTokens(msg.Content)
 	}
 
 	for _, tool := range req.Tools {
-		total += estimateApproxTokens(tool.Name)
-		total += estimateApproxTokens(tool.Description)
-		total += estimateJSONTokens(tool.InputSchema)
+		total += estimateClaudeToolTokens(tool)
+	}
+	for _, ref := range req.ToolReferences {
+		total += estimateClaudeToolReferenceTokens(ref)
 	}
 
+	return total
+}
+
+func estimateClaudeThinkingConfigTokens(thinking *ClaudeThinkingConfig) int {
+	if thinking == nil {
+		return 0
+	}
+
+	total := estimateApproxTokens(thinking.Type)
+	total += estimateApproxTokens(thinking.Display)
+	if thinking.BudgetTokens > 0 {
+		total += estimateApproxTokens("thinking_budget")
+		total += max(1, thinking.BudgetTokens/256)
+	}
+	return total
+}
+
+func estimateClaudeToolTokens(tool ClaudeTool) int {
+	total := estimateApproxTokens(tool.Type)
+	total += estimateApproxTokens(tool.Name)
+	total += estimateApproxTokens(tool.Description)
+	total += estimateJSONTokens(tool.InputSchema)
+	total += estimateJSONTokens(tool.CacheControl)
+	if tool.MaxUses > 0 {
+		total += estimateApproxTokens("max_uses")
+		total++
+	}
+	if tool.EagerInputStreaming {
+		total += estimateApproxTokens("eager_input_streaming")
+	}
+	return total
+}
+
+func estimateClaudeToolReferenceTokens(ref ClaudeToolReference) int {
+	total := estimateApproxTokens(ref.Type)
+	total += estimateApproxTokens(ref.ID)
+	total += estimateApproxTokens(ref.Name)
+	total += estimateApproxTokens(ref.Title)
+	total += estimateApproxTokens(ref.Description)
+	total += estimateJSONTokens(ref.InputSchema)
+	if ref.DeferLoading {
+		total += estimateApproxTokens("defer_loading")
+	}
 	return total
 }
 
@@ -90,35 +136,99 @@ func estimateClaudeValueTokens(v interface{}) int {
 			total += estimateClaudeValueTokens(part)
 		}
 		return total
+	case ClaudeContentBlock:
+		return estimateClaudeValueTokens(map[string]interface{}{
+			"type":        value.Type,
+			"text":        value.Text,
+			"thinking":    value.Thinking,
+			"id":          value.ID,
+			"name":        value.Name,
+			"input":       value.Input,
+			"tool_use_id": value.ToolUseID,
+			"content":     value.Content,
+			"source":      value.Source,
+		})
+	case *ClaudeContentBlock:
+		if value == nil {
+			return 0
+		}
+		return estimateClaudeValueTokens(*value)
 	case map[string]interface{}:
 		typeName, _ := value["type"].(string)
 		switch typeName {
 		case "text":
+			total := 0
 			if text, ok := value["text"].(string); ok {
-				return estimateApproxTokens(text)
+				total += estimateApproxTokens(text)
+			}
+			if cacheControl, ok := value["cache_control"]; ok {
+				total += estimateJSONTokens(cacheControl)
+			}
+			if total > 0 {
+				return total
 			}
 		case "thinking":
+			total := 0
 			if thinking, ok := value["thinking"].(string); ok {
-				return estimateApproxTokens(thinking)
+				total += estimateApproxTokens(thinking)
+			}
+			if cacheControl, ok := value["cache_control"]; ok {
+				total += estimateJSONTokens(cacheControl)
+			}
+			if total > 0 {
+				return total
 			}
 		case "tool_use":
 			total := 0
+			if id, ok := value["id"].(string); ok {
+				total += estimateApproxTokens(id)
+			}
 			if name, ok := value["name"].(string); ok {
 				total += estimateApproxTokens(name)
 			}
 			if input, ok := value["input"]; ok {
 				total += estimateJSONTokens(input)
 			}
+			if cacheControl, ok := value["cache_control"]; ok {
+				total += estimateJSONTokens(cacheControl)
+			}
 			if total > 0 {
 				return total
 			}
 		case "tool_result":
+			total := 0
+			if toolUseID, ok := value["tool_use_id"].(string); ok {
+				total += estimateApproxTokens(toolUseID)
+			}
 			if content, ok := value["content"]; ok {
-				return estimateClaudeValueTokens(content)
+				total += estimateClaudeValueTokens(content)
+			}
+			if cacheControl, ok := value["cache_control"]; ok {
+				total += estimateJSONTokens(cacheControl)
+			}
+			if total > 0 {
+				return total
+			}
+		case "image", "document":
+			total := estimateApproxTokens(typeName)
+			if title, ok := value["title"].(string); ok {
+				total += estimateApproxTokens(title)
+			}
+			if source, ok := value["source"]; ok {
+				total += estimateImageSourceTokens(source)
+			}
+			if cacheControl, ok := value["cache_control"]; ok {
+				total += estimateJSONTokens(cacheControl)
+			}
+			if total > 0 {
+				return total
 			}
 		}
 
 		total := 0
+		if typeName != "" {
+			total += estimateApproxTokens(typeName)
+		}
 		if text, ok := value["text"].(string); ok {
 			total += estimateApproxTokens(text)
 		}
@@ -128,10 +238,63 @@ func estimateClaudeValueTokens(v interface{}) int {
 		if content, ok := value["content"]; ok {
 			total += estimateClaudeValueTokens(content)
 		}
+		if source, ok := value["source"]; ok {
+			total += estimateImageSourceTokens(source)
+		}
+		if cacheControl, ok := value["cache_control"]; ok {
+			total += estimateJSONTokens(cacheControl)
+		}
 		if total > 0 {
 			return total
 		}
 
+		return estimateJSONTokens(value)
+	case ImageSource:
+		return estimateImageSourceTokens(value)
+	case *ImageSource:
+		return estimateImageSourceTokens(value)
+	default:
+		return estimateJSONTokens(value)
+	}
+}
+
+func estimateImageSourceTokens(source interface{}) int {
+	switch value := source.(type) {
+	case nil:
+		return 0
+	case ImageSource:
+		total := estimateApproxTokens(value.Type)
+		total += estimateApproxTokens(value.MediaType)
+		total += estimateApproxTokens(value.Data)
+		return total
+	case *ImageSource:
+		if value == nil {
+			return 0
+		}
+		return estimateImageSourceTokens(*value)
+	case map[string]interface{}:
+		total := 0
+		if sourceType, ok := value["type"].(string); ok {
+			total += estimateApproxTokens(sourceType)
+		}
+		if mediaType, ok := value["media_type"].(string); ok {
+			total += estimateApproxTokens(mediaType)
+		}
+		if data, ok := value["data"].(string); ok {
+			total += estimateApproxTokens(data)
+		}
+		if url, ok := value["url"].(string); ok {
+			total += estimateApproxTokens(url)
+		}
+		if fileID, ok := value["file_id"].(string); ok {
+			total += estimateApproxTokens(fileID)
+		}
+		if content, ok := value["content"]; ok {
+			total += estimateClaudeValueTokens(content)
+		}
+		if total > 0 {
+			return total
+		}
 		return estimateJSONTokens(value)
 	default:
 		return estimateJSONTokens(value)
