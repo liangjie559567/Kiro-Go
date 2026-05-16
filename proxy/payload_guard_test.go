@@ -161,6 +161,45 @@ func TestFinalizeKiroPayloadForAccountRejectsProfileArnHardLimitGrowth(t *testin
 	}
 }
 
+func TestCloneKiroPayloadIsolatesProfileArnAndPreservesToolNameMap(t *testing.T) {
+	base := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+		MaxTokens: 64,
+		Tools: []ClaudeTool{{
+			Name:        "mcp__fs__read_file",
+			Description: "read",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{"type": "string"},
+				},
+			},
+		}},
+	}, false)
+	if len(base.ToolNameMap) == 0 {
+		t.Fatalf("expected base tool name map")
+	}
+
+	attempt := cloneKiroPayload(base)
+	_, err := finalizeKiroPayloadForAccount(attempt, &config.Account{ProfileArn: "arn:aws:codewhisperer:profile/account-a"}, defaultPayloadGuardOptions())
+	if err != nil {
+		t.Fatalf("finalize attempt payload: %v", err)
+	}
+
+	if base.ProfileArn != "" || base.ProfileArnFinalized {
+		t.Fatalf("expected base payload to remain unfinalized, got arn=%q finalized=%v", base.ProfileArn, base.ProfileArnFinalized)
+	}
+	if attempt.ProfileArn != "arn:aws:codewhisperer:profile/account-a" || !attempt.ProfileArnFinalized {
+		t.Fatalf("expected attempt payload to be finalized for account A, got arn=%q finalized=%v", attempt.ProfileArn, attempt.ProfileArnFinalized)
+	}
+	for key, value := range base.ToolNameMap {
+		if got := attempt.ToolNameMap[key]; got != value {
+			t.Fatalf("expected tool name map entry %q=%q to survive clone, got %#v", key, value, attempt.ToolNameMap)
+		}
+	}
+}
+
 func TestHasOrphanedKiroToolMessagesDetectsToolUseAndToolResultOrphans(t *testing.T) {
 	history := []KiroHistoryMessage{
 		{AssistantResponseMessage: &KiroAssistantResponseMessage{

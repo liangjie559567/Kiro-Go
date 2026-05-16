@@ -1522,7 +1522,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		used[account.ID] = true
 		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
-		if !h.finalizePayloadForClaudeAccount(w, r, account, payload) {
+		attemptPayload := cloneKiroPayload(payload)
+		if !h.finalizePayloadForClaudeAccount(w, r, account, attemptPayload) {
 			releaseRequest()
 			return
 		}
@@ -1542,9 +1543,9 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		var err error
 		var done bool
 		if stream {
-			done, err = h.handleClaudeStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
+			done, err = h.handleClaudeStreamAttempt(w, r, account, attemptPayload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
 		} else {
-			done, err = h.handleClaudeNonStreamAttempt(w, r, account, payload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
+			done, err = h.handleClaudeNonStreamAttempt(w, r, account, attemptPayload, model, thinking, thinkingResponseOpts, estimatedInputTokens, cacheUsage, cacheProfile, used, attempt)
 		}
 		releaseRequest()
 		if done {
@@ -1609,7 +1610,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		used[account.ID] = true
 		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
-		if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		attemptPayload := cloneKiroPayload(payload)
+		if !h.finalizePayloadForOpenAIAccount(w, r, account, attemptPayload) {
 			releaseRequest()
 			return
 		}
@@ -1628,9 +1630,9 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		var err error
 		var done bool
 		if stream {
-			done, err = h.handleOpenAIStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
+			done, err = h.handleOpenAIStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, used, attempt)
 		} else {
-			done, err = h.handleOpenAINonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, used, attempt)
+			done, err = h.handleOpenAINonStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, used, attempt)
 		}
 		releaseRequest()
 		if done {
@@ -2405,7 +2407,8 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		used[account.ID] = true
 		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
 
-		if !h.finalizePayloadForOpenAIAccount(w, r, account, payload) {
+		attemptPayload := cloneKiroPayload(payload)
+		if !h.finalizePayloadForOpenAIAccount(w, r, account, attemptPayload) {
 			releaseRequest()
 			return
 		}
@@ -2424,9 +2427,9 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		var err error
 		var done bool
 		if stream {
-			done, err = h.handleOpenAIResponsesStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, attempt)
+			done, err = h.handleOpenAIResponsesStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt)
 		} else {
-			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, payload, model, thinking, estimatedInputTokens, attempt)
+			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt)
 		}
 		releaseRequest()
 		if done {

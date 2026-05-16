@@ -83,6 +83,27 @@ func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (
 	return applyTruncationRecoveryNoteWithLimit(payload, result, opts)
 }
 
+func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
+	if payload == nil {
+		return nil
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil
+	}
+	var cloned KiroPayload
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		return nil
+	}
+	if payload.ToolNameMap != nil {
+		cloned.ToolNameMap = make(map[string]string, len(payload.ToolNameMap))
+		for key, value := range payload.ToolNameMap {
+			cloned.ToolNameMap[key] = value
+		}
+	}
+	return &cloned
+}
+
 func applyTruncationRecoveryNoteWithLimit(payload *KiroPayload, result payloadGuardResult, opts payloadGuardOptions) (payloadGuardResult, error) {
 	opts = normalizePayloadGuardOptions(opts)
 	if result.RecoveryNote == "" {
