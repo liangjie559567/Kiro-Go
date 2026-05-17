@@ -74,6 +74,7 @@ type responsesSession struct {
 	PreviousResponseID string
 	Messages           []OpenAIMessage
 	Tools              []OpenAITool
+	ToolChoice         interface{}
 	UpdatedAt          time.Time
 }
 
@@ -2389,6 +2390,8 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	previousResponseID, _ := payload["previous_response_id"].(string)
+	sessionReq := cloneOpenAIRequestForSession(req)
+	h.restoreOpenAIResponsesSession(payload, req)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
@@ -2407,7 +2410,8 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		h.sendOpenAIError(w, 400, "invalid_request_error", guardErr.Error())
 		return
 	}
-	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens, req, previousResponseID)
+	sessionReq.Model = req.Model
+	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens, sessionReq, previousResponseID)
 }
 
 func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, req *OpenAIRequest, previousResponseID string) {
@@ -2514,6 +2518,51 @@ func (h *Handler) finalizePayloadForOpenAIAccount(w http.ResponseWriter, r *http
 	return true
 }
 
+func (h *Handler) restoreOpenAIResponsesSession(payload map[string]interface{}, req *OpenAIRequest) {
+	if h == nil || req == nil || payload == nil {
+		return
+	}
+	previousID, _ := payload["previous_response_id"].(string)
+	chain := h.collectOpenAIResponsesSessionChain(previousID)
+	if len(chain) == 0 {
+		return
+	}
+	currentMessages := append([]OpenAIMessage(nil), req.Messages...)
+	currentToolIDs := currentOpenAIToolOutputIDs(currentMessages)
+	restored := make([]OpenAIMessage, 0)
+	for i, session := range chain {
+		messages := append([]OpenAIMessage(nil), session.Messages...)
+		if i == len(chain)-1 {
+			messages = filterLatestAssistantToolCalls(messages, currentToolIDs)
+		}
+		restored = append(restored, messages...)
+	}
+	req.Messages = append(restored, currentMessages...)
+
+	for i := len(chain) - 1; i >= 0; i-- {
+		session := chain[i]
+		if len(req.Tools) == 0 && len(session.Tools) > 0 {
+			req.Tools = append([]OpenAITool(nil), session.Tools...)
+		}
+		if req.ToolChoice == nil && session.ToolChoice != nil {
+			req.ToolChoice = session.ToolChoice
+		}
+		if len(req.Tools) > 0 && req.ToolChoice != nil {
+			break
+		}
+	}
+}
+
+func cloneOpenAIRequestForSession(req *OpenAIRequest) *OpenAIRequest {
+	if req == nil {
+		return nil
+	}
+	clone := *req
+	clone.Messages = append([]OpenAIMessage(nil), req.Messages...)
+	clone.Tools = append([]OpenAITool(nil), req.Tools...)
+	return &clone
+}
+
 func (h *Handler) getOpenAIResponsesSession(id string) (responsesSession, bool) {
 	if h == nil {
 		return responsesSession{}, false
@@ -2532,18 +2581,86 @@ func (h *Handler) getOpenAIResponsesSession(id string) (responsesSession, bool) 
 	return session, true
 }
 
+func (h *Handler) collectOpenAIResponsesSessionChain(previousID string) []responsesSession {
+	previousID = strings.TrimSpace(previousID)
+	if h == nil || previousID == "" {
+		return nil
+	}
+	var reversed []responsesSession
+	seen := map[string]bool{}
+	for previousID != "" && !seen[previousID] {
+		seen[previousID] = true
+		session, ok := h.getOpenAIResponsesSession(previousID)
+		if !ok {
+			break
+		}
+		reversed = append(reversed, session)
+		previousID = strings.TrimSpace(session.PreviousResponseID)
+	}
+	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
+		reversed[i], reversed[j] = reversed[j], reversed[i]
+	}
+	return reversed
+}
+
+func currentOpenAIToolOutputIDs(messages []OpenAIMessage) map[string]bool {
+	ids := map[string]bool{}
+	for _, msg := range messages {
+		if msg.Role != "tool" {
+			continue
+		}
+		id := strings.TrimSpace(msg.ToolCallID)
+		if id != "" {
+			ids[id] = true
+		}
+	}
+	return ids
+}
+
+func filterLatestAssistantToolCalls(messages []OpenAIMessage, keep map[string]bool) []OpenAIMessage {
+	if len(keep) == 0 {
+		return messages
+	}
+	out := append([]OpenAIMessage(nil), messages...)
+	for i := len(out) - 1; i >= 0; i-- {
+		if out[i].Role != "assistant" || len(out[i].ToolCalls) == 0 {
+			continue
+		}
+		filtered := make([]ToolCall, 0, len(out[i].ToolCalls))
+		for _, tc := range out[i].ToolCalls {
+			if keep[strings.TrimSpace(tc.ID)] {
+				filtered = append(filtered, tc)
+			}
+		}
+		out[i].ToolCalls = filtered
+		return out
+	}
+	return out
+}
+
 func (h *Handler) saveOpenAIResponsesSession(id, previousResponseID string, req *OpenAIRequest, content string, toolUses []KiroToolUse) {
 	if h == nil || req == nil || strings.TrimSpace(id) == "" {
 		return
 	}
 	messages := append([]OpenAIMessage(nil), req.Messages...)
-	if strings.TrimSpace(content) != "" {
+	if len(toolUses) > 0 {
+		assistant := OpenAIMessage{Role: "assistant"}
+		for _, tu := range toolUses {
+			tc := ToolCall{ID: tu.ToolUseID, Type: "function"}
+			tc.Function.Name = tu.Name
+			args, _ := json.Marshal(tu.Input)
+			tc.Function.Arguments = string(args)
+			assistant.ToolCalls = append(assistant.ToolCalls, tc)
+		}
+		messages = append(messages, assistant)
+	} else if strings.TrimSpace(content) != "" {
 		messages = append(messages, OpenAIMessage{Role: "assistant", Content: content})
 	}
 	session := responsesSession{
 		PreviousResponseID: strings.TrimSpace(previousResponseID),
 		Messages:           messages,
 		Tools:              append([]OpenAITool(nil), req.Tools...),
+		ToolChoice:         req.ToolChoice,
 		UpdatedAt:          time.Now(),
 	}
 	h.responsesMu.Lock()
@@ -3007,6 +3124,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	responseID := "resp_" + uuid.New().String()
 	var content strings.Builder
 	var reasoning strings.Builder
+	var toolUses []KiroToolUse
 	var inputTokens, outputTokens int
 	var credits float64
 	var realInputTokens int
@@ -3035,6 +3153,21 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 			sendEvent("response.output_text.delta", map[string]interface{}{
 				"type":  "response.output_text.delta",
 				"delta": text,
+			})
+		},
+		OnToolUse: func(tu KiroToolUse) {
+			toolUses = append(toolUses, tu)
+			args, _ := json.Marshal(tu.Input)
+			sendEvent("response.output_item.done", map[string]interface{}{
+				"type": "response.output_item.done",
+				"item": map[string]interface{}{
+					"id":        "item_" + uuid.New().String(),
+					"type":      "function_call",
+					"call_id":   tu.ToolUseID,
+					"name":      tu.Name,
+					"arguments": string(args),
+					"status":    "completed",
+				},
 			})
 		},
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
@@ -3078,17 +3211,17 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	} else if inputTokens <= 0 {
 		inputTokens = estimatedInputTokens
 	}
-	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, nil)
+	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
-	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, nil)
+	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, toolUses)
 
 	sendEvent("response.completed", map[string]interface{}{
 		"type":     "response.completed",
-		"response": buildOpenAIResponsesObject(responseID, model, finalContent, inputTokens, outputTokens, true),
+		"response": buildOpenAIResponsesObjectWithToolUses(responseID, model, finalContent, toolUses, inputTokens, outputTokens, true),
 	})
 	fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
@@ -3168,6 +3301,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int, req *OpenAIRequest, previousResponseID string) (bool, error) {
 	var content string
 	var reasoningContent string
+	var toolUses []KiroToolUse
 	var inputTokens, outputTokens int
 	var credits float64
 	var realInputTokens int
@@ -3180,6 +3314,7 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 				content += text
 			}
 		},
+		OnToolUse:  func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
 		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
 		OnCredits:  func(c float64) { credits = c },
@@ -3216,7 +3351,7 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	} else if inputTokens <= 0 {
 		inputTokens = estimatedInputTokens
 	}
-	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, nil)
+	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
 	h.recordSuccess(inputTokens, outputTokens, credits)
@@ -3224,17 +3359,44 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 
 	responseID := "resp_" + uuid.New().String()
-	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, nil)
+	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, toolUses)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(buildOpenAIResponsesObject(responseID, model, finalContent, inputTokens, outputTokens, true))
+	json.NewEncoder(w).Encode(buildOpenAIResponsesObjectWithToolUses(responseID, model, finalContent, toolUses, inputTokens, outputTokens, true))
 	return true, nil
 }
 
 func buildOpenAIResponsesObject(id, model, text string, inputTokens, outputTokens int, completed bool) map[string]interface{} {
+	return buildOpenAIResponsesObjectWithToolUses(id, model, text, nil, inputTokens, outputTokens, completed)
+}
+
+func buildOpenAIResponsesObjectWithToolUses(id, model, text string, toolUses []KiroToolUse, inputTokens, outputTokens int, completed bool) map[string]interface{} {
 	status := "in_progress"
 	if completed {
 		status = "completed"
+	}
+	output := []map[string]interface{}{}
+	outputText := text
+	if len(toolUses) > 0 {
+		outputText = ""
+		for _, tu := range toolUses {
+			args, _ := json.Marshal(tu.Input)
+			output = append(output, map[string]interface{}{
+				"id":        "item_" + uuid.New().String(),
+				"type":      "function_call",
+				"call_id":   tu.ToolUseID,
+				"name":      tu.Name,
+				"arguments": string(args),
+				"status":    "completed",
+			})
+		}
+	} else {
+		output = append(output, map[string]interface{}{
+			"id":      "msg_" + uuid.New().String(),
+			"type":    "message",
+			"role":    "assistant",
+			"content": []map[string]interface{}{{"type": "output_text", "text": text}},
+		})
 	}
 	return map[string]interface{}{
 		"id":         id,
@@ -3242,13 +3404,8 @@ func buildOpenAIResponsesObject(id, model, text string, inputTokens, outputToken
 		"created_at": time.Now().Unix(),
 		"status":     status,
 		"model":      model,
-		"output": []map[string]interface{}{{
-			"id":      "msg_" + uuid.New().String(),
-			"type":    "message",
-			"role":    "assistant",
-			"content": []map[string]interface{}{{"type": "output_text", "text": text}},
-		}},
-		"output_text": text,
+		"output":     output,
+		"output_text": outputText,
 		"usage": map[string]int{
 			"input_tokens":  inputTokens,
 			"output_tokens": outputTokens,

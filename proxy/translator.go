@@ -1151,6 +1151,7 @@ type OpenAIRequest struct {
 	TopP        float64         `json:"top_p,omitempty"`
 	Stream      bool            `json:"stream,omitempty"`
 	Tools       []OpenAITool    `json:"tools,omitempty"`
+	ToolChoice  interface{}     `json:"tool_choice,omitempty"`
 }
 
 func OpenAIResponsesToChatRequest(payload map[string]interface{}) (*OpenAIRequest, error) {
@@ -1174,6 +1175,10 @@ func OpenAIResponsesToChatRequest(payload map[string]interface{}) (*OpenAIReques
 	if topP, ok := numberToFloat64(payload["top_p"]); ok {
 		req.TopP = topP
 	}
+	req.Tools = convertResponsesTools(payload["tools"])
+	if toolChoice, ok := payload["tool_choice"]; ok {
+		req.ToolChoice = toolChoice
+	}
 
 	if instructions := extractResponsesText(payload["instructions"]); instructions != "" {
 		req.Messages = append(req.Messages, OpenAIMessage{Role: "system", Content: instructions})
@@ -1183,6 +1188,55 @@ func OpenAIResponsesToChatRequest(payload map[string]interface{}) (*OpenAIReques
 		return nil, fmt.Errorf("responses request missing convertible input")
 	}
 	return req, nil
+}
+
+func convertResponsesTools(value interface{}) []OpenAITool {
+	rawTools, ok := value.([]interface{})
+	if !ok || len(rawTools) == 0 {
+		return nil
+	}
+	tools := make([]OpenAITool, 0, len(rawTools))
+	for _, raw := range rawTools {
+		obj, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if fn, ok := obj["function"].(map[string]interface{}); ok {
+			if toolType, _ := obj["type"].(string); toolType != "" && toolType != "function" {
+				continue
+			}
+			name, _ := fn["name"].(string)
+			if strings.TrimSpace(name) == "" {
+				continue
+			}
+			var tool OpenAITool
+			tool.Type = "function"
+			tool.Function.Name = name
+			tool.Function.Description, _ = fn["description"].(string)
+			tool.Function.Parameters = fn["parameters"]
+			tools = append(tools, tool)
+			continue
+		}
+		toolType, _ := obj["type"].(string)
+		if toolType != "" && toolType != "function" {
+			continue
+		}
+		name, _ := obj["name"].(string)
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+		var tool OpenAITool
+		tool.Type = "function"
+		tool.Function.Name = name
+		tool.Function.Description, _ = obj["description"].(string)
+		if params, ok := obj["parameters"]; ok {
+			tool.Function.Parameters = params
+		} else {
+			tool.Function.Parameters = obj["input_schema"]
+		}
+		tools = append(tools, tool)
+	}
+	return tools
 }
 
 func convertResponsesInput(input interface{}) []OpenAIMessage {
@@ -1213,6 +1267,33 @@ func responsesItemToOpenAIMessage(item interface{}) (OpenAIMessage, bool) {
 	if !ok {
 		text := extractResponsesText(item)
 		return OpenAIMessage{Role: "user", Content: text}, strings.TrimSpace(text) != ""
+	}
+	itemType, _ := obj["type"].(string)
+	switch itemType {
+	case "function_call":
+		callID, _ := obj["call_id"].(string)
+		if callID == "" {
+			callID, _ = obj["id"].(string)
+		}
+		name, _ := obj["name"].(string)
+		arguments, _ := obj["arguments"].(string)
+		if strings.TrimSpace(callID) == "" || strings.TrimSpace(name) == "" {
+			return OpenAIMessage{}, false
+		}
+		tc := ToolCall{ID: callID, Type: "function"}
+		tc.Function.Name = name
+		tc.Function.Arguments = arguments
+		return OpenAIMessage{Role: "assistant", ToolCalls: []ToolCall{tc}}, true
+	case "function_call_output":
+		callID, _ := obj["call_id"].(string)
+		if strings.TrimSpace(callID) == "" {
+			return OpenAIMessage{}, false
+		}
+		text := extractResponsesText(obj["output"])
+		if strings.TrimSpace(text) == "" {
+			text = extractResponsesText(obj)
+		}
+		return OpenAIMessage{Role: "tool", ToolCallID: callID, Content: text}, true
 	}
 	role, _ := obj["role"].(string)
 	if role == "" {

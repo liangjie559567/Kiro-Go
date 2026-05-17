@@ -361,6 +361,233 @@ func TestSaveOpenAIResponsesSessionStoresPreviousResponseID(t *testing.T) {
 	}
 }
 
+func TestRestoreOpenAIResponsesSessionRestoresPreviousResponseChain(t *testing.T) {
+	h := &Handler{responses: make(map[string]responsesSession)}
+	h.responses["resp_1"] = responsesSession{
+		Messages:  []OpenAIMessage{{Role: "user", Content: "first"}, {Role: "assistant", Content: "first answer"}},
+		UpdatedAt: time.Now(),
+	}
+	h.responses["resp_2"] = responsesSession{
+		PreviousResponseID: "resp_1",
+		Messages:           []OpenAIMessage{{Role: "user", Content: "second"}, {Role: "assistant", Content: "second answer"}},
+		UpdatedAt:          time.Now(),
+	}
+	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "user", Content: "third"}}}
+
+	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_2"}, req)
+
+	got := make([]string, 0, len(req.Messages))
+	for _, msg := range req.Messages {
+		got = append(got, msg.Role+":"+extractOpenAIMessageText(msg.Content))
+	}
+	want := []string{"user:first", "assistant:first answer", "user:second", "assistant:second answer", "user:third"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("unexpected restored chain\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestRestoreOpenAIResponsesSessionFiltersLatestToolCallsByCurrentOutputs(t *testing.T) {
+	h := &Handler{responses: make(map[string]responsesSession)}
+	assistant := OpenAIMessage{Role: "assistant"}
+	tc1 := ToolCall{ID: "call_keep", Type: "function"}
+	tc1.Function.Name = "read_file"
+	tc1.Function.Arguments = `{"path":"a.go"}`
+	tc2 := ToolCall{ID: "call_drop", Type: "function"}
+	tc2.Function.Name = "bash"
+	tc2.Function.Arguments = `{"command":"pwd"}`
+	assistant.ToolCalls = []ToolCall{tc1, tc2}
+	h.responses["resp_tools"] = responsesSession{
+		Messages:  []OpenAIMessage{{Role: "user", Content: "use tools"}, assistant},
+		UpdatedAt: time.Now(),
+	}
+	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "tool", ToolCallID: "call_keep", Content: "package main"}}}
+
+	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_tools"}, req)
+
+	var restoredCalls []ToolCall
+	for _, msg := range req.Messages {
+		if msg.Role == "assistant" {
+			restoredCalls = append(restoredCalls, msg.ToolCalls...)
+		}
+	}
+	if len(restoredCalls) != 1 || restoredCalls[0].ID != "call_keep" {
+		t.Fatalf("expected only matching tool call restored, got %#v", restoredCalls)
+	}
+}
+
+func TestSaveOpenAIResponsesSessionDoesNotPersistRestoredHistory(t *testing.T) {
+	h := &Handler{responses: make(map[string]responsesSession)}
+	restoredReq := &OpenAIRequest{
+		Messages: []OpenAIMessage{
+			{Role: "user", Content: "first"},
+			{Role: "assistant", Content: "first answer"},
+			{Role: "user", Content: "second"},
+		},
+	}
+	currentReq := &OpenAIRequest{
+		Messages: []OpenAIMessage{{Role: "user", Content: "second"}},
+	}
+
+	h.saveOpenAIResponsesSession("resp_2", "resp_1", currentReq, "second answer", nil)
+
+	session, ok := h.getOpenAIResponsesSession("resp_2")
+	if !ok {
+		t.Fatalf("expected saved session")
+	}
+	got := make([]string, 0, len(session.Messages))
+	for _, msg := range session.Messages {
+		got = append(got, msg.Role+":"+extractOpenAIMessageText(msg.Content))
+	}
+	want := []string{"user:second", "assistant:second answer"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("session should store only the current turn, got %#v want %#v; restored request was %#v", got, want, restoredReq.Messages)
+	}
+}
+
+func TestHandleOpenAIResponsesRestoresPreviousResponseSession(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-resp-session",
+		Enabled:     true,
+		AccessToken: "token-resp-session",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var responseID string
+	var firstPayload KiroPayload
+	var secondPayload KiroPayload
+	var calls int
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			var payload KiroPayload
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode kiro payload: %v", err)
+			}
+			if calls == 1 {
+				firstPayload = payload
+			}
+			if calls == 2 {
+				secondPayload = payload
+			}
+			messages := []testEventStreamMessage{
+				{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+			}
+			if calls == 1 {
+				messages = append([]testEventStreamMessage{
+					{eventType: "toolUseEvent", payload: map[string]interface{}{"toolUseId": "call_1", "name": "read_file", "input": map[string]interface{}{"path": "/tmp/a.go"}, "stop": true}},
+				}, messages...)
+			} else {
+				messages = append([]testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "continued"}},
+				}, messages...)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(buildTestEventStream(t, messages))),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	firstBody := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"input":"read the file",
+		"max_output_tokens":16,
+		"tools":[{"type":"function","name":"read_file","parameters":{"type":"object"}}]
+	}`)
+	firstReq := httptest.NewRequest(http.MethodPost, "/v1/responses", firstBody)
+	firstW := httptest.NewRecorder()
+	h.ServeHTTP(firstW, firstReq)
+	if firstW.Code != http.StatusOK {
+		t.Fatalf("expected first status 200, got %d body %s", firstW.Code, firstW.Body.String())
+	}
+	firstCtx := firstPayload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+	if firstCtx == nil || len(firstCtx.Tools) != 1 {
+		t.Fatalf("expected first Responses request to forward declared tool to Kiro, got %#v", firstCtx)
+	}
+	if firstCtx.Tools[0].ToolSpecification.Name != "read_file" {
+		t.Fatalf("expected read_file tool forwarded, got %#v", firstCtx.Tools[0].ToolSpecification.Name)
+	}
+	var firstResp map[string]interface{}
+	if err := json.Unmarshal(firstW.Body.Bytes(), &firstResp); err != nil {
+		t.Fatalf("decode first response: %v", err)
+	}
+	responseID, _ = firstResp["id"].(string)
+	if responseID == "" {
+		t.Fatalf("expected response id, got %#v", firstResp)
+	}
+	session, ok := h.getOpenAIResponsesSession(responseID)
+	if !ok {
+		t.Fatalf("expected saved response session for %s", responseID)
+	}
+	if len(session.Messages) == 0 || len(session.Messages[len(session.Messages)-1].ToolCalls) == 0 {
+		t.Fatalf("expected first response session to save assistant tool call, got %#v", session.Messages)
+	}
+
+	secondBody := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"previous_response_id":"` + responseID + `",
+		"input":[{"type":"function_call_output","call_id":"call_1","output":"package main\n"}],
+		"max_output_tokens":16
+	}`)
+	secondReq := httptest.NewRequest(http.MethodPost, "/v1/responses", secondBody)
+	secondW := httptest.NewRecorder()
+	h.ServeHTTP(secondW, secondReq)
+	if secondW.Code != http.StatusOK {
+		t.Fatalf("expected second status 200, got %d body %s", secondW.Code, secondW.Body.String())
+	}
+	var secondResp map[string]interface{}
+	if err := json.Unmarshal(secondW.Body.Bytes(), &secondResp); err != nil {
+		t.Fatalf("decode second response: %v", err)
+	}
+	secondResponseID, _ := secondResp["id"].(string)
+	if secondResponseID == "" {
+		t.Fatalf("expected second response id, got %#v", secondResp)
+	}
+	secondSession, ok := h.getOpenAIResponsesSession(secondResponseID)
+	if !ok {
+		t.Fatalf("expected saved second response session for %s", secondResponseID)
+	}
+	if len(secondSession.Messages) != 2 {
+		t.Fatalf("expected second session to store only current tool result turn and assistant response, got %#v", secondSession.Messages)
+	}
+	if secondSession.Messages[0].Role != "tool" || secondSession.Messages[0].ToolCallID != "call_1" {
+		t.Fatalf("expected second session to start with current tool output only, got %#v", secondSession.Messages)
+	}
+	if calls != 2 {
+		t.Fatalf("expected two upstream calls, got %d", calls)
+	}
+	if len(secondPayload.ConversationState.History) == 0 {
+		t.Fatalf("expected restored assistant tool call in history, got %#v", secondPayload.ConversationState.History)
+	}
+	var restored bool
+	for _, msg := range secondPayload.ConversationState.History {
+		if msg.AssistantResponseMessage == nil {
+			continue
+		}
+		for _, toolUse := range msg.AssistantResponseMessage.ToolUses {
+			if toolUse.ToolUseID == "call_1" && toolUse.Name == "read_file" {
+				restored = true
+			}
+		}
+	}
+	if !restored {
+		t.Fatalf("expected previous response tool call restored in history, got %#v", secondPayload.ConversationState.History)
+	}
+	waitForAccountRequestCount(t, 2)
+}
+
 func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
