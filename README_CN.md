@@ -71,6 +71,25 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"你好！"}]}'
 ```
 
+## Claude Code
+
+Kiro-Go 可以作为 Claude Code 的 Anthropic 兼容后端使用。
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
+export ANTHROPIC_AUTH_TOKEN=any
+export ANTHROPIC_MODEL=claude-sonnet-4.5
+export ANTHROPIC_SMALL_FAST_MODEL=claude-haiku-4.5
+export ENABLE_TOOL_SEARCH=true
+```
+
+说明：
+
+- Claude Code 仍然是 MCP host。Kiro-Go 接收 Claude Code 发出的 `tools`、`tool_use`、`tool_result` 和 `tool_reference` 请求形态。
+- 使用非 Anthropic 官方 `ANTHROPIC_BASE_URL` 时，如果需要 MCP Tool Search，请设置 `ENABLE_TOOL_SEARCH=true`。
+- Kiro-Go 不启动也不管理本地 MCP server。MCP 仍按 Claude Code 的方式配置。
+- 可在管理面板请求日志中查看模型、账号、首 token 延迟、重试次数、payload 裁剪和 tool_reference 元数据。
+
 ## 思考模式
 
 在模型名后加后缀（默认 `-thinking`）即可启用，例如 `claude-sonnet-4.5-thinking`。Claude 兼容请求如果带有顶层 `thinking` 配置，例如 `{"type":"enabled","budget_tokens":2048}` 或 `{"type":"adaptive"}`，也会自动启用 thinking 模式。输出格式可在管理面板「设置 - Thinking 模式」中配置。

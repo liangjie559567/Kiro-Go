@@ -71,6 +71,25 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hello!"}]}'
 ```
 
+## Claude Code
+
+Kiro-Go can be used as an Anthropic-compatible backend for Claude Code.
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
+export ANTHROPIC_AUTH_TOKEN=any
+export ANTHROPIC_MODEL=claude-sonnet-4.5
+export ANTHROPIC_SMALL_FAST_MODEL=claude-haiku-4.5
+export ENABLE_TOOL_SEARCH=true
+```
+
+Notes:
+
+- Claude Code remains the MCP host. Kiro-Go receives the `tools`, `tool_use`, `tool_result`, and `tool_reference` request shapes emitted by Claude Code.
+- Set `ENABLE_TOOL_SEARCH=true` when using MCP Tool Search with a non-Anthropic `ANTHROPIC_BASE_URL`.
+- Kiro-Go does not start or manage local MCP servers. Configure MCP in Claude Code as usual.
+- Use the admin request logs to inspect model, account, first-token latency, attempts, payload trimming, and tool-reference metadata.
+
 ## Thinking Mode
 
 Append a suffix (default `-thinking`) to the model name, e.g. `claude-sonnet-4.5-thinking`. Claude-compatible requests that include a top-level `thinking` config such as `{"type":"enabled","budget_tokens":2048}` or `{"type":"adaptive"}` also enable thinking mode automatically. Configure output format in the admin panel under Settings - Thinking Mode.
