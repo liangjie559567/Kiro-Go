@@ -99,6 +99,30 @@ func TestGuardKiroPayloadPreservesCurrentToolResultPair(t *testing.T) {
 	}
 }
 
+func TestGuardKiroPayloadRecordsOriginalMappedToolNames(t *testing.T) {
+	payload := &KiroPayload{ToolNameMap: map[string]string{"mcpFilesystemReadFile": "mcp__filesystem__read_file"}}
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: "read",
+		ModelID: "claude-sonnet-4.5",
+		Origin:  "AI_EDITOR",
+		UserInputMessageContext: &UserInputMessageContext{
+			Tools: []KiroToolWrapper{{}},
+		},
+	}
+	payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools[0].ToolSpecification.Name = "mcpFilesystemReadFile"
+
+	result, err := guardKiroPayload(payload, payloadGuardOptions{SoftLimitBytes: 4096, HardLimitBytes: 8192})
+	if err != nil {
+		t.Fatalf("guard payload: %v", err)
+	}
+	if result.CurrentTools != 1 || strings.Join(result.KeptToolNames, ",") != "mcpFilesystemReadFile" {
+		t.Fatalf("expected sanitized current tool metadata, got %#v", result)
+	}
+	if strings.Join(result.MaterializedToolRefNames, ",") != "mcp__filesystem__read_file" {
+		t.Fatalf("expected original mapped MCP tool name, got %#v", result.MaterializedToolRefNames)
+	}
+}
+
 func TestApplyTruncationRecoveryNote(t *testing.T) {
 	payload := ClaudeToKiro(&ClaudeRequest{
 		Model:     "claude-sonnet-4.5",

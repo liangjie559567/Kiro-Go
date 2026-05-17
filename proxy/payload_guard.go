@@ -14,11 +14,16 @@ type payloadGuardOptions struct {
 }
 
 type payloadGuardResult struct {
-	OriginalBytes int
-	FinalBytes    int
-	Trimmed       bool
-	TrimmedCount  int
-	RecoveryNote  string
+	OriginalBytes            int
+	FinalBytes               int
+	Trimmed                  bool
+	TrimmedCount             int
+	RecoveryNote             string
+	CurrentTools             int
+	KeptToolNames            []string
+	TrimmedToolNames         []string
+	DeferredToolNames        []string
+	MaterializedToolRefNames []string
 }
 
 func defaultPayloadGuardOptions() payloadGuardOptions {
@@ -31,6 +36,8 @@ func defaultPayloadGuardOptions() payloadGuardOptions {
 func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGuardResult, error) {
 	opts = normalizePayloadGuardOptions(opts)
 	result := payloadGuardResult{OriginalBytes: kiroPayloadJSONSize(payload)}
+	result.CurrentTools, result.KeptToolNames = currentKiroToolNames(payload)
+	result.MaterializedToolRefNames = originalMappedToolNames(payload)
 	result.FinalBytes = result.OriginalBytes
 	if payload != nil {
 		before := len(payload.ConversationState.History)
@@ -73,6 +80,35 @@ func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGu
 		result.RecoveryNote = payloadTruncationRecoveryNote()
 	}
 	return result, nil
+}
+
+func originalMappedToolNames(payload *KiroPayload) []string {
+	if payload == nil || len(payload.ToolNameMap) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(payload.ToolNameMap))
+	for _, name := range payload.ToolNameMap {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func currentKiroToolNames(payload *KiroPayload) (int, []string) {
+	if payload == nil || payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext == nil {
+		return 0, nil
+	}
+	tools := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools
+	names := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		name := strings.TrimSpace(tool.ToolSpecification.Name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return len(tools), names
 }
 
 func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGuardResult, error) {

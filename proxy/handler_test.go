@@ -261,6 +261,64 @@ func TestAdminSettingsPartialUpdatePreservesClientAccess(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeReadinessAPIReportsRecentToolEvidence(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:                   time.Now(),
+		Endpoint:                    "/v1/messages",
+		ClaudeCodeSessionID:         "sess_1",
+		AnthropicBetas:              []string{"tool-search-2025-10-19"},
+		ToolReferenceCount:          2,
+		PayloadCurrentTools:         12,
+		PayloadKeptTools:            []string{"bash", "read"},
+		PayloadTrimmedTools:         []string{"mcp__browser__screenshot"},
+		PayloadMaterializedToolRefs: []string{"mcp__fs__read_file"},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeReadiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if resp["recentClaudeCode"].(bool) != true || resp["recentToolReferences"].(bool) != true || resp["recentToolTrimming"].(bool) != true {
+		t.Fatalf("unexpected readiness response: %#v", resp)
+	}
+}
+
+func TestClaudeCodeReadinessAPIScansFullRecentLogWindow(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:           time.Now().Add(-5 * time.Minute),
+		Endpoint:            "/v1/messages",
+		ClaudeCodeSessionID: "older_recent_session",
+	})
+	for i := 0; i < maxRequestLogLimit+10; i++ {
+		h.requestLogs.Add(RequestLogEntry{
+			Timestamp: time.Now(),
+			Endpoint:  "/v1/chat/completions",
+			Model:     fmt.Sprintf("model_%d", i),
+		})
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if resp["recentClaudeCode"].(bool) != true {
+		t.Fatalf("expected readiness to scan full retained recent window, got %#v", resp)
+	}
+}
+
 func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -374,7 +432,7 @@ func TestRestoreOpenAIResponsesSessionRestoresPreviousResponseChain(t *testing.T
 	}
 	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "user", Content: "third"}}}
 
-	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_2"}, req)
+	h.restoreOpenAIResponsesSession(nil, map[string]interface{}{"previous_response_id": "resp_2"}, req)
 
 	got := make([]string, 0, len(req.Messages))
 	for _, msg := range req.Messages {
@@ -402,7 +460,7 @@ func TestRestoreOpenAIResponsesSessionFiltersLatestToolCallsByCurrentOutputs(t *
 	}
 	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "tool", ToolCallID: "call_keep", Content: "package main"}}}
 
-	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_tools"}, req)
+	h.restoreOpenAIResponsesSession(nil, map[string]interface{}{"previous_response_id": "resp_tools"}, req)
 
 	var restoredCalls []ToolCall
 	for _, msg := range req.Messages {

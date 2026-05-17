@@ -2391,7 +2391,7 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 	}
 	previousResponseID, _ := payload["previous_response_id"].(string)
 	sessionReq := cloneOpenAIRequestForSession(req)
-	h.restoreOpenAIResponsesSession(payload, req)
+	h.restoreOpenAIResponsesSession(r, payload, req)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
@@ -2518,7 +2518,7 @@ func (h *Handler) finalizePayloadForOpenAIAccount(w http.ResponseWriter, r *http
 	return true
 }
 
-func (h *Handler) restoreOpenAIResponsesSession(payload map[string]interface{}, req *OpenAIRequest) {
+func (h *Handler) restoreOpenAIResponsesSession(r *http.Request, payload map[string]interface{}, req *OpenAIRequest) {
 	if h == nil || req == nil || payload == nil {
 		return
 	}
@@ -2530,27 +2530,35 @@ func (h *Handler) restoreOpenAIResponsesSession(payload map[string]interface{}, 
 	currentMessages := append([]OpenAIMessage(nil), req.Messages...)
 	currentToolIDs := currentOpenAIToolOutputIDs(currentMessages)
 	restored := make([]OpenAIMessage, 0)
+	restoredToolCalls := 0
 	for i, session := range chain {
 		messages := append([]OpenAIMessage(nil), session.Messages...)
 		if i == len(chain)-1 {
 			messages = filterLatestAssistantToolCalls(messages, currentToolIDs)
 		}
+		for _, msg := range messages {
+			restoredToolCalls += len(msg.ToolCalls)
+		}
 		restored = append(restored, messages...)
 	}
 	req.Messages = append(restored, currentMessages...)
 
+	inheritedTools := false
 	for i := len(chain) - 1; i >= 0; i-- {
 		session := chain[i]
 		if len(req.Tools) == 0 && len(session.Tools) > 0 {
 			req.Tools = append([]OpenAITool(nil), session.Tools...)
+			inheritedTools = true
 		}
 		if req.ToolChoice == nil && session.ToolChoice != nil {
 			req.ToolChoice = session.ToolChoice
+			inheritedTools = true
 		}
 		if len(req.Tools) > 0 && req.ToolChoice != nil {
 			break
 		}
 	}
+	updateRequestLogResponsesSession(r, previousID, len(chain), restoredToolCalls, inheritedTools)
 }
 
 func cloneOpenAIRequestForSession(req *OpenAIRequest) *OpenAIRequest {
@@ -3399,12 +3407,12 @@ func buildOpenAIResponsesObjectWithToolUses(id, model, text string, toolUses []K
 		})
 	}
 	return map[string]interface{}{
-		"id":         id,
-		"object":     "response",
-		"created_at": time.Now().Unix(),
-		"status":     status,
-		"model":      model,
-		"output":     output,
+		"id":          id,
+		"object":      "response",
+		"created_at":  time.Now().Unix(),
+		"status":      status,
+		"model":       model,
+		"output":      output,
 		"output_text": outputText,
 		"usage": map[string]int{
 			"input_tokens":  inputTokens,
@@ -3560,6 +3568,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetRequestLogs(w, r)
 	case path == "/request-stats" && r.Method == "GET":
 		h.apiGetRequestStats(w, r)
+	case path == "/claude-code/readiness" && r.Method == "GET":
+		h.apiGetClaudeCodeReadiness(w, r)
 	case path == "/request-logs/clear" && r.Method == "POST":
 		h.apiClearRequestLogs(w, r)
 	case path == "/generate-machine-id" && r.Method == "GET":
@@ -4242,6 +4252,64 @@ func (h *Handler) apiGetSettings(w http.ResponseWriter, r *http.Request) {
 		"host":              config.GetHost(),
 		"allowOverUsage":    config.GetAllowOverUsage(),
 	})
+}
+
+func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Request) {
+	logs := h.ensureRequestLogStore().ListAll()
+	cutoff := time.Now().Add(-30 * time.Minute)
+	resp := map[string]interface{}{
+		"recentClaudeCode":       false,
+		"recentToolReferences":   false,
+		"recentMCPTools":         false,
+		"recentToolTrimming":     false,
+		"recentResponsesRestore": false,
+		"lastSeen":               "",
+		"examples":               []map[string]interface{}{},
+	}
+	examples := make([]map[string]interface{}, 0, 5)
+	for _, entry := range logs {
+		if entry.Timestamp.Before(cutoff) {
+			continue
+		}
+		betas := strings.ToLower(strings.Join(entry.AnthropicBetas, ","))
+		if entry.ClaudeCodeSessionID != "" || strings.Contains(betas, "tool") || strings.Contains(betas, "claude-code") {
+			resp["recentClaudeCode"] = true
+			if resp["lastSeen"] == "" {
+				resp["lastSeen"] = entry.Timestamp.Format(time.RFC3339)
+			}
+		}
+		if entry.ToolReferenceCount > 0 || len(entry.PayloadMaterializedToolRefs) > 0 || len(entry.PayloadDeferredTools) > 0 {
+			resp["recentToolReferences"] = true
+		}
+		if containsMCPToolName(entry.PayloadKeptTools) || containsMCPToolName(entry.PayloadTrimmedTools) || containsMCPToolName(entry.PayloadMaterializedToolRefs) {
+			resp["recentMCPTools"] = true
+		}
+		if entry.PayloadTrimmed || len(entry.PayloadTrimmedTools) > 0 {
+			resp["recentToolTrimming"] = true
+		}
+		if entry.ResponsesRestoredSessions > 0 {
+			resp["recentResponsesRestore"] = true
+		}
+		if len(examples) < 5 {
+			examples = append(examples, map[string]interface{}{
+				"timestamp": entry.Timestamp,
+				"endpoint":  entry.Endpoint,
+				"model":     entry.Model,
+			})
+		}
+	}
+	resp["examples"] = examples
+	json.NewEncoder(w).Encode(resp)
+}
+
+func containsMCPToolName(names []string) bool {
+	for _, name := range names {
+		lower := strings.ToLower(strings.TrimSpace(name))
+		if strings.Contains(lower, "mcp__") || strings.HasPrefix(lower, "mcp") {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) apiGetPromptFilter(w http.ResponseWriter, r *http.Request) {

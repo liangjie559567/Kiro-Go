@@ -20,37 +20,46 @@ const (
 )
 
 type RequestLogEntry struct {
-	Timestamp                time.Time `json:"timestamp"`
-	RequestID                string    `json:"requestId"`
-	Method                   string    `json:"method"`
-	Endpoint                 string    `json:"endpoint"`
-	Model                    string    `json:"model,omitempty"`
-	AccountID                string    `json:"accountId,omitempty"`
-	Region                   string    `json:"region,omitempty"`
-	ClaudeCodeSessionID      string    `json:"claudeCodeSessionId,omitempty"`
-	ClaudeCodeAgentID        string    `json:"claudeCodeAgentId,omitempty"`
-	AnthropicRequestID       string    `json:"anthropicRequestId,omitempty"`
-	AnthropicVersion         string    `json:"anthropicVersion,omitempty"`
-	AnthropicBetas           []string  `json:"anthropicBetas,omitempty"`
-	ToolReferenceCount       int       `json:"toolReferenceCount,omitempty"`
-	PayloadOriginalBytes     int       `json:"payloadOriginalBytes,omitempty"`
-	PayloadFinalBytes        int       `json:"payloadFinalBytes,omitempty"`
-	PayloadTrimmed           bool      `json:"payloadTrimmed,omitempty"`
-	PayloadTrimmedCount      int       `json:"payloadTrimmedCount,omitempty"`
-	Stream                   bool      `json:"stream"`
-	StatusCode               int       `json:"statusCode"`
-	Outcome                  string    `json:"outcome"`
-	DurationMs               int64     `json:"durationMs"`
-	QueueWaitMs              int64     `json:"queueWaitMs,omitempty"`
-	FirstTokenMs             int64     `json:"firstTokenMs,omitempty"`
-	Attempts                 int       `json:"attempts,omitempty"`
-	ToolUseCount             int       `json:"toolUseCount,omitempty"`
-	InputTokens              int       `json:"inputTokens,omitempty"`
-	OutputTokens             int       `json:"outputTokens,omitempty"`
-	CacheReadInputTokens     int       `json:"cacheReadInputTokens,omitempty"`
-	CacheCreationInputTokens int       `json:"cacheCreationInputTokens,omitempty"`
-	ErrorType                string    `json:"errorType,omitempty"`
-	Error                    string    `json:"error,omitempty"`
+	Timestamp                   time.Time `json:"timestamp"`
+	RequestID                   string    `json:"requestId"`
+	Method                      string    `json:"method"`
+	Endpoint                    string    `json:"endpoint"`
+	Model                       string    `json:"model,omitempty"`
+	AccountID                   string    `json:"accountId,omitempty"`
+	Region                      string    `json:"region,omitempty"`
+	ClaudeCodeSessionID         string    `json:"claudeCodeSessionId,omitempty"`
+	ClaudeCodeAgentID           string    `json:"claudeCodeAgentId,omitempty"`
+	AnthropicRequestID          string    `json:"anthropicRequestId,omitempty"`
+	AnthropicVersion            string    `json:"anthropicVersion,omitempty"`
+	AnthropicBetas              []string  `json:"anthropicBetas,omitempty"`
+	ToolReferenceCount          int       `json:"toolReferenceCount,omitempty"`
+	PayloadOriginalBytes        int       `json:"payloadOriginalBytes,omitempty"`
+	PayloadFinalBytes           int       `json:"payloadFinalBytes,omitempty"`
+	PayloadTrimmed              bool      `json:"payloadTrimmed,omitempty"`
+	PayloadTrimmedCount         int       `json:"payloadTrimmedCount,omitempty"`
+	PayloadCurrentTools         int       `json:"payloadCurrentTools,omitempty"`
+	PayloadKeptTools            []string  `json:"payloadKeptTools,omitempty"`
+	PayloadTrimmedTools         []string  `json:"payloadTrimmedTools,omitempty"`
+	PayloadDeferredTools        []string  `json:"payloadDeferredTools,omitempty"`
+	PayloadMaterializedToolRefs []string  `json:"payloadMaterializedToolRefs,omitempty"`
+	ResponsesPreviousID         string    `json:"responsesPreviousId,omitempty"`
+	ResponsesRestoredSessions   int       `json:"responsesRestoredSessions,omitempty"`
+	ResponsesRestoredToolCalls  int       `json:"responsesRestoredToolCalls,omitempty"`
+	ResponsesInheritedTools     bool      `json:"responsesInheritedTools,omitempty"`
+	Stream                      bool      `json:"stream"`
+	StatusCode                  int       `json:"statusCode"`
+	Outcome                     string    `json:"outcome"`
+	DurationMs                  int64     `json:"durationMs"`
+	QueueWaitMs                 int64     `json:"queueWaitMs,omitempty"`
+	FirstTokenMs                int64     `json:"firstTokenMs,omitempty"`
+	Attempts                    int       `json:"attempts,omitempty"`
+	ToolUseCount                int       `json:"toolUseCount,omitempty"`
+	InputTokens                 int       `json:"inputTokens,omitempty"`
+	OutputTokens                int       `json:"outputTokens,omitempty"`
+	CacheReadInputTokens        int       `json:"cacheReadInputTokens,omitempty"`
+	CacheCreationInputTokens    int       `json:"cacheCreationInputTokens,omitempty"`
+	ErrorType                   string    `json:"errorType,omitempty"`
+	Error                       string    `json:"error,omitempty"`
 }
 
 type RequestLogBucket struct {
@@ -114,6 +123,19 @@ func (s *requestLogStore) List(limit int) []RequestLogEntry {
 	}
 	out := make([]RequestLogEntry, 0, limit)
 	for i := len(s.entries) - 1; i >= 0 && len(out) < limit; i-- {
+		out = append(out, s.entries[i])
+	}
+	return out
+}
+
+func (s *requestLogStore) ListAll() []RequestLogEntry {
+	if s == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]RequestLogEntry, 0, len(s.entries))
+	for i := len(s.entries) - 1; i >= 0; i-- {
 		out = append(out, s.entries[i])
 	}
 	return out
@@ -268,6 +290,11 @@ func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
 	ctx.entry.PayloadFinalBytes = result.FinalBytes
 	ctx.entry.PayloadTrimmed = result.Trimmed
 	ctx.entry.PayloadTrimmedCount = result.TrimmedCount
+	ctx.entry.PayloadCurrentTools = result.CurrentTools
+	ctx.entry.PayloadKeptTools = append([]string(nil), result.KeptToolNames...)
+	ctx.entry.PayloadTrimmedTools = append([]string(nil), result.TrimmedToolNames...)
+	ctx.entry.PayloadDeferredTools = append([]string(nil), result.DeferredToolNames...)
+	ctx.entry.PayloadMaterializedToolRefs = append([]string(nil), result.MaterializedToolRefNames...)
 }
 
 func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
@@ -278,6 +305,22 @@ func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.PayloadFinalBytes = finalBytes
+}
+
+func updateRequestLogResponsesSession(r *http.Request, previousID string, restoredSessions, restoredToolCalls int, inheritedTools bool) {
+	if r == nil {
+		return
+	}
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.ResponsesPreviousID = strings.TrimSpace(previousID)
+	ctx.entry.ResponsesRestoredSessions = restoredSessions
+	ctx.entry.ResponsesRestoredToolCalls = restoredToolCalls
+	ctx.entry.ResponsesInheritedTools = inheritedTools
 }
 
 func sortedAnthropicBetas(in map[string]bool) []string {

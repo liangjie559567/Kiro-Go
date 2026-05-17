@@ -220,16 +220,39 @@ func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesResponsesSessionRestoreMetadata(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogResponsesSession(loggedReq, "resp_prev", 3, 2, true)
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.ResponsesPreviousID != "resp_prev" || entry.ResponsesRestoredSessions != 3 || entry.ResponsesRestoredToolCalls != 2 || !entry.ResponsesInheritedTools {
+		t.Fatalf("expected responses session metadata, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
 	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
 
 	updateRequestLogPayload(loggedReq, payloadGuardResult{
-		OriginalBytes: 4096,
-		FinalBytes:    1024,
-		Trimmed:       true,
-		TrimmedCount:  3,
+		OriginalBytes:            4096,
+		FinalBytes:               1024,
+		Trimmed:                  true,
+		TrimmedCount:             3,
+		CurrentTools:             2,
+		KeptToolNames:            []string{"bash", "mcp__fs__read_file"},
+		TrimmedToolNames:         []string{"mcp__browser__screenshot"},
+		MaterializedToolRefNames: []string{"mcp__repo__search"},
 	})
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
@@ -241,6 +264,9 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	entry := logs[0]
 	if entry.PayloadOriginalBytes != 4096 || entry.PayloadFinalBytes != 1024 || !entry.PayloadTrimmed || entry.PayloadTrimmedCount != 3 {
 		t.Fatalf("expected payload guard metadata, got %#v", entry)
+	}
+	if entry.PayloadCurrentTools != 2 || strings.Join(entry.PayloadKeptTools, ",") != "bash,mcp__fs__read_file" || strings.Join(entry.PayloadTrimmedTools, ",") != "mcp__browser__screenshot" || strings.Join(entry.PayloadMaterializedToolRefs, ",") != "mcp__repo__search" {
+		t.Fatalf("expected payload tool metadata, got %#v", entry)
 	}
 }
 
