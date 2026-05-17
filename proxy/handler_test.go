@@ -320,6 +320,47 @@ func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	t.Fatalf("expected async account stats update to complete")
 }
 
+func TestOpenAIResponsesSessionPrunesExpiredAndOldestEntries(t *testing.T) {
+	h := &Handler{responses: make(map[string]responsesSession)}
+	now := time.Now()
+	h.responses["expired"] = responsesSession{UpdatedAt: now.Add(-2 * time.Hour)}
+	for i := 0; i < 130; i++ {
+		h.responses[fmt.Sprintf("resp_%03d", i)] = responsesSession{UpdatedAt: now.Add(time.Duration(i) * time.Second)}
+	}
+
+	h.responsesMu.Lock()
+	h.pruneOpenAIResponsesSessionsLocked(now)
+	h.responsesMu.Unlock()
+
+	if _, ok := h.responses["expired"]; ok {
+		t.Fatalf("expected expired response session to be pruned")
+	}
+	if len(h.responses) > maxOpenAIResponsesSessions {
+		t.Fatalf("expected at most %d sessions, got %d", maxOpenAIResponsesSessions, len(h.responses))
+	}
+	if _, ok := h.responses["resp_000"]; ok {
+		t.Fatalf("expected oldest session to be pruned")
+	}
+}
+
+func TestSaveOpenAIResponsesSessionStoresPreviousResponseID(t *testing.T) {
+	h := &Handler{responses: make(map[string]responsesSession)}
+	req := &OpenAIRequest{
+		Model:    "claude-sonnet-4.5",
+		Messages: []OpenAIMessage{{Role: "user", Content: "first"}},
+	}
+
+	h.saveOpenAIResponsesSession("resp_2", "resp_1", req, "ok", nil)
+
+	session, ok := h.getOpenAIResponsesSession("resp_2")
+	if !ok {
+		t.Fatalf("expected saved response session")
+	}
+	if session.PreviousResponseID != "resp_1" {
+		t.Fatalf("expected previous response id resp_1, got %q", session.PreviousResponseID)
+	}
+}
+
 func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

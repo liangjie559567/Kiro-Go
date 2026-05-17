@@ -61,6 +61,20 @@ type Handler struct {
 	tokenRefreshMu  sync.Mutex
 	requestLogsMu   sync.Mutex
 	requestLogs     *requestLogStore
+	responsesMu     sync.Mutex
+	responses       map[string]responsesSession
+}
+
+const (
+	maxOpenAIResponsesSessions = 128
+	openAIResponsesSessionTTL  = time.Hour
+)
+
+type responsesSession struct {
+	PreviousResponseID string
+	Messages           []OpenAIMessage
+	Tools              []OpenAITool
+	UpdatedAt          time.Time
 }
 
 type thinkingStreamSource int
@@ -375,6 +389,7 @@ func NewHandler() *Handler {
 		healthCheckUpdated: make(chan struct{}, 1),
 		promptCache:        newPromptCacheTracker(defaultPromptCacheTTL),
 		requestLogs:        newRequestLogStore(defaultRequestLogCapacity),
+		responses:          make(map[string]responsesSession),
 	}
 	// 启动后台刷新
 	go h.backgroundRefresh()
@@ -2373,6 +2388,7 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		h.sendOpenAIError(w, 400, "invalid_request_error", err.Error())
 		return
 	}
+	previousResponseID, _ := payload["previous_response_id"].(string)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
@@ -2391,10 +2407,10 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		h.sendOpenAIError(w, 400, "invalid_request_error", guardErr.Error())
 		return
 	}
-	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens)
+	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens, req, previousResponseID)
 }
 
-func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
+func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, req *OpenAIRequest, previousResponseID string) {
 	deadline := time.Now().Add(opusCapacityRetryBudget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
@@ -2452,9 +2468,9 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		var err error
 		var done bool
 		if stream {
-			done, err = h.handleOpenAIResponsesStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt)
+			done, err = h.handleOpenAIResponsesStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt, req, previousResponseID)
 		} else {
-			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt)
+			done, err = h.handleOpenAIResponsesNonStreamAttempt(w, r, account, attemptPayload, model, thinking, estimatedInputTokens, attempt, req, previousResponseID)
 		}
 		releaseRequest()
 		if done {
@@ -2496,6 +2512,76 @@ func (h *Handler) finalizePayloadForOpenAIAccount(w http.ResponseWriter, r *http
 		return false
 	}
 	return true
+}
+
+func (h *Handler) getOpenAIResponsesSession(id string) (responsesSession, bool) {
+	if h == nil {
+		return responsesSession{}, false
+	}
+	h.responsesMu.Lock()
+	defer h.responsesMu.Unlock()
+	if h.responses == nil {
+		return responsesSession{}, false
+	}
+	session, ok := h.responses[id]
+	if !ok {
+		return responsesSession{}, false
+	}
+	session.Messages = append([]OpenAIMessage(nil), session.Messages...)
+	session.Tools = append([]OpenAITool(nil), session.Tools...)
+	return session, true
+}
+
+func (h *Handler) saveOpenAIResponsesSession(id, previousResponseID string, req *OpenAIRequest, content string, toolUses []KiroToolUse) {
+	if h == nil || req == nil || strings.TrimSpace(id) == "" {
+		return
+	}
+	messages := append([]OpenAIMessage(nil), req.Messages...)
+	if strings.TrimSpace(content) != "" {
+		messages = append(messages, OpenAIMessage{Role: "assistant", Content: content})
+	}
+	session := responsesSession{
+		PreviousResponseID: strings.TrimSpace(previousResponseID),
+		Messages:           messages,
+		Tools:              append([]OpenAITool(nil), req.Tools...),
+		UpdatedAt:          time.Now(),
+	}
+	h.responsesMu.Lock()
+	defer h.responsesMu.Unlock()
+	if h.responses == nil {
+		h.responses = make(map[string]responsesSession)
+	}
+	h.pruneOpenAIResponsesSessionsLocked(time.Now())
+	h.responses[id] = session
+	h.pruneOpenAIResponsesSessionsLocked(time.Now())
+}
+
+func (h *Handler) pruneOpenAIResponsesSessionsLocked(now time.Time) {
+	if h.responses == nil {
+		return
+	}
+	for id, session := range h.responses {
+		if now.Sub(session.UpdatedAt) > openAIResponsesSessionTTL {
+			delete(h.responses, id)
+		}
+	}
+	for len(h.responses) > maxOpenAIResponsesSessions {
+		h.trimOpenAIResponsesSessionsLocked()
+	}
+}
+
+func (h *Handler) trimOpenAIResponsesSessionsLocked() {
+	var oldestID string
+	var oldest time.Time
+	for id, session := range h.responses {
+		if oldestID == "" || session.UpdatedAt.Before(oldest) {
+			oldestID = id
+			oldest = session.UpdatedAt
+		}
+	}
+	if oldestID != "" {
+		delete(h.responses, oldestID)
+	}
 }
 
 // handleOpenAIStream OpenAI 流式响应
@@ -2907,7 +2993,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 	return true, nil
 }
 
-func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int, req *OpenAIRequest, previousResponseID string) (bool, error) {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -2998,6 +3084,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
+	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, nil)
 
 	sendEvent("response.completed", map[string]interface{}{
 		"type":     "response.completed",
@@ -3078,7 +3165,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 	return true, nil
 }
 
-func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int) (bool, error) {
+func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, attempt int, req *OpenAIRequest, previousResponseID string) (bool, error) {
 	var content string
 	var reasoningContent string
 	var inputTokens, outputTokens int
@@ -3136,8 +3223,11 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 
+	responseID := "resp_" + uuid.New().String()
+	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, nil)
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(buildOpenAIResponsesObject("resp_"+uuid.New().String(), model, finalContent, inputTokens, outputTokens, true))
+	json.NewEncoder(w).Encode(buildOpenAIResponsesObject(responseID, model, finalContent, inputTokens, outputTokens, true))
 	return true, nil
 }
 
