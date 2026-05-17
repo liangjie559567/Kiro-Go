@@ -1232,6 +1232,7 @@
             </div>
         </div>
         <div id="tabApi" class="tab-content hidden">
+            <div id="claude-code-readiness"></div>
             <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="api.endpoints"></span></div>
                 <p style="margin-bottom:10px;font-weight:500;font-size:14px">Claude API</p>
@@ -2141,6 +2142,7 @@
             document.getElementById('openaiEndpoint').textContent = baseUrl + '/v1/chat/completions';
             document.getElementById('modelsEndpoint').textContent = baseUrl + '/v1/models';
             document.getElementById('statsEndpoint').textContent = baseUrl + '/v1/stats';
+            loadClaudeCodeReadiness();
             // 自动检查更新
             setTimeout(() => checkUpdate(false), 2000);
         }
@@ -2982,6 +2984,36 @@
             });
             const d = await res.json();
             if (d.success) { alert(t('settings.loadBalanceSaved')); } else { alert(t('common.saveFailed') + ': ' + d.error); }
+        }
+        async function loadClaudeCodeReadiness() {
+            let data = null;
+            try {
+                const resp = await fetch('/admin/api/claude-code/readiness', { headers: { 'X-Admin-Password': password } });
+                if (resp.ok) data = await resp.json();
+            } catch (err) {
+                data = null;
+            }
+            const el = document.getElementById('claude-code-readiness');
+            if (el) el.innerHTML = renderClaudeCodeReadiness(data);
+            return data;
+        }
+        function renderClaudeCodeReadiness(data) {
+            if (!data) return '<div class="card"><div style="color:#64748b">Claude Code readiness: unavailable</div></div>';
+            const flag = (ok, text) => '<span class="badge ' + (ok ? 'badge-success' : 'badge-info') + '" style="' + (ok ? '' : 'background:#e2e8f0;color:#475569') + '">' + escapeHtml(text) + '</span>';
+            const lastSeen = data.lastSeen ? new Date(data.lastSeen).toLocaleString() : '-';
+            return '<div class="card">' +
+                '<div class="card-header"><span class="card-title">Claude Code</span><button class="btn btn-sm btn-secondary" onclick="loadClaudeCodeReadiness()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
+                '<div style="font-size:13px;color:#64748b;margin-bottom:10px">Use ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.</div>' +
+                '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+                flag(!!data.recentClaudeCode, 'client') +
+                flag(!!data.recentToolReferences, 'tool_reference') +
+                flag(!!data.recentMCPTools, 'mcp tools') +
+                flag(!!data.recentToolTrimming, 'tool trimming') +
+                flag(!!data.recentResponsesRestore, 'responses restore') +
+                '</div>' +
+                '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Last seen: ' + escapeHtml(lastSeen) + '</div>' +
+                '<pre style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;overflow:auto">export ANTHROPIC_BASE_URL=' + escapeHtml(location.origin) + '\nexport ANTHROPIC_AUTH_TOKEN=any\nexport ENABLE_TOOL_SEARCH=true</pre>' +
+                '</div>';
         }
         async function loadRequestLogs() {
             try {
