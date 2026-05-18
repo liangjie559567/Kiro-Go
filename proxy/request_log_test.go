@@ -334,6 +334,24 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesOrphanedToolResultConversions(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	rr := httptest.NewRecorder()
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	updateRequestLogPayload(loggedReq, payloadGuardResult{
+		Summary:                      kiroPayloadSummary{},
+		OrphanedToolResultsConverted: 2,
+	})
+	h.finishRequestLog(ctx, recorder)
+
+	entry := h.requestLogs.List(1)[0]
+	if entry.PayloadOrphanedToolResultsConverted != 2 {
+		t.Fatalf("expected orphaned tool result conversion metric, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

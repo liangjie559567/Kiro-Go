@@ -213,12 +213,17 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	var currentToolResults []KiroToolResult
 	languageReminder := ""
 	messages := normalizeClaudeMessagesForKiro(req.Messages)
+	orphanedToolResultsConverted := 0
 
 	for i, msg := range messages {
 		isLast := i == len(messages)-1
 
 		if msg.Role == "user" {
 			content, images, toolResults := extractClaudeUserContent(msg.Content)
+			known := knownClaudeToolUseIDs(messages, i)
+			var converted int
+			content, toolResults, converted = splitOrphanedToolResults(content, toolResults, known)
+			orphanedToolResultsConverted += converted
 			content = normalizeUserContent(content, len(images) > 0)
 			if reminder := detectChineseLanguagePreference(content); reminder != "" {
 				languageReminder = reminder
@@ -292,6 +297,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.MaterializedToolReferenceNames = toolSelection.MaterializedNames
 	payload.ToolSchemas = buildClaudeToolSchemaSummaries(toolSelection.Tools)
 	payload.CurrentMessageShape = describeKiroCurrentMessageShape(currentContent, len(currentImages) > 0, len(currentToolResults) > 0)
+	payload.OrphanedToolResultsConverted = orphanedToolResultsConverted
 	if len(currentToolResults) > 0 {
 		payload.ContextReminderKinds = reminderKinds
 	}
@@ -326,6 +332,62 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	}
 
 	return payload
+}
+
+func knownClaudeToolUseIDs(messages []ClaudeMessage, beforeIndex int) map[string]bool {
+	ids := map[string]bool{}
+	for i := 0; i < beforeIndex && i < len(messages); i++ {
+		if messages[i].Role != "assistant" {
+			continue
+		}
+		_, toolUses := extractClaudeAssistantContent(messages[i].Content)
+		for _, tu := range toolUses {
+			if strings.TrimSpace(tu.ToolUseID) != "" {
+				ids[tu.ToolUseID] = true
+			}
+		}
+	}
+	return ids
+}
+
+func splitOrphanedToolResults(content string, toolResults []KiroToolResult, known map[string]bool) (string, []KiroToolResult, int) {
+	if len(toolResults) == 0 {
+		return content, toolResults, 0
+	}
+	kept := make([]KiroToolResult, 0, len(toolResults))
+	parts := []string{}
+	if strings.TrimSpace(content) != "" {
+		parts = append(parts, strings.TrimSpace(content))
+	}
+	converted := 0
+	for _, result := range toolResults {
+		id := strings.TrimSpace(result.ToolUseID)
+		if id != "" && known[id] {
+			kept = append(kept, result)
+			continue
+		}
+		parts = append(parts, formatToolResultAsText(result))
+		converted++
+	}
+	return strings.Join(parts, "\n\n"), kept, converted
+}
+
+func formatToolResultAsText(result KiroToolResult) string {
+	id := strings.TrimSpace(result.ToolUseID)
+	textParts := make([]string, 0, len(result.Content))
+	for _, c := range result.Content {
+		if strings.TrimSpace(c.Text) != "" {
+			textParts = append(textParts, c.Text)
+		}
+	}
+	text := strings.TrimSpace(strings.Join(textParts, "\n"))
+	if text == "" {
+		text = "(empty result)"
+	}
+	if id == "" {
+		return "[Tool Result]\n" + text
+	}
+	return "[Tool Result (" + id + ")]\n" + text
 }
 
 func normalizeClaudeMessagesForKiro(messages []ClaudeMessage) []ClaudeMessage {

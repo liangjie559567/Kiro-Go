@@ -762,8 +762,9 @@ type KiroPayload struct {
 
 	// Context continuity metadata is not sent upstream. It is only recorded in
 	// local request logs/readiness diagnostics to explain Claude Code turns.
-	CurrentMessageShape  string   `json:"-"`
-	ContextReminderKinds []string `json:"-"`
+	CurrentMessageShape          string   `json:"-"`
+	ContextReminderKinds         []string `json:"-"`
+	OrphanedToolResultsConverted int      `json:"-"`
 }
 
 type toolSchemaSummary struct {

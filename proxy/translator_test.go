@@ -200,6 +200,30 @@ func TestClaudeConversationIDStableFromAnchor(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroConvertsOrphanedToolResultToText(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "missing_tool", "content": "important orphan output"},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	current := payload.ConversationState.CurrentMessage.UserInputMessage
+	if !strings.Contains(current.Content, "[Tool Result (missing_tool)]") || !strings.Contains(current.Content, "important orphan output") {
+		t.Fatalf("expected orphaned tool result text in current content, got %q", current.Content)
+	}
+	if current.UserInputMessageContext != nil && len(current.UserInputMessageContext.ToolResults) > 0 {
+		t.Fatalf("expected orphaned tool result not to be sent as Kiro toolResult, got %#v", current.UserInputMessageContext)
+	}
+	if payload.OrphanedToolResultsConverted != 1 {
+		t.Fatalf("expected orphan conversion metric, got %d", payload.OrphanedToolResultsConverted)
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",
@@ -211,12 +235,7 @@ func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 		}},
 		Messages: []ClaudeMessage{
 			{Role: "user", Content: []interface{}{
-				map[string]interface{}{"type": "text", "text": "first user"},
-				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": "first result"},
-			}},
-			{Role: "user", Content: []interface{}{
-				map[string]interface{}{"type": "text", "text": "second user"},
-				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_2", "content": "second result"},
+				map[string]interface{}{"type": "text", "text": "run commands"},
 			}},
 			{Role: "assistant", Content: []interface{}{
 				map[string]interface{}{"type": "text", "text": "assistant text"},
@@ -225,15 +244,26 @@ func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 			{Role: "assistant", Content: []interface{}{
 				map[string]interface{}{"type": "tool_use", "id": "toolu_2", "name": "bash", "input": map[string]interface{}{"command": "ls"}},
 			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "first user"},
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": "first result"},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "second user"},
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_2", "content": "second result"},
+			}},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "done"},
+			}},
 			{Role: "user", Content: "final question"},
 		},
 	}
 
 	payload := ClaudeToKiro(req, false)
-	if len(payload.ConversationState.History) < 2 {
+	if len(payload.ConversationState.History) < 4 {
 		t.Fatalf("expected merged history, got %#v", payload.ConversationState.History)
 	}
-	firstUser := payload.ConversationState.History[0].UserInputMessage
+	firstUser := payload.ConversationState.History[2].UserInputMessage
 	if firstUser == nil {
 		t.Fatalf("expected adjacent user text to merge, got %#v", firstUser)
 	}

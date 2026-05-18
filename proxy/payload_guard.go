@@ -25,18 +25,19 @@ type payloadGuardOptions struct {
 }
 
 type payloadGuardResult struct {
-	OriginalBytes            int
-	FinalBytes               int
-	Trimmed                  bool
-	TrimmedCount             int
-	RecoveryNote             string
-	Summary                  kiroPayloadSummary
-	KeptToolNames            []string
-	TrimmedToolNames         []string
-	DeferredToolNames        []string
-	MaterializedToolRefNames []string
-	CompactedPairs           int
-	CompactedToolResults     int
+	OriginalBytes                int
+	FinalBytes                   int
+	Trimmed                      bool
+	TrimmedCount                 int
+	RecoveryNote                 string
+	Summary                      kiroPayloadSummary
+	KeptToolNames                []string
+	TrimmedToolNames             []string
+	DeferredToolNames            []string
+	MaterializedToolRefNames     []string
+	CompactedPairs               int
+	CompactedToolResults         int
+	OrphanedToolResultsConverted int
 }
 
 const minCurrentToolResultTextBytes = 256
@@ -230,10 +231,17 @@ func shouldTrimHistoryStructure(payload *KiroPayload, opts payloadGuardOptions) 
 
 func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGuardResult, error) {
 	result, err := guardKiroPayload(payload, opts)
+	if payload != nil {
+		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
+	}
 	if err != nil {
 		return result, err
 	}
-	return applyTruncationRecoveryNoteWithLimit(payload, result, opts)
+	result, err = applyTruncationRecoveryNoteWithLimit(payload, result, opts)
+	if payload != nil {
+		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
+	}
+	return result, err
 }
 
 func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
@@ -264,6 +272,7 @@ func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
 	cloned.MaterializedToolReferenceNames = append([]string(nil), payload.MaterializedToolReferenceNames...)
 	cloned.CurrentMessageShape = payload.CurrentMessageShape
 	cloned.ContextReminderKinds = append([]string(nil), payload.ContextReminderKinds...)
+	cloned.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
 	return &cloned
 }
 
