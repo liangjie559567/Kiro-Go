@@ -2093,7 +2093,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			}
 			processClaudeText(text, isThinking, false)
 		},
-		OnToolUse: func(tu KiroToolUse) {
+		OnValidatedToolUse: func(tu KiroToolUse) bool {
 			recordFirstToken()
 			// 先刷新缓冲区
 			processClaudeText("", false, true)
@@ -2107,6 +2107,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			closeActiveBlock()
 			startMessage()
 			sse.ToolUse(tu)
+			return true
 		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok

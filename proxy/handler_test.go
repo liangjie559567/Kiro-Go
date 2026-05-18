@@ -3013,6 +3013,81 @@ func TestHandleClaudeStreamToolReferenceRestoresOriginalToolName(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-invalid-tool-stream",
+		Enabled:     true,
+		AccessToken: "token-invalid-tool-stream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tools":[{"name":"request_user_input","description":"Ask user","input_schema":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}],"messages":[{"role":"user","content":"Ask the user to choose."}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	respBody := w.Body.String()
+	if strings.Contains(respBody, `"type":"tool_use"`) {
+		t.Fatalf("expected invalid tool_use to be suppressed, got %q", respBody)
+	}
+	if strings.Contains(respBody, `"stop_reason":"tool_use"`) {
+		t.Fatalf("expected end_turn stop when no valid tool_use is emitted, got %q", respBody)
+	}
+	if !strings.Contains(respBody, `"stop_reason":"end_turn"`) {
+		t.Fatalf("expected end_turn stop, got %q", respBody)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func assertToolUseBlock(t *testing.T, frames []sseFrame, start, wantIndex int, wantID, wantName string, wantInput map[string]interface{}) int {
 	t.Helper()
 	assertFrameEvent(t, frames, start, "content_block_start")

@@ -674,6 +674,52 @@ func TestWrapToolUseDropsInvalidEnumArgument(t *testing.T) {
 	}
 }
 
+func TestWrapToolUseDropsArrayAboveMaxItems(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"request_user_input": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"questions": map[string]interface{}{
+						"type":     "array",
+						"maxItems": float64(3),
+						"items": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"header": map[string]interface{}{"type": "string"},
+							},
+						},
+					},
+				},
+				"required": []interface{}{"questions"},
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_user_input",
+		Name:      "request_user_input",
+		Input: map[string]interface{}{
+			"questions": []interface{}{
+				map[string]interface{}{"header": "A"},
+				map[string]interface{}{"header": "B"},
+				map[string]interface{}{"header": "C"},
+				map[string]interface{}{"header": "D"},
+			},
+		},
+	})
+
+	if len(got) != 0 {
+		t.Fatalf("expected tool_use exceeding maxItems to be dropped, got %#v", got)
+	}
+}
+
 func TestWrapToolUseRepairsClaudeCodeReadAliases(t *testing.T) {
 	payload := &KiroPayload{
 		ToolSchemas: map[string]toolSchemaSummary{

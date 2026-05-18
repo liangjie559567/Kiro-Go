@@ -5,6 +5,7 @@ package proxy
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"kiro-go/config"
@@ -12,7 +13,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -141,7 +144,7 @@ func buildKiroTransport(proxyURL string) *http.Transport {
 		KeepAlive: 30 * time.Second,
 	}
 	t := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy:                 freshProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
 		MaxIdleConns:          200,
 		MaxIdleConnsPerHost:   50,
@@ -162,6 +165,107 @@ func buildKiroTransport(proxyURL string) *http.Transport {
 	return t
 }
 
+func freshProxyFromEnvironment(req *http.Request) (*url.URL, error) {
+	if req == nil || req.URL == nil {
+		return nil, nil
+	}
+	if proxyBypassedByEnvironment(req.URL) {
+		return nil, nil
+	}
+	switch req.URL.Scheme {
+	case "https":
+		return parseEnvironmentProxyURL(envAny("HTTPS_PROXY", "https_proxy"))
+	case "http":
+		proxy := envAny("HTTP_PROXY", "http_proxy")
+		if proxy != "" && os.Getenv("REQUEST_METHOD") != "" {
+			return nil, errors.New("refusing to use HTTP_PROXY value in CGI environment")
+		}
+		return parseEnvironmentProxyURL(proxy)
+	default:
+		return nil, nil
+	}
+}
+
+func envAny(names ...string) string {
+	for _, name := range names {
+		if value := os.Getenv(name); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func parseEnvironmentProxyURL(proxy string) (*url.URL, error) {
+	if proxy == "" {
+		return nil, nil
+	}
+	proxyURL, err := url.Parse(proxy)
+	if err != nil || !supportedProxyScheme(proxyURL.Scheme) {
+		if fallbackURL, fallbackErr := url.Parse("http://" + proxy); fallbackErr == nil {
+			return fallbackURL, nil
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("invalid proxy address %q: %w", proxy, err)
+	}
+	if !supportedProxyScheme(proxyURL.Scheme) {
+		return nil, fmt.Errorf("invalid proxy scheme %q", proxyURL.Scheme)
+	}
+	return proxyURL, nil
+}
+
+func supportedProxyScheme(scheme string) bool {
+	return scheme == "http" || scheme == "https" || scheme == "socks5"
+}
+
+func proxyBypassedByEnvironment(reqURL *url.URL) bool {
+	noProxy := envAny("NO_PROXY", "no_proxy")
+	if strings.TrimSpace(noProxy) == "" {
+		return false
+	}
+	host := reqURL.Hostname()
+	if host == "" {
+		return false
+	}
+	if host == "localhost" || isLoopbackHost(host) {
+		return true
+	}
+	for _, rawRule := range strings.Split(noProxy, ",") {
+		rule := strings.ToLower(strings.TrimSpace(rawRule))
+		if rule == "" {
+			continue
+		}
+		if rule == "*" {
+			return true
+		}
+		if strings.Contains(rule, ":") {
+			ruleHost, rulePort, err := net.SplitHostPort(rule)
+			if err == nil && rulePort != reqURL.Port() {
+				continue
+			}
+			if err == nil {
+				rule = ruleHost
+			}
+		}
+		hostLower := strings.ToLower(host)
+		if strings.HasPrefix(rule, ".") {
+			if strings.HasSuffix(hostLower, rule) {
+				return true
+			}
+			continue
+		}
+		if hostLower == rule || strings.HasSuffix(hostLower, "."+rule) {
+			return true
+		}
+	}
+	return false
+}
+
+func isLoopbackHost(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // InitKiroHttpClient initializes (or reinitializes) the HTTP clients used for Kiro API requests.
 func InitKiroHttpClient(proxyURL string) {
 	client := &http.Client{
@@ -178,7 +282,7 @@ func InitKiroHttpClient(proxyURL string) {
 }
 
 func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback) *KiroStreamCallback {
-	if callback == nil || callback.OnToolUse == nil || payload == nil {
+	if callback == nil || payload == nil || (callback.OnToolUse == nil && callback.OnValidatedToolUse == nil) {
 		return callback
 	}
 	if len(payload.ToolNameMap) == 0 && len(payload.ToolSchemas) == 0 {
@@ -197,7 +301,23 @@ func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback)
 			logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: input does not satisfy client tool schema", tu.ToolUseID, tu.Name)
 			return
 		}
-		originalOnToolUse(tu)
+		if originalOnToolUse != nil {
+			originalOnToolUse(tu)
+		}
+	}
+	if callback.OnValidatedToolUse != nil {
+		originalOnValidatedToolUse := callback.OnValidatedToolUse
+		wrapped.OnValidatedToolUse = func(tu KiroToolUse) bool {
+			if original, ok := nameMap[tu.Name]; ok {
+				tu.Name = original
+			}
+			tu.Input = repairToolUseInputForClientSchema(tu.Name, tu.Input, schemas[tu.Name])
+			if !toolUseInputSatisfiesSchema(tu, schemas) {
+				logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: input does not satisfy client tool schema", tu.ToolUseID, tu.Name)
+				return false
+			}
+			return originalOnValidatedToolUse(tu)
+		}
 	}
 	return &wrapped
 }
@@ -523,14 +643,124 @@ func validateJSONSchemaValue(value interface{}, schema map[string]interface{}) b
 		if !ok {
 			return false
 		}
+		if !arrayLengthSatisfiesSchema(arr, schema) {
+			return false
+		}
 		for _, item := range arr {
 			if !validateJSONSchemaValue(item, itemsSchema) {
 				return false
 			}
 		}
+	} else if arr, ok := value.([]interface{}); ok {
+		if !arrayLengthSatisfiesSchema(arr, schema) {
+			return false
+		}
+	}
+
+	if text, ok := value.(string); ok {
+		if !stringLengthSatisfiesSchema(text, schema) || !stringPatternSatisfiesSchema(text, schema) {
+			return false
+		}
+	}
+
+	if !numericValueSatisfiesSchema(value, schema) {
+		return false
 	}
 
 	return true
+}
+
+func arrayLengthSatisfiesSchema(arr []interface{}, schema map[string]interface{}) bool {
+	if minItems, ok := schemaNumber(schema["minItems"]); ok && float64(len(arr)) < minItems {
+		return false
+	}
+	if maxItems, ok := schemaNumber(schema["maxItems"]); ok && float64(len(arr)) > maxItems {
+		return false
+	}
+	return true
+}
+
+func stringLengthSatisfiesSchema(text string, schema map[string]interface{}) bool {
+	length := float64(len([]rune(text)))
+	if minLength, ok := schemaNumber(schema["minLength"]); ok && length < minLength {
+		return false
+	}
+	if maxLength, ok := schemaNumber(schema["maxLength"]); ok && length > maxLength {
+		return false
+	}
+	return true
+}
+
+func stringPatternSatisfiesSchema(text string, schema map[string]interface{}) bool {
+	pattern, ok := schema["pattern"].(string)
+	if !ok || strings.TrimSpace(pattern) == "" {
+		return true
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return true
+	}
+	return re.MatchString(text)
+}
+
+func numericValueSatisfiesSchema(value interface{}, schema map[string]interface{}) bool {
+	number, ok := jsonNumberAsFloat(value)
+	if !ok {
+		return true
+	}
+	if minimum, ok := schemaNumber(schema["minimum"]); ok && number < minimum {
+		return false
+	}
+	if exclusiveMinimum, ok := schemaNumber(schema["exclusiveMinimum"]); ok && number <= exclusiveMinimum {
+		return false
+	}
+	if maximum, ok := schemaNumber(schema["maximum"]); ok && number > maximum {
+		return false
+	}
+	if exclusiveMaximum, ok := schemaNumber(schema["exclusiveMaximum"]); ok && number >= exclusiveMaximum {
+		return false
+	}
+	return true
+}
+
+func schemaNumber(value interface{}) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case json.Number:
+		n, err := v.Float64()
+		return n, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func jsonNumberAsFloat(value interface{}) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case json.Number:
+		n, err := v.Float64()
+		return n, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func schemaMap(value interface{}) (map[string]interface{}, bool) {
@@ -843,12 +1073,13 @@ type InferenceConfig struct {
 
 // KiroStreamCallback stream response callbacks
 type KiroStreamCallback struct {
-	OnText         func(text string, isThinking bool)
-	OnToolUse      func(toolUse KiroToolUse)
-	OnComplete     func(inputTokens, outputTokens int)
-	OnError        func(err error)
-	OnCredits      func(credits float64)
-	OnContextUsage func(percentage float64)
+	OnText             func(text string, isThinking bool)
+	OnToolUse          func(toolUse KiroToolUse)
+	OnValidatedToolUse func(toolUse KiroToolUse) bool
+	OnComplete         func(inputTokens, outputTokens int)
+	OnError            func(err error)
+	OnCredits          func(credits float64)
+	OnContextUsage     func(percentage float64)
 }
 
 // ==================== API Call ====================
@@ -1459,11 +1690,16 @@ func finishToolUse(state *toolUseState, callback *KiroStreamCallback) {
 	if input == nil {
 		input = make(map[string]interface{})
 	}
-	callback.OnToolUse(KiroToolUse{
+	toolUse := KiroToolUse{
 		ToolUseID: state.ToolUseID,
 		Name:      state.Name,
 		Input:     input,
-	})
+	}
+	if callback.OnValidatedToolUse != nil {
+		callback.OnValidatedToolUse(toolUse)
+		return
+	}
+	callback.OnToolUse(toolUse)
 }
 
 func parseToolUseInputBuffer(raw string) map[string]interface{} {
