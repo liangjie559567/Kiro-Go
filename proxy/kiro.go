@@ -766,6 +766,7 @@ type KiroPayload struct {
 	ContextReminderKinds         []string `json:"-"`
 	OrphanedToolResultsConverted int      `json:"-"`
 	ToolResultImages             int      `json:"-"`
+	RelocatedToolDescriptions    int      `json:"-"`
 }
 
 type toolSchemaSummary struct {

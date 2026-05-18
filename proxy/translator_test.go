@@ -224,6 +224,40 @@ func TestClaudeToKiroConvertsOrphanedToolResultToText(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroRelocatesLongToolDescriptionsToContext(t *testing.T) {
+	longDescription := strings.Repeat("Detailed usage guidance for the browser tool. ", 80)
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Tools: []ClaudeTool{{
+			Name:        "mcp__browser__screenshot",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		Messages: []ClaudeMessage{{Role: "user", Content: "use screenshot tool"}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	current := payload.ConversationState.CurrentMessage.UserInputMessage
+	if !strings.Contains(current.Content, "Operator tool documentation for this session") {
+		t.Fatalf("expected relocated tool docs in current context, got %q", current.Content)
+	}
+	if !strings.Contains(current.Content, longDescription[:80]) {
+		t.Fatalf("expected full long description in context, got %q", current.Content)
+	}
+	ctx := current.UserInputMessageContext
+	if ctx == nil || len(ctx.Tools) != 1 {
+		t.Fatalf("expected tool in current context, got %#v", ctx)
+	}
+	desc := ctx.Tools[0].ToolSpecification.Description
+	if len(desc) > 220 || !strings.Contains(desc, "Full documentation") {
+		t.Fatalf("expected short reference description, got %q", desc)
+	}
+	if payload.RelocatedToolDescriptions != 1 {
+		t.Fatalf("expected relocation metric, got %d", payload.RelocatedToolDescriptions)
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",

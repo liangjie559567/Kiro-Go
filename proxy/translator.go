@@ -198,6 +198,12 @@ type ClaudeUsage struct {
 // ==================== Claude -> Kiro 转换 ====================
 
 const maxToolDescLen = 10237
+const toolDescriptionRelocationThreshold = 1024
+
+type toolDescriptionRelocation struct {
+	Name        string
+	Description string
+}
 
 func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	modelID := MapModel(req.Model)
@@ -288,8 +294,13 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		finalContent += minimalFallbackUserContent
 	}
 
+	toolsForKiro, relocatedDocs := relocateLongClaudeToolDescriptions(req.Tools)
+	if docs := buildRelocatedToolDocumentation(relocatedDocs); docs != "" {
+		finalContent = strings.TrimSpace(finalContent + "\n\n" + docs)
+	}
+
 	// 转换工具
-	toolSelection := mergeClaudeToolsAndReferences(req.Tools, req.ToolReferences, finalContent)
+	toolSelection := mergeClaudeToolsAndReferences(toolsForKiro, req.ToolReferences, finalContent)
 	kiroTools, toolNameMap := convertClaudeTools(toolSelection.Tools)
 
 	// 构建 payload
@@ -301,6 +312,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.CurrentMessageShape = describeKiroCurrentMessageShape(currentContent, len(currentImages) > 0, len(currentToolResults) > 0)
 	payload.OrphanedToolResultsConverted = orphanedToolResultsConverted
 	payload.ToolResultImages = toolResultImageCount
+	payload.RelocatedToolDescriptions = len(relocatedDocs)
 	if len(currentToolResults) > 0 {
 		payload.ContextReminderKinds = reminderKinds
 	}
@@ -335,6 +347,35 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	}
 
 	return payload
+}
+
+func relocateLongClaudeToolDescriptions(tools []ClaudeTool) ([]ClaudeTool, []toolDescriptionRelocation) {
+	if len(tools) == 0 {
+		return tools, nil
+	}
+	out := make([]ClaudeTool, len(tools))
+	copy(out, tools)
+	relocated := make([]toolDescriptionRelocation, 0)
+	for i := range out {
+		desc := strings.TrimSpace(out[i].Description)
+		if len(desc) <= toolDescriptionRelocationThreshold {
+			continue
+		}
+		relocated = append(relocated, toolDescriptionRelocation{Name: out[i].Name, Description: desc})
+		out[i].Description = "[Full documentation provided in session context under Tool: " + out[i].Name + "]"
+	}
+	return out, relocated
+}
+
+func buildRelocatedToolDocumentation(relocated []toolDescriptionRelocation) string {
+	if len(relocated) == 0 {
+		return ""
+	}
+	parts := []string{"Operator tool documentation for this session:"}
+	for _, item := range relocated {
+		parts = append(parts, "Tool: "+item.Name+"\n"+item.Description)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func knownClaudeToolUseIDs(messages []ClaudeMessage, beforeIndex int) map[string]bool {

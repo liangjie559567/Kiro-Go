@@ -370,6 +370,24 @@ func TestRequestLogCapturesPayloadToolResultImages(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesPayloadRelocatedToolDescriptions(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	rr := httptest.NewRecorder()
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	updateRequestLogPayload(loggedReq, payloadGuardResult{
+		Summary:                   kiroPayloadSummary{},
+		RelocatedToolDescriptions: 2,
+	})
+	h.finishRequestLog(ctx, recorder)
+
+	entry := h.requestLogs.List(1)[0]
+	if entry.PayloadRelocatedToolDescriptions != 2 {
+		t.Fatalf("expected relocated tool description metric, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
