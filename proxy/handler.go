@@ -118,10 +118,14 @@ func allowTagSource(source *thinkingStreamSource) bool {
 }
 
 func validateClaudeRequestShape(req *ClaudeRequest) string {
+	return validateClaudeRequestShapeWithOptions(req, true)
+}
+
+func validateClaudeRequestShapeWithOptions(req *ClaudeRequest, maxTokensPresent bool) string {
 	if len(req.Messages) == 0 {
 		return "messages must not be empty"
 	}
-	if msg := validateClaudeThinkingConfig(req.Thinking, req.MaxTokens); msg != "" {
+	if msg := validateClaudeThinkingConfigWithOptions(req.Thinking, req.MaxTokens, maxTokensPresent); msg != "" {
 		return msg
 	}
 
@@ -160,6 +164,10 @@ func validateClaudeRequestShape(req *ClaudeRequest) string {
 }
 
 func validateClaudeThinkingConfig(thinking *ClaudeThinkingConfig, maxTokens int) string {
+	return validateClaudeThinkingConfigWithOptions(thinking, maxTokens, true)
+}
+
+func validateClaudeThinkingConfigWithOptions(thinking *ClaudeThinkingConfig, maxTokens int, maxTokensPresent bool) string {
 	if thinking == nil {
 		return ""
 	}
@@ -167,7 +175,7 @@ func validateClaudeThinkingConfig(thinking *ClaudeThinkingConfig, maxTokens int)
 	kind := strings.ToLower(strings.TrimSpace(thinking.Type))
 	switch kind {
 	case "enabled":
-		if maxTokens == 0 {
+		if maxTokensPresent && maxTokens == 0 {
 			return "thinking.type enabled cannot be used with max_tokens=0"
 		}
 		if thinking.BudgetTokens <= 0 {
@@ -1186,7 +1194,8 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	req := env.Request
 	updateRequestLogAnthropic(r, env)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
-	if msg := validateClaudeRequestShape(&req); msg != "" {
+	maxTokensPresent := claudeRequestHasMaxTokens(body)
+	if msg := validateClaudeRequestShapeWithOptions(&req, maxTokensPresent); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
 	}
@@ -1203,7 +1212,7 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
 
-	if req.MaxTokens == 0 && claudeRequestHasMaxTokens(body) {
+	if req.MaxTokens == 0 && maxTokensPresent {
 		updateRequestLogMaxTokensZeroMode(r, "local_zero_output")
 		updateRequestLogUsage(r, estimatedInputTokens, 0, 0, 0)
 		h.recordSuccess(estimatedInputTokens, 0, 0)
