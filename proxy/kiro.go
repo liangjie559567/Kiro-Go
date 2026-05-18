@@ -767,6 +767,7 @@ type KiroPayload struct {
 	OrphanedToolResultsConverted int      `json:"-"`
 	ToolResultImages             int      `json:"-"`
 	RelocatedToolDescriptions    int      `json:"-"`
+	UnsupportedContentBlocks     []string `json:"-"`
 }
 
 type toolSchemaSummary struct {

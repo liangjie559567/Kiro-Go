@@ -137,7 +137,7 @@ func validateClaudeRequestShape(req *ClaudeRequest) string {
 			continue
 		}
 
-		text, images, toolResults, _ := extractClaudeUserContent(msg.Content)
+		text, images, toolResults, _, _ := extractClaudeUserContent(msg.Content)
 		if normalizeUserContent(text, len(images) > 0) != "" || len(toolResults) > 0 {
 			hasUserContext = true
 		}

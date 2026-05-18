@@ -388,6 +388,24 @@ func TestRequestLogCapturesPayloadRelocatedToolDescriptions(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesPayloadUnsupportedContentBlocks(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	rr := httptest.NewRecorder()
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	updateRequestLogPayload(loggedReq, payloadGuardResult{
+		Summary:                  kiroPayloadSummary{},
+		UnsupportedContentBlocks: []string{"document", "search_result"},
+	})
+	h.finishRequestLog(ctx, recorder)
+
+	entry := h.requestLogs.List(1)[0]
+	if strings.Join(entry.PayloadUnsupportedContentBlocks, ",") != "document,search_result" {
+		t.Fatalf("expected unsupported content block metadata, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

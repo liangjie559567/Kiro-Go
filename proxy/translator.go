@@ -218,6 +218,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	var currentImages []KiroImage
 	var currentToolResults []KiroToolResult
 	toolResultImageCount := 0
+	var unsupportedContentBlocks []string
 	languageReminder := ""
 	messages := normalizeClaudeMessagesForKiro(req.Messages)
 	orphanedToolResultsConverted := 0
@@ -226,8 +227,9 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		isLast := i == len(messages)-1
 
 		if msg.Role == "user" {
-			content, images, toolResults, toolResultImages := extractClaudeUserContent(msg.Content)
+			content, images, toolResults, toolResultImages, unsupportedBlocks := extractClaudeUserContent(msg.Content)
 			toolResultImageCount += toolResultImages
+			unsupportedContentBlocks = append(unsupportedContentBlocks, unsupportedBlocks...)
 			known := knownClaudeToolUseIDs(messages, i)
 			var converted int
 			content, toolResults, converted = splitOrphanedToolResults(content, toolResults, known)
@@ -316,6 +318,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.OrphanedToolResultsConverted = orphanedToolResultsConverted
 	payload.ToolResultImages = toolResultImageCount
 	payload.RelocatedToolDescriptions = len(relocatedDocs)
+	payload.UnsupportedContentBlocks = cappedUniqueStrings(unsupportedContentBlocks, 16)
 	if len(currentToolResults) > 0 {
 		payload.ContextReminderKinds = reminderKinds
 	}
@@ -409,6 +412,26 @@ func validateClaudeToolNames(tools []ClaudeTool, refs []ClaudeToolReference) str
 		seen[sanitized] = name
 	}
 	return ""
+}
+
+func cappedUniqueStrings(values []string, limit int) []string {
+	if limit <= 0 || len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, min(len(values), limit))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+		if len(out) >= limit {
+			return out
+		}
+	}
+	return out
 }
 
 func addRelocatedToolDocumentation(content, docs string) string {
@@ -1193,14 +1216,15 @@ func extractSystemPrompt(system interface{}) string {
 	return ""
 }
 
-func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroToolResult, int) {
+func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroToolResult, int, []string) {
 	var text string
 	var images []KiroImage
 	var toolResults []KiroToolResult
 	var toolResultImageCount int
+	var unsupportedBlocks []string
 
 	if s, ok := content.(string); ok {
-		return s, nil, nil, 0
+		return s, nil, nil, 0, nil
 	}
 
 	if blocks, ok := content.([]interface{}); ok {
@@ -1232,11 +1256,68 @@ func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroT
 					Content:   []KiroResultContent{{Text: resultContent}},
 					Status:    "success",
 				})
+			default:
+				if converted := convertUnsupportedClaudeBlockToText(block); converted != "" {
+					if text != "" {
+						text += "\n\n"
+					}
+					text += converted
+					unsupportedBlocks = append(unsupportedBlocks, blockType)
+				}
 			}
 		}
 	}
 
-	return text, images, toolResults, toolResultImageCount
+	return text, images, toolResults, toolResultImageCount, unsupportedBlocks
+}
+
+func convertUnsupportedClaudeBlockToText(block map[string]interface{}) string {
+	blockType, _ := block["type"].(string)
+	switch blockType {
+	case "search_result":
+		title, _ := block["title"].(string)
+		url, _ := block["url"].(string)
+		body := extractClaudeValueText(block["content"])
+		return strings.TrimSpace("Search result: " + title + "\n" + url + "\n" + body)
+	case "server_tool_result":
+		return "Server tool result:\n" + extractClaudeValueText(block["content"])
+	case "document":
+		title, _ := block["title"].(string)
+		if title == "" {
+			title = "untitled"
+		}
+		return "Unsupported content block: document (" + title + ")"
+	default:
+		if txt := extractClaudeValueText(block["text"]); txt != "" {
+			return txt
+		}
+		if txt := extractClaudeValueText(block["content"]); txt != "" {
+			return "Unsupported content block: " + blockType + "\n" + txt
+		}
+		if blockType != "" {
+			return "Unsupported content block: " + blockType
+		}
+	}
+	return ""
+}
+
+func extractClaudeValueText(v interface{}) string {
+	switch value := v.(type) {
+	case string:
+		return value
+	case []interface{}:
+		parts := make([]string, 0, len(value))
+		for _, item := range value {
+			if m, ok := item.(map[string]interface{}); ok {
+				if text, ok := m["text"].(string); ok {
+					parts = append(parts, text)
+				}
+			}
+		}
+		return strings.Join(parts, "")
+	default:
+		return ""
+	}
 }
 
 func extractImagesFromToolResultContent(content interface{}) []KiroImage {
@@ -2243,7 +2324,7 @@ func firstClaudeConversationAnchor(messages []ClaudeMessage) string {
 		if msg.Role != "user" {
 			continue
 		}
-		text, _, toolResults, _ := extractClaudeUserContent(msg.Content)
+		text, _, toolResults, _, _ := extractClaudeUserContent(msg.Content)
 		if strings.TrimSpace(text) != "" {
 			return strings.TrimSpace(text)
 		}

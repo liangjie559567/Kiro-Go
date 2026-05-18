@@ -40,6 +40,7 @@ type payloadGuardResult struct {
 	OrphanedToolResultsConverted int
 	ToolResultImages             int
 	RelocatedToolDescriptions    int
+	UnsupportedContentBlocks     []string
 }
 
 const minCurrentToolResultTextBytes = 256
@@ -114,6 +115,7 @@ func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGu
 		result.MaterializedToolRefNames = cappedToolNames(payload.MaterializedToolReferenceNames)
 		result.ToolResultImages = payload.ToolResultImages
 		result.RelocatedToolDescriptions = payload.RelocatedToolDescriptions
+		result.UnsupportedContentBlocks = append([]string(nil), payload.UnsupportedContentBlocks...)
 	}
 	result.FinalBytes = result.OriginalBytes
 	if payload != nil {
@@ -239,6 +241,7 @@ func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (
 		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
 		result.ToolResultImages = payload.ToolResultImages
 		result.RelocatedToolDescriptions = payload.RelocatedToolDescriptions
+		result.UnsupportedContentBlocks = append([]string(nil), payload.UnsupportedContentBlocks...)
 	}
 	if err != nil {
 		return result, err
@@ -248,6 +251,7 @@ func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (
 		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
 		result.ToolResultImages = payload.ToolResultImages
 		result.RelocatedToolDescriptions = payload.RelocatedToolDescriptions
+		result.UnsupportedContentBlocks = append([]string(nil), payload.UnsupportedContentBlocks...)
 	}
 	return result, err
 }
@@ -283,6 +287,7 @@ func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
 	cloned.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
 	cloned.ToolResultImages = payload.ToolResultImages
 	cloned.RelocatedToolDescriptions = payload.RelocatedToolDescriptions
+	cloned.UnsupportedContentBlocks = append([]string(nil), payload.UnsupportedContentBlocks...)
 	return &cloned
 }
 
@@ -329,6 +334,7 @@ func finalizeKiroPayloadForAccount(payload *KiroPayload, account *config.Account
 	if payload != nil {
 		result.ToolResultImages = payload.ToolResultImages
 		result.RelocatedToolDescriptions = payload.RelocatedToolDescriptions
+		result.UnsupportedContentBlocks = append([]string(nil), payload.UnsupportedContentBlocks...)
 	}
 	if result.FinalBytes > opts.HardLimitBytes {
 		return result, fmt.Errorf("Kiro payload exceeds hard limit after ProfileArn finalization: %d bytes", result.FinalBytes)

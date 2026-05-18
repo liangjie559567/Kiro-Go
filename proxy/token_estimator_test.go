@@ -1,6 +1,9 @@
 package proxy
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEstimateClaudeRequestInputTokensIncludesToolReferencesAndToolCacheControl(t *testing.T) {
 	req := &ClaudeRequest{
@@ -83,5 +86,18 @@ func TestEstimateClaudeRequestInputTokensIncludesThinkingBudget(t *testing.T) {
 
 	if withThinking <= base {
 		t.Fatalf("expected thinking config to increase estimate: base=%d thinking=%d", base, withThinking)
+	}
+}
+
+func TestEstimateClaudeRequestInputTokensIncludesOfficialUnsupportedBlocks(t *testing.T) {
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{{Role: "user", Content: []interface{}{
+			map[string]interface{}{"type": "document", "title": "spec.pdf", "source": map[string]interface{}{"type": "base64", "media_type": "application/pdf", "data": strings.Repeat("a", 100)}},
+			map[string]interface{}{"type": "search_result", "title": "Result", "content": "search body"},
+		}}},
+	}
+	if got := estimateClaudeRequestInputTokens(req); got <= 0 {
+		t.Fatalf("expected positive token estimate, got %d", got)
 	}
 }

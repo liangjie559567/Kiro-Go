@@ -402,6 +402,29 @@ func TestValidateClaudeToolNamesDetectsSanitizedCollision(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroToleratesOfficialUnsupportedContentBlocks(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Messages: []ClaudeMessage{{Role: "user", Content: []interface{}{
+			map[string]interface{}{"type": "document", "title": "spec.pdf", "source": map[string]interface{}{"type": "base64", "media_type": "application/pdf", "data": "abc"}},
+			map[string]interface{}{"type": "search_result", "title": "Result", "url": "https://example.com", "content": "search body"},
+			map[string]interface{}{"type": "server_tool_result", "content": "server output"},
+		}}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	for _, want := range []string{"Unsupported content block: document", "Result", "search body", "server output"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("expected %q in converted content, got %q", want, content)
+		}
+	}
+	if len(payload.UnsupportedContentBlocks) == 0 {
+		t.Fatalf("expected unsupported content block metadata")
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",
