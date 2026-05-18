@@ -4577,9 +4577,6 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 		if account.CooldownUntil > 0 && now < account.CooldownUntil {
 			healthy = false
 		}
-		if account.LastFailureReason != "" {
-			healthy = false
-		}
 		if account.ExpiresAt > 0 && now > account.ExpiresAt-tokenRefreshSkewSeconds {
 			healthy = false
 		}
@@ -4595,9 +4592,6 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 						break
 					}
 				}
-			}
-			if health := h.pool.GetRuntimeHealth(account.ID); health.Score < 50 {
-				healthy = false
 			}
 		}
 

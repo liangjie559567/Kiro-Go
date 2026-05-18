@@ -2572,6 +2572,83 @@ func TestMaskReadinessEmailMasksShortLocalParts(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeModelReadinessAllowsTransientFailureWithoutCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.AddAccount(config.Account{
+		ID:                "transient-account",
+		Email:             "transient@example.com",
+		Enabled:           true,
+		AccessToken:       "token",
+		ProfileArn:        "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:         time.Now().Add(time.Hour).Unix(),
+		LastFailureReason: "transient_network",
+		FailureCount:      1,
+	}); err != nil {
+		t.Fatalf("add transient account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p, startTime: time.Now().Unix()}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4.5", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeModelReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["routingReason"] != "schedulable accounts available" {
+		t.Fatalf("expected schedulable routing reason, got %#v", resp)
+	}
+	accounts := resp["accounts"].([]interface{})
+	account := accounts[0].(map[string]interface{})
+	if account["schedulable"] != true || account["reason"] != "schedulable" {
+		t.Fatalf("expected transient non-cooldown account to be schedulable, got %#v", account)
+	}
+}
+
+func TestClaudeCodeModelReadinessAllowsExpiredCooldownState(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.AddAccount(config.Account{
+		ID:                "expired-cooldown-account",
+		Email:             "expired@example.com",
+		Enabled:           true,
+		AccessToken:       "token",
+		ProfileArn:        "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:         time.Now().Add(time.Hour).Unix(),
+		LastFailureReason: "rate_limited",
+		FailureCount:      2,
+		CooldownUntil:     time.Now().Add(-time.Minute).Unix(),
+	}); err != nil {
+		t.Fatalf("add expired cooldown account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p, startTime: time.Now().Unix()}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4.5", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeModelReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["routingReason"] != "schedulable accounts available" {
+		t.Fatalf("expected schedulable routing reason, got %#v", resp)
+	}
+	accounts := resp["accounts"].([]interface{})
+	account := accounts[0].(map[string]interface{})
+	if account["schedulable"] != true || account["reason"] != "schedulable" {
+		t.Fatalf("expected expired cooldown account to be schedulable, got %#v", account)
+	}
+}
+
 func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
