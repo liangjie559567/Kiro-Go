@@ -930,8 +930,11 @@ func enforceCurrentToolResultAdjacency(payload *KiroPayload) (int, int) {
 		}
 	}
 	assistant.ToolUses = filteredUses
-	payload.ConversationState.History = []KiroHistoryMessage{{AssistantResponseMessage: &assistant}}
-	return beforeHistory - 1, trimmedResults
+	trimmedHistory := beforeHistory - (matchingIdx + 1)
+	preserved := append([]KiroHistoryMessage(nil), payload.ConversationState.History[:matchingIdx]...)
+	preserved = append(preserved, KiroHistoryMessage{AssistantResponseMessage: &assistant})
+	payload.ConversationState.History = preserved
+	return trimmedHistory, trimmedResults
 }
 
 func historyMessageHasCurrentToolUse(message KiroHistoryMessage, currentResultIDs map[string]bool) bool {

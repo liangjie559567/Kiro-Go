@@ -408,7 +408,7 @@ func TestGuardKiroPayloadPreservesCurrentToolResultPair(t *testing.T) {
 	}
 }
 
-func TestGuardKiroPayloadMovesCurrentToolUsePairToHistoryTail(t *testing.T) {
+func TestGuardKiroPayloadPreservesContextBeforeCurrentToolUsePair(t *testing.T) {
 	payload := &KiroPayload{}
 	payload.ConversationState.ChatTriggerType = "MANUAL"
 	payload.ConversationState.ConversationID = "conv-1"
@@ -421,6 +421,8 @@ func TestGuardKiroPayloadMovesCurrentToolUsePairToHistoryTail(t *testing.T) {
 		},
 	}
 	payload.ConversationState.History = []KiroHistoryMessage{
+		{UserInputMessage: &KiroUserInputMessage{Content: "Operator instructions for this session:\n\n说中文", ModelID: "claude-opus-4.7", Origin: "AI_EDITOR"}},
+		{AssistantResponseMessage: &KiroAssistantResponseMessage{Content: kiroSystemAcknowledgement}},
 		{UserInputMessage: &KiroUserInputMessage{Content: "old user", ModelID: "claude-opus-4.7", Origin: "AI_EDITOR"}},
 		{AssistantResponseMessage: &KiroAssistantResponseMessage{
 			Content:  "use tool",
@@ -436,8 +438,14 @@ func TestGuardKiroPayloadMovesCurrentToolUsePairToHistoryTail(t *testing.T) {
 	if !result.Trimmed {
 		t.Fatalf("expected intervening history before current tool_result to be trimmed")
 	}
-	if got := len(payload.ConversationState.History); got != 1 {
-		t.Fatalf("expected only matching tool_use at history tail, got %d: %#v", got, payload.ConversationState.History)
+	if got := len(payload.ConversationState.History); got != 4 {
+		t.Fatalf("expected context before matching tool_use to be preserved, got %d: %#v", got, payload.ConversationState.History)
+	}
+	if got := payload.ConversationState.History[0].UserInputMessage.Content; !strings.Contains(got, "说中文") {
+		t.Fatalf("expected system/user context to survive adjacency enforcement, got %q", got)
+	}
+	if got := payload.ConversationState.History[2].UserInputMessage.Content; got != "old user" {
+		t.Fatalf("expected prior user task context to survive, got %q", got)
 	}
 	tail := payload.ConversationState.History[len(payload.ConversationState.History)-1]
 	if tail.AssistantResponseMessage == nil || len(tail.AssistantResponseMessage.ToolUses) != 1 || tail.AssistantResponseMessage.ToolUses[0].ToolUseID != "toolu_now" {
