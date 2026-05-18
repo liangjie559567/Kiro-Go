@@ -200,6 +200,53 @@ func TestClaudeConversationIDStableFromAnchor(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Tools: []ClaudeTool{{
+			Name:        "bash",
+			Description: "Run shell commands",
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "first user"},
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": "first result"},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "second user"},
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_2", "content": "second result"},
+			}},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "assistant text"},
+				map[string]interface{}{"type": "tool_use", "id": "toolu_1", "name": "bash", "input": map[string]interface{}{"command": "pwd"}},
+			}},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_2", "name": "bash", "input": map[string]interface{}{"command": "ls"}},
+			}},
+			{Role: "user", Content: "final question"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	if len(payload.ConversationState.History) < 2 {
+		t.Fatalf("expected merged history, got %#v", payload.ConversationState.History)
+	}
+	firstUser := payload.ConversationState.History[0].UserInputMessage
+	if firstUser == nil || !strings.Contains(firstUser.Content, "first user") || !strings.Contains(firstUser.Content, "second user") {
+		t.Fatalf("expected adjacent user text to merge, got %#v", firstUser)
+	}
+	ctx := firstUser.UserInputMessageContext
+	if ctx == nil || len(ctx.ToolResults) != 2 {
+		t.Fatalf("expected merged tool results, got %#v", ctx)
+	}
+	assistant := payload.ConversationState.History[1].AssistantResponseMessage
+	if assistant == nil || len(assistant.ToolUses) != 2 {
+		t.Fatalf("expected merged assistant tool uses, got %#v", assistant)
+	}
+}
+
 func TestClaudeToKiroCarriesSystemPromptAsSyntheticHistoryPair(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:  "claude-sonnet-4.5",

@@ -212,9 +212,10 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	var currentImages []KiroImage
 	var currentToolResults []KiroToolResult
 	languageReminder := ""
+	messages := normalizeClaudeMessagesForKiro(req.Messages)
 
-	for i, msg := range req.Messages {
-		isLast := i == len(req.Messages)-1
+	for i, msg := range messages {
+		isLast := i == len(messages)-1
 
 		if msg.Role == "user" {
 			content, images, toolResults := extractClaudeUserContent(msg.Content)
@@ -297,7 +298,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.ConversationState.ChatTriggerType = "MANUAL"
 	payload.ConversationState.AgentTaskType = "vibe"
 	payload.ConversationState.AgentContinuationId = uuid.New().String()
-	payload.ConversationState.ConversationID = buildConversationID(modelID, systemPrompt, firstClaudeConversationAnchor(req.Messages))
+	payload.ConversationState.ConversationID = buildConversationID(modelID, systemPrompt, firstClaudeConversationAnchor(messages))
 	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
 		Content: finalContent,
 		ModelID: modelID,
@@ -325,6 +326,50 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	}
 
 	return payload
+}
+
+func normalizeClaudeMessagesForKiro(messages []ClaudeMessage) []ClaudeMessage {
+	if len(messages) == 0 {
+		return nil
+	}
+	normalized := make([]ClaudeMessage, 0, len(messages))
+	for _, msg := range messages {
+		if len(normalized) == 0 || normalized[len(normalized)-1].Role != msg.Role {
+			normalized = append(normalized, msg)
+			continue
+		}
+		last := &normalized[len(normalized)-1]
+		last.Content = mergeClaudeContent(last.Content, msg.Content)
+	}
+	return normalized
+}
+
+func mergeClaudeContent(a, b interface{}) interface{} {
+	aBlocks := claudeContentAsBlocks(a)
+	bBlocks := claudeContentAsBlocks(b)
+	if len(aBlocks) == 0 {
+		return b
+	}
+	if len(bBlocks) == 0 {
+		return a
+	}
+	return append(aBlocks, bBlocks...)
+}
+
+func claudeContentAsBlocks(content interface{}) []interface{} {
+	switch v := content.(type) {
+	case nil:
+		return nil
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil
+		}
+		return []interface{}{map[string]interface{}{"type": "text", "text": v}}
+	case []interface{}:
+		return append([]interface{}(nil), v...)
+	default:
+		return []interface{}{map[string]interface{}{"type": "text", "text": fmt.Sprint(v)}}
+	}
 }
 
 func buildKiroSystemContext(systemPrompt string) string {
