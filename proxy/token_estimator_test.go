@@ -101,3 +101,22 @@ func TestEstimateClaudeRequestInputTokensIncludesOfficialUnsupportedBlocks(t *te
 		t.Fatalf("expected positive token estimate, got %d", got)
 	}
 }
+
+func TestEstimateClaudeRequestInputTokensIncludesOfficialParityFields(t *testing.T) {
+	req := &ClaudeRequest{Model: "claude-sonnet-4.5", MaxTokens: 128,
+		System: []interface{}{map[string]interface{}{"type": "text", "text": "System instructions", "cache_control": map[string]interface{}{"type": "ephemeral"}}},
+		Tools: []ClaudeTool{{Name: "browser", Description: "Capture screenshots", InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"url": map[string]interface{}{"type": "string", "maxLength": 256}}, "required": []interface{}{"url"}}, CacheControl: map[string]interface{}{"type": "ephemeral"}}},
+		ToolReferences: []ClaudeToolReference{{Type: "tool_reference", ID: "toolref_1", Name: "mcp__browser__screenshot", Description: "Browser screenshot", InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{"name": map[string]interface{}{"type": "string"}}}}},
+		Thinking:       &ClaudeThinkingConfig{Type: "enabled", BudgetTokens: 1024},
+		Messages: []ClaudeMessage{{Role: "user", Content: []interface{}{
+			map[string]interface{}{"type": "text", "text": "Read the document and image."},
+			map[string]interface{}{"type": "document", "title": "spec.pdf", "source": map[string]interface{}{"type": "base64", "media_type": "application/pdf", "data": strings.Repeat("a", 100)}},
+			map[string]interface{}{"type": "image", "source": map[string]interface{}{"type": "base64", "media_type": "image/png", "data": strings.Repeat("b", 100)}},
+			map[string]interface{}{"type": "search_result", "title": "Docs", "url": "https://example.test", "content": "result body"},
+		}}},
+	}
+	got := estimateClaudeRequestInputTokens(req)
+	if got < 100 {
+		t.Fatalf("expected official parity fields to affect estimate, got %d", got)
+	}
+}

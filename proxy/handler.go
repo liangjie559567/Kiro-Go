@@ -1164,6 +1164,7 @@ func (h *Handler) handleCountTokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Kiro-Go-Token-Count-Mode", "estimated")
 	json.NewEncoder(w).Encode(map[string]int{"input_tokens": estimatedTokens})
 }
 
