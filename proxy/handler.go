@@ -1203,7 +1203,7 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
 
-	if req.MaxTokens == 0 {
+	if req.MaxTokens == 0 && claudeRequestHasMaxTokens(body) {
 		updateRequestLogMaxTokensZeroMode(r, "local_zero_output")
 		updateRequestLogUsage(r, estimatedInputTokens, 0, 0, 0)
 		h.recordSuccess(estimatedInputTokens, 0, 0)
@@ -1238,6 +1238,15 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		return
 	}
 	h.handleClaudeWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
+}
+
+func claudeRequestHasMaxTokens(body []byte) bool {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return false
+	}
+	_, ok := raw["max_tokens"]
+	return ok
 }
 
 func hasNativeClaudeWebSearch(tools []ClaudeTool) bool {

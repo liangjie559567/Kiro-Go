@@ -1632,6 +1632,71 @@ func TestHandleClaudeMessagesMaxTokensZeroReturnsCompatibleNoOutputResponse(t *t
 	}
 }
 
+func TestHandleClaudeMessagesOmittedMaxTokensStillRoutesUpstream(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, requestLogs: newRequestLogStore(5), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-omitted-max-tokens",
+		Enabled:     true,
+		AccessToken: "token-omitted-max-tokens",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var upstreamCalled bool
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalled = true
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "routed upstream"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 5, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if !upstreamCalled {
+		t.Fatalf("expected omitted max_tokens request to route upstream")
+	}
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.StopReason == "max_tokens" || len(resp.Content) == 0 {
+		t.Fatalf("expected upstream response, got %#v", resp)
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 || entries[0].MaxTokensZeroMode != "" {
+		t.Fatalf("expected no max_tokens=0 request log mode, got %#v", entries)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
