@@ -1361,16 +1361,40 @@ func TestOpus47GateLimitsConcurrentWork(t *testing.T) {
 	}
 }
 
-func TestValidateClaudeRequestShapeRejectsAssistantPrefill(t *testing.T) {
+func TestValidateClaudeRequestShapeAllowsFinalAssistantTextPrefill(t *testing.T) {
 	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
 		Messages: []ClaudeMessage{
-			{Role: "user", Content: "hello"},
-			{Role: "assistant", Content: "prefill"},
+			{Role: "user", Content: "Write one sentence."},
+			{Role: "assistant", Content: "The answer is"},
 		},
 	}
 
-	if msg := validateClaudeRequestShape(req); msg == "" {
-		t.Fatalf("expected assistant-prefill final message to be rejected")
+	if msg := validateClaudeRequestShape(req); msg != "" {
+		t.Fatalf("expected final assistant text prefill to be accepted, got %q", msg)
+	}
+}
+
+func TestValidateClaudeRequestShapeRejectsFinalAssistantToolUsePrefill(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "Use a tool."},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_1",
+					"name":  "bash",
+					"input": map[string]interface{}{"command": "pwd"},
+				},
+			}},
+		},
+	}
+
+	if msg := validateClaudeRequestShape(req); !strings.Contains(msg, "assistant-prefill tool_use") {
+		t.Fatalf("expected tool-use prefill rejection, got %q", msg)
 	}
 }
 

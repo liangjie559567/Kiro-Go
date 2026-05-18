@@ -220,7 +220,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	toolResultImageCount := 0
 	var unsupportedContentBlocks []string
 	languageReminder := ""
-	messages := normalizeClaudeMessagesForKiro(req.Messages)
+	messages := normalizeClaudeMessagesForKiro(normalizeAssistantPrefillForKiro(req.Messages))
 	orphanedToolResultsConverted := 0
 
 	for i, msg := range messages {
@@ -535,6 +535,29 @@ func normalizeClaudeMessagesForKiro(messages []ClaudeMessage) []ClaudeMessage {
 		last.Content = mergeClaudeContent(last.Content, msg.Content)
 	}
 	return normalized
+}
+
+func normalizeAssistantPrefillForKiro(messages []ClaudeMessage) []ClaudeMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	last := messages[len(messages)-1]
+	if strings.TrimSpace(last.Role) != "assistant" {
+		return messages
+	}
+	text, toolUses := extractClaudeAssistantContent(last.Content)
+	if len(toolUses) > 0 || strings.TrimSpace(text) == "" {
+		return messages
+	}
+	out := append([]ClaudeMessage(nil), messages[:len(messages)-1]...)
+	instruction := "Continue the assistant response starting exactly with this prefill:\n\n" + strings.TrimSpace(text)
+	out = append(out, ClaudeMessage{Role: "user", Content: instruction})
+	return out
+}
+
+func finalAssistantMessageHasToolUse(content interface{}) bool {
+	_, toolUses := extractClaudeAssistantContent(content)
+	return len(toolUses) > 0
 }
 
 func mergeClaudeContent(a, b interface{}) interface{} {

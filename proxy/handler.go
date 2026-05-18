@@ -144,7 +144,14 @@ func validateClaudeRequestShape(req *ClaudeRequest) string {
 	}
 
 	if lastRole == "assistant" {
-		return "assistant-prefill final message is not supported; last message must be user"
+		last := req.Messages[len(req.Messages)-1]
+		if finalAssistantMessageHasToolUse(last.Content) {
+			return "assistant-prefill tool_use final message is not supported; last message must be user or assistant text prefill"
+		}
+		text, _ := extractClaudeAssistantContent(last.Content)
+		if strings.TrimSpace(text) == "" {
+			return "assistant-prefill final message must contain text"
+		}
 	}
 	if !hasUserContext {
 		return "at least one non-empty user message is required"

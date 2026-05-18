@@ -224,6 +224,26 @@ func TestClaudeToKiroConvertsOrphanedToolResultToText(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroConvertsFinalAssistantTextPrefillToCurrentUserInstruction(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "Write one sentence."},
+			{Role: "assistant", Content: "The answer is"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	current := payload.ConversationState.CurrentMessage.UserInputMessage
+	if !strings.Contains(current.Content, "Continue the assistant response starting exactly with this prefill:") {
+		t.Fatalf("expected continuation instruction in current content, got %q", current.Content)
+	}
+	if !strings.Contains(current.Content, "The answer is") {
+		t.Fatalf("expected prefill text in current content, got %q", current.Content)
+	}
+}
+
 func TestClaudeToKiroRelocatesLongToolDescriptionsToContext(t *testing.T) {
 	longDescription := strings.Repeat("Detailed usage guidance for the browser tool. ", 80)
 	req := &ClaudeRequest{
