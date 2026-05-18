@@ -47,6 +47,7 @@ type RequestLogEntry struct {
 	PayloadCompactedPairs               int       `json:"payloadCompactedPairs,omitempty"`
 	PayloadCompactedToolResults         int       `json:"payloadCompactedToolResults,omitempty"`
 	PayloadOrphanedToolResultsConverted int       `json:"payloadOrphanedToolResultsConverted,omitempty"`
+	PayloadToolResultImages             int       `json:"payloadToolResultImages,omitempty"`
 	PayloadCurrentMessageShape          string    `json:"payloadCurrentMessageShape,omitempty"`
 	PayloadContextReminderKinds         []string  `json:"payloadContextReminderKinds,omitempty"`
 	PayloadUnknownOfficialFields        []string  `json:"payloadUnknownOfficialFields,omitempty"`
@@ -315,6 +316,7 @@ func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
 	ctx.entry.PayloadCompactedPairs = result.CompactedPairs
 	ctx.entry.PayloadCompactedToolResults = result.CompactedToolResults
 	ctx.entry.PayloadOrphanedToolResultsConverted = result.OrphanedToolResultsConverted
+	ctx.entry.PayloadToolResultImages = result.ToolResultImages
 	ctx.entry.PayloadCurrentMessageShape = result.Summary.CurrentMessageShape
 	ctx.entry.PayloadContextReminderKinds = append([]string(nil), result.Summary.ContextReminderKinds...)
 }

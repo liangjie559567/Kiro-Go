@@ -1255,6 +1255,48 @@ func TestOpenAIResponsesToChatRequestConvertsFunctionCallOutput(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroExtractsImagesInsideToolResultContent(t *testing.T) {
+	imageData := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Messages: []ClaudeMessage{
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_screen", "name": "mcp__browser__screenshot", "input": map[string]interface{}{}},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_screen",
+					"content": []interface{}{
+						map[string]interface{}{"type": "text", "text": "screenshot captured"},
+						map[string]interface{}{
+							"type": "image",
+							"source": map[string]interface{}{
+								"type":       "base64",
+								"media_type": "image/png",
+								"data":       imageData,
+							},
+						},
+					},
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	images := payload.ConversationState.CurrentMessage.UserInputMessage.Images
+	if len(images) != 1 {
+		t.Fatalf("expected one extracted tool-result image, got %#v", images)
+	}
+	if images[0].Format != "png" || images[0].Source.Bytes != imageData {
+		t.Fatalf("unexpected image: %#v", images[0])
+	}
+	if payload.ToolResultImages != 1 {
+		t.Fatalf("expected image metric, got %d", payload.ToolResultImages)
+	}
+}
+
 func TestExtractThinkingFromContentIgnoresQuotedCloseTag(t *testing.T) {
 	content := `<thinking>Need to explain the literal "</thinking>" marker before ending.</thinking>Final answer`
 

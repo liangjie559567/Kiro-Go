@@ -38,6 +38,7 @@ type payloadGuardResult struct {
 	CompactedPairs               int
 	CompactedToolResults         int
 	OrphanedToolResultsConverted int
+	ToolResultImages             int
 }
 
 const minCurrentToolResultTextBytes = 256
@@ -110,6 +111,7 @@ func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGu
 	if payload != nil {
 		result.DeferredToolNames = cappedToolNames(payload.DeferredToolReferenceNames)
 		result.MaterializedToolRefNames = cappedToolNames(payload.MaterializedToolReferenceNames)
+		result.ToolResultImages = payload.ToolResultImages
 	}
 	result.FinalBytes = result.OriginalBytes
 	if payload != nil {
@@ -233,6 +235,7 @@ func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (
 	result, err := guardKiroPayload(payload, opts)
 	if payload != nil {
 		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
+		result.ToolResultImages = payload.ToolResultImages
 	}
 	if err != nil {
 		return result, err
@@ -240,6 +243,7 @@ func prepareGuardedKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (
 	result, err = applyTruncationRecoveryNoteWithLimit(payload, result, opts)
 	if payload != nil {
 		result.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
+		result.ToolResultImages = payload.ToolResultImages
 	}
 	return result, err
 }
@@ -273,6 +277,7 @@ func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
 	cloned.CurrentMessageShape = payload.CurrentMessageShape
 	cloned.ContextReminderKinds = append([]string(nil), payload.ContextReminderKinds...)
 	cloned.OrphanedToolResultsConverted = payload.OrphanedToolResultsConverted
+	cloned.ToolResultImages = payload.ToolResultImages
 	return &cloned
 }
 
@@ -316,6 +321,9 @@ func finalizeKiroPayloadForAccount(payload *KiroPayload, account *config.Account
 		payload.ProfileArnFinalized = true
 	}
 	result := payloadGuardResult{FinalBytes: kiroPayloadJSONSize(payload)}
+	if payload != nil {
+		result.ToolResultImages = payload.ToolResultImages
+	}
 	if result.FinalBytes > opts.HardLimitBytes {
 		return result, fmt.Errorf("Kiro payload exceeds hard limit after ProfileArn finalization: %d bytes", result.FinalBytes)
 	}

@@ -211,6 +211,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	var currentContent string
 	var currentImages []KiroImage
 	var currentToolResults []KiroToolResult
+	toolResultImageCount := 0
 	languageReminder := ""
 	messages := normalizeClaudeMessagesForKiro(req.Messages)
 	orphanedToolResultsConverted := 0
@@ -219,7 +220,8 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		isLast := i == len(messages)-1
 
 		if msg.Role == "user" {
-			content, images, toolResults := extractClaudeUserContent(msg.Content)
+			content, images, toolResults, toolResultImages := extractClaudeUserContent(msg.Content)
+			toolResultImageCount += toolResultImages
 			known := knownClaudeToolUseIDs(messages, i)
 			var converted int
 			content, toolResults, converted = splitOrphanedToolResults(content, toolResults, known)
@@ -298,6 +300,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.ToolSchemas = buildClaudeToolSchemaSummaries(toolSelection.Tools)
 	payload.CurrentMessageShape = describeKiroCurrentMessageShape(currentContent, len(currentImages) > 0, len(currentToolResults) > 0)
 	payload.OrphanedToolResultsConverted = orphanedToolResultsConverted
+	payload.ToolResultImages = toolResultImageCount
 	if len(currentToolResults) > 0 {
 		payload.ContextReminderKinds = reminderKinds
 	}
@@ -1085,13 +1088,14 @@ func extractSystemPrompt(system interface{}) string {
 	return ""
 }
 
-func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroToolResult) {
+func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroToolResult, int) {
 	var text string
 	var images []KiroImage
 	var toolResults []KiroToolResult
+	var toolResultImageCount int
 
 	if s, ok := content.(string); ok {
-		return s, nil, nil
+		return s, nil, nil, 0
 	}
 
 	if blocks, ok := content.([]interface{}); ok {
@@ -1114,6 +1118,10 @@ func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroT
 			case "tool_result":
 				toolUseID, _ := block["tool_use_id"].(string)
 				resultContent := extractToolResultContent(block["content"])
+				if nestedImages := extractImagesFromToolResultContent(block["content"]); len(nestedImages) > 0 {
+					images = append(images, nestedImages...)
+					toolResultImageCount += len(nestedImages)
+				}
 				toolResults = append(toolResults, KiroToolResult{
 					ToolUseID: toolUseID,
 					Content:   []KiroResultContent{{Text: resultContent}},
@@ -1123,7 +1131,29 @@ func extractClaudeUserContent(content interface{}) (string, []KiroImage, []KiroT
 		}
 	}
 
-	return text, images, toolResults
+	return text, images, toolResults, toolResultImageCount
+}
+
+func extractImagesFromToolResultContent(content interface{}) []KiroImage {
+	blocks, ok := content.([]interface{})
+	if !ok {
+		return nil
+	}
+	images := make([]KiroImage, 0)
+	for _, b := range blocks {
+		block, ok := b.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		blockType, _ := block["type"].(string)
+		switch blockType {
+		case "image", "image_url", "input_image":
+			if img := extractImageFromClaudeBlock(block); img != nil {
+				images = append(images, *img)
+			}
+		}
+	}
+	return images
 }
 
 func extractImageFromClaudeBlock(block map[string]interface{}) *KiroImage {
@@ -2108,7 +2138,7 @@ func firstClaudeConversationAnchor(messages []ClaudeMessage) string {
 		if msg.Role != "user" {
 			continue
 		}
-		text, _, toolResults := extractClaudeUserContent(msg.Content)
+		text, _, toolResults, _ := extractClaudeUserContent(msg.Content)
 		if strings.TrimSpace(text) != "" {
 			return strings.TrimSpace(text)
 		}

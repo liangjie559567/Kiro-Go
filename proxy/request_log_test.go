@@ -352,6 +352,24 @@ func TestRequestLogCapturesOrphanedToolResultConversions(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesPayloadToolResultImages(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	rr := httptest.NewRecorder()
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	updateRequestLogPayload(loggedReq, payloadGuardResult{
+		Summary:          kiroPayloadSummary{},
+		ToolResultImages: 1,
+	})
+	h.finishRequestLog(ctx, recorder)
+
+	entry := h.requestLogs.List(1)[0]
+	if entry.PayloadToolResultImages != 1 {
+		t.Fatalf("expected tool-result image metric, got %#v", entry)
+	}
+}
+
 func TestRequestLogMetadataAllowsConcurrentUpdates(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
