@@ -4637,10 +4637,8 @@ func maskReadinessEmail(email string) string {
 	}
 	local := parts[0]
 	switch {
-	case len(local) == 0:
+	case len(local) <= 2:
 		local = "***"
-	case len(local) == 1:
-		local = local[:1] + "***"
 	default:
 		local = local[:1] + "***"
 	}

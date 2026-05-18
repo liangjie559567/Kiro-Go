@@ -2545,7 +2545,7 @@ func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected account readiness row, got %#v", accounts[0])
 	}
-	if account["id"] != "disabled-account" || account["enabled"] != false || account["schedulable"] != false {
+	if account["id"] != "disabled-account" || account["enabled"] != false || account["healthy"] != false || account["listsModel"] != true || account["schedulable"] != false {
 		t.Fatalf("expected disabled non-schedulable account row, got %#v", account)
 	}
 	if account["reason"] != "disabled account" {
@@ -2553,6 +2553,22 @@ func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
 	}
 	if got := fmt.Sprint(account["email"]); got == "ab@example.com" || !strings.HasSuffix(got, "@example.com") {
 		t.Fatalf("expected masked email preserving domain, got %q", got)
+	}
+}
+
+func TestMaskReadinessEmailMasksShortLocalParts(t *testing.T) {
+	for _, email := range []string{"a@example.com", "ab@example.com"} {
+		got := maskReadinessEmail(email)
+		if got == email {
+			t.Fatalf("expected %q to be masked, got %q", email, got)
+		}
+		if !strings.HasSuffix(got, "@example.com") {
+			t.Fatalf("expected domain to be preserved, got %q", got)
+		}
+		local := strings.TrimSuffix(got, "@example.com")
+		if strings.Contains(local, strings.Split(email, "@")[0]) {
+			t.Fatalf("expected local part to be masked, got %q for %q", got, email)
+		}
 	}
 }
 
