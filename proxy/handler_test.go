@@ -2261,6 +2261,48 @@ func TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings(t *testing.T
 	}
 }
 
+func TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("secret")
+	h := &Handler{
+		cachedModels: []ModelInfo{
+			{ModelId: "claude-sonnet-4.5", InputTypes: []string{"text", "image"}},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4-5", nil)
+	rr := httptest.NewRecorder()
+
+	h.apiGetClaudeCodeModelReadiness(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if body["requestedModel"] != "claude-sonnet-4-5" || body["mappedModel"] != "claude-sonnet-4.5" {
+		t.Fatalf("unexpected model mapping: %#v", body)
+	}
+	if body["listedByGateway"] != true {
+		t.Fatalf("expected listedByGateway=true: %#v", body)
+	}
+	caps, ok := body["capabilities"].(map[string]interface{})
+	if !ok || caps["vision"] != true || caps["toolUse"] != true {
+		t.Fatalf("expected capabilities, got %#v", body["capabilities"])
+	}
+
+	routeReq := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4-5", nil)
+	routeReq.Header.Set("X-Admin-Password", "secret")
+	routeRR := httptest.NewRecorder()
+	h.handleAdminAPI(routeRR, routeReq)
+	if routeRR.Code != http.StatusOK {
+		t.Fatalf("expected route 200, got %d body=%s", routeRR.Code, routeRR.Body.String())
+	}
+}
+
 func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

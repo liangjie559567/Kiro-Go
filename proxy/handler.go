@@ -3697,6 +3697,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiUpdateSettings(w, r)
 	case path == "/claude-code/compat" && r.Method == "GET":
 		h.apiGetClaudeCodeCompatibility(w, r)
+	case path == "/claude-code/model-readiness" && r.Method == "GET":
+		h.apiGetClaudeCodeModelReadiness(w, r)
 	case path == "/auto-refresh" && r.Method == "GET":
 		h.apiGetAutoRefresh(w, r)
 	case path == "/auto-refresh" && r.Method == "POST":
@@ -4463,6 +4465,49 @@ func (h *Handler) apiGetClaudeCodeCompatibility(w http.ResponseWriter, r *http.R
 			"Use Kiro-Go request logs to separate downstream admission failures from upstream Kiro errors.",
 		},
 	})
+}
+
+func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.Request) {
+	requested := strings.TrimSpace(r.URL.Query().Get("model"))
+	if requested == "" {
+		requested = "claude-sonnet-4.5"
+	}
+	thinkingCfg := config.GetThinkingConfig()
+	mapped, thinking := resolveClaudeThinkingMode(requested, nil, thinkingCfg.Suffix)
+	h.modelsCacheMu.RLock()
+	cached := append([]ModelInfo(nil), h.cachedModels...)
+	h.modelsCacheMu.RUnlock()
+	listed, supportsImage := modelListedAndVision(cached, mapped)
+	resp := map[string]interface{}{
+		"requestedModel":  requested,
+		"mappedModel":     mapped,
+		"thinkingVariant": thinking || strings.HasSuffix(strings.ToLower(requested), strings.ToLower(thinkingCfg.Suffix)),
+		"listedByGateway": listed,
+		"capabilities": map[string]interface{}{
+			"vision":    supportsImage,
+			"toolUse":   true,
+			"thinking":  true,
+			"webSearch": true,
+		},
+		"reason": modelReadinessReason(listed),
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func modelListedAndVision(models []ModelInfo, model string) (bool, bool) {
+	for _, m := range models {
+		if strings.EqualFold(m.ModelId, model) {
+			return true, modelSupportsImage(m.InputTypes)
+		}
+	}
+	return false, false
+}
+
+func modelReadinessReason(listed bool) string {
+	if listed {
+		return "model listed by Kiro-Go model cache"
+	}
+	return "model not found in current Kiro-Go model cache"
 }
 
 func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Request) {
