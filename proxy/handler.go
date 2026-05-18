@@ -4580,6 +4580,7 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 		if account.ExpiresAt > 0 && now > account.ExpiresAt-tokenRefreshSkewSeconds {
 			healthy = false
 		}
+		usageBlocked := readinessAccountUsageBlocked(account)
 
 		listsModel := true
 		if h.pool != nil {
@@ -4595,7 +4596,7 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 			}
 		}
 
-		schedulable := account.Enabled && healthy && listsModel
+		schedulable := account.Enabled && healthy && listsModel && !usageBlocked
 		if schedulable {
 			schedulableCount++
 		}
@@ -4605,6 +4606,8 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 			reason = "disabled account"
 		case !healthy:
 			reason = "unhealthy account"
+		case usageBlocked:
+			reason = "usage limit reached"
 		case !listsModel:
 			reason = "model not listed"
 		}
@@ -4621,6 +4624,13 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 	}
 
 	return rows, enabledCount, schedulableCount
+}
+
+func readinessAccountUsageBlocked(account config.Account) bool {
+	if account.UsageLimit <= 0 || account.UsageCurrent < account.UsageLimit {
+		return false
+	}
+	return !account.AllowOverage && !config.GetAllowOverUsage()
 }
 
 func maskReadinessEmail(email string) string {
