@@ -1,0 +1,188 @@
+{
+  "timestamp": "2026-05-18T04:13:36.000Z",
+  "tool": "Playwright CLI using real Chromium; Playwright-MCP tool endpoint was not exposed in this Codex runtime",
+  "screenshots": {
+    "kiroAccounts": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/kiro-admin-accounts.png",
+    "kiroApiReadiness": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/kiro-admin-api-readiness.png",
+    "kiroSettings": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/kiro-admin-settings.png",
+    "sub2apiDashboard": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-dashboard.png",
+    "sub2apiAccounts": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-accounts.png",
+    "sub2apiGroups": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-groups.png",
+    "sub2apiUsage": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-usage.png"
+  },
+  "checks": {
+    "kiroHealthOk": true,
+    "kiroModelsCount": 29,
+    "kiroAdminOk": true,
+    "kiroReadinessOk": true,
+    "kiroClaudeCodeToolReferenceSmokeOk": true,
+    "kiroReadinessSawClaudeCode": true,
+    "kiroReadinessSawToolReferences": true,
+    "kiroReadinessSawMCPTools": true,
+    "sub2apiHealthOk": true,
+    "sub2apiLoginOk": true,
+    "sub2apiDashboardOk": true,
+    "sub2apiAccountsApiOk": true,
+    "sub2apiGroupsApiOk": true,
+    "sub2apiUsageApiOk": true,
+    "dbUsers": 3,
+    "dbGroups": 4,
+    "dbAccounts": 72,
+    "dbApiKeys": 4,
+    "browserConsoleWarningsOrErrors": 0,
+    "browserPageErrors": 0,
+    "finalPageHasContent": true,
+    "screenshotsUnobstructed": true
+  },
+  "apiEvidence": {
+    "kiroHealth": {
+      "status": "ok",
+      "uptime": 317,
+      "version": "1.0.8"
+    },
+    "kiroModelsCount": 29,
+    "kiroModelSample": [
+      "auto",
+      "auto-thinking",
+      "claude-opus-4.7",
+      "claude-opus-4.7-thinking",
+      "claude-opus-4.6",
+      "claude-opus-4.6-thinking",
+      "claude-sonnet-4.6",
+      "claude-sonnet-4.6-thinking"
+    ],
+    "kiroAdminStatus": {
+      "accounts": 21,
+      "totalRequests": 3125,
+      "successRequests": 2953,
+      "failedRequests": 172
+    },
+    "kiroReadiness": {
+      "examples": [
+        {
+          "endpoint": "/v1/models",
+          "model": "",
+          "timestamp": "2026-05-18T04:13:36.015637044Z"
+        },
+        {
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T04:12:45.633779305Z"
+        },
+        {
+          "endpoint": "/v1/models",
+          "model": "",
+          "timestamp": "2026-05-18T04:12:45.623897061Z"
+        },
+        {
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T04:11:35.182068433Z"
+        },
+        {
+          "endpoint": "/v1/models",
+          "model": "",
+          "timestamp": "2026-05-18T04:11:35.174683386Z"
+        }
+      ],
+      "lastSeen": "2026-05-18T04:12:45Z",
+      "recentClaudeCode": true,
+      "recentMCPTools": true,
+      "recentResponsesRestore": false,
+      "recentToolReferences": true,
+      "recentToolTrimming": false
+    },
+    "kiroReadinessAfterClaudeCodeSmoke": {
+      "examples": [
+        {
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T04:13:36.022409442Z"
+        },
+        {
+          "endpoint": "/v1/models",
+          "model": "",
+          "timestamp": "2026-05-18T04:13:36.015637044Z"
+        },
+        {
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T04:12:45.633779305Z"
+        },
+        {
+          "endpoint": "/v1/models",
+          "model": "",
+          "timestamp": "2026-05-18T04:12:45.623897061Z"
+        },
+        {
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T04:11:35.182068433Z"
+        }
+      ],
+      "lastSeen": "2026-05-18T04:13:36Z",
+      "recentClaudeCode": true,
+      "recentMCPTools": true,
+      "recentResponsesRestore": false,
+      "recentToolReferences": true,
+      "recentToolTrimming": false
+    },
+    "kiroClaudeCodeToolReferenceSmoke": {
+      "status": 200,
+      "ok": true,
+      "stopReason": "end_turn",
+      "text": "OK"
+    },
+    "sub2apiHealth": {
+      "status": "ok"
+    },
+    "sub2apiDashboardKeys": [
+      "active_api_keys",
+      "active_users",
+      "average_duration_ms",
+      "error_accounts",
+      "hourly_active_users",
+      "normal_accounts",
+      "overload_accounts",
+      "ratelimit_accounts",
+      "rpm",
+      "stats_stale",
+      "stats_updated_at",
+      "today_actual_cost",
+      "today_cache_creation_tokens",
+      "today_cache_read_tokens",
+      "today_cost",
+      "today_input_tokens",
+      "today_new_users",
+      "today_output_tokens",
+      "today_requests",
+      "today_tokens"
+    ],
+    "sub2apiAccountsTotal": 45,
+    "sub2apiGroupsTotal": 3,
+    "sub2apiUsageTotal": 21,
+    "database": {
+      "users": 3,
+      "groups": 4,
+      "accounts": 72,
+      "api_keys": 4
+    }
+  },
+  "browserEvidence": {
+    "pageState": {
+      "title": "Usage Records - CGTall-AI",
+      "url": "http://127.0.0.1:18080/admin/usage",
+      "bodyTextSample": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nUsage Records\n\nView and manage all user usage records\n\n🇺🇸\nEN\n$9996102.41\nAD\nadmin\nAdmin\n\nTotal Requests\n\n13,430\n\nin selected range\n\nTotal Tokens\n\n1.09B\n\nIn: 61.19M / Out: 3.95M\n\nTotal Cost\n\n$962.9736\n\nCost $962.9736 · Standard $962.9736\n\nAvg Duration\n\n9.36s\n\nTime Range:\nLast 24 Hours\nGranularity:\nHour\nModel Distribution\nRequested\nUpstream\nMapping\nBy Tokens\nBy Actual Cost\nModel\tRequests\tTokens\tActual\tCost\tStandard\n\ngpt-5.5\t10,294\t1.02B\t$791.21\t$791.21\t$791.21\n\nclaude-opus-4-7\t2,266\t68.59M\t$160.81\t$160.81\t$160.81\n\nclaude-sonnet-4.5\t867\t3.59M\t$10.95\t$10.95\t$10.95\n\nclaude-haiku-4-5-20251001\t3\t12.42K\t$0.013\t$0.013\t$0.013\nGroup Usage Distribution\nBy Tokens\nBy Actual Cost\nGroup\tRequests\tTokens\tActual\tCost\tStandard\n\nopenai\t10,492\t1.02B\t$791.41\t$791.41\t$791.41\n\nclaude\t2,938\t72.16M\t$171.56\t$171.56\t$171.56\nEndpoint Distribution\nInbound\nUpstream\nPath\nBy Tokens\nBy Actual Cost\nEndpoint\tRequests\tTokens\tActual\tStandard\n\n/responses\t8,457\t1.02B\t$788.69\t$788.69\n\n/v1/messages\t3,128\t72.18M\t$171.71\t$171.71\n\n/v1/chat/completions\t1,837\t250.05K\t$2.51\t$2.51\n\n/v1/responses\t8\t19.09K\t$0.058\t$0.058\nToken Usage Trend\nUser\nAPI Key\nModel\nSelect an option\nAccount\nType\nSelect an option\nBilling Type\nAll Billing Types\nBilling Mode\nSelect an option\nGroup\nSelect an option\nRefresh\nReset\nColumn Settings\nCleanup\nExport Excel\nUSER\n\t\nAPI KEY\n\t\nACCOUNT\n\t\nMODEL\n\t\nENDPOINT\n\t\nGROUP\n\t\nTYPE\n\t\nBILLING MODE\n\t\nTOKENS\n\t\nCOST\n\t\nFIRST TOKEN\n\t\nDURATION\n\t\nTIME\n\t\nIP\n\n\nadmin@sub2api.local#1\n\topenai\topenai019\tgpt-5.5\t\nInbound:/v1/chat/completions\nUpstream:/v1/responses\n\topenai\tSync\tToken\t\n67\n15\n\t\n$0.000785\nA $0.000785\n\t-\t3.49s\t05/18/2026, 12:13:00\t172.24.0.4\n\nadmin@sub2api.local#1\n\topenai\topenai027\tgpt-5.5\t\nInbound:/v1/chat/completions\nUpstream:/v1/responses\n\topenai\tSync\tToken\t",
+      "hasVisibleTable": true,
+      "hasCards": 11
+    },
+    "consoleMessages": [],
+    "pageErrors": [],
+    "onboardingVisible": {
+      "dashboard": false,
+      "accounts": false,
+      "groups": false,
+      "usage": false
+    }
+  }
+}

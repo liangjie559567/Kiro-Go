@@ -3712,6 +3712,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetRequestLogs(w, r)
 	case path == "/request-stats" && r.Method == "GET":
 		h.apiGetRequestStats(w, r)
+	case path == "/claude-code/readiness" && r.Method == "GET":
+		h.apiGetClaudeCodeReadiness(w, r)
 	case path == "/admission-pressure" && r.Method == "GET":
 		h.apiGetAdmissionPressure(w, r)
 	case path == "/request-logs/clear" && r.Method == "POST":
@@ -4456,6 +4458,61 @@ func (h *Handler) apiGetClaudeCodeCompatibility(w http.ResponseWriter, r *http.R
 			"Use Kiro-Go request logs to separate downstream admission failures from upstream Kiro errors.",
 		},
 	})
+}
+
+func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Request) {
+	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
+	cutoff := time.Now().Add(-30 * time.Minute)
+	resp := map[string]interface{}{
+		"recentClaudeCode":       false,
+		"recentToolReferences":   false,
+		"recentMCPTools":         false,
+		"recentToolTrimming":     false,
+		"recentResponsesRestore": false,
+		"lastSeen":               "",
+		"examples":               []map[string]interface{}{},
+	}
+	examples := make([]map[string]interface{}, 0, 5)
+	for _, entry := range logs {
+		if entry.Timestamp.Before(cutoff) {
+			continue
+		}
+		betas := strings.ToLower(strings.Join(entry.AnthropicBetas, ","))
+		if entry.ClaudeCodeSessionID != "" || strings.Contains(betas, "tool") || strings.Contains(betas, "claude-code") {
+			resp["recentClaudeCode"] = true
+			if resp["lastSeen"] == "" {
+				resp["lastSeen"] = entry.Timestamp.Format(time.RFC3339)
+			}
+		}
+		if entry.ToolReferenceCount > 0 || len(entry.PayloadMaterializedToolRefs) > 0 || len(entry.PayloadDeferredTools) > 0 {
+			resp["recentToolReferences"] = true
+		}
+		if containsMCPToolName(entry.PayloadKeptTools) || containsMCPToolName(entry.PayloadTrimmedTools) || containsMCPToolName(entry.PayloadMaterializedToolRefs) || containsMCPToolName(entry.PayloadDeferredTools) {
+			resp["recentMCPTools"] = true
+		}
+		if entry.PayloadTrimmed || len(entry.PayloadTrimmedTools) > 0 {
+			resp["recentToolTrimming"] = true
+		}
+		if len(examples) < 5 {
+			examples = append(examples, map[string]interface{}{
+				"timestamp": entry.Timestamp,
+				"endpoint":  entry.Endpoint,
+				"model":     entry.Model,
+			})
+		}
+	}
+	resp["examples"] = examples
+	json.NewEncoder(w).Encode(resp)
+}
+
+func containsMCPToolName(names []string) bool {
+	for _, name := range names {
+		lower := strings.ToLower(strings.TrimSpace(name))
+		if strings.Contains(lower, "mcp__") || strings.HasPrefix(lower, "mcp") {
+			return true
+		}
+	}
+	return false
 }
 
 func buildClaudeCodeBaseURL(r *http.Request) string {

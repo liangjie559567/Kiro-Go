@@ -14,6 +14,8 @@ Date: 2026-05-18
 - Result: PASS
 - Evidence time: `2026-05-18 03:42:21 CST`
 - Notes: Packages reported PASS for `kiro-go`, `kiro-go/auth`, `kiro-go/config`, `kiro-go/pool`, and `kiro-go/proxy`; `kiro-go/logger` has no test files.
+- Follow-up command after Claude Code context/readiness fix: `go test ./...`
+- Follow-up result: PASS at 2026-05-18 12:08 CST, including regression coverage for preserving context before current `tool_result` pairs and deferred MCP tool readiness detection.
 
 ## Kiro-Go Local Verification
 
@@ -27,6 +29,8 @@ Date: 2026-05-18
 - Direct `/v1/messages` non-stream smoke: PASS, `task7-direct-20260518100108-sync`, status 200, exact marker returned.
 - Direct `/v1/messages` stream smoke: PASS, `task7-direct-20260518100108-stream`, status 200, exact marker returned, `message_stop` observed.
 - Direct smoke artifact: `docs/superpowers/uat/sub2api-smoke/task7-direct-20260518100108/summary.json`.
+- Claude Code MCP tool_reference smoke: PASS via real `/v1/messages`; status 200, `stop_reason=end_turn`, text `OK`.
+- Claude Code readiness after smoke: PASS; `recentClaudeCode=true`, `recentToolReferences=true`, `recentMCPTools=true`, `lastSeen=2026-05-18T04:13:36Z`.
 
 ## sub2api Downstream Verification
 
@@ -43,6 +47,16 @@ Date: 2026-05-18
 - Non-stream `/v1/messages` result: PASS, status 200, exact marker returned, duration 2650 ms.
 - Stream `/v1/messages` result: PASS, status 200, exact marker returned, `message_start` and `message_stop` observed, duration 2144 ms.
 - sub2api smoke artifact: `docs/superpowers/uat/sub2api-smoke/task7-sub2api-20260518100028.json`.
+- Playwright/real Chrome full-stack verification: PASS; artifact `docs/superpowers/uat/playwright-2026-05-18/summary.json`.
+- Browser/API checks: Kiro health/admin/models/readiness PASS, sub2api health/login/dashboard/accounts/groups/usage APIs PASS, browser console errors 0, page errors 0.
+- Database counts during browser UAT: `users=3`, `groups=4`, `accounts=72`, `api_keys=4`; data was not cleaned or reset.
+- Screenshot checks: PASS after manual inspection. Kiro readiness shows `client`, `tool_reference`, and `mcp tools`; sub2api dashboard/accounts/groups/usage pages show live data and no onboarding overlay.
+- Screenshot artifacts:
+  - `docs/superpowers/uat/playwright-2026-05-18/kiro-admin-api-readiness.png`
+  - `docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-dashboard.png`
+  - `docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-accounts.png`
+  - `docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-groups.png`
+  - `docs/superpowers/uat/playwright-2026-05-18/sub2api-admin-usage.png`
 
 ## Request Log Evidence
 
@@ -55,6 +69,7 @@ Date: 2026-05-18
 - Attempts: Kiro-Go request logs show `attempts=1` for direct and sub2api-routed message requests.
 - First-token timings: direct sync 2536 ms, direct stream 1763 ms, sub2api-routed sync 2548 ms, sub2api-routed stream 2042 ms.
 - Payload/tool trimming: request logs captured payload final bytes; no trim was needed for this smoke payload.
+- Tool result context preservation: PASS by regression test; when current user message contains `tool_result`, the guard preserves earlier user/task context before the matching `tool_use` and only removes intervening non-adjacent history before forwarding.
 - Responses restore/readiness: readiness telemetry is implemented; this Task 7 smoke did not exercise Responses restore because it used `/v1/messages`.
 - Kiro-Go request-log artifacts: `docs/superpowers/uat/sub2api-smoke/task7-kiro-request-logs-20260518100202.json` and `docs/superpowers/uat/sub2api-smoke/task7-kiro-latest-message-logs-20260518100215.json`.
 

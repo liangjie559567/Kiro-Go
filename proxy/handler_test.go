@@ -2237,6 +2237,79 @@ func TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings(t *testing.T
 	}
 }
 
+func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("secret")
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:                   time.Now(),
+		Endpoint:                    "/v1/messages",
+		Model:                       "claude-sonnet-4.5",
+		ClaudeCodeSessionID:         "session-1",
+		AnthropicBetas:              []string{"tool-search-2025-10-19"},
+		ToolReferenceCount:          1,
+		PayloadTrimmed:              true,
+		PayloadKeptTools:            []string{"bash"},
+		PayloadTrimmedTools:         []string{"mcp__browser__screenshot"},
+		PayloadDeferredTools:        []string{"mcp__browser__snapshot"},
+		PayloadMaterializedToolRefs: []string{"mcp__fs__read_file"},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	req.Header.Set("X-Admin-Password", "secret")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	for _, key := range []string{"recentClaudeCode", "recentToolReferences", "recentMCPTools", "recentToolTrimming"} {
+		if resp[key] != true {
+			t.Fatalf("expected %s=true, got %#v", key, resp)
+		}
+	}
+}
+
+func TestAdminClaudeCodeReadinessReportsDeferredMCPToolReferences(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	config.SetPassword("secret")
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:            time.Now(),
+		Endpoint:             "/v1/messages",
+		Model:                "claude-sonnet-4.5",
+		ClaudeCodeSessionID:  "session-1",
+		ToolReferenceCount:   1,
+		PayloadDeferredTools: []string{"mcp__browser__screenshot"},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	req.Header.Set("X-Admin-Password", "secret")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if resp["recentMCPTools"] != true {
+		t.Fatalf("expected deferred MCP tool reference to set recentMCPTools=true, got %#v", resp)
+	}
+}
+
 func TestApplyOpus47AdmissionConfigUsesConfiguredGate(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
