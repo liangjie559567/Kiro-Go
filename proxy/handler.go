@@ -4630,7 +4630,7 @@ func readinessAccountUsageBlocked(account config.Account) bool {
 	if account.UsageLimit <= 0 || account.UsageCurrent < account.UsageLimit {
 		return false
 	}
-	return !account.AllowOverage && !config.GetAllowOverUsage()
+	return !account.AllowOverage
 }
 
 func maskReadinessEmail(email string) string {
