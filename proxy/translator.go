@@ -353,6 +353,9 @@ func mergeClaudeContent(a, b interface{}) interface{} {
 	if len(bBlocks) == 0 {
 		return a
 	}
+	if claudeBlocksEndWithText(aBlocks) && claudeBlocksStartWithText(bBlocks) {
+		aBlocks = append(aBlocks, map[string]interface{}{"type": "text", "text": "\n\n"})
+	}
 	return append(aBlocks, bBlocks...)
 }
 
@@ -370,6 +373,56 @@ func claudeContentAsBlocks(content interface{}) []interface{} {
 	default:
 		return []interface{}{map[string]interface{}{"type": "text", "text": fmt.Sprint(v)}}
 	}
+}
+
+func claudeBlocksEndWithText(blocks []interface{}) bool {
+	for i := len(blocks) - 1; i >= 0; i-- {
+		if claudeBlockIsText(blocks[i]) {
+			return true
+		}
+		if !claudeBlockIsEmptyText(blocks[i]) {
+			return false
+		}
+	}
+	return false
+}
+
+func claudeBlocksStartWithText(blocks []interface{}) bool {
+	for _, block := range blocks {
+		if claudeBlockIsText(block) {
+			return true
+		}
+		if !claudeBlockIsEmptyText(block) {
+			return false
+		}
+	}
+	return false
+}
+
+func claudeBlockIsText(block interface{}) bool {
+	m, ok := block.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	blockType, _ := m["type"].(string)
+	if blockType != "text" && blockType != "input_text" {
+		return false
+	}
+	text, _ := m["text"].(string)
+	return text != ""
+}
+
+func claudeBlockIsEmptyText(block interface{}) bool {
+	m, ok := block.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	blockType, _ := m["type"].(string)
+	if blockType != "text" && blockType != "input_text" {
+		return false
+	}
+	text, _ := m["text"].(string)
+	return text == ""
 }
 
 func buildKiroSystemContext(systemPrompt string) string {

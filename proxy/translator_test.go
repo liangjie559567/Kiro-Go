@@ -247,6 +247,64 @@ func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroPreservesAdjacentStringMessageBoundaries(t *testing.T) {
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "hello"},
+			{Role: "user", Content: "world"},
+			{Role: "assistant", Content: "ok"},
+			{Role: "user", Content: "final"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	firstUser := payload.ConversationState.History[0].UserInputMessage
+	if firstUser == nil {
+		t.Fatalf("expected merged user history message")
+	}
+	if firstUser.Content != "hello\n\nworld" {
+		t.Fatalf("expected adjacent string messages to preserve boundary, got %q", firstUser.Content)
+	}
+}
+
+func TestClaudeToKiroPreservesAdjacentStructuredTextMessageBoundaries(t *testing.T) {
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "alpha"},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "beta"},
+			}},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "assistant alpha"},
+			}},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "assistant beta"},
+			}},
+			{Role: "user", Content: "final"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	firstUser := payload.ConversationState.History[0].UserInputMessage
+	if firstUser == nil {
+		t.Fatalf("expected merged user history message")
+	}
+	if firstUser.Content != "alpha\n\nbeta" {
+		t.Fatalf("expected adjacent structured user text to preserve boundary, got %q", firstUser.Content)
+	}
+	assistant := payload.ConversationState.History[1].AssistantResponseMessage
+	if assistant == nil {
+		t.Fatalf("expected merged assistant history message")
+	}
+	if assistant.Content != "assistant alpha\n\nassistant beta" {
+		t.Fatalf("expected adjacent structured assistant text to preserve boundary, got %q", assistant.Content)
+	}
+}
+
 func TestClaudeToKiroCarriesSystemPromptAsSyntheticHistoryPair(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:  "claude-sonnet-4.5",
