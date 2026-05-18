@@ -4535,11 +4535,22 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 	cached := append([]ModelInfo(nil), h.cachedModels...)
 	h.modelsCacheMu.RUnlock()
 	listed, supportsImage := modelListedAndVision(cached, mapped)
+	accountRows, schedulableCount := h.claudeCodeModelReadinessAccountRows(mapped)
+	routingReason := "no enabled accounts"
+	if len(accountRows) > 0 {
+		routingReason = "accounts evaluated"
+	}
+	if schedulableCount > 0 {
+		routingReason = "schedulable accounts available"
+	}
 	resp := map[string]interface{}{
 		"requestedModel":  requested,
 		"mappedModel":     mapped,
+		"thinking":        thinking,
 		"thinkingVariant": thinking || strings.HasSuffix(strings.ToLower(requested), strings.ToLower(thinkingCfg.Suffix)),
 		"listedByGateway": listed,
+		"routingReason":   routingReason,
+		"accounts":        accountRows,
 		"capabilities": map[string]interface{}{
 			"vision":    supportsImage,
 			"toolUse":   true,
@@ -4549,6 +4560,82 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 		"reason": modelReadinessReason(listed),
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[string]interface{}, int) {
+	accounts := config.GetAccounts()
+	rows := make([]map[string]interface{}, 0, len(accounts))
+	schedulableCount := 0
+	now := time.Now().Unix()
+
+	for _, account := range accounts {
+		healthy := account.Enabled
+		if account.CooldownUntil > 0 && now < account.CooldownUntil {
+			healthy = false
+		}
+		if account.LastFailureReason != "" {
+			healthy = false
+		}
+		if account.ExpiresAt > 0 && now > account.ExpiresAt-tokenRefreshSkewSeconds {
+			healthy = false
+		}
+
+		listsModel := true
+		if h.pool != nil {
+			models := h.pool.GetModelList(account.ID)
+			if len(models) > 0 {
+				listsModel = false
+				for _, candidate := range models {
+					if strings.EqualFold(strings.TrimSpace(candidate), model) {
+						listsModel = true
+						break
+					}
+				}
+			}
+			if health := h.pool.GetRuntimeHealth(account.ID); health.Score < 50 {
+				healthy = false
+			}
+		}
+
+		schedulable := account.Enabled && healthy && listsModel
+		if schedulable {
+			schedulableCount++
+		}
+		reason := "schedulable"
+		switch {
+		case !account.Enabled:
+			reason = "disabled account"
+		case !healthy:
+			reason = "unhealthy account"
+		case !listsModel:
+			reason = "model not listed"
+		}
+
+		rows = append(rows, map[string]interface{}{
+			"id":          account.ID,
+			"email":       maskReadinessEmail(account.Email),
+			"enabled":     account.Enabled,
+			"healthy":     healthy,
+			"listsModel":  listsModel,
+			"schedulable": schedulable,
+			"reason":      reason,
+		})
+	}
+
+	return rows, schedulableCount
+}
+
+func maskReadinessEmail(email string) string {
+	email = strings.TrimSpace(email)
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return email
+	}
+	local := parts[0]
+	if len(local) > 2 {
+		local = local[:2] + "***"
+	}
+	return local + "@" + parts[1]
 }
 
 func modelListedAndVision(models []ModelInfo, model string) (bool, bool) {

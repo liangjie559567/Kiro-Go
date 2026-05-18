@@ -2514,6 +2514,34 @@ func TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.AddAccount(config.Account{ID: "disabled-account", Email: "disabled@example.com", Enabled: false}); err != nil {
+		t.Fatalf("add disabled account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p, startTime: time.Now().Unix()}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4.5", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeModelReadiness(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if strings.TrimSpace(fmt.Sprint(resp["routingReason"])) == "" {
+		t.Fatalf("expected routingReason, got %#v", resp)
+	}
+	if _, ok := resp["accounts"].([]interface{}); !ok {
+		t.Fatalf("expected account readiness list, got %#v", resp)
+	}
+}
+
 func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
