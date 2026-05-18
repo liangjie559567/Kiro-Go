@@ -3102,6 +3102,156 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleOpenAIChatStreamLogsSuppressedToolUse(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-openai-chat-suppressed-tool",
+		Enabled:     true,
+		AccessToken: "token-openai-chat-suppressed-tool",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tools":[{"type":"function","function":{"name":"request_user_input","description":"Ask user","parameters":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}}],"messages":[{"role":"user","content":"Ask the user to choose."}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"tool_calls"`) {
+		t.Fatalf("expected invalid tool call to be suppressed, got %q", w.Body.String())
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	if entries[0].SuppressedToolUseCount != 1 || strings.Join(entries[0].SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed request_user_input metadata, got %#v", entries[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleOpenAIResponsesStreamLogsSuppressedToolUse(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-openai-responses-suppressed-tool",
+		Enabled:     true,
+		AccessToken: "token-openai-responses-suppressed-tool",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_output_tokens":64,"tools":[{"type":"function","name":"request_user_input","description":"Ask user","parameters":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}],"input":"Ask the user to choose."}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"function_call"`) {
+		t.Fatalf("expected invalid function call to be suppressed, got %q", w.Body.String())
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	if entries[0].SuppressedToolUseCount != 1 || strings.Join(entries[0].SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed request_user_input metadata, got %#v", entries[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func assertToolUseBlock(t *testing.T, frames []sseFrame, start, wantIndex int, wantID, wantName string, wantInput map[string]interface{}) int {
 	t.Helper()
 	assertFrameEvent(t, frames, start, "content_block_start")

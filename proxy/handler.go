@@ -3125,6 +3125,9 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 			fmt.Fprintf(w, "data: %s\n\n", string(data))
 			flusher.Flush()
 		},
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
 			outputTokens = outTok
@@ -3296,6 +3299,9 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 					"status":    "completed",
 				},
 			})
+		},
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
 		},
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
 		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
