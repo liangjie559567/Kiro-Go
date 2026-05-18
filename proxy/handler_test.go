@@ -2600,6 +2600,45 @@ func TestClaudeCodeReadinessIncludesNewParitySignals(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeReadinessReportsPartialCapabilities(t *testing.T) {
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		RequestID:                           "req-partial",
+		Endpoint:                            "/v1/messages",
+		Model:                               "claude-sonnet-4.5",
+		StatusCode:                          200,
+		Outcome:                             "success",
+		FineGrainedToolStreamingRequested:   true,
+		FineGrainedToolStreamingMode:        "requested_partial",
+		MaxTokensZeroMode:                   "local_zero_output",
+		SuppressedToolUseCount:              1,
+		SuppressedToolUseNames:              []string{"request_user_input"},
+		PayloadUnsupportedContentBlocks:     []string{"document"},
+		PayloadUnknownOfficialFields:        []string{"container"},
+		PayloadRelocatedToolDescriptions:    2,
+		PayloadOrphanedToolResultsConverted: 1,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeReadiness(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	capabilities, ok := resp["capabilities"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected capabilities object, got %#v", resp)
+	}
+	for _, key := range []string{"fineGrainedToolStreaming", "maxTokensZero", "countTokens", "assistantPrefill"} {
+		if _, ok := capabilities[key]; !ok {
+			t.Fatalf("expected capability %s in %#v", key, capabilities)
+		}
+	}
+}
+
 func TestAdminClaudeCodeReadinessReportsDeferredMCPToolReferences(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

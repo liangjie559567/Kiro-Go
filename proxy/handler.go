@@ -4571,6 +4571,36 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
 	cutoff := time.Now().Add(-30 * time.Minute)
 	resp := map[string]interface{}{
+		"capabilities": map[string]map[string]string{
+			"messages": {
+				"status": "PASS",
+				"detail": "/v1/messages is implemented",
+			},
+			"countTokens": {
+				"status": "PARTIAL",
+				"detail": "Token counts are estimated by Kiro-Go",
+			},
+			"maxTokensZero": {
+				"status": "PARTIAL",
+				"detail": "Returns local zero-output compatibility response; not a proven upstream cache warmup",
+			},
+			"assistantPrefill": {
+				"status": "PARTIAL",
+				"detail": "Text prefill is converted into continuation instruction; tool-use prefill is rejected",
+			},
+			"fineGrainedToolStreaming": {
+				"status": "PARTIAL",
+				"detail": "Anthropic SSE input_json_delta is emitted from complete Kiro tool input; true upstream partial JSON parity depends on Kiro stream shape",
+			},
+			"toolSchemaValidation": {
+				"status": "PASS",
+				"detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+			},
+			"toolReference": {
+				"status": "PASS",
+				"detail": "tool_reference is accepted and materialized when relevant",
+			},
+		},
 		"recentClaudeCode":               false,
 		"recentToolReferences":           false,
 		"recentMCPTools":                 false,

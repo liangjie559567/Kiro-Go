@@ -3021,6 +3021,17 @@
             const hasParent = !!data.recentParentAgents || examples.some(e => e.parentAgentId);
             const hasUnsupported = !!data.recentUnsupportedBlocks || examples.some(e => (e.unsupportedContentBlocks || []).length);
             const hasFineGrained = !!data.recentFineGrainedToolStreaming || examples.some(e => e.fineGrainedToolStreamingMode);
+            const capabilities = data.capabilities && typeof data.capabilities === 'object' ? data.capabilities : {};
+            const capabilityHtml = Object.keys(capabilities).sort().map(key => {
+                const capability = capabilities[key] || {};
+                return '<div style="padding:8px 0;border-top:1px solid #e2e8f0">' +
+                    '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap">' +
+                    '<span style="font-size:13px;font-weight:600;color:#334155">' + escapeHtml(key) + '</span>' +
+                    renderCapabilityBadge(capability.status) +
+                    '</div>' +
+                    '<div style="font-size:12px;color:#64748b;margin-top:4px;line-height:1.4">' + escapeHtml(capability.detail || '-') + '</div>' +
+                    '</div>';
+            }).join('');
             return '<div class="card">' +
                 '<div class="card-header"><span class="card-title">Claude Code</span><button class="btn btn-sm btn-secondary" onclick="loadClaudeCodeReadiness()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
                 '<div style="font-size:13px;color:#64748b;margin-bottom:10px">Use ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.</div>' +
@@ -3040,8 +3051,16 @@
                 '</div>' +
                 '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Context reminders: ' + escapeHtml(((data.recentContextReminders || []).join(', ')) || '-') + '</div>' +
                 '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Last seen: ' + escapeHtml(lastSeen) + '</div>' +
+                (capabilityHtml ? '<div style="margin:10px 0 12px">' + capabilityHtml + '</div>' : '') +
                 '<pre style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;overflow:auto">export ANTHROPIC_BASE_URL=' + escapeHtml(location.origin) + '\nexport ANTHROPIC_AUTH_TOKEN=any\nexport ENABLE_TOOL_SEARCH=true</pre>' +
                 '</div>';
+        }
+        function renderCapabilityBadge(value) {
+            const status = String(value || '').toUpperCase();
+            let cls = 'badge-error';
+            if (status === 'PASS') cls = 'badge-success';
+            else if (status === 'PARTIAL') cls = 'badge-warning';
+            return '<span class="badge ' + cls + '">' + escapeHtml(status || 'UNKNOWN') + '</span>';
         }
         async function loadRequestLogs() {
             try {
