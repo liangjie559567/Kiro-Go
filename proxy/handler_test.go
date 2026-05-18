@@ -1755,6 +1755,22 @@ func TestHandleClaudeMessagesOmittedMaxTokensWithThinkingRoutesUpstream(t *testi
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleCountTokensOmittedMaxTokensWithThinkingDoesNotRejectAsZero(t *testing.T) {
+	h := &Handler{}
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", body)
+	w := httptest.NewRecorder()
+
+	h.handleCountTokens(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), "max_tokens=0") {
+		t.Fatalf("expected no max_tokens=0 validation error, got %s", w.Body.String())
+	}
+}
+
 func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

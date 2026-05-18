@@ -1148,7 +1148,7 @@ func (h *Handler) handleCountTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updateRequestLogMetadata(r, req.Model, false)
-	if msg := validateClaudeThinkingConfig(req.Thinking, req.MaxTokens); msg != "" {
+	if msg := validateClaudeThinkingConfigWithOptions(req.Thinking, req.MaxTokens, claudeRequestHasMaxTokens(body)); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
 	}
