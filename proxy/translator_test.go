@@ -358,6 +358,40 @@ func TestClaudeToKiroPrependsRelocatedDocsBeforeToolResultContinuation(t *testin
 	}
 }
 
+func TestClaudeToKiroDoesNotSplitUserTextThatMentionsToolResults(t *testing.T) {
+	longDescription := strings.Repeat("Detailed usage guidance for the browser tool. ", 80)
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Tools: []ClaudeTool{{
+			Name:        "mcp__browser__screenshot",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		Messages: []ClaudeMessage{
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_1", "name": "mcp__browser__screenshot", "input": map[string]interface{}{}},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "User note: Tool results: should stay in user text."},
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": "actual result"},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	userNoteIndex := strings.Index(content, "User note: Tool results: should stay in user text.")
+	docIndex := strings.Index(content, "Operator tool documentation for this session")
+	continuationIndex := generatedToolResultsContinuationIndex(content)
+	if userNoteIndex < 0 || docIndex < 0 || continuationIndex < 0 {
+		t.Fatalf("expected user note, relocated docs, and generated continuation, got %q", content)
+	}
+	if !(userNoteIndex < docIndex && docIndex < continuationIndex) {
+		t.Fatalf("expected docs between user note and generated continuation, got %q", content)
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",

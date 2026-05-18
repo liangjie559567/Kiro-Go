@@ -741,7 +741,7 @@ func truncateCurrentToolResultContinuationForPayload(payload *KiroPayload, budge
 		return false
 	}
 	current := &payload.ConversationState.CurrentMessage.UserInputMessage
-	idx := strings.Index(current.Content, toolResultsContinuationPrefix)
+	idx := generatedToolResultsContinuationIndex(current.Content)
 	if idx < 0 {
 		return false
 	}

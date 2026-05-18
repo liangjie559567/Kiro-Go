@@ -390,7 +390,7 @@ func addRelocatedToolDocumentation(content, docs string) string {
 	if content == "" {
 		return docs
 	}
-	if idx := strings.Index(content, toolResultsContinuationPrefix); idx >= 0 {
+	if idx := generatedToolResultsContinuationIndex(content); idx >= 0 {
 		before := strings.TrimSpace(content[:idx])
 		after := strings.TrimSpace(content[idx:])
 		if before == "" {
@@ -399,6 +399,17 @@ func addRelocatedToolDocumentation(content, docs string) string {
 		return before + "\n\n" + docs + "\n\n" + after
 	}
 	return content + "\n\n" + docs
+}
+
+func generatedToolResultsContinuationIndex(content string) int {
+	if strings.HasPrefix(content, toolResultsContinuationPrefix+"\n\n") {
+		return 0
+	}
+	marker := "\n\n" + toolResultsContinuationPrefix + "\n\n"
+	if idx := strings.LastIndex(content, marker); idx >= 0 {
+		return idx + 2
+	}
+	return -1
 }
 
 func knownClaudeToolUseIDs(messages []ClaudeMessage, beforeIndex int) map[string]bool {

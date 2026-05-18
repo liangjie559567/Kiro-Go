@@ -187,6 +187,36 @@ func TestGuardKiroPayloadKeepsRelocatedDocsAheadOfToolResultContinuation(t *test
 	}
 }
 
+func TestGuardKiroPayloadDoesNotTruncateUserTextMentioningToolResults(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: "User note: Tool results: should not be treated as generated continuation.\n\n" +
+			"Operator tool documentation for this session:\n\nTool: browser\n" +
+			strings.Repeat("docs ", 40) + "\n\n" +
+			buildToolResultsContinuation([]KiroToolResult{{
+				ToolUseID: "toolu_now",
+				Content:   []KiroResultContent{{Text: strings.Repeat("x", 4096)}},
+				Status:    "success",
+			}}),
+		ModelID: "claude-opus-4.7",
+		Origin:  "AI_EDITOR",
+		UserInputMessageContext: &UserInputMessageContext{
+			ToolResults: []KiroToolResult{{ToolUseID: "toolu_now", Content: []KiroResultContent{{Text: strings.Repeat("x", 4096)}}, Status: "success"}},
+		},
+	}
+
+	if !truncateCurrentToolResultContinuationForPayload(payload, 1024) {
+		t.Fatalf("expected generated tool-result continuation to be truncated")
+	}
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	if !strings.Contains(content, "User note: Tool results: should not be treated as generated continuation.") {
+		t.Fatalf("expected user-authored marker text to survive, got %q", content)
+	}
+	if !strings.Contains(content, "Operator tool documentation for this session") {
+		t.Fatalf("expected relocated docs to survive, got %q", content)
+	}
+}
+
 func TestGuardKiroPayloadTruncatesLargeHistoryToolResultsBelowSoftLimit(t *testing.T) {
 	payload := &KiroPayload{}
 	payload.ConversationState.ChatTriggerType = "MANUAL"
