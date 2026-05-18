@@ -1,0 +1,58 @@
+{
+  "runId": "kiro-claude-01-real-smoke",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T16:51:13.412Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 43,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 11,
+    "body": {
+      "input_tokens": 21
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2500,
+    "text": "kiro-claude-01-real-smoke-marker",
+    "textTrimmed": "kiro-claude-01-real-smoke-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4131,
+      "output_tokens": 10
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1795,
+    "text": "kiro-claude-01-real-smoke-marker",
+    "textTrimmed": "kiro-claude-01-real-smoke-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T16:51:17.761Z"
+}

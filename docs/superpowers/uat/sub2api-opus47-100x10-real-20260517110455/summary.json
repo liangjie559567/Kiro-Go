@@ -1,0 +1,56 @@
+{
+  "runId": "sub2api-opus47-100x10-real-20260517110455",
+  "outDir": "/www/Kiro-Go/docs/superpowers/uat/sub2api-opus47-100x10-real-20260517110455",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "sync": {
+    "mode": "sync",
+    "total": 100,
+    "concurrency": 10,
+    "wallDurationMs": 157880,
+    "httpSuccess": 100,
+    "correct": 100,
+    "exact": 100,
+    "leakedInjection": 0,
+    "passed": 100,
+    "failed": 0,
+    "statusCounts": {
+      "200": 100
+    },
+    "latencyMs": {
+      "min": 1123,
+      "max": 66172,
+      "avg": 11757,
+      "p50": 4144,
+      "p90": 29862,
+      "p95": 30755,
+      "p99": 41071
+    }
+  },
+  "stream": {
+    "mode": "stream",
+    "total": 100,
+    "concurrency": 10,
+    "wallDurationMs": 76388,
+    "httpSuccess": 100,
+    "correct": 100,
+    "exact": 100,
+    "leakedInjection": 0,
+    "passed": 100,
+    "failed": 0,
+    "statusCounts": {
+      "200": 100
+    },
+    "latencyMs": {
+      "min": 1104,
+      "max": 41028,
+      "avg": 6771,
+      "p50": 1416,
+      "p90": 19256,
+      "p95": 32609,
+      "p99": 40929
+    }
+  },
+  "pass": true
+}

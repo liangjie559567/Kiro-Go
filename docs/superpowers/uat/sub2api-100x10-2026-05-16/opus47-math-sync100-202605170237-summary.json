@@ -1,0 +1,41 @@
+{
+  "runId": "opus47-math-sync100-202605170237",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "taskMode": "math",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 99,
+  "containsMarker": 99,
+  "warnings": 0,
+  "failed": 1,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1021,
+    "max": 33645,
+    "avg": 8394,
+    "p50": 1387,
+    "p90": 26294,
+    "p95": 32991,
+    "p99": 33535
+  },
+  "failures": [
+    {
+      "index": 100,
+      "marker": "opus47-math-sync100-202605170237-100",
+      "expected": "1100",
+      "status": 200,
+      "durationMs": 1149,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "textPreview": "100",
+      "rawPreview": "{\"id\":\"msg_f8f6c8d2-3cd1-47b1-90f9-0773c30f2f59\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"100\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5903,\"output_tokens\":1}}\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-math-sync100-202605170237.jsonl"
+}

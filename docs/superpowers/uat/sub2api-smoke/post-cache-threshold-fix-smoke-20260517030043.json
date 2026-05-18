@@ -1,0 +1,59 @@
+{
+  "runId": "post-cache-threshold-fix-smoke-20260517030043",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T19:00:43.931Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 37,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 9,
+    "body": {
+      "input_tokens": 31
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1796,
+    "text": "post-cache-threshold-fix-smoke-20260517030043-marker",
+    "textTrimmed": "post-cache-threshold-fix-smoke-20260517030043-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4138,
+      "output_tokens": 19
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1864,
+    "text": "post-cache-threshold-fix-smoke-20260517030043-marker",
+    "textTrimmed": "post-cache-threshold-fix-smoke-20260517030043-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 7,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T19:00:47.638Z"
+}

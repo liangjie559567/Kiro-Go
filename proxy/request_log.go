@@ -20,46 +20,61 @@ const (
 )
 
 type RequestLogEntry struct {
-	Timestamp                   time.Time `json:"timestamp"`
-	RequestID                   string    `json:"requestId"`
-	Method                      string    `json:"method"`
-	Endpoint                    string    `json:"endpoint"`
-	Model                       string    `json:"model,omitempty"`
-	AccountID                   string    `json:"accountId,omitempty"`
-	Region                      string    `json:"region,omitempty"`
-	ClaudeCodeSessionID         string    `json:"claudeCodeSessionId,omitempty"`
-	ClaudeCodeAgentID           string    `json:"claudeCodeAgentId,omitempty"`
-	AnthropicRequestID          string    `json:"anthropicRequestId,omitempty"`
-	AnthropicVersion            string    `json:"anthropicVersion,omitempty"`
-	AnthropicBetas              []string  `json:"anthropicBetas,omitempty"`
-	ToolReferenceCount          int       `json:"toolReferenceCount,omitempty"`
-	PayloadOriginalBytes        int       `json:"payloadOriginalBytes,omitempty"`
-	PayloadFinalBytes           int       `json:"payloadFinalBytes,omitempty"`
-	PayloadTrimmed              bool      `json:"payloadTrimmed,omitempty"`
-	PayloadTrimmedCount         int       `json:"payloadTrimmedCount,omitempty"`
-	PayloadCurrentTools         int       `json:"payloadCurrentTools,omitempty"`
-	PayloadKeptTools            []string  `json:"payloadKeptTools,omitempty"`
-	PayloadTrimmedTools         []string  `json:"payloadTrimmedTools,omitempty"`
-	PayloadDeferredTools        []string  `json:"payloadDeferredTools,omitempty"`
-	PayloadMaterializedToolRefs []string  `json:"payloadMaterializedToolRefs,omitempty"`
-	ResponsesPreviousID         string    `json:"responsesPreviousId,omitempty"`
-	ResponsesRestoredSessions   int       `json:"responsesRestoredSessions,omitempty"`
-	ResponsesRestoredToolCalls  int       `json:"responsesRestoredToolCalls,omitempty"`
-	ResponsesInheritedTools     bool      `json:"responsesInheritedTools,omitempty"`
-	Stream                      bool      `json:"stream"`
-	StatusCode                  int       `json:"statusCode"`
-	Outcome                     string    `json:"outcome"`
-	DurationMs                  int64     `json:"durationMs"`
-	QueueWaitMs                 int64     `json:"queueWaitMs,omitempty"`
-	FirstTokenMs                int64     `json:"firstTokenMs,omitempty"`
-	Attempts                    int       `json:"attempts,omitempty"`
-	ToolUseCount                int       `json:"toolUseCount,omitempty"`
-	InputTokens                 int       `json:"inputTokens,omitempty"`
-	OutputTokens                int       `json:"outputTokens,omitempty"`
-	CacheReadInputTokens        int       `json:"cacheReadInputTokens,omitempty"`
-	CacheCreationInputTokens    int       `json:"cacheCreationInputTokens,omitempty"`
-	ErrorType                   string    `json:"errorType,omitempty"`
-	Error                       string    `json:"error,omitempty"`
+	Timestamp                     time.Time `json:"timestamp"`
+	RequestID                     string    `json:"requestId"`
+	Method                        string    `json:"method"`
+	Endpoint                      string    `json:"endpoint"`
+	Model                         string    `json:"model,omitempty"`
+	AccountID                     string    `json:"accountId,omitempty"`
+	Region                        string    `json:"region,omitempty"`
+	ClaudeCodeSessionID           string    `json:"claudeCodeSessionId,omitempty"`
+	ClaudeCodeAgentID             string    `json:"claudeCodeAgentId,omitempty"`
+	AnthropicRequestID            string    `json:"anthropicRequestId,omitempty"`
+	AnthropicVersion              string    `json:"anthropicVersion,omitempty"`
+	AnthropicBetas                []string  `json:"anthropicBetas,omitempty"`
+	ToolReferenceCount            int       `json:"toolReferenceCount,omitempty"`
+	PayloadOriginalBytes          int       `json:"payloadOriginalBytes,omitempty"`
+	PayloadFinalBytes             int       `json:"payloadFinalBytes,omitempty"`
+	PayloadTrimmed                bool      `json:"payloadTrimmed,omitempty"`
+	PayloadTrimmedCount           int       `json:"payloadTrimmedCount,omitempty"`
+	PayloadCurrentTools           int       `json:"payloadCurrentTools,omitempty"`
+	PayloadCurrentToolSchemaBytes int       `json:"payloadCurrentToolSchemaBytes,omitempty"`
+	PayloadKeptTools              []string  `json:"payloadKeptTools,omitempty"`
+	PayloadTrimmedTools           []string  `json:"payloadTrimmedTools,omitempty"`
+	PayloadDeferredTools          []string  `json:"payloadDeferredTools,omitempty"`
+	PayloadMaterializedToolRefs   []string  `json:"payloadMaterializedToolRefs,omitempty"`
+	PayloadCompactedPairs         int       `json:"payloadCompactedPairs,omitempty"`
+	PayloadCompactedToolResults   int       `json:"payloadCompactedToolResults,omitempty"`
+	AccountActiveConnections      int       `json:"accountActiveConnections,omitempty"`
+	AccountRecentFailures         int       `json:"accountRecentFailures,omitempty"`
+	AccountRecentSuccesses        int       `json:"accountRecentSuccesses,omitempty"`
+	AccountAvgLatencyMS           int64     `json:"accountAvgLatencyMs,omitempty"`
+	AccountHealthScore            int       `json:"accountHealthScore,omitempty"`
+	RoutingDecision               string    `json:"routingDecision,omitempty"`
+	RoutingStrategy               string    `json:"routingStrategy,omitempty"`
+	RoutingPressure               bool      `json:"routingPressure,omitempty"`
+	Stream                        bool      `json:"stream"`
+	StatusCode                    int       `json:"statusCode"`
+	Outcome                       string    `json:"outcome"`
+	DurationMs                    int64     `json:"durationMs"`
+	QueueWaitMs                   int64     `json:"queueWaitMs,omitempty"`
+	FirstTokenMs                  int64     `json:"firstTokenMs,omitempty"`
+	Attempts                      int       `json:"attempts,omitempty"`
+	ToolUseCount                  int       `json:"toolUseCount,omitempty"`
+	InputTokens                   int       `json:"inputTokens,omitempty"`
+	OutputTokens                  int       `json:"outputTokens,omitempty"`
+	CacheReadInputTokens          int       `json:"cacheReadInputTokens,omitempty"`
+	CacheCreationInputTokens      int       `json:"cacheCreationInputTokens,omitempty"`
+	ErrorType                     string    `json:"errorType,omitempty"`
+	Error                         string    `json:"error,omitempty"`
+}
+
+type AccountRequestHealthSnapshot struct {
+	ActiveConnections int
+	RecentFailures    int
+	RecentSuccesses   int
+	AvgLatencyMS      int64
+	Score             int
 }
 
 type RequestLogBucket struct {
@@ -123,19 +138,6 @@ func (s *requestLogStore) List(limit int) []RequestLogEntry {
 	}
 	out := make([]RequestLogEntry, 0, limit)
 	for i := len(s.entries) - 1; i >= 0 && len(out) < limit; i-- {
-		out = append(out, s.entries[i])
-	}
-	return out
-}
-
-func (s *requestLogStore) ListAll() []RequestLogEntry {
-	if s == nil {
-		return nil
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]RequestLogEntry, 0, len(s.entries))
-	for i := len(s.entries) - 1; i >= 0; i-- {
 		out = append(out, s.entries[i])
 	}
 	return out
@@ -290,11 +292,14 @@ func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
 	ctx.entry.PayloadFinalBytes = result.FinalBytes
 	ctx.entry.PayloadTrimmed = result.Trimmed
 	ctx.entry.PayloadTrimmedCount = result.TrimmedCount
-	ctx.entry.PayloadCurrentTools = result.CurrentTools
+	ctx.entry.PayloadCurrentTools = result.Summary.CurrentTools
+	ctx.entry.PayloadCurrentToolSchemaBytes = result.Summary.CurrentToolSchemaBytes
 	ctx.entry.PayloadKeptTools = append([]string(nil), result.KeptToolNames...)
 	ctx.entry.PayloadTrimmedTools = append([]string(nil), result.TrimmedToolNames...)
 	ctx.entry.PayloadDeferredTools = append([]string(nil), result.DeferredToolNames...)
 	ctx.entry.PayloadMaterializedToolRefs = append([]string(nil), result.MaterializedToolRefNames...)
+	ctx.entry.PayloadCompactedPairs = result.CompactedPairs
+	ctx.entry.PayloadCompactedToolResults = result.CompactedToolResults
 }
 
 func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
@@ -307,22 +312,6 @@ func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
 	ctx.entry.PayloadFinalBytes = finalBytes
 }
 
-func updateRequestLogResponsesSession(r *http.Request, previousID string, restoredSessions, restoredToolCalls int, inheritedTools bool) {
-	if r == nil {
-		return
-	}
-	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
-	if ctx == nil {
-		return
-	}
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-	ctx.entry.ResponsesPreviousID = strings.TrimSpace(previousID)
-	ctx.entry.ResponsesRestoredSessions = restoredSessions
-	ctx.entry.ResponsesRestoredToolCalls = restoredToolCalls
-	ctx.entry.ResponsesInheritedTools = inheritedTools
-}
-
 func sortedAnthropicBetas(in map[string]bool) []string {
 	out := make([]string, 0, len(in))
 	for beta := range in {
@@ -332,7 +321,7 @@ func sortedAnthropicBetas(in map[string]bool) []string {
 	return out
 }
 
-func updateRequestLogUpstream(r *http.Request, accountID, region string) {
+func updateRequestLogUpstream(r *http.Request, accountID, region string, health ...AccountRequestHealthSnapshot) {
 	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
 	if ctx == nil {
 		return
@@ -341,6 +330,26 @@ func updateRequestLogUpstream(r *http.Request, accountID, region string) {
 	defer ctx.mu.Unlock()
 	ctx.entry.AccountID = strings.TrimSpace(accountID)
 	ctx.entry.Region = strings.TrimSpace(region)
+	if len(health) > 0 {
+		snapshot := health[0]
+		ctx.entry.AccountActiveConnections = snapshot.ActiveConnections
+		ctx.entry.AccountRecentFailures = snapshot.RecentFailures
+		ctx.entry.AccountRecentSuccesses = snapshot.RecentSuccesses
+		ctx.entry.AccountAvgLatencyMS = snapshot.AvgLatencyMS
+		ctx.entry.AccountHealthScore = snapshot.Score
+	}
+}
+
+func updateRequestLogRouting(r *http.Request, decision, strategy string, pressure bool) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.RoutingDecision = strings.TrimSpace(decision)
+	ctx.entry.RoutingStrategy = strings.TrimSpace(strategy)
+	ctx.entry.RoutingPressure = pressure
 }
 
 func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheReadInputTokens, cacheCreationInputTokens int) {
@@ -506,6 +515,12 @@ func (h *Handler) apiGetRequestStats(w http.ResponseWriter, r *http.Request) {
 		"cacheCreationInputTokens": total.CacheCreationInputTokens,
 		"byModel":                  exportRequestLogBuckets(byModel),
 		"byEndpoint":               exportRequestLogBuckets(byEndpoint),
+	})
+}
+
+func (h *Handler) apiGetAdmissionPressure(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"pressure": modelAdmissionGate.snapshot(),
 	})
 }
 

@@ -1,0 +1,56 @@
+{
+  "runId": "sub2api-100x10-real-20260517104910",
+  "outDir": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-real-20260517104910",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "sync": {
+    "mode": "sync",
+    "total": 100,
+    "concurrency": 10,
+    "wallDurationMs": 122809,
+    "httpSuccess": 100,
+    "correct": 100,
+    "exact": 100,
+    "leakedInjection": 0,
+    "passed": 100,
+    "failed": 0,
+    "statusCounts": {
+      "200": 100
+    },
+    "latencyMs": {
+      "min": 1833,
+      "max": 27435,
+      "avg": 11531,
+      "p50": 5435,
+      "p90": 25860,
+      "p95": 26451,
+      "p99": 27051
+    }
+  },
+  "stream": {
+    "mode": "stream",
+    "total": 100,
+    "concurrency": 10,
+    "wallDurationMs": 103729,
+    "httpSuccess": 100,
+    "correct": 100,
+    "exact": 100,
+    "leakedInjection": 0,
+    "passed": 100,
+    "failed": 0,
+    "statusCounts": {
+      "200": 100
+    },
+    "latencyMs": {
+      "min": 1707,
+      "max": 23598,
+      "avg": 9608,
+      "p50": 3321,
+      "p90": 22957,
+      "p95": 23349,
+      "p99": 23574
+    }
+  },
+  "pass": true
+}

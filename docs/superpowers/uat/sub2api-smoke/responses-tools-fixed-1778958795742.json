@@ -1,0 +1,30 @@
+{
+  "runId": "responses-tools-fixed-1778958795742",
+  "first": {
+    "status": 200,
+    "ok": true,
+    "outputTypes": [
+      "function_call"
+    ],
+    "functionCall": {
+      "type": "function_call",
+      "id": "item_8d68f8828683189d2e556152",
+      "status": "completed",
+      "call_id": "tooluse_zFwrgqVUe2gV52OtJFm75Q",
+      "name": "get_project_status",
+      "arguments": "{}{\"scope\":\"full\"}"
+    },
+    "argsValidJSON": false,
+    "parsedArgs": null,
+    "rawPreview": "{\"id\":\"msg_f7c0e10d-25dd-4d26-a380-a842eb1bf955\",\"object\":\"response\",\"model\":\"claude-sonnet-4.5\",\"status\":\"completed\",\"output\":[{\"type\":\"function_call\",\"id\":\"item_8d68f8828683189d2e556152\",\"status\":\"completed\",\"call_id\":\"tooluse_zFwrgqVUe2gV52OtJFm75Q\",\"name\":\"get_project_status\",\"arguments\":\"{}{\\\"scope\\\":\\\"full\\\"}\"}],\"usage\":{\"input_tokens\":4717,\"output_tokens\":24,\"total_tokens\":4741}}"
+  },
+  "second": {
+    "status": 200,
+    "ok": true,
+    "outputTypes": [
+      "message"
+    ],
+    "containsMarker": false,
+    "rawPreview": "{\"id\":\"msg_4b0ca3c2-9dda-482f-a37c-9459356e7203\",\"object\":\"response\",\"model\":\"claude-sonnet-4.5\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"id\":\"item_5fc1dfb1f8951db9bfe135e9\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\"}],\"status\":\"completed\"}],\"usage\":{\"input_tokens\":30,\"output_tokens\":0,\"total_tokens\":30}}"
+  }
+}

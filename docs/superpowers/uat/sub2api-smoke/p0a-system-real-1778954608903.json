@@ -1,0 +1,15 @@
+{
+  "runId": "p0a-system-real-1778954608903",
+  "status": 200,
+  "ok": true,
+  "durationMs": 1800,
+  "marker": "p0a-system-real-1778954608903-ok",
+  "text": "p0a-system-real-1778954608903-ok",
+  "correct": true,
+  "forbidden": [],
+  "usage": {
+    "input_tokens": 4202,
+    "output_tokens": 13
+  },
+  "finishedAt": "2026-05-16T18:03:30.703Z"
+}

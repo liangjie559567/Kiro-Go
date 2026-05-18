@@ -204,6 +204,70 @@ func TestValidateOpus47AdmissionConfig(t *testing.T) {
 	}
 }
 
+func TestGetModelAdmissionConfigDefaultsFromOpus47AndPersistsValues(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	defaults := GetModelAdmissionConfig()
+	if defaults.StreamBypass {
+		t.Fatalf("expected stream admission bypass disabled by default")
+	}
+	opusRule, ok := defaults.Models["claude-opus-4.7"]
+	if !ok {
+		t.Fatalf("expected default opus 4.7 model admission rule, got %#v", defaults)
+	}
+	if opusRule.MaxConcurrent != 2 || opusRule.MaxWaiting != 200 {
+		t.Fatalf("expected default opus admission 2/200, got %#v", opusRule)
+	}
+
+	if err := UpdateModelAdmissionConfig(ModelAdmissionConfig{
+		StreamBypass: true,
+		Default:      ModelAdmissionRule{MaxConcurrent: 8, MaxWaiting: 120},
+		Models: map[string]ModelAdmissionRule{
+			"CLAUDE-SONNET-4.5": {MaxConcurrent: 4, MaxWaiting: 50},
+		},
+	}); err != nil {
+		t.Fatalf("update model admission: %v", err)
+	}
+
+	got := GetModelAdmissionConfig()
+	if got.Default.MaxConcurrent != 8 || got.Default.MaxWaiting != 120 {
+		t.Fatalf("expected default model admission 8/120, got %#v", got.Default)
+	}
+	if !got.StreamBypass {
+		t.Fatalf("expected stream bypass to persist")
+	}
+	sonnet := got.Models["claude-sonnet-4.5"]
+	if sonnet.MaxConcurrent != 4 || sonnet.MaxWaiting != 50 {
+		t.Fatalf("expected normalized sonnet admission 4/50, got %#v", sonnet)
+	}
+	if _, ok := got.Models["claude-opus-4.7"]; !ok {
+		t.Fatalf("expected legacy opus admission to stay available, got %#v", got.Models)
+	}
+}
+
+func TestValidateModelAdmissionConfig(t *testing.T) {
+	valid := ModelAdmissionConfig{
+		Default: ModelAdmissionRule{MaxConcurrent: 10, MaxWaiting: 100},
+		Models: map[string]ModelAdmissionRule{
+			"claude-sonnet-4.5": {MaxConcurrent: 5, MaxWaiting: 10},
+		},
+	}
+	if err := ValidateModelAdmissionConfig(valid); err != nil {
+		t.Fatalf("expected valid model admission config, got %v", err)
+	}
+	if err := ValidateModelAdmissionConfig(ModelAdmissionConfig{Default: ModelAdmissionRule{MaxConcurrent: 0, MaxWaiting: 1}}); err == nil {
+		t.Fatalf("expected incomplete default max concurrent to fail")
+	}
+	if err := ValidateModelAdmissionConfig(ModelAdmissionConfig{Models: map[string]ModelAdmissionRule{"": {MaxConcurrent: 1}}}); err == nil {
+		t.Fatalf("expected empty model key to fail")
+	}
+	if err := ValidateModelAdmissionConfig(ModelAdmissionConfig{Models: map[string]ModelAdmissionRule{"claude": {MaxConcurrent: 1, MaxWaiting: -1}}}); err == nil {
+		t.Fatalf("expected negative max waiting to fail")
+	}
+}
+
 func TestGetLoadBalanceConfigDefaultsAndPersistsStrategy(t *testing.T) {
 	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

@@ -1,0 +1,119 @@
+CGTall-AI
+v0.1.126
+Dashboard
+Ops
+Users
+Groups
+Channels
+Subscriptions
+Accounts
+Announcements
+Proxies
+Redeem Codes
+Promo Codes
+Usage
+Settings
+MY ACCOUNT
+API Keys
+Usage
+Available Channels
+Channel Status
+My Subscriptions
+Redeem
+Profile
+Dark Mode
+Collapse
+Account Management
+
+Manage AI platform accounts and credentials
+
+🇺🇸
+EN
+$9996989.91
+AD
+admin
+Admin
+All Platforms
+All Types
+All Status
+All Privacy States
+All Groups
+Auto Refresh
+More Actions
+Create Account
+Bulk Edit Accounts
+Update Accounts
+	
+NAME
+	
+PLATFORM/TYPE
+	
+CAPACITY
+	
+STATUS
+	
+SCHEDULABLE
+	
+GROUPS
+	
+USAGE WINDOWS
+	
+LAST USED
+	
+EXPIRES AT
+	
+ACTIONS
+
+	
+kiro_claude_01
+	
+Anthropic
+Key
+	
+0
+/
+12
+	
+Active
+	
+	
+claude
+	
+202 req
+838.3K
+A $2.55
+U $2.55
+	2m ago	
+-
+	
+Edit
+Delete
+More
+
+Showing 1 to 1 of 1 results
+
+Per page:
+20
+1
+×
+👋 Welcome to Sub2API
+
+Sub2API is a powerful AI service gateway platform that helps you easily manage and distribute AI services.
+
+🎯 Core Features:
+
+📦 Group Management - Create service tiers (VIP, Free Trial, etc.)
+🔗 Account Pool - Connect multiple upstream AI service accounts
+🔑 Key Distribution - Generate independent API Keys for users
+💰 Billing Control - Flexible rate and quota management
+
+Let's complete the initial setup in 3 minutes →
+
+1 of 21
+←
+→
+Flip Page
+ESC
+Exit
+Skip
+Start Setup 🚀

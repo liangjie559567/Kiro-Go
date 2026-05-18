@@ -1,0 +1,19 @@
+{
+  "url": "http://127.0.0.1:18080/login",
+  "title": "Login - Sub2API",
+  "textPreview": "CGTall-AI\n\nSubscription to API Conversion Platform\n\nWelcome Back\n\nSign in to your account to continue\n\nEmail\nPassword\nSign In\n\nDon't have an account? Sign up\n\n© 2026 CGTall-AI. All rights reserved.\n\nSession expired. Please log in again.",
+  "inputCount": 2,
+  "inputs": [
+    {
+      "placeholder": "Enter your email",
+      "value": "",
+      "type": "email"
+    },
+    {
+      "placeholder": "Enter your password",
+      "value": "",
+      "type": "password"
+    }
+  ],
+  "shot": "/www/Kiro-Go/docs/superpowers/uat/playwright-2026-05-17/sub2api-usage-diagnostic-20260517034043/usage-diagnostic.png"
+}

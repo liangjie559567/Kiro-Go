@@ -1,0 +1,312 @@
+{
+  "outDir": "/www/Kiro-Go/docs/superpowers/uat/opus47-reverify-20260517-111005/playwright",
+  "shot": "/www/Kiro-Go/docs/superpowers/uat/opus47-reverify-20260517-111005/playwright/sub2api-usage-opus47-reverify.png",
+  "apiUrl": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-17&end_date=2026-05-17&account_id=24&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai",
+  "statsUrl": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-17&end_date=2026-05-17&account_id=24&timezone=Asia%2FShanghai",
+  "usageRequests": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-16&end_date=2026-05-17&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-16&end_date=2026-05-17&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-17&end_date=2026-05-17&account_id=24&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-17&end_date=2026-05-17&account_id=24&timezone=Asia%2FShanghai"
+    }
+  ],
+  "usageApiStatus": 200,
+  "statsApiStatus": 200,
+  "usageRows": [
+    {
+      "id": 47897,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 42686,
+      "first_token_ms": 42686,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:14.529411+08:00"
+    },
+    {
+      "id": 47896,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 42771,
+      "first_token_ms": 42771,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:13.4081+08:00"
+    },
+    {
+      "id": 47895,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 43005,
+      "first_token_ms": 43004,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:12.263071+08:00"
+    },
+    {
+      "id": 47893,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 35128,
+      "first_token_ms": 35128,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:03.068315+08:00"
+    },
+    {
+      "id": 47892,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 42823,
+      "first_token_ms": 42822,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:01.812675+08:00"
+    },
+    {
+      "id": 47891,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 42826,
+      "first_token_ms": 42824,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:20:00.730207+08:00"
+    },
+    {
+      "id": 47888,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 8443,
+      "first_token_ms": 8443,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:58.5457+08:00"
+    },
+    {
+      "id": 47886,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 37111,
+      "first_token_ms": 37111,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:53.91957+08:00"
+    },
+    {
+      "id": 47885,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 7359,
+      "first_token_ms": 7358,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:53.696499+08:00"
+    },
+    {
+      "id": 47884,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 37078,
+      "first_token_ms": 37077,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:52.721178+08:00"
+    },
+    {
+      "id": 47882,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 1211,
+      "first_token_ms": 1186,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:50.094233+08:00"
+    },
+    {
+      "id": 47881,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 1201,
+      "first_token_ms": 1201,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:48.876812+08:00"
+    },
+    {
+      "id": 47880,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 7695,
+      "first_token_ms": 7694,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:47.669167+08:00"
+    },
+    {
+      "id": 47879,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 5243,
+      "first_token_ms": 5243,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:46.329371+08:00"
+    },
+    {
+      "id": 47877,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 32930,
+      "first_token_ms": 32929,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:41.080395+08:00"
+    },
+    {
+      "id": 47875,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 32895,
+      "first_token_ms": 32894,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:39.968513+08:00"
+    },
+    {
+      "id": 47873,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 36041,
+      "first_token_ms": 36040,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:31.836495+08:00"
+    },
+    {
+      "id": 47872,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 35998,
+      "first_token_ms": 35905,
+      "input_tokens": 5945,
+      "output_tokens": 34,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:30.629669+08:00"
+    },
+    {
+      "id": 47870,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 34936,
+      "first_token_ms": 34935,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:29.250738+08:00"
+    },
+    {
+      "id": 47869,
+      "account_id": 24,
+      "model": "claude-opus-4-7",
+      "stream": true,
+      "duration_ms": 34312,
+      "first_token_ms": 34312,
+      "input_tokens": 5921,
+      "output_tokens": 17,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "created_at": "2026-05-17T11:19:27.932573+08:00"
+    }
+  ],
+  "checks": {
+    "usageApiOk": true,
+    "statsApiOk": true,
+    "recentAccount24Rows": true,
+    "hasOpus47RequestedRows": true,
+    "hasMessagesEndpointRows": true,
+    "hasStreamRows": true,
+    "hasSyncRowsInDatabaseWindow": true,
+    "pageMentionsKiroAccount": false,
+    "pageMentionsOpus47": false,
+    "pageMentionsMessagesEndpoint": false
+  },
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:18080/api/v1/auth/me?timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/v1/subscriptions/active?timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "pass": false
+}

@@ -1,0 +1,58 @@
+{
+  "runId": "post-two-tool-sse-test-smoke-20260517030347",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T19:03:47.417Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 39,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 10,
+    "body": {
+      "input_tokens": 31
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1780,
+    "text": "post-two-tool-sse-test-smoke-20260517030347-marker",
+    "textTrimmed": "post-two-tool-sse-test-smoke-20260517030347-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4148,
+      "output_tokens": 19
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1720,
+    "text": "post-two-tool-sse-test-smoke-20260517030347-marker",
+    "textTrimmed": "post-two-tool-sse-test-smoke-20260517030347-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T19:03:50.966Z"
+}

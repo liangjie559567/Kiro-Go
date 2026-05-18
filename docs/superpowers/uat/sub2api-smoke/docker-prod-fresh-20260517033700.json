@@ -1,0 +1,58 @@
+{
+  "runId": "docker-prod-fresh-20260517033700",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T19:37:00.407Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 50,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 8,
+    "body": {
+      "input_tokens": 27
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2170,
+    "text": "docker-prod-fresh-20260517033700-marker",
+    "textTrimmed": "docker-prod-fresh-20260517033700-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4134,
+      "output_tokens": 15
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1725,
+    "text": "docker-prod-fresh-20260517033700-marker",
+    "textTrimmed": "docker-prod-fresh-20260517033700-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T19:37:04.360Z"
+}

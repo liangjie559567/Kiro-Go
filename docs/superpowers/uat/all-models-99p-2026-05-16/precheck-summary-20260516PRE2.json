@@ -1,0 +1,1248 @@
+{
+  "run_id": "20260516PRE2",
+  "mode": "precheck",
+  "created_at": "2026-05-16T13:36:32.073Z",
+  "endpoint": "http://127.0.0.1:18080/v1/messages",
+  "concurrency": 6,
+  "requests_per_model_mode": 1,
+  "models": [
+    "auto",
+    "auto-thinking",
+    "claude-haiku-4.5",
+    "claude-haiku-4.5-thinking",
+    "claude-opus-4-7",
+    "claude-opus-4.5",
+    "claude-opus-4.5-thinking",
+    "claude-opus-4.6",
+    "claude-opus-4.6-thinking",
+    "claude-opus-4.7",
+    "claude-opus-4.7-thinking",
+    "claude-sonnet-4",
+    "claude-sonnet-4-thinking",
+    "claude-sonnet-4.5",
+    "claude-sonnet-4.5-thinking",
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.6-thinking",
+    "deepseek-3.2",
+    "deepseek-3.2-thinking",
+    "glm-5",
+    "glm-5-thinking",
+    "gpt-4",
+    "gpt-4o",
+    "minimax-m2.1",
+    "minimax-m2.1-thinking",
+    "minimax-m2.5",
+    "minimax-m2.5-thinking",
+    "qwen3-coder-next",
+    "qwen3-coder-next-thinking"
+  ],
+  "total_requests": 58,
+  "total_ok": 32,
+  "total_ok_rate": 0.5517241379310345,
+  "by_model_mode": [
+    {
+      "model": "auto",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1713,
+      "latency_ms_p50": 1713,
+      "latency_ms_p95": 1713,
+      "latency_ms_p99": 1713,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "auto",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1633,
+      "latency_ms_p50": 1633,
+      "latency_ms_p95": 1633,
+      "latency_ms_p99": 1633,
+      "first_byte_ms_avg": 1631,
+      "first_byte_ms_p95": 1631,
+      "failures": []
+    },
+    {
+      "model": "auto-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "auto-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 22,
+      "first_byte_ms_p95": 22,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 2036,
+      "latency_ms_p50": 2036,
+      "latency_ms_p95": 2036,
+      "latency_ms_p99": 2036,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 916,
+      "latency_ms_p50": 916,
+      "latency_ms_p95": 916,
+      "latency_ms_p99": 916,
+      "first_byte_ms_avg": 916,
+      "first_byte_ms_p95": 916,
+      "failures": []
+    },
+    {
+      "model": "claude-haiku-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-haiku-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 15,
+      "first_byte_ms_p95": 15,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4-7",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1236,
+      "latency_ms_p50": 1236,
+      "latency_ms_p95": 1236,
+      "latency_ms_p99": 1236,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4-7",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 5882,
+      "latency_ms_p50": 5882,
+      "latency_ms_p95": 5882,
+      "latency_ms_p99": 5882,
+      "first_byte_ms_avg": 5881,
+      "first_byte_ms_p95": 5881,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1764,
+      "latency_ms_p50": 1764,
+      "latency_ms_p95": 1764,
+      "latency_ms_p99": 1764,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1816,
+      "latency_ms_p50": 1816,
+      "latency_ms_p95": 1816,
+      "latency_ms_p99": 1816,
+      "first_byte_ms_avg": 1815,
+      "first_byte_ms_p95": 1815,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.6",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1718,
+      "latency_ms_p50": 1718,
+      "latency_ms_p95": 1718,
+      "latency_ms_p99": 1718,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.6",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1570,
+      "latency_ms_p50": 1570,
+      "latency_ms_p95": 1570,
+      "latency_ms_p99": 1570,
+      "first_byte_ms_avg": 1568,
+      "first_byte_ms_p95": 1568,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.6-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.6-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1122,
+      "latency_ms_p50": 1122,
+      "latency_ms_p95": 1122,
+      "latency_ms_p99": 1122,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.7",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1084,
+      "latency_ms_p50": 1084,
+      "latency_ms_p95": 1084,
+      "latency_ms_p99": 1084,
+      "first_byte_ms_avg": 1082,
+      "first_byte_ms_p95": 1082,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.7-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 11,
+      "first_byte_ms_p95": 11,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 3179,
+      "latency_ms_p50": 3179,
+      "latency_ms_p95": 3179,
+      "latency_ms_p99": 3179,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1196,
+      "latency_ms_p50": 1196,
+      "latency_ms_p95": 1196,
+      "latency_ms_p99": 1196,
+      "first_byte_ms_avg": 1195,
+      "first_byte_ms_p95": 1195,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1325,
+      "latency_ms_p50": 1325,
+      "latency_ms_p95": 1325,
+      "latency_ms_p99": 1325,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1389,
+      "latency_ms_p50": 1389,
+      "latency_ms_p95": 1389,
+      "latency_ms_p99": 1389,
+      "first_byte_ms_avg": 1387,
+      "first_byte_ms_p95": 1387,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.6",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1057,
+      "latency_ms_p50": 1057,
+      "latency_ms_p95": 1057,
+      "latency_ms_p99": 1057,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.6",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1094,
+      "latency_ms_p50": 1094,
+      "latency_ms_p95": 1094,
+      "latency_ms_p99": 1094,
+      "first_byte_ms_avg": 1093,
+      "first_byte_ms_p95": 1093,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.6-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.6-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 12,
+      "first_byte_ms_p95": 12,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "deepseek-3.2",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1686,
+      "latency_ms_p50": 1686,
+      "latency_ms_p95": 1686,
+      "latency_ms_p99": 1686,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "deepseek-3.2",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 627,
+      "latency_ms_p50": 627,
+      "latency_ms_p95": 627,
+      "latency_ms_p99": 627,
+      "first_byte_ms_avg": 624,
+      "first_byte_ms_p95": 624,
+      "failures": []
+    },
+    {
+      "model": "deepseek-3.2-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-3.2-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 9,
+      "first_byte_ms_p95": 9,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "glm-5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 696,
+      "latency_ms_p50": 696,
+      "latency_ms_p95": 696,
+      "latency_ms_p99": 696,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "glm-5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 685,
+      "latency_ms_p50": 685,
+      "latency_ms_p95": 685,
+      "latency_ms_p99": 685,
+      "first_byte_ms_avg": 683,
+      "first_byte_ms_p95": 683,
+      "failures": []
+    },
+    {
+      "model": "glm-5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 6,
+      "first_byte_ms_p95": 6,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "gpt-4",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1356,
+      "latency_ms_p50": 1356,
+      "latency_ms_p95": 1356,
+      "latency_ms_p99": 1356,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "gpt-4",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1528,
+      "latency_ms_p50": 1528,
+      "latency_ms_p95": 1528,
+      "latency_ms_p99": 1528,
+      "first_byte_ms_avg": 1526,
+      "first_byte_ms_p95": 1526,
+      "failures": []
+    },
+    {
+      "model": "gpt-4o",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1503,
+      "latency_ms_p50": 1503,
+      "latency_ms_p95": 1503,
+      "latency_ms_p99": 1503,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "gpt-4o",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1484,
+      "latency_ms_p50": 1484,
+      "latency_ms_p95": 1484,
+      "latency_ms_p99": 1484,
+      "first_byte_ms_avg": 1482,
+      "first_byte_ms_p95": 1482,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 790,
+      "latency_ms_p50": 790,
+      "latency_ms_p95": 790,
+      "latency_ms_p99": 790,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 873,
+      "latency_ms_p50": 873,
+      "latency_ms_p95": 873,
+      "latency_ms_p99": 873,
+      "first_byte_ms_avg": 871,
+      "first_byte_ms_p95": 871,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.1-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 9604,
+      "latency_ms_p50": 9604,
+      "latency_ms_p95": 9604,
+      "latency_ms_p99": 9604,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1071,
+      "latency_ms_p50": 1071,
+      "latency_ms_p95": 1071,
+      "latency_ms_p99": 1071,
+      "first_byte_ms_avg": 1070,
+      "first_byte_ms_p95": 1070,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "qwen3-coder-next",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 4364,
+      "latency_ms_p50": 4364,
+      "latency_ms_p95": 4364,
+      "latency_ms_p99": 4364,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "qwen3-coder-next",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 497,
+      "latency_ms_p50": 497,
+      "latency_ms_p95": 497,
+      "latency_ms_p99": 497,
+      "first_byte_ms_avg": 495,
+      "first_byte_ms_p95": 495,
+      "failures": []
+    },
+    {
+      "model": "qwen3-coder-next-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be at least 1024",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-coder-next-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "artifacts": {
+    "jsonl": "/www/Kiro-Go/docs/superpowers/uat/all-models-99p-2026-05-16//precheck-20260516PRE2.jsonl"
+  }
+}

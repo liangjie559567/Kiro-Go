@@ -1,0 +1,15 @@
+{
+  "runId": "missing-key-final-check",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T16:45:03.733Z",
+  "error": {
+    "phase": "read_api_key",
+    "message": "ENOENT: no such file or directory, open '/tmp/sub2api_claude_key'",
+    "code": "ENOENT",
+    "stack": "Error: ENOENT: no such file or directory, open '/tmp/sub2api_claude_key'\n    at Object.readFileSync (node:fs:440:20)\n    at main (/www/Kiro-Go/docs/superpowers/uat/claude-code-sub2api-smoke.js:153:17)\n    at Object.<anonymous> (/www/Kiro-Go/docs/superpowers/uat/claude-code-sub2api-smoke.js:265:1)\n    at Module._compile (node:internal/modules/cjs/loader:1705:14)\n    at Object..js (node:internal/modules/cjs/loader:1838:10)\n    at Module.load (node:internal/modules/cjs/loader:1441:32)\n    at Function._load (node:internal/modules/cjs/loader:1263:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:328:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)"
+  },
+  "passed": false,
+  "finishedAt": "2026-05-16T16:45:03.734Z"
+}

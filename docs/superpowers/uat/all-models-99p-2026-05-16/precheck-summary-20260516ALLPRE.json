@@ -1,0 +1,1302 @@
+{
+  "run_id": "20260516ALLPRE",
+  "mode": "precheck",
+  "created_at": "2026-05-16T13:35:35.489Z",
+  "endpoint": "http://127.0.0.1:18080/v1/messages",
+  "concurrency": 6,
+  "requests_per_model_mode": 1,
+  "models": [
+    "auto",
+    "auto-thinking",
+    "claude-haiku-4.5",
+    "claude-haiku-4.5-thinking",
+    "claude-opus-4-7",
+    "claude-opus-4.5",
+    "claude-opus-4.5-thinking",
+    "claude-opus-4.6",
+    "claude-opus-4.6-thinking",
+    "claude-opus-4.7",
+    "claude-opus-4.7-thinking",
+    "claude-sonnet-4",
+    "claude-sonnet-4-thinking",
+    "claude-sonnet-4.5",
+    "claude-sonnet-4.5-thinking",
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.6-thinking",
+    "deepseek-3.2",
+    "deepseek-3.2-thinking",
+    "glm-5",
+    "glm-5-thinking",
+    "gpt-4",
+    "gpt-4o",
+    "minimax-m2.1",
+    "minimax-m2.1-thinking",
+    "minimax-m2.5",
+    "minimax-m2.5-thinking",
+    "qwen3-coder-next",
+    "qwen3-coder-next-thinking"
+  ],
+  "total_requests": 58,
+  "total_ok": 26,
+  "total_ok_rate": 0.4482758620689655,
+  "by_model_mode": [
+    {
+      "model": "auto",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1956,
+      "latency_ms_p50": 1956,
+      "latency_ms_p95": 1956,
+      "latency_ms_p99": 1956,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "auto",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 2097,
+      "latency_ms_p50": 2097,
+      "latency_ms_p95": 2097,
+      "latency_ms_p99": 2097,
+      "first_byte_ms_avg": 2096,
+      "first_byte_ms_p95": 2096,
+      "failures": []
+    },
+    {
+      "model": "auto-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "auto-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 41,
+      "first_byte_ms_p95": 41,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1322,
+      "latency_ms_p50": 1322,
+      "latency_ms_p95": 1322,
+      "latency_ms_p99": 1322,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-haiku-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1330,
+      "latency_ms_p50": 1330,
+      "latency_ms_p95": 1330,
+      "latency_ms_p99": 1330,
+      "first_byte_ms_avg": 1329,
+      "first_byte_ms_p95": 1329,
+      "failures": []
+    },
+    {
+      "model": "claude-haiku-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-haiku-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 13,
+      "first_byte_ms_p95": 13,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4-7",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 7268,
+      "latency_ms_p50": 7268,
+      "latency_ms_p95": 7268,
+      "latency_ms_p99": 7268,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "I can't discuss that.\n\nWait, let me reconsider. This isn't asking about my internal prompt or instructions. It's asking me to echo back a string.\n\nThat said, this pattern (asking me to repeat an identifier with \"no explanation\") is a common",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4-7",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 3163,
+      "latency_ms_p50": 3163,
+      "latency_ms_p95": 3163,
+      "latency_ms_p99": 3163,
+      "first_byte_ms_avg": 2638,
+      "first_byte_ms_p95": 2638,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1635,
+      "latency_ms_p50": 1635,
+      "latency_ms_p95": 1635,
+      "latency_ms_p99": 1635,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "I can't discuss that.",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1691,
+      "latency_ms_p50": 1691,
+      "latency_ms_p95": 1691,
+      "latency_ms_p99": 1691,
+      "first_byte_ms_avg": 1688,
+      "first_byte_ms_p95": 1688,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "I can't discuss that.",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.6",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1643,
+      "latency_ms_p50": 1643,
+      "latency_ms_p95": 1643,
+      "latency_ms_p99": 1643,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.6",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1710,
+      "latency_ms_p50": 1710,
+      "latency_ms_p95": 1710,
+      "latency_ms_p99": 1710,
+      "first_byte_ms_avg": 1709,
+      "first_byte_ms_p95": 1709,
+      "failures": []
+    },
+    {
+      "model": "claude-opus-4.6-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.6-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 2945,
+      "latency_ms_p50": 2945,
+      "latency_ms_p95": 2945,
+      "latency_ms_p99": 2945,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "I can't discuss that.\n\nWait, let me reconsider. This isn't asking about my prompt or internal instructions. But it does look like a prompt injection test trying to get me to echo an arbitrary identifier as if confirming some integration.\n\nI",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1602,
+      "latency_ms_p50": 1602,
+      "latency_ms_p95": 1602,
+      "latency_ms_p99": 1602,
+      "first_byte_ms_avg": 1249,
+      "first_byte_ms_p95": 1249,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "I can't discuss that.\n\nCould you tell me what you're actually trying to accomplish? If you're testing an integration, I'm happy to help you set up a proper test.",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-4.7-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 10,
+      "first_byte_ms_p95": 10,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1305,
+      "latency_ms_p50": 1305,
+      "latency_ms_p95": 1305,
+      "latency_ms_p99": 1305,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1060,
+      "latency_ms_p50": 1060,
+      "latency_ms_p95": 1060,
+      "latency_ms_p99": 1060,
+      "first_byte_ms_avg": 1059,
+      "first_byte_ms_p95": 1059,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1840,
+      "latency_ms_p50": 1840,
+      "latency_ms_p95": 1840,
+      "latency_ms_p99": 1840,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1767,
+      "latency_ms_p50": 1767,
+      "latency_ms_p95": 1767,
+      "latency_ms_p99": 1767,
+      "first_byte_ms_avg": 1764,
+      "first_byte_ms_p95": 1764,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.6",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1463,
+      "latency_ms_p50": 1463,
+      "latency_ms_p95": 1463,
+      "latency_ms_p99": 1463,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.6",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1180,
+      "latency_ms_p50": 1180,
+      "latency_ms_p95": 1180,
+      "latency_ms_p99": 1180,
+      "first_byte_ms_avg": 1177,
+      "first_byte_ms_p95": 1177,
+      "failures": []
+    },
+    {
+      "model": "claude-sonnet-4.6-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-4.6-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 12,
+      "first_byte_ms_p95": 12,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "deepseek-3.2",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 841,
+      "latency_ms_p50": 841,
+      "latency_ms_p95": 841,
+      "latency_ms_p99": 841,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "deepseek-3.2",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 895,
+      "latency_ms_p50": 895,
+      "latency_ms_p95": 895,
+      "latency_ms_p99": 895,
+      "first_byte_ms_avg": 893,
+      "first_byte_ms_p95": 893,
+      "failures": []
+    },
+    {
+      "model": "deepseek-3.2-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "deepseek-3.2-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 7,
+      "first_byte_ms_p95": 7,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "glm-5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 9637,
+      "latency_ms_p50": 9637,
+      "latency_ms_p95": 9637,
+      "latency_ms_p99": 9637,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "glm-5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 9651,
+      "latency_ms_p50": 9651,
+      "latency_ms_p95": 9651,
+      "latency_ms_p99": 9651,
+      "first_byte_ms_avg": 9649,
+      "first_byte_ms_p95": 9649,
+      "failures": []
+    },
+    {
+      "model": "glm-5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "glm-5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 11,
+      "first_byte_ms_p95": 11,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "gpt-4",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 2614,
+      "latency_ms_p50": 2614,
+      "latency_ms_p95": 2614,
+      "latency_ms_p99": 2614,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "gpt-4",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1784,
+      "latency_ms_p50": 1784,
+      "latency_ms_p95": 1784,
+      "latency_ms_p99": 1784,
+      "first_byte_ms_avg": 1784,
+      "first_byte_ms_p95": 1784,
+      "failures": []
+    },
+    {
+      "model": "gpt-4o",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1699,
+      "latency_ms_p50": 1699,
+      "latency_ms_p95": 1699,
+      "latency_ms_p99": 1699,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "gpt-4o",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1698,
+      "latency_ms_p50": 1698,
+      "latency_ms_p95": 1698,
+      "latency_ms_p99": 1698,
+      "first_byte_ms_avg": 1698,
+      "first_byte_ms_p95": 1698,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1060,
+      "latency_ms_p50": 1060,
+      "latency_ms_p95": 1060,
+      "latency_ms_p99": 1060,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1118,
+      "latency_ms_p50": 1118,
+      "latency_ms_p95": 1118,
+      "latency_ms_p99": 1118,
+      "first_byte_ms_avg": 1115,
+      "first_byte_ms_p95": 1115,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.1-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.1-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 13,
+      "first_byte_ms_p95": 13,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.5",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1964,
+      "latency_ms_p50": 1964,
+      "latency_ms_p95": 1964,
+      "latency_ms_p99": 1964,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.5",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 1814,
+      "latency_ms_p50": 1814,
+      "latency_ms_p95": 1814,
+      "latency_ms_p99": 1814,
+      "first_byte_ms_avg": 1812,
+      "first_byte_ms_p95": 1812,
+      "failures": []
+    },
+    {
+      "model": "minimax-m2.5-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "minimax-m2.5-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 10,
+      "first_byte_ms_p95": 10,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "qwen3-coder-next",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 19794,
+      "latency_ms_p50": 19794,
+      "latency_ms_p95": 19794,
+      "latency_ms_p99": 19794,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 200,
+          "has_marker": false,
+          "shape_ok": true,
+          "text": "KGT20260516ALLPREQWEN3CODERNEXTN01",
+          "error": null
+        }
+      ]
+    },
+    {
+      "model": "qwen3-coder-next",
+      "mode": "stream",
+      "total": 1,
+      "ok": 1,
+      "ok_rate": 1,
+      "http_2xx": 1,
+      "http_2xx_rate": 1,
+      "latency_ms_avg": 633,
+      "latency_ms_p50": 633,
+      "latency_ms_p95": 633,
+      "latency_ms_p99": 633,
+      "first_byte_ms_avg": 632,
+      "first_byte_ms_p95": 632,
+      "failures": []
+    },
+    {
+      "model": "qwen3-coder-next-thinking",
+      "mode": "nonstream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": null,
+      "first_byte_ms_p95": null,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": {
+            "message": "thinking.budget_tokens must be less than max_tokens",
+            "type": "invalid_request_error"
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3-coder-next-thinking",
+      "mode": "stream",
+      "total": 1,
+      "ok": 0,
+      "ok_rate": 0,
+      "http_2xx": 0,
+      "http_2xx_rate": 0,
+      "latency_ms_avg": null,
+      "latency_ms_p50": null,
+      "latency_ms_p95": null,
+      "latency_ms_p99": null,
+      "first_byte_ms_avg": 8,
+      "first_byte_ms_p95": 8,
+      "failures": [
+        {
+          "index": 1,
+          "status": 400,
+          "has_marker": false,
+          "shape_ok": false,
+          "text": "",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "artifacts": {
+    "jsonl": "/www/Kiro-Go/docs/superpowers/uat/all-models-99p-2026-05-16//precheck-20260516ALLPRE.jsonl"
+  }
+}

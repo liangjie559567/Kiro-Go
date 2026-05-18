@@ -1,0 +1,33 @@
+{
+  "runId": "real-tool-cycle-api-system-field-1778951648056",
+  "marker": "real-tool-cycle-api-system-field-1778951648056-marker",
+  "first": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1863,
+    "stopReason": "tool_use",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "tooluse_B59QQrdBB8aTeS3I9BZzbw",
+        "name": "get_project_status",
+        "input": {
+          "project": "alpha"
+        }
+      }
+    ]
+  },
+  "second": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1997,
+    "stopReason": "end_turn",
+    "text": "real-tool-cycle-api-system-field-1778951648056-marker",
+    "containsMarker": true,
+    "forbiddenMention": false,
+    "usage": {
+      "input_tokens": 4805,
+      "output_tokens": 19
+    }
+  }
+}

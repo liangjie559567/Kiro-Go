@@ -14,6 +14,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"kiro-go/config"
 	"kiro-go/logger"
@@ -22,8 +23,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
+	"time"
 )
+
+const gracefulShutdownTimeout = 30 * time.Second
 
 func main() {
 	// 配置文件路径，支持环境变量覆盖
@@ -63,7 +69,46 @@ func main() {
 	logger.Infof("Claude API: http://%s/v1/messages", addr)
 	logger.Infof("OpenAI API: http://%s/v1/chat/completions", addr)
 
-	if err := http.ListenAndServe(addr, handler); err != nil {
+	server := newHTTPServer(addr, handler)
+	if err := runHTTPServerWithGracefulShutdown(server, gracefulShutdownTimeout); err != nil {
 		logger.Fatalf("Server failed: %v", err)
+	}
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+}
+
+func runHTTPServerWithGracefulShutdown(server *http.Server, shutdownTimeout time.Duration) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(stop)
+
+	select {
+	case err := <-errCh:
+		if err == http.ErrServerClosed {
+			return nil
+		}
+		return err
+	case sig := <-stop:
+		logger.Infof("Received %s, shutting down HTTP server gracefully", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			return err
+		}
+		if err := <-errCh; err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
 	}
 }

@@ -1,0 +1,197 @@
+{
+  "dir": "docs/superpowers/uat/sub2api-smoke/docker-prod-20260517032828",
+  "marker": "KIRO_SUB2API_VERIFY_20260517032828",
+  "before_latest_usage_id": 43014,
+  "direct_models": {
+    "model_count": 29,
+    "has_sonnet45": true
+  },
+  "direct_message": {
+    "http_code": "200",
+    "marker_found": true,
+    "body": {
+      "id": "msg_88f6761e-ea0d-4602-bdee-c7a49f311976",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "KIRO_SUB2API_VERIFY_20260517032828_DIRECT"
+        }
+      ],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4142,
+        "output_tokens": 16
+      }
+    }
+  },
+  "sub2api_message": {
+    "http_code": "200",
+    "marker_found": true,
+    "body": {
+      "id": "msg_16a23f84-2f0d-482e-b097-e9904325d505",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "KIRO_SUB2API_VERIFY_20260517032828_SUB2API"
+        }
+      ],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4145,
+        "output_tokens": 16
+      }
+    }
+  },
+  "sub2api_stream": {
+    "http_code": "200",
+    "has_message_start": true,
+    "has_message_stop": true,
+    "marker_found": true,
+    "sse_excerpt": "event: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_bd37f0d4-154f-498d-929a-9b6042677f30\",\"model\":\"claude-sonnet-4.5\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":21,\"output_tokens\":0}},\"type\":\"message_start\"}\n\nevent: content_block_start\ndata: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"KIRO_SUB2API_VERIFY_20260517032828_STREAM\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\"},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":4142,\"output_tokens\":16}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+  },
+  "database": {
+    "new_usage_rows": [
+      {
+        "id": 43015,
+        "model": "gpt-5.5",
+        "input_tokens": 522,
+        "output_tokens": 191,
+        "stream": true,
+        "duration_ms": 5581,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 53,
+        "created_at": "2026-05-17T03:28:29.187425+08:00"
+      },
+      {
+        "id": 43016,
+        "model": "gpt-5.5",
+        "input_tokens": 285,
+        "output_tokens": 60,
+        "stream": true,
+        "duration_ms": 3554,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 54,
+        "created_at": "2026-05-17T03:28:29.986585+08:00"
+      },
+      {
+        "id": 43017,
+        "model": "claude-sonnet-4.5",
+        "input_tokens": 4145,
+        "output_tokens": 16,
+        "stream": false,
+        "duration_ms": 1770,
+        "inbound_endpoint": "/v1/messages",
+        "upstream_endpoint": "/v1/messages",
+        "upstream_model": null,
+        "requested_model": "claude-sonnet-4.5",
+        "channel_id": 2,
+        "account_id": 24,
+        "created_at": "2026-05-17T03:28:32.323214+08:00"
+      },
+      {
+        "id": 43018,
+        "model": "gpt-5.5",
+        "input_tokens": 2180,
+        "output_tokens": 203,
+        "stream": true,
+        "duration_ms": 5891,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 30,
+        "created_at": "2026-05-17T03:28:32.98514+08:00"
+      },
+      {
+        "id": 43019,
+        "model": "gpt-5.5",
+        "input_tokens": 354,
+        "output_tokens": 37,
+        "stream": true,
+        "duration_ms": 2623,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 53,
+        "created_at": "2026-05-17T03:28:33.058676+08:00"
+      },
+      {
+        "id": 43020,
+        "model": "claude-sonnet-4.5",
+        "input_tokens": 4142,
+        "output_tokens": 16,
+        "stream": true,
+        "duration_ms": 1939,
+        "inbound_endpoint": "/v1/messages",
+        "upstream_endpoint": "/v1/messages",
+        "upstream_model": null,
+        "requested_model": "claude-sonnet-4.5",
+        "channel_id": 2,
+        "account_id": 24,
+        "created_at": "2026-05-17T03:28:34.278242+08:00"
+      },
+      {
+        "id": 43021,
+        "model": "gpt-5.5",
+        "input_tokens": 581,
+        "output_tokens": 120,
+        "stream": true,
+        "duration_ms": 5371,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 54,
+        "created_at": "2026-05-17T03:28:35.464035+08:00"
+      },
+      {
+        "id": 43022,
+        "model": "gpt-5.5",
+        "input_tokens": 2178,
+        "output_tokens": 84,
+        "stream": true,
+        "duration_ms": 5726,
+        "inbound_endpoint": "/responses",
+        "upstream_endpoint": "/v1/responses",
+        "upstream_model": null,
+        "requested_model": "gpt-5.5",
+        "channel_id": 1,
+        "account_id": 51,
+        "created_at": "2026-05-17T03:28:35.510842+08:00"
+      }
+    ]
+  },
+  "kiro_stats": {
+    "accounts": 16,
+    "available": 16,
+    "failedRequests": 64,
+    "status": "ok",
+    "successRequests": 1433,
+    "totalCredits": 112.13236165917039,
+    "totalRequests": 1497,
+    "totalTokens": 15973939,
+    "uptime": 164,
+    "version": "1.0.8"
+  },
+  "pass": true
+}

@@ -1,0 +1,39 @@
+{
+  "runId": "opus47-post-admission-20260516233850-sync",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "model": "claude-opus-4-7",
+  "total": 1,
+  "concurrency": 1,
+  "success": 1,
+  "correct": 0,
+  "containsMarker": 0,
+  "warnings": 0,
+  "failed": 1,
+  "statusCounts": {
+    "200": 1
+  },
+  "latencyMs": {
+    "min": 2729,
+    "max": 2729,
+    "avg": 2729,
+    "p50": 2729,
+    "p90": 2729,
+    "p95": 2729,
+    "p99": 2729
+  },
+  "failures": [
+    {
+      "index": 1,
+      "marker": "opus47-post-admission-20260516233850-sync-001",
+      "status": 200,
+      "durationMs": 2729,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "textPreview": "I can't return that marker. It looks crafted to identify a specific model or build, and I don't have a way to verify what it refers to or whether the claim it would imply is accurate.\n\nIf you're trying to figure out what model you're talking to or troubleshoot something, happy to help with that directly.",
+      "rawPreview": "{\"id\":\"msg_2e74dbc3-f3b4-426a-ab29-a71013832073\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"I can't return that marker. It looks crafted to identify a specific model or build, and I don't have a way to verify what it refers to or whether the claim it would imply is accurate.\\n\\nIf you're trying to figure out what model you're talking to or troubleshoot something, happy to help with that directly.\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5993,\"output_tokens\":72}}\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-post-admission-20260516233850-sync.jsonl"
+}

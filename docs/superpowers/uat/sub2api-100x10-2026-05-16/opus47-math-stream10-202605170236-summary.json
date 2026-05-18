@@ -1,0 +1,28 @@
+{
+  "runId": "opus47-math-stream10-202605170236",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "taskMode": "math",
+  "model": "claude-opus-4-7",
+  "total": 10,
+  "concurrency": 5,
+  "success": 10,
+  "correct": 10,
+  "containsMarker": 10,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 10
+  },
+  "latencyMs": {
+    "min": 1139,
+    "max": 8109,
+    "avg": 2661,
+    "p50": 1404,
+    "p90": 6666,
+    "p95": 8109,
+    "p99": 8109
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-math-stream10-202605170236.jsonl"
+}

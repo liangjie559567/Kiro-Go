@@ -1,0 +1,27 @@
+{
+  "runId": "phase1-real-sync-20260517005259",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1674,
+    "max": 20721,
+    "avg": 8987,
+    "p50": 3002,
+    "p90": 19902,
+    "p95": 20009,
+    "p99": 20503
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/phase1-real-sync-20260517005259.jsonl"
+}

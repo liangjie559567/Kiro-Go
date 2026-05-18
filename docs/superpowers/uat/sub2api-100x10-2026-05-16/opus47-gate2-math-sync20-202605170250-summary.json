@@ -1,0 +1,28 @@
+{
+  "runId": "opus47-gate2-math-sync20-202605170250",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "taskMode": "math",
+  "model": "claude-opus-4-7",
+  "total": 20,
+  "concurrency": 10,
+  "success": 20,
+  "correct": 20,
+  "containsMarker": 20,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 20
+  },
+  "latencyMs": {
+    "min": 1510,
+    "max": 26108,
+    "avg": 14955,
+    "p50": 14703,
+    "p90": 23660,
+    "p95": 24088,
+    "p99": 26108
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-gate2-math-sync20-202605170250.jsonl"
+}

@@ -135,6 +135,17 @@ type Opus47AdmissionConfig struct {
 	MaxWaiting    int `json:"maxWaiting"`
 }
 
+type ModelAdmissionRule struct {
+	MaxConcurrent int `json:"maxConcurrent"`
+	MaxWaiting    int `json:"maxWaiting"`
+}
+
+type ModelAdmissionConfig struct {
+	StreamBypass bool                          `json:"streamBypass,omitempty"`
+	Default      ModelAdmissionRule            `json:"default,omitempty"`
+	Models       map[string]ModelAdmissionRule `json:"models,omitempty"`
+}
+
 const (
 	LoadBalanceStrategyHealth           = "health"
 	LoadBalanceStrategyRoundRobin       = "round_robin"
@@ -190,6 +201,19 @@ func defaultOpus47AdmissionConfig() Opus47AdmissionConfig {
 	}
 }
 
+func defaultModelAdmissionConfig() ModelAdmissionConfig {
+	opus := defaultOpus47AdmissionConfig()
+	return ModelAdmissionConfig{
+		StreamBypass: false,
+		Models: map[string]ModelAdmissionRule{
+			"claude-opus-4.7": {
+				MaxConcurrent: opus.MaxConcurrent,
+				MaxWaiting:    opus.MaxWaiting,
+			},
+		},
+	}
+}
+
 func normalizeOpus47AdmissionConfig(in Opus47AdmissionConfig) Opus47AdmissionConfig {
 	defaults := defaultOpus47AdmissionConfig()
 	if in.MaxConcurrent == 0 {
@@ -202,6 +226,61 @@ func normalizeOpus47AdmissionConfig(in Opus47AdmissionConfig) Opus47AdmissionCon
 }
 
 func ValidateOpus47AdmissionConfig(in Opus47AdmissionConfig) error {
+	if in.MaxConcurrent <= 0 {
+		return fmt.Errorf("maxConcurrent must be greater than 0")
+	}
+	if in.MaxWaiting < 0 {
+		return fmt.Errorf("maxWaiting must be greater than or equal to 0")
+	}
+	return nil
+}
+
+func normalizeModelAdmissionRuleForUpdate(in ModelAdmissionRule) ModelAdmissionRule {
+	return in
+}
+
+func normalizeModelAdmissionConfig(in ModelAdmissionConfig, legacy Opus47AdmissionConfig) ModelAdmissionConfig {
+	out := ModelAdmissionConfig{
+		StreamBypass: in.StreamBypass,
+		Default:      normalizeModelAdmissionRuleForUpdate(in.Default),
+		Models:       make(map[string]ModelAdmissionRule),
+	}
+	for model, rule := range in.Models {
+		model = strings.ToLower(strings.TrimSpace(model))
+		if model == "" {
+			continue
+		}
+		out.Models[model] = normalizeModelAdmissionRuleForUpdate(rule)
+	}
+	if _, ok := out.Models["claude-opus-4.7"]; !ok {
+		legacy = normalizeOpus47AdmissionConfig(legacy)
+		out.Models["claude-opus-4.7"] = ModelAdmissionRule{
+			MaxConcurrent: legacy.MaxConcurrent,
+			MaxWaiting:    legacy.MaxWaiting,
+		}
+	}
+	return out
+}
+
+func ValidateModelAdmissionConfig(in ModelAdmissionConfig) error {
+	if in.Default != (ModelAdmissionRule{}) {
+		if err := ValidateModelAdmissionRule(in.Default); err != nil {
+			return fmt.Errorf("default: %w", err)
+		}
+	}
+	for model, rule := range in.Models {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return fmt.Errorf("model key must not be empty")
+		}
+		if err := ValidateModelAdmissionRule(rule); err != nil {
+			return fmt.Errorf("%s: %w", model, err)
+		}
+	}
+	return nil
+}
+
+func ValidateModelAdmissionRule(in ModelAdmissionRule) error {
 	if in.MaxConcurrent <= 0 {
 		return fmt.Errorf("maxConcurrent must be greater than 0")
 	}
@@ -241,6 +320,7 @@ type Config struct {
 	AutoRefresh       AutoRefreshConfig     `json:"autoRefresh"`
 	HealthCheck       HealthCheckConfig     `json:"healthCheck"`
 	Opus47Admission   Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
+	ModelAdmission    ModelAdmissionConfig  `json:"modelAdmission,omitempty"`
 	LoadBalance       LoadBalanceConfig     `json:"loadBalance,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
@@ -470,6 +550,7 @@ func Load() error {
 				AutoRefresh:     defaultAutoRefreshConfig(),
 				HealthCheck:     defaultHealthCheckConfig(),
 				Opus47Admission: defaultOpus47AdmissionConfig(),
+				ModelAdmission:  defaultModelAdmissionConfig(),
 				LoadBalance:     defaultLoadBalanceConfig(),
 			}
 			return Save()
@@ -484,6 +565,7 @@ func Load() error {
 	c.AutoRefresh = normalizePersistedAutoRefreshConfig(data, c.AutoRefresh)
 	c.HealthCheck = normalizePersistedHealthCheckConfig(data, c.HealthCheck)
 	c.Opus47Admission = normalizeOpus47AdmissionConfig(c.Opus47Admission)
+	c.ModelAdmission = normalizeModelAdmissionConfig(c.ModelAdmission, c.Opus47Admission)
 	c.LoadBalance = normalizeLoadBalanceConfig(c.LoadBalance)
 	cfg = &c
 	return nil
@@ -578,6 +660,15 @@ func GetOpus47AdmissionConfig() Opus47AdmissionConfig {
 	return normalizeOpus47AdmissionConfig(cfg.Opus47Admission)
 }
 
+func GetModelAdmissionConfig() ModelAdmissionConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	if cfg == nil {
+		return defaultModelAdmissionConfig()
+	}
+	return normalizeModelAdmissionConfig(cfg.ModelAdmission, cfg.Opus47Admission)
+}
+
 func UpdateOpus47AdmissionConfig(admission Opus47AdmissionConfig) error {
 	normalized := normalizeOpus47AdmissionConfig(admission)
 	if err := ValidateOpus47AdmissionConfig(normalized); err != nil {
@@ -587,6 +678,22 @@ func UpdateOpus47AdmissionConfig(admission Opus47AdmissionConfig) error {
 	cfgLock.Lock()
 	defer cfgLock.Unlock()
 	cfg.Opus47Admission = normalized
+	cfg.ModelAdmission = normalizeModelAdmissionConfig(cfg.ModelAdmission, normalized)
+	cfg.ModelAdmission.Models["claude-opus-4.7"] = ModelAdmissionRule{
+		MaxConcurrent: normalized.MaxConcurrent,
+		MaxWaiting:    normalized.MaxWaiting,
+	}
+	return Save()
+}
+
+func UpdateModelAdmissionConfig(admission ModelAdmissionConfig) error {
+	if err := ValidateModelAdmissionConfig(admission); err != nil {
+		return err
+	}
+
+	cfgLock.Lock()
+	defer cfgLock.Unlock()
+	cfg.ModelAdmission = normalizeModelAdmissionConfig(admission, cfg.Opus47Admission)
 	return Save()
 }
 

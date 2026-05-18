@@ -9,8 +9,10 @@ import (
 	"io"
 	"kiro-go/config"
 	"kiro-go/logger"
+	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -134,12 +136,21 @@ func ResolveAccountProxyURL(account *config.Account) string {
 
 // buildKiroTransport constructs an HTTP Transport with optional outbound proxy support.
 func buildKiroTransport(proxyURL string) *http.Transport {
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
 	t := &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 20,
-		IdleConnTimeout:     90 * time.Second,
-		DisableCompression:  false,
-		ForceAttemptHTTP2:   true,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		MaxIdleConns:          200,
+		MaxIdleConnsPerHost:   50,
+		MaxConnsPerHost:       100,
+		IdleConnTimeout:       90 * time.Second,
+		ResponseHeaderTimeout: 60 * time.Second,
+		ExpectContinueTimeout: time.Second,
+		DisableCompression:    false,
+		ForceAttemptHTTP2:     true,
 	}
 	if proxyURL != "" {
 		if u, err := url.Parse(proxyURL); err == nil {
@@ -147,8 +158,6 @@ func buildKiroTransport(proxyURL string) *http.Transport {
 			// Proxied connections cannot negotiate HTTP/2.
 			t.ForceAttemptHTTP2 = false
 		}
-	} else {
-		t.Proxy = http.ProxyFromEnvironment
 	}
 	return t
 }
@@ -166,6 +175,456 @@ func InitKiroHttpClient(proxyURL string) {
 		Transport: buildKiroTransport(proxyURL),
 	}
 	kiroRestHttpStore.Store(restClient)
+}
+
+func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback) *KiroStreamCallback {
+	if callback == nil || callback.OnToolUse == nil || payload == nil {
+		return callback
+	}
+	if len(payload.ToolNameMap) == 0 && len(payload.ToolSchemas) == 0 {
+		return callback
+	}
+	originalOnToolUse := callback.OnToolUse
+	nameMap := payload.ToolNameMap
+	schemas := payload.ToolSchemas
+	wrapped := *callback
+	wrapped.OnToolUse = func(tu KiroToolUse) {
+		if original, ok := nameMap[tu.Name]; ok {
+			tu.Name = original
+		}
+		tu.Input = repairToolUseInputForClientSchema(tu.Name, tu.Input, schemas[tu.Name])
+		if !toolUseInputSatisfiesSchema(tu, schemas) {
+			logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: input does not satisfy client tool schema", tu.ToolUseID, tu.Name)
+			return
+		}
+		originalOnToolUse(tu)
+	}
+	return &wrapped
+}
+
+func repairToolUseInputForClientSchema(name string, input map[string]interface{}, summary toolSchemaSummary) map[string]interface{} {
+	if input == nil {
+		input = map[string]interface{}{}
+	}
+	repaired := make(map[string]interface{}, len(input)+1)
+	for key, value := range input {
+		repaired[key] = value
+	}
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	switch normalized {
+	case "read":
+		aliasToCanonical(repaired, "path", "file_path")
+		aliasToCanonical(repaired, "file", "file_path")
+		coerceIntegerField(repaired, "offset")
+		coerceIntegerField(repaired, "limit")
+	case "taskcreate":
+		repairTaskCreateInput(repaired)
+	case "taskupdate":
+		repairTaskUpdateInput(repaired)
+	case "todowrite":
+		repairTodoWriteInput(repaired)
+	}
+	removeUnknownFieldsWhenDisallowed(repaired, summary.Schema)
+	return repaired
+}
+
+func repairTaskCreateInput(input map[string]interface{}) {
+	aliasToCanonical(input, "active_form", "activeForm")
+	aliasToCanonical(input, "active_forming", "activeForm")
+	aliasToCanonical(input, "active", "activeForm")
+	if _, ok := input["subject"]; !ok {
+		if value, exists := firstPresent(input, "content", "title", "task", "todo"); exists {
+			input["subject"] = value
+		}
+	}
+	if _, ok := input["description"]; !ok {
+		if value, exists := firstPresent(input, "descriptionText", "details", "content", "subject", "title"); exists {
+			input["description"] = value
+		}
+	}
+	coerceStringField(input, "subject")
+	coerceStringField(input, "description")
+	coerceStringField(input, "activeForm")
+}
+
+func repairTaskUpdateInput(input map[string]interface{}) {
+	if _, ok := input["taskId"]; !ok {
+		if task, ok := input["task"].(map[string]interface{}); ok {
+			if value, exists := firstPresent(task, "taskId", "task_id", "id"); exists {
+				input["taskId"] = value
+			}
+		}
+	}
+	aliasToCanonical(input, "task_id", "taskId")
+	aliasToCanonical(input, "taskID", "taskId")
+	aliasToCanonical(input, "id", "taskId")
+	aliasToCanonical(input, "active_form", "activeForm")
+	aliasToCanonical(input, "active_forming", "activeForm")
+	aliasToCanonical(input, "active", "activeForm")
+	aliasToCanonical(input, "content", "subject")
+	aliasToCanonical(input, "title", "subject")
+	aliasToCanonical(input, "details", "description")
+	coerceStringField(input, "taskId")
+	coerceStringField(input, "subject")
+	coerceStringField(input, "description")
+	coerceStringField(input, "activeForm")
+	normalizeTaskStatus(input)
+	delete(input, "task")
+}
+
+func repairTodoWriteInput(input map[string]interface{}) {
+	if _, ok := input["todos"]; !ok {
+		aliasToCanonical(input, "tasks", "todos")
+		aliasToCanonical(input, "items", "todos")
+	}
+	todos, ok := input["todos"].([]interface{})
+	if !ok {
+		if todo, ok := input["todo"].(map[string]interface{}); ok {
+			todos = []interface{}{todo}
+			input["todos"] = todos
+		}
+	}
+	for _, raw := range todos {
+		todo, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		aliasToCanonical(todo, "active_form", "activeForm")
+		aliasToCanonical(todo, "active_forming", "activeForm")
+		aliasToCanonical(todo, "active", "activeForm")
+		aliasToCanonical(todo, "subject", "content")
+		aliasToCanonical(todo, "title", "content")
+		if _, ok := todo["activeForm"]; !ok {
+			if value, exists := firstPresent(todo, "content", "description"); exists {
+				todo["activeForm"] = value
+			}
+		}
+		coerceStringField(todo, "content")
+		coerceStringField(todo, "activeForm")
+		normalizeTaskStatus(todo)
+	}
+}
+
+func normalizeTaskStatus(input map[string]interface{}) {
+	if status, ok := input["status"].(string); ok {
+		switch strings.ToLower(strings.TrimSpace(status)) {
+		case "done", "complete", "completed":
+			input["status"] = "completed"
+		case "doing", "in-progress", "in_progress", "in progress", "active", "working", "running":
+			input["status"] = "in_progress"
+		case "todo", "pending", "open", "not_started", "not started":
+			input["status"] = "pending"
+		}
+	}
+}
+
+func firstPresent(input map[string]interface{}, keys ...string) (interface{}, bool) {
+	for _, key := range keys {
+		value, ok := input[key]
+		if !ok || value == nil {
+			continue
+		}
+		if s, ok := value.(string); ok && strings.TrimSpace(s) == "" {
+			continue
+		}
+		return value, true
+	}
+	return nil, false
+}
+
+func aliasToCanonical(input map[string]interface{}, alias, canonical string) {
+	if input == nil || alias == canonical {
+		return
+	}
+	if _, hasCanonical := input[canonical]; hasCanonical {
+		delete(input, alias)
+		return
+	}
+	if value, ok := input[alias]; ok {
+		input[canonical] = value
+		delete(input, alias)
+	}
+}
+
+func coerceIntegerField(input map[string]interface{}, field string) {
+	value, ok := input[field]
+	if !ok || value == nil {
+		return
+	}
+	switch v := value.(type) {
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			delete(input, field)
+			return
+		}
+		if n, err := strconv.Atoi(trimmed); err == nil {
+			input[field] = n
+		}
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			input[field] = int(n)
+		}
+	case float64:
+		if v == float64(int64(v)) {
+			input[field] = int(v)
+		}
+	}
+}
+
+func coerceStringField(input map[string]interface{}, field string) {
+	value, ok := input[field]
+	if !ok || value == nil {
+		return
+	}
+	switch v := value.(type) {
+	case string:
+		input[field] = strings.TrimSpace(v)
+	case json.Number:
+		input[field] = v.String()
+	case int, int64, int32, float64, float32:
+		input[field] = strings.TrimSpace(fmt.Sprint(v))
+	}
+}
+
+func removeUnknownFieldsWhenDisallowed(input map[string]interface{}, schema map[string]interface{}) {
+	if input == nil || schema == nil {
+		return
+	}
+	additional, hasAdditional := schema["additionalProperties"].(bool)
+	if !hasAdditional || additional {
+		return
+	}
+	props, ok := schema["properties"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	for key := range input {
+		if _, ok := props[key]; !ok {
+			delete(input, key)
+		}
+	}
+}
+
+func toolUseInputSatisfiesSchema(tu KiroToolUse, schemas map[string]toolSchemaSummary) bool {
+	if len(schemas) == 0 {
+		return true
+	}
+	schema, ok := schemas[tu.Name]
+	if !ok {
+		return true
+	}
+	if schema.Schema != nil {
+		return validateToolInputAgainstSchema(tu.Input, schema.Schema)
+	}
+	if len(schema.Required) == 0 {
+		return true
+	}
+	for _, field := range schema.Required {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		value, exists := tu.Input[field]
+		if !exists || value == nil {
+			return false
+		}
+		if s, ok := value.(string); ok && s == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func validateToolInputAgainstSchema(input map[string]interface{}, schema map[string]interface{}) bool {
+	if input == nil {
+		input = map[string]interface{}{}
+	}
+	return validateJSONSchemaValue(input, schema)
+}
+
+func validateJSONSchemaValue(value interface{}, schema map[string]interface{}) bool {
+	if schema == nil {
+		return true
+	}
+	if enumValues, ok := schema["enum"].([]interface{}); ok && len(enumValues) > 0 && !jsonSchemaEnumContains(enumValues, value) {
+		return false
+	}
+	if anyOf, ok := schema["anyOf"].([]interface{}); ok && len(anyOf) > 0 {
+		for _, item := range anyOf {
+			if sub, ok := schemaMap(item); ok && validateJSONSchemaValue(value, sub) {
+				return true
+			}
+		}
+		return false
+	}
+	if oneOf, ok := schema["oneOf"].([]interface{}); ok && len(oneOf) > 0 {
+		matches := 0
+		for _, item := range oneOf {
+			if sub, ok := schemaMap(item); ok && validateJSONSchemaValue(value, sub) {
+				matches++
+			}
+		}
+		return matches == 1
+	}
+	if allOf, ok := schema["allOf"].([]interface{}); ok && len(allOf) > 0 {
+		for _, item := range allOf {
+			if sub, ok := schemaMap(item); ok && !validateJSONSchemaValue(value, sub) {
+				return false
+			}
+		}
+	}
+
+	types := schemaTypes(schema["type"])
+	if len(types) > 0 && !jsonValueMatchesAnyType(value, types) {
+		return false
+	}
+	if len(types) == 0 {
+		if _, ok := schema["properties"]; ok && !jsonValueMatchesType(value, "object") {
+			return false
+		}
+		if _, ok := schema["items"]; ok && !jsonValueMatchesType(value, "array") {
+			return false
+		}
+	}
+
+	if propsRaw, ok := schema["properties"].(map[string]interface{}); ok {
+		obj, ok := value.(map[string]interface{})
+		if !ok {
+			return false
+		}
+		for _, field := range schemaRequiredFields(schema) {
+			fieldValue, exists := obj[field]
+			if !exists || fieldValue == nil {
+				return false
+			}
+			if s, ok := fieldValue.(string); ok && s == "" {
+				return false
+			}
+		}
+		for key, fieldValue := range obj {
+			if propSchema, ok := schemaMap(propsRaw[key]); ok {
+				if !validateJSONSchemaValue(fieldValue, propSchema) {
+					return false
+				}
+				continue
+			}
+			if additional, ok := schema["additionalProperties"].(bool); ok && !additional {
+				return false
+			}
+			if additionalSchema, ok := schemaMap(schema["additionalProperties"]); ok && !validateJSONSchemaValue(fieldValue, additionalSchema) {
+				return false
+			}
+		}
+	}
+
+	if itemsSchema, ok := schemaMap(schema["items"]); ok {
+		arr, ok := value.([]interface{})
+		if !ok {
+			return false
+		}
+		for _, item := range arr {
+			if !validateJSONSchemaValue(item, itemsSchema) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func schemaMap(value interface{}) (map[string]interface{}, bool) {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		return v, true
+	default:
+		return nil, false
+	}
+}
+
+func schemaTypes(value interface{}) []string {
+	switch v := value.(type) {
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return nil
+		}
+		return []string{strings.TrimSpace(v)}
+	case []interface{}:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+				out = append(out, strings.TrimSpace(s))
+			}
+		}
+		return out
+	case []string:
+		return append([]string(nil), v...)
+	default:
+		return nil
+	}
+}
+
+func jsonValueMatchesAnyType(value interface{}, types []string) bool {
+	for _, typ := range types {
+		if jsonValueMatchesType(value, typ) {
+			return true
+		}
+	}
+	return false
+}
+
+func jsonValueMatchesType(value interface{}, typ string) bool {
+	switch typ {
+	case "null":
+		return value == nil
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	case "number":
+		switch value.(type) {
+		case float64, float32, int, int64, int32, json.Number:
+			return true
+		default:
+			return false
+		}
+	case "integer":
+		switch v := value.(type) {
+		case int, int64, int32:
+			return true
+		case float64:
+			return v == float64(int64(v))
+		case json.Number:
+			_, err := v.Int64()
+			return err == nil
+		default:
+			return false
+		}
+	case "object":
+		_, ok := value.(map[string]interface{})
+		return ok
+	case "array":
+		_, ok := value.([]interface{})
+		return ok
+	default:
+		return true
+	}
+}
+
+func jsonSchemaEnumContains(enumValues []interface{}, value interface{}) bool {
+	for _, item := range enumValues {
+		if reflect.DeepEqual(item, value) {
+			return true
+		}
+		itemJSON, itemErr := json.Marshal(item)
+		valueJSON, valueErr := json.Marshal(value)
+		if itemErr == nil && valueErr == nil && bytes.Equal(itemJSON, valueJSON) {
+			return true
+		}
+	}
+	return false
 }
 
 var supportedKiroRegions = map[string]struct{}{
@@ -290,6 +749,21 @@ type KiroPayload struct {
 	// ProfileArnFinalized indicates guarded handler paths have already resolved
 	// or intentionally left ProfileArn empty, so CallKiroAPI must not mutate it.
 	ProfileArnFinalized bool `json:"-"`
+
+	// Tool reference metadata is kept out of the upstream request body and used
+	// only for request logging/diagnostics.
+	DeferredToolReferenceNames     []string `json:"-"`
+	MaterializedToolReferenceNames []string `json:"-"`
+
+	// ToolSchemas keeps a minimal, non-serialized copy of client tool
+	// requirements so upstream tool_use events can be checked before they are
+	// emitted back to strict clients such as Claude Code.
+	ToolSchemas map[string]toolSchemaSummary `json:"-"`
+}
+
+type toolSchemaSummary struct {
+	Required []string
+	Schema   map[string]interface{}
 }
 
 type KiroUserInputMessage struct {
@@ -422,19 +896,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		logger.Debugf("[KiroAPI] Request payload: %s", string(payloadJSON))
 	}
 
-	// Wrap OnToolUse to restore original tool names for the client.
-	if callback != nil && callback.OnToolUse != nil && len(payload.ToolNameMap) > 0 {
-		originalOnToolUse := callback.OnToolUse
-		nameMap := payload.ToolNameMap
-		wrapped := *callback
-		wrapped.OnToolUse = func(tu KiroToolUse) {
-			if original, ok := nameMap[tu.Name]; ok {
-				tu.Name = original
-			}
-			originalOnToolUse(tu)
-		}
-		callback = &wrapped
-	}
+	callback = wrapKiroToolUseCallback(payload, callback)
 
 	if payload != nil && strings.TrimSpace(payload.ProfileArn) == "" && !payload.ProfileArnFinalized {
 		finalizeKiroPayloadProfileArn(payload, account)
@@ -445,10 +907,13 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 
 	var lastErr error
 	for _, ep := range endpoints {
+		attemptPayload := payload
+		malformedRetried := false
+	retryEndpoint:
 		// Update the origin field for the selected endpoint.
-		payload.ConversationState.CurrentMessage.UserInputMessage.Origin = ep.Origin
+		attemptPayload.ConversationState.CurrentMessage.UserInputMessage.Origin = ep.Origin
 
-		reqBody, _ := json.Marshal(payload)
+		reqBody, _ := json.Marshal(attemptPayload)
 		req, err := http.NewRequest("POST", ep.URL, bytes.NewReader(reqBody))
 		if err != nil {
 			lastErr = err
@@ -507,8 +972,27 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 			errBody := readResponseBody(resp)
 			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d from %s: %s", resp.StatusCode, ep.Name, errBody)
+			if resp.StatusCode == 400 && isKiroMalformedRequestBody(errBody) && !malformedRetried {
+				retryPayload := cloneKiroPayload(attemptPayload)
+				if retryPayload != nil {
+					guardResult, guardErr := prepareGuardedKiroPayload(retryPayload, conservativePayloadGuardOptions())
+					if guardErr == nil {
+						if guardResult.Trimmed || guardResult.FinalBytes < guardResult.OriginalBytes {
+							malformedRetried = true
+							attemptPayload = retryPayload
+							logger.Warnf("[KiroAPI] Endpoint %s rejected payload; retrying once with conservative guard: err=%v before=%+v after=%+v guard=%+v", ep.Name, lastErr, summarizeKiroPayload(payload), summarizeKiroPayload(retryPayload), guardResult)
+							goto retryEndpoint
+						}
+						logger.Warnf("[KiroAPI] Endpoint %s malformed payload not retried because conservative guard made no structural change: err=%v summary=%+v", ep.Name, lastErr, summarizeKiroPayload(attemptPayload))
+					}
+					logger.Warnf("[KiroAPI] Endpoint %s conservative retry guard failed: err=%v summary=%+v", ep.Name, guardErr, summarizeKiroPayload(retryPayload))
+				}
+			}
 			// Authentication errors and payment errors are not retried across endpoints.
-			if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 402 {
+			if resp.StatusCode == 400 || resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 402 {
+				if resp.StatusCode == 400 {
+					logger.Warnf("[KiroAPI] Endpoint %s rejected malformed payload: err=%v summary=%+v", ep.Name, lastErr, summarizeKiroPayload(attemptPayload))
+				}
 				return lastErr
 			}
 			logger.Warnf("[KiroAPI] Endpoint %s error: %v", ep.Name, lastErr)
@@ -524,6 +1008,11 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		return lastErr
 	}
 	return fmt.Errorf("all endpoints failed")
+}
+
+func isKiroMalformedRequestBody(body string) bool {
+	body = strings.ToLower(strings.TrimSpace(body))
+	return strings.Contains(body, "improperly formed request") || strings.Contains(body, "malformed")
 }
 
 func readResponseBody(resp *http.Response) string {
@@ -719,6 +1208,10 @@ func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
 		}
 	}
 
+	if currentToolUse != nil && callback.OnToolUse != nil {
+		finishToolUse(currentToolUse, callback)
+	}
+
 	if callback.OnCredits != nil && totalCredits > 0 {
 		callback.OnCredits(totalCredits)
 	}
@@ -910,7 +1403,7 @@ func handleToolUseEvent(event map[string]interface{}, current *toolUseState, cal
 
 	if current != nil {
 		if input, ok := event["input"].(string); ok {
-			current.InputBuffer.WriteString(input)
+			writeToolUseInputChunk(current, input)
 		} else if inputObj, ok := event["input"].(map[string]interface{}); ok {
 			data, _ := json.Marshal(inputObj)
 			current.InputBuffer.Reset()
@@ -926,10 +1419,33 @@ func handleToolUseEvent(event map[string]interface{}, current *toolUseState, cal
 	return current
 }
 
+func writeToolUseInputChunk(current *toolUseState, input string) {
+	if current == nil || input == "" {
+		return
+	}
+	trimmed := strings.TrimSpace(input)
+	if current.InputBuffer.Len() == 0 {
+		current.InputBuffer.WriteString(input)
+		return
+	}
+	existing := strings.TrimSpace(current.InputBuffer.String())
+	if existing == "{}" && strings.HasPrefix(trimmed, "{") {
+		current.InputBuffer.Reset()
+		current.InputBuffer.WriteString(input)
+		return
+	}
+	if json.Valid([]byte(input)) && strings.HasPrefix(trimmed, "{") {
+		current.InputBuffer.Reset()
+		current.InputBuffer.WriteString(input)
+		return
+	}
+	current.InputBuffer.WriteString(input)
+}
+
 func finishToolUse(state *toolUseState, callback *KiroStreamCallback) {
 	var input map[string]interface{}
 	if state.InputBuffer.Len() > 0 {
-		json.Unmarshal([]byte(state.InputBuffer.String()), &input)
+		input = parseToolUseInputBuffer(state.InputBuffer.String())
 	}
 	if input == nil {
 		input = make(map[string]interface{})
@@ -939,6 +1455,29 @@ func finishToolUse(state *toolUseState, callback *KiroStreamCallback) {
 		Name:      state.Name,
 		Input:     input,
 	})
+}
+
+func parseToolUseInputBuffer(raw string) map[string]interface{} {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var input map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &input); err == nil {
+		return input
+	}
+
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	for {
+		var next map[string]interface{}
+		if err := decoder.Decode(&next); err != nil {
+			break
+		}
+		if len(next) > 0 {
+			input = next
+		}
+	}
+	return input
 }
 
 // extractEventType extracts the event type string from AWS Event Stream message headers.

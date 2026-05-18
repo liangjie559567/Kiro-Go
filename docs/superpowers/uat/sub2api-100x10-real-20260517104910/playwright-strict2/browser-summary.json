@@ -1,0 +1,60 @@
+{
+  "outDir": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-real-20260517104910/playwright-strict2",
+  "shot": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-real-20260517104910/playwright-strict2/sub2api-usage-account24-strict.png",
+  "text": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nUsage Records\n\nView and manage all user usage records\n\n🇺🇸\nEN\n$9996500.32\nAD\nadmin\nAdmin\n\nTotal Requests\n\n9,518\n\nin selected range\n\nTotal Tokens\n\n102.80M\n\nIn: 60.27M / Out: 777.01K\n\nTotal Cost\n\n$411.8101\n\nCost $411.8101 · Standard $411.8101\n\nAvg Duration\n\n4.68s\n\nTime Range:\nLast 24 Hours\nGranularity:\nHour\nModel Distribution\nRequested\nUpstream\nMapping\nBy Tokens\nBy Actual Cost\nModel\tRequests\tTokens\tActual\tCost\tStandard\n\nclaude-opus-4-7\t2,336\t73.98M\t$317.04\t$317.04\t$317.04\n\nclaude-sonnet-4.5\t1,399\t5.79M\t$17.61\t$17.61\t$17.61\n\nclaude-opus-4.7\t412\t2.44M\t$12.26\t$12.26\t$12.26\n\nclaude-opus-4.7-thinking\t204\t1.22M\t$6.10\t$6.10\t$6.10\n\ndeepseek-3.2\t210\t963.66K\t$0.0000\t$0.0000\t$0.0000\n\ndeepseek-3.2-thinking\t204\t945.75K\t$0.0000\t$0.0000\t$0.0000\n\nclaude-haiku-4.5-thinking\t204\t874.05K\t$0.229\t$0.229\t$0.229\n\nclaude-sonnet-4-thinking\t204\t872.47K\t$2.74\t$2.74\t$2.74\n\nclaude-sonnet-4.5-thinking\t204\t871.54K\t$2.74\t$2.74\t$2.74\n\nclaude-opus-4.5\t210\t865.56K\t$4.33\t$4.33\t$4.33\n\nclaude-haiku-4.5\t210\t865.29K\t$0.217\t$0.217\t$0.217\n\nclaude-opus-4.5-thinking\t203\t857.70K\t$4.37\t$4.37\t$4.37\n\nclaude-sonnet-4.6\t208\t857.68K\t$2.58\t$2.58\t$2.58\n\nclaude-opus-4.6\t208\t857.67K\t$4.29\t$4.29\t$4.29\n\nclaude-sonnet-4\t208\t857.27K\t$2.57\t$2.57\t$2.57\n\ngpt-4o\t208\t856.83K\t$2.14\t$2.14\t$2.14\n\ngpt-4\t208\t856.83K\t$25.71\t$25.71\t$25.71\n\nclaude-opus-4.6-thinking\t204\t856.02K\t$4.31\t$4.31\t$4.31\n\nclaude-sonnet-4.6-thinking\t204\t853.37K\t$2.57\t$2.57\t$2.57\n\nminimax-m2.1\t210\t795.38K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.5\t210\t793.41K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.1-thinking\t204\t787.94K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.5-thinking\t204\t784.62K\t$0.0000\t$0.0000\t$0.0000\n\nglm-5\t210\t780.26K\t$0.0000\t$0.0000\t$0.0000\n\nglm-5-thinking\t204\t765.18K\t$0.0000\t$0.0000\t$0.0000\n\nqwen3-coder-next\t210\t611.92K\t$0.0000\t$0.0000\t$0.0000\n\nqwen3-coder-next-thinking\t204\t600.39K\t$0.0000\t$0.0000\t$0.0000\n\nauto\t210\t173.30K\t$0.0000\t$0.0000\t$0.0000\n\nauto-thinking\t204\t172.24K\t$0.0000\t$0.0000\t$0.0000\nGroup Usage Distribution\nBy Tokens\nBy Actual Cost\nGroup\tRequests\tTokens\tActual\tCost\tStandard\n\nclaude\t9,518\t102.80M\t$411.81\t$411.81\t$411.81\nEndpoint Distribution\nInbound\nUpstream\nPath\nBy Tokens\nBy Actual Cost\nEndpoint\tRequests\tTokens\tActual\tStandard\n\n/v1/messages\t9,510\t102.78M\t$411.75\t$411.75\n\n/v1/responses\t8\t19.09K\t$0.058\t$0.058\nToken Usage Trend\nUser\nAPI Key\nModel\nSelect an option\nAccount\n✕\nType\nSelect an option\nBilling Type\nAll Billing Types\nBilling Mode\nSelect an option\nGroup\nSelect an option\nRefresh\nReset\nColumn Settings\nCleanup\nExport Excel\nUSER\n\t\nAPI KEY\n\t\nACCOUNT\n\t\nMODEL\n\t\nENDPOINT\n\t\nGROUP\n\t\nTYPE\n\t\nBILLING MODE\n\t\nTOKENS\n\t\nCOST\n\t\nFIRST TOKEN\n\t\nDURATION\n\t\nTIME\n\t\nIP\n\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t23.28s\t23.28s\t05/17/2026, 10:52:57\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t23.59s\t23.59s\t05/17/2026, 10:52:54\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t23.51s\t23.51s\t05/17/2026, 10:52:52\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t22.66s\t22.66s\t05/17/2026, 10:52:49\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t6.15s\t6.15s\t05/17/2026, 10:52:49\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.50s\t2.50s\t05/17/2026, 10:52:47\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t22.02s\t22.02s\t05/17/2026, 10:52:47\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.92s\t2.92s\t05/17/2026, 10:52:47\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.18s\t2.18s\t05/17/2026, 10:52:46\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.13s\t2.13s\t05/17/2026, 10:52:46\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t21.65s\t21.65s\t05/17/2026, 10:52:45\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t1.77s\t1.78s\t05/17/2026, 10:52:44\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.04s\t2.04s\t05/17/2026, 10:52:44\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t1.94s\t1.94s\t05/17/2026, 10:52:44\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t21.47s\t21.47s\t05/17/2026, 10:52:42\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t1.96s\t1.96s\t05/17/2026, 10:52:42\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t1.89s\t1.89s\t05/17/2026, 10:52:42\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t1.95s\t1.95s\t05/17/2026, 10:52:42\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t22.06s\t22.06s\t05/17/2026, 10:52:40\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n19\n\t\n$0.012720\nA $0.012720\n\t2.03s\t2.03s\t05/17/2026, 10:52:40\t172.24.0.1\n\nShowing 1 to 20 of 9518 results\n\nPer page:\n20\n1\n2\n3\n...\n476",
+  "dropdownTextBefore": "Account\nkiro_claude_01#24",
+  "usageRequests": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-16&end_date=2026-05-17&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-16&end_date=2026-05-17&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-16&end_date=2026-05-17&account_id=24&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-16&end_date=2026-05-17&account_id=24&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage?page=1&page_size=20&exact_total=false&start_date=2026-05-16&end_date=2026-05-17&account_id=24&sort_by=created_at&sort_order=desc&timezone=Asia%2FShanghai"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:18080/api/v1/admin/usage/stats?start_date=2026-05-16&end_date=2026-05-17&account_id=24&timezone=Asia%2FShanghai"
+    }
+  ],
+  "checks": {
+    "requestHadAccountId24": true,
+    "hasKiroRows": true,
+    "hasMessagesEndpoint": true,
+    "hasSyncOrStream": true,
+    "noOpenAIRowsInVisibleRows": true,
+    "hasRecent100x10Time": true
+  },
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:18080/api/v1/usage/dashboard/models?start_date=2026-05-11&end_date=2026-05-17&timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/v1/usage?start_date=2026-05-11&end_date=2026-05-17&page=1&page_size=100&timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/v1/usage/dashboard/trend?start_date=2026-05-11&end_date=2026-05-17&granularity=day&timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/v1/usage/dashboard/stats?timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "pass": true
+}

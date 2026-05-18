@@ -1,0 +1,58 @@
+{
+  "runId": "opus47-gate4-smoke-20260517024847",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-opus-4-7",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T18:48:47.571Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 43,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 10,
+    "body": {
+      "input_tokens": 28
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 4883,
+    "text": "opus47-gate4-smoke-20260517024847-marker",
+    "textTrimmed": "opus47-gate4-smoke-20260517024847-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 5925,
+      "output_tokens": 16
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1139,
+    "text": "opus47-gate4-smoke-20260517024847-marker",
+    "textTrimmed": "opus47-gate4-smoke-20260517024847-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T18:48:53.649Z"
+}

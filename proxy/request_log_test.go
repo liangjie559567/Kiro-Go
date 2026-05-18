@@ -110,8 +110,15 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
 
 	updateRequestLogMetadata(loggedReq, "claude-opus-4.7", false)
-	updateRequestLogUpstream(loggedReq, "acct-1", "eu-west-1")
+	updateRequestLogUpstream(loggedReq, "acct-1", "eu-west-1", AccountRequestHealthSnapshot{
+		ActiveConnections: 2,
+		RecentFailures:    1,
+		RecentSuccesses:   9,
+		AvgLatencyMS:      345,
+		Score:             87,
+	})
 	updateRequestLogUsage(loggedReq, 100, 25, 40, 5)
+	updateRequestLogRouting(loggedReq, "selected acct-1 for claude-opus-4.7 attempt=1", "health", true)
 	updateRequestLogReliability(loggedReq, 120, 2, 80, 3)
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
@@ -123,6 +130,12 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	entry := logs[0]
 	if entry.AccountID != "acct-1" || entry.Region != "eu-west-1" {
 		t.Fatalf("expected account and region metadata, got %#v", entry)
+	}
+	if entry.AccountActiveConnections != 2 || entry.AccountRecentFailures != 1 || entry.AccountRecentSuccesses != 9 || entry.AccountAvgLatencyMS != 345 || entry.AccountHealthScore != 87 {
+		t.Fatalf("expected account health metadata, got %#v", entry)
+	}
+	if entry.RoutingDecision != "selected acct-1 for claude-opus-4.7 attempt=1" || entry.RoutingStrategy != "health" || !entry.RoutingPressure {
+		t.Fatalf("expected routing metadata, got %#v", entry)
 	}
 	if entry.InputTokens != 100 || entry.OutputTokens != 25 || entry.CacheReadInputTokens != 40 || entry.CacheCreationInputTokens != 5 {
 		t.Fatalf("expected token usage metadata, got %#v", entry)
@@ -220,25 +233,6 @@ func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	}
 }
 
-func TestRequestLogCapturesResponsesSessionRestoreMetadata(t *testing.T) {
-	h := &Handler{requestLogs: newRequestLogStore(5)}
-	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{}`))
-	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
-
-	updateRequestLogResponsesSession(loggedReq, "resp_prev", 3, 2, true)
-	recorder.WriteHeader(http.StatusOK)
-	h.finishRequestLog(ctx, recorder)
-
-	logs := h.requestLogs.List(1)
-	if len(logs) != 1 {
-		t.Fatalf("expected request log, got %#v", logs)
-	}
-	entry := logs[0]
-	if entry.ResponsesPreviousID != "resp_prev" || entry.ResponsesRestoredSessions != 3 || entry.ResponsesRestoredToolCalls != 2 || !entry.ResponsesInheritedTools {
-		t.Fatalf("expected responses session metadata, got %#v", entry)
-	}
-}
-
 func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
@@ -249,10 +243,16 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 		FinalBytes:               1024,
 		Trimmed:                  true,
 		TrimmedCount:             3,
-		CurrentTools:             2,
-		KeptToolNames:            []string{"bash", "mcp__fs__read_file"},
-		TrimmedToolNames:         []string{"mcp__browser__screenshot"},
-		MaterializedToolRefNames: []string{"mcp__repo__search"},
+		DeferredToolNames:        []string{"mcp__browser__screenshot"},
+		CompactedPairs:           2,
+		CompactedToolResults:     1,
+		MaterializedToolRefNames: []string{"Read"},
+		Summary: kiroPayloadSummary{
+			CurrentTools:           8,
+			CurrentToolSchemaBytes: 2048,
+		},
+		KeptToolNames:    []string{"agent", "bash"},
+		TrimmedToolNames: []string{"mcp__fs__tool_23"},
 	})
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
@@ -265,8 +265,23 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	if entry.PayloadOriginalBytes != 4096 || entry.PayloadFinalBytes != 1024 || !entry.PayloadTrimmed || entry.PayloadTrimmedCount != 3 {
 		t.Fatalf("expected payload guard metadata, got %#v", entry)
 	}
-	if entry.PayloadCurrentTools != 2 || strings.Join(entry.PayloadKeptTools, ",") != "bash,mcp__fs__read_file" || strings.Join(entry.PayloadTrimmedTools, ",") != "mcp__browser__screenshot" || strings.Join(entry.PayloadMaterializedToolRefs, ",") != "mcp__repo__search" {
-		t.Fatalf("expected payload tool metadata, got %#v", entry)
+	if entry.PayloadCurrentTools != 8 || entry.PayloadCurrentToolSchemaBytes != 2048 {
+		t.Fatalf("expected payload tool budget metadata, got %#v", entry)
+	}
+	if len(entry.PayloadKeptTools) != 2 || entry.PayloadKeptTools[0] != "agent" || entry.PayloadKeptTools[1] != "bash" {
+		t.Fatalf("expected kept tool metadata, got %#v", entry.PayloadKeptTools)
+	}
+	if len(entry.PayloadTrimmedTools) != 1 || entry.PayloadTrimmedTools[0] != "mcp__fs__tool_23" {
+		t.Fatalf("expected trimmed tool metadata, got %#v", entry.PayloadTrimmedTools)
+	}
+	if len(entry.PayloadDeferredTools) != 1 || entry.PayloadDeferredTools[0] != "mcp__browser__screenshot" {
+		t.Fatalf("expected deferred tool metadata, got %#v", entry.PayloadDeferredTools)
+	}
+	if len(entry.PayloadMaterializedToolRefs) != 1 || entry.PayloadMaterializedToolRefs[0] != "Read" {
+		t.Fatalf("expected materialized tool reference metadata, got %#v", entry.PayloadMaterializedToolRefs)
+	}
+	if entry.PayloadCompactedPairs != 2 || entry.PayloadCompactedToolResults != 1 {
+		t.Fatalf("expected compaction metadata, got %#v", entry)
 	}
 }
 

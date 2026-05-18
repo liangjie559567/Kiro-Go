@@ -1,0 +1,44 @@
+{
+  "runId": "responses-tool-output-real-1778958524721",
+  "firstCall": {
+    "type": "function_call",
+    "id": "item_15787d22148d39c7956bd0bd",
+    "status": "completed",
+    "call_id": "tooluse_oQcL4RGp93f1ipk3P4aW7F",
+    "name": "get_project_status",
+    "arguments": "{}{\"scope\":\"full\"}"
+  },
+  "status": 200,
+  "ok": true,
+  "rawPreview": "{\"id\":\"msg_af5a6701-4b4a-4359-a2ec-5b0bd85e3d4b\",\"object\":\"response\",\"model\":\"claude-sonnet-4.5\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"id\":\"item_c65cd8bf5a54c49178146253\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\"}],\"status\":\"completed\"}],\"usage\":{\"input_tokens\":32,\"output_tokens\":0,\"total_tokens\":32}}",
+  "object": "response",
+  "statusField": "completed",
+  "correct": false,
+  "outputTypes": [
+    "message"
+  ],
+  "full": {
+    "id": "msg_af5a6701-4b4a-4359-a2ec-5b0bd85e3d4b",
+    "object": "response",
+    "model": "claude-sonnet-4.5",
+    "status": "completed",
+    "output": [
+      {
+        "type": "message",
+        "id": "item_c65cd8bf5a54c49178146253",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text"
+          }
+        ],
+        "status": "completed"
+      }
+    ],
+    "usage": {
+      "input_tokens": 32,
+      "output_tokens": 0,
+      "total_tokens": 32
+    }
+  }
+}

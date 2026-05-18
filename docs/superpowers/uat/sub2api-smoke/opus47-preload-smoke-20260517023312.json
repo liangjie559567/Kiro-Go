@@ -1,0 +1,58 @@
+{
+  "runId": "opus47-preload-smoke-20260517023312",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-opus-4-7",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T18:33:12.982Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 34,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 7,
+    "body": {
+      "input_tokens": 28
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 4745,
+    "text": "opus47-preload-smoke-20260517023312-marker",
+    "textTrimmed": "opus47-preload-smoke-20260517023312-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 5924,
+      "output_tokens": 16
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 6389,
+    "text": "opus47-preload-smoke-20260517023312-marker",
+    "textTrimmed": "opus47-preload-smoke-20260517023312-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T18:33:24.158Z"
+}

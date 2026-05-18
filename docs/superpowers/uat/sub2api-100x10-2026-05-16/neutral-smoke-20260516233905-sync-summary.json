@@ -1,0 +1,27 @@
+{
+  "runId": "neutral-smoke-20260516233905-sync",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "model": "claude-opus-4-7",
+  "total": 1,
+  "concurrency": 1,
+  "success": 1,
+  "correct": 1,
+  "containsMarker": 1,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 1
+  },
+  "latencyMs": {
+    "min": 1138,
+    "max": 1138,
+    "avg": 1138,
+    "p50": 1138,
+    "p90": 1138,
+    "p95": 1138,
+    "p99": 1138
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/neutral-smoke-20260516233905-sync.jsonl"
+}

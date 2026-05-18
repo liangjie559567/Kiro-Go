@@ -1,0 +1,25 @@
+{
+  "runId": "opus47_nonstream_1778936182136",
+  "mode": "nonstream",
+  "model": "claude-opus-4.7",
+  "endpoint": "http://127.0.0.1:18080/v1/messages",
+  "total": 100,
+  "concurrency": 10,
+  "startedAt": "2026-05-16T12:56:22.136Z",
+  "endedAt": "2026-05-16T12:56:50.802Z",
+  "wall_ms": 28666,
+  "http_200": 100,
+  "correct": 100,
+  "failed": 0,
+  "latency_ms": {
+    "min": 1021,
+    "avg": 2463,
+    "p50": 1239,
+    "p90": 6130,
+    "p95": 6620,
+    "p99": 11595,
+    "max": 12242
+  },
+  "error_samples": [],
+  "output": "/www/Kiro-Go/docs/superpowers/uat/loadtest-opus47-2026-05-16/nonstream-results.jsonl"
+}

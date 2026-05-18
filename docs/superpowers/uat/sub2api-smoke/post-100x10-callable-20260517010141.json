@@ -1,0 +1,58 @@
+{
+  "runId": "post-100x10-callable-20260517010141",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T17:01:41.951Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 134,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 13,
+    "body": {
+      "input_tokens": 27
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2248,
+    "text": "post-100x10-callable-20260517010141-marker",
+    "textTrimmed": "post-100x10-callable-20260517010141-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4137,
+      "output_tokens": 17
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1815,
+    "text": "post-100x10-callable-20260517010141-marker",
+    "textTrimmed": "post-100x10-callable-20260517010141-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T17:01:46.162Z"
+}

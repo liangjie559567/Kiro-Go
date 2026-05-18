@@ -1,0 +1,58 @@
+{
+  "runId": "post-opus-gate-restore-smoke-20260517030047",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-opus-4-7",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T19:00:47.663Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 33,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 9,
+    "body": {
+      "input_tokens": 31
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1207,
+    "text": "post-opus-gate-restore-smoke-20260517030047-marker",
+    "textTrimmed": "post-opus-gate-restore-smoke-20260517030047-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 5932,
+      "output_tokens": 18
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1092,
+    "text": "post-opus-gate-restore-smoke-20260517030047-marker",
+    "textTrimmed": "post-opus-gate-restore-smoke-20260517030047-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T19:00:50.007Z"
+}

@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"kiro-go/auth"
 	"kiro-go/config"
 	"kiro-go/pool"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -105,6 +107,155 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 	}
 }
 
+func TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	expiredAt := time.Now().Add(-time.Minute).Unix()
+	account := config.Account{
+		ID:           "acct-refresh-coalesce",
+		Email:        "refresh@example.com",
+		AccessToken:  "old-access-token",
+		RefreshToken: "old-refresh-token",
+		AuthMethod:   "social",
+		Region:       "us-east-1",
+		Enabled:      true,
+		ExpiresAt:    expiredAt,
+		ProfileArn:   "arn:aws:codewhisperer:profile/old",
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+
+	var authCalls int32
+	authHttpClientStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			atomic.AddInt32(&authCalls, 1)
+			time.Sleep(25 * time.Millisecond)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"accessToken":"new-access-token","refreshToken":"new-refresh-token","expiresIn":7200,"profileArn":"arn:aws:codewhisperer:profile/new"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { auth.InitHttpClient("") })
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			local := account
+			if err := h.ensureValidToken(&local); err != nil {
+				errs <- err
+				return
+			}
+			if local.AccessToken != "new-access-token" || local.RefreshToken != "new-refresh-token" {
+				errs <- fmt.Errorf("unexpected local token state: %#v", local)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := atomic.LoadInt32(&authCalls); got != 1 {
+		t.Fatalf("expected one coalesced auth refresh, got %d", got)
+	}
+	latest := p.GetByID(account.ID)
+	if latest == nil || latest.AccessToken != "new-access-token" || latest.RefreshToken != "new-refresh-token" {
+		t.Fatalf("expected pool token to refresh once, got %#v", latest)
+	}
+	persisted := config.GetAccounts()[0]
+	if persisted.AccessToken != "new-access-token" || persisted.RefreshToken != "new-refresh-token" {
+		t.Fatalf("expected persisted token to refresh once, got %#v", persisted)
+	}
+}
+
+func TestEnsureValidTokenRefreshesDifferentAccountsInParallel(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	expiredAt := time.Now().Add(-time.Minute).Unix()
+	accounts := []config.Account{
+		{ID: "acct-refresh-a", Email: "a@example.com", AccessToken: "old-a", RefreshToken: "refresh-a", AuthMethod: "social", Region: "us-east-1", Enabled: true, ExpiresAt: expiredAt},
+		{ID: "acct-refresh-b", Email: "b@example.com", AccessToken: "old-b", RefreshToken: "refresh-b", AuthMethod: "social", Region: "us-east-1", Enabled: true, ExpiresAt: expiredAt},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+
+	var running int32
+	var maxRunning int32
+	authHttpClientStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			now := atomic.AddInt32(&running, 1)
+			for {
+				seen := atomic.LoadInt32(&maxRunning)
+				if now <= seen || atomic.CompareAndSwapInt32(&maxRunning, seen, now) {
+					break
+				}
+			}
+			time.Sleep(50 * time.Millisecond)
+			atomic.AddInt32(&running, -1)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"accessToken":"new-token","refreshToken":"new-refresh","expiresIn":7200}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { auth.InitHttpClient("") })
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, len(accounts))
+	for _, account := range accounts {
+		account := account
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if err := h.ensureValidToken(&account); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := atomic.LoadInt32(&maxRunning); got < 2 {
+		t.Fatalf("expected different accounts to refresh in parallel, max concurrent refreshes = %d", got)
+	}
+}
+
 func TestRequestStickyKeyRequiresClientIdentifier(t *testing.T) {
 	claudeReq := &ClaudeRequest{
 		Model:  "claude-sonnet-4.5",
@@ -124,7 +275,12 @@ func TestRequestStickyKeyRequiresClientIdentifier(t *testing.T) {
 	if got := requestStickyKey(req, claudeReq); got != "session-1" {
 		t.Fatalf("expected Claude Code session sticky key, got %q", got)
 	}
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-1")
+	if got := requestStickyKey(req, claudeReq); got != "session-1/agent-1" {
+		t.Fatalf("expected Claude Code session+agent sticky key, got %q", got)
+	}
 	req.Header.Del("X-Claude-Code-Session-Id")
+	req.Header.Del("X-Claude-Code-Agent-Id")
 	req.Header.Set("X-Request-Id", "req-1")
 	if got := requestStickyKey(req, claudeReq); got != "req-1" {
 		t.Fatalf("expected request id sticky key, got %q", got)
@@ -261,64 +417,6 @@ func TestAdminSettingsPartialUpdatePreservesClientAccess(t *testing.T) {
 	}
 }
 
-func TestClaudeCodeReadinessAPIReportsRecentToolEvidence(t *testing.T) {
-	h := &Handler{requestLogs: newRequestLogStore(5)}
-	h.requestLogs.Add(RequestLogEntry{
-		Timestamp:                   time.Now(),
-		Endpoint:                    "/v1/messages",
-		ClaudeCodeSessionID:         "sess_1",
-		AnthropicBetas:              []string{"tool-search-2025-10-19"},
-		ToolReferenceCount:          2,
-		PayloadCurrentTools:         12,
-		PayloadKeptTools:            []string{"bash", "read"},
-		PayloadTrimmedTools:         []string{"mcp__browser__screenshot"},
-		PayloadMaterializedToolRefs: []string{"mcp__fs__read_file"},
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
-	w := httptest.NewRecorder()
-	h.apiGetClaudeCodeReadiness(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode readiness: %v", err)
-	}
-	if resp["recentClaudeCode"].(bool) != true || resp["recentToolReferences"].(bool) != true || resp["recentToolTrimming"].(bool) != true {
-		t.Fatalf("unexpected readiness response: %#v", resp)
-	}
-}
-
-func TestClaudeCodeReadinessAPIScansFullRecentLogWindow(t *testing.T) {
-	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
-	h.requestLogs.Add(RequestLogEntry{
-		Timestamp:           time.Now().Add(-5 * time.Minute),
-		Endpoint:            "/v1/messages",
-		ClaudeCodeSessionID: "older_recent_session",
-	})
-	for i := 0; i < maxRequestLogLimit+10; i++ {
-		h.requestLogs.Add(RequestLogEntry{
-			Timestamp: time.Now(),
-			Endpoint:  "/v1/chat/completions",
-			Model:     fmt.Sprintf("model_%d", i),
-		})
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
-	w := httptest.NewRecorder()
-	h.apiGetClaudeCodeReadiness(w, req)
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode readiness: %v", err)
-	}
-	if resp["recentClaudeCode"].(bool) != true {
-		t.Fatalf("expected readiness to scan full retained recent window, got %#v", resp)
-	}
-}
-
 func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -378,6 +476,287 @@ func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 	t.Fatalf("expected async account stats update to complete")
 }
 
+func TestBuildOpenAIResponsesObjectRepresentsFunctionCalls(t *testing.T) {
+	resp := buildOpenAIResponsesObjectWithToolUses("resp_test", "claude-sonnet-4.5", "", []KiroToolUse{{
+		ToolUseID: "toolu_1",
+		Name:      "read_file",
+		Input:     map[string]interface{}{"path": "/tmp/a.go"},
+	}}, 10, 2, true)
+
+	output, ok := resp["output"].([]map[string]interface{})
+	if !ok || len(output) != 1 {
+		t.Fatalf("expected one output item, got %#v", resp["output"])
+	}
+	item := output[0]
+	if item["type"] != "function_call" || item["call_id"] != "toolu_1" || item["name"] != "read_file" || item["status"] != "completed" {
+		t.Fatalf("unexpected function_call item: %#v", item)
+	}
+	if item["arguments"] != `{"path":"/tmp/a.go"}` {
+		t.Fatalf("unexpected function_call arguments: %#v", item["arguments"])
+	}
+	if resp["output_text"] != "" {
+		t.Fatalf("expected empty output_text for function call response, got %#v", resp["output_text"])
+	}
+}
+
+func TestHandleOpenAIResponsesForwardsFunctionToolsToKiroPayload(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-resp-tools",
+		Enabled:     true,
+		AccessToken: "token-resp-tools",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var gotTools []KiroToolWrapper
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			var payload KiroPayload
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode kiro payload: %v", err)
+			}
+			ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+			if ctx != nil {
+				gotTools = ctx.Tools
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "tool-ready"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"input":"read a file",
+		"max_output_tokens":16,
+		"tools":[{
+			"type":"function",
+			"name":"read_file",
+			"description":"Read a project file",
+			"parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}
+		}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if len(gotTools) != 1 {
+		t.Fatalf("expected one Kiro tool forwarded from Responses request, got %#v", gotTools)
+	}
+	if gotTools[0].ToolSpecification.Name != "read_file" {
+		t.Fatalf("unexpected Kiro tool name: %#v", gotTools[0].ToolSpecification.Name)
+	}
+	if gotTools[0].ToolSpecification.Description != "Read a project file" {
+		t.Fatalf("unexpected Kiro tool description: %#v", gotTools[0].ToolSpecification.Description)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleOpenAIResponsesConvertsFunctionCallOutputToToolResult(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-resp-tool-output",
+		Enabled:     true,
+		AccessToken: "token-resp-tool-output",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var gotContent string
+	var gotToolResults []KiroToolResult
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			var payload KiroPayload
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode kiro payload: %v", err)
+			}
+			current := payload.ConversationState.CurrentMessage.UserInputMessage
+			gotContent = current.Content
+			if current.UserInputMessageContext != nil {
+				gotToolResults = current.UserInputMessageContext.ToolResults
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "continued"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"input":[
+			{"type":"function_call","call_id":"call_1","name":"read_file","arguments":"{\"path\":\"/tmp/a.go\"}"},
+			{"type":"function_call_output","call_id":"call_1","output":"package main\n"}
+		],
+		"max_output_tokens":16
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(gotContent, toolResultsContinuationPrefix) || !strings.Contains(gotContent, "package main") {
+		t.Fatalf("expected current content to include tool result continuation, got %q", gotContent)
+	}
+	if len(gotToolResults) != 1 {
+		t.Fatalf("expected one Kiro tool result, got %#v", gotToolResults)
+	}
+	if gotToolResults[0].ToolUseID != "call_1" || gotToolResults[0].Content[0].Text != "package main\n" {
+		t.Fatalf("unexpected Kiro tool result: %#v", gotToolResults[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleOpenAIResponsesRestoresPreviousResponseSession(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-resp-session",
+		Enabled:     true,
+		AccessToken: "token-resp-session",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	var responseID string
+	var secondPayload KiroPayload
+	var calls int
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			var payload KiroPayload
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode kiro payload: %v", err)
+			}
+			if calls == 2 {
+				secondPayload = payload
+			}
+			messages := []testEventStreamMessage{
+				{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+			}
+			if calls == 1 {
+				messages = append([]testEventStreamMessage{
+					{eventType: "toolUseEvent", payload: map[string]interface{}{"toolUseId": "call_1", "name": "read_file", "input": map[string]interface{}{"path": "/tmp/a.go"}}},
+				}, messages...)
+			} else {
+				messages = append([]testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "continued"}},
+				}, messages...)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(buildTestEventStream(t, messages))),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	firstBody := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"input":"read the file",
+		"max_output_tokens":16,
+		"tools":[{"type":"function","name":"read_file","parameters":{"type":"object"}}]
+	}`)
+	firstReq := httptest.NewRequest(http.MethodPost, "/v1/responses", firstBody)
+	firstW := httptest.NewRecorder()
+	h.ServeHTTP(firstW, firstReq)
+	if firstW.Code != http.StatusOK {
+		t.Fatalf("expected first status 200, got %d body %s", firstW.Code, firstW.Body.String())
+	}
+	var firstResp map[string]interface{}
+	if err := json.Unmarshal(firstW.Body.Bytes(), &firstResp); err != nil {
+		t.Fatalf("decode first response: %v", err)
+	}
+	responseID, _ = firstResp["id"].(string)
+	if responseID == "" {
+		t.Fatalf("expected response id, got %#v", firstResp)
+	}
+	session, ok := h.getOpenAIResponsesSession(responseID)
+	if !ok {
+		t.Fatalf("expected saved response session for %s", responseID)
+	}
+	if len(session.Messages) == 0 || len(session.Messages[len(session.Messages)-1].ToolCalls) == 0 {
+		t.Fatalf("expected first response session to save assistant tool call, got %#v", session.Messages)
+	}
+
+	secondBody := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"previous_response_id":"` + responseID + `",
+		"input":[{"type":"function_call_output","call_id":"call_1","output":"package main\n"}],
+		"max_output_tokens":16
+	}`)
+	secondReq := httptest.NewRequest(http.MethodPost, "/v1/responses", secondBody)
+	secondW := httptest.NewRecorder()
+	h.ServeHTTP(secondW, secondReq)
+	if secondW.Code != http.StatusOK {
+		t.Fatalf("expected second status 200, got %d body %s", secondW.Code, secondW.Body.String())
+	}
+	if calls != 2 {
+		t.Fatalf("expected two upstream calls, got %d", calls)
+	}
+	if len(secondPayload.ConversationState.History) == 0 {
+		t.Fatalf("expected restored assistant tool call in history, got %#v", secondPayload.ConversationState.History)
+	}
+	var restored bool
+	for _, msg := range secondPayload.ConversationState.History {
+		if msg.AssistantResponseMessage == nil {
+			continue
+		}
+		for _, toolUse := range msg.AssistantResponseMessage.ToolUses {
+			if toolUse.ToolUseID == "call_1" && toolUse.Name == "read_file" {
+				restored = true
+			}
+		}
+	}
+	if !restored {
+		t.Fatalf("expected previous response tool call restored in history, got %#v", secondPayload.ConversationState.History)
+	}
+	waitForAccountRequestCount(t, 2)
+}
+
 func TestOpenAIResponsesSessionPrunesExpiredAndOldestEntries(t *testing.T) {
 	h := &Handler{responses: make(map[string]responsesSession)}
 	now := time.Now()
@@ -432,7 +811,7 @@ func TestRestoreOpenAIResponsesSessionRestoresPreviousResponseChain(t *testing.T
 	}
 	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "user", Content: "third"}}}
 
-	h.restoreOpenAIResponsesSession(nil, map[string]interface{}{"previous_response_id": "resp_2"}, req)
+	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_2"}, req)
 
 	got := make([]string, 0, len(req.Messages))
 	for _, msg := range req.Messages {
@@ -460,7 +839,7 @@ func TestRestoreOpenAIResponsesSessionFiltersLatestToolCallsByCurrentOutputs(t *
 	}
 	req := &OpenAIRequest{Messages: []OpenAIMessage{{Role: "tool", ToolCallID: "call_keep", Content: "package main"}}}
 
-	h.restoreOpenAIResponsesSession(nil, map[string]interface{}{"previous_response_id": "resp_tools"}, req)
+	h.restoreOpenAIResponsesSession(map[string]interface{}{"previous_response_id": "resp_tools"}, req)
 
 	var restoredCalls []ToolCall
 	for _, msg := range req.Messages {
@@ -473,46 +852,88 @@ func TestRestoreOpenAIResponsesSessionFiltersLatestToolCallsByCurrentOutputs(t *
 	}
 }
 
-func TestSaveOpenAIResponsesSessionDoesNotPersistRestoredHistory(t *testing.T) {
-	h := &Handler{responses: make(map[string]responsesSession)}
-	restoredReq := &OpenAIRequest{
-		Messages: []OpenAIMessage{
-			{Role: "user", Content: "first"},
-			{Role: "assistant", Content: "first answer"},
-			{Role: "user", Content: "second"},
-		},
-	}
-	currentReq := &OpenAIRequest{
-		Messages: []OpenAIMessage{{Role: "user", Content: "second"}},
-	}
-
-	h.saveOpenAIResponsesSession("resp_2", "resp_1", currentReq, "second answer", nil)
-
-	session, ok := h.getOpenAIResponsesSession("resp_2")
-	if !ok {
-		t.Fatalf("expected saved session")
-	}
-	got := make([]string, 0, len(session.Messages))
-	for _, msg := range session.Messages {
-		got = append(got, msg.Role+":"+extractOpenAIMessageText(msg.Content))
-	}
-	want := []string{"user:second", "assistant:second answer"}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
-		t.Fatalf("session should store only the current turn, got %#v want %#v; restored request was %#v", got, want, restoredReq.Messages)
-	}
-}
-
-func TestHandleOpenAIResponsesRestoresPreviousResponseSession(t *testing.T) {
+func TestHandleOpenAIResponsesStreamRetriesBeforeFirstEvent(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
 	}
 
 	p := &pool.AccountPool{}
 	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-resp-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-resp-stream-%d", i),
+			ProfileArn:  "arn:aws:codewhisperer:profile/test",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var attempts int
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Body:       io.NopCloser(strings.NewReader(`{"message":"try again","reason":"MODEL_RATE_LIMIT"}`)),
+					Header:     make(http.Header),
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "stream recovered"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 5, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"say ok","stream":true,"max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected stream retry to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if attempts != 2 {
+		t.Fatalf("expected first upstream failure then retry success, got %d attempts", attempts)
+	}
+	bodyText := w.Body.String()
+	if strings.Contains(bodyText, "response.failed") {
+		t.Fatalf("expected retry before emitting failure event, got stream %s", bodyText)
+	}
+	if !strings.Contains(bodyText, "response.created") || !strings.Contains(bodyText, "stream recovered") || !strings.Contains(bodyText, "response.completed") {
+		t.Fatalf("expected complete recovered Responses stream, got %s", bodyText)
+	}
+	waitForAccountRequestCount(t, 1)
+	waitForAccountHealthWrite(t, "acct-resp-stream-1")
+}
+
+func TestHandleOpenAIResponsesNonRetryableUpstreamErrorPreservesStatusForSub2api(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
 	if err := config.AddAccount(config.Account{
-		ID:          "acct-resp-session",
+		ID:          "acct-resp-quota",
 		Enabled:     true,
-		AccessToken: "token-resp-session",
+		AccessToken: "token-resp-quota",
 		ProfileArn:  "arn:aws:codewhisperer:profile/test",
 		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
 	}); err != nil {
@@ -520,134 +941,37 @@ func TestHandleOpenAIResponsesRestoresPreviousResponseSession(t *testing.T) {
 	}
 	p.Reload()
 
-	var responseID string
-	var firstPayload KiroPayload
-	var secondPayload KiroPayload
-	var calls int
 	kiroHttpStore.Store(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			calls++
-			var payload KiroPayload
-			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode kiro payload: %v", err)
-			}
-			if calls == 1 {
-				firstPayload = payload
-			}
-			if calls == 2 {
-				secondPayload = payload
-			}
-			messages := []testEventStreamMessage{
-				{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
-			}
-			if calls == 1 {
-				messages = append([]testEventStreamMessage{
-					{eventType: "toolUseEvent", payload: map[string]interface{}{"toolUseId": "call_1", "name": "read_file", "input": map[string]interface{}{"path": "/tmp/a.go"}, "stop": true}},
-				}, messages...)
-			} else {
-				messages = append([]testEventStreamMessage{
-					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "continued"}},
-				}, messages...)
-			}
 			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(buildTestEventStream(t, messages))),
+				StatusCode: http.StatusPaymentRequired,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"quota exhausted"}`)),
 				Header:     make(http.Header),
 			}, nil
 		}),
 	})
 	t.Cleanup(func() { InitKiroHttpClient("") })
 
-	firstBody := strings.NewReader(`{
-		"model":"claude-sonnet-4.5",
-		"input":"read the file",
-		"max_output_tokens":16,
-		"tools":[{"type":"function","name":"read_file","parameters":{"type":"object"}}]
-	}`)
-	firstReq := httptest.NewRequest(http.MethodPost, "/v1/responses", firstBody)
-	firstW := httptest.NewRecorder()
-	h.ServeHTTP(firstW, firstReq)
-	if firstW.Code != http.StatusOK {
-		t.Fatalf("expected first status 200, got %d body %s", firstW.Code, firstW.Body.String())
-	}
-	firstCtx := firstPayload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
-	if firstCtx == nil || len(firstCtx.Tools) != 1 {
-		t.Fatalf("expected first Responses request to forward declared tool to Kiro, got %#v", firstCtx)
-	}
-	if firstCtx.Tools[0].ToolSpecification.Name != "read_file" {
-		t.Fatalf("expected read_file tool forwarded, got %#v", firstCtx.Tools[0].ToolSpecification.Name)
-	}
-	var firstResp map[string]interface{}
-	if err := json.Unmarshal(firstW.Body.Bytes(), &firstResp); err != nil {
-		t.Fatalf("decode first response: %v", err)
-	}
-	responseID, _ = firstResp["id"].(string)
-	if responseID == "" {
-		t.Fatalf("expected response id, got %#v", firstResp)
-	}
-	session, ok := h.getOpenAIResponsesSession(responseID)
-	if !ok {
-		t.Fatalf("expected saved response session for %s", responseID)
-	}
-	if len(session.Messages) == 0 || len(session.Messages[len(session.Messages)-1].ToolCalls) == 0 {
-		t.Fatalf("expected first response session to save assistant tool call, got %#v", session.Messages)
-	}
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"say ok","max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
 
-	secondBody := strings.NewReader(`{
-		"model":"claude-sonnet-4.5",
-		"previous_response_id":"` + responseID + `",
-		"input":[{"type":"function_call_output","call_id":"call_1","output":"package main\n"}],
-		"max_output_tokens":16
-	}`)
-	secondReq := httptest.NewRequest(http.MethodPost, "/v1/responses", secondBody)
-	secondW := httptest.NewRecorder()
-	h.ServeHTTP(secondW, secondReq)
-	if secondW.Code != http.StatusOK {
-		t.Fatalf("expected second status 200, got %d body %s", secondW.Code, secondW.Body.String())
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusPaymentRequired {
+		t.Fatalf("expected sub2api-visible 402, got %d body %s", w.Code, w.Body.String())
 	}
-	var secondResp map[string]interface{}
-	if err := json.Unmarshal(secondW.Body.Bytes(), &secondResp); err != nil {
-		t.Fatalf("decode second response: %v", err)
+	if !strings.Contains(w.Body.String(), `"type":"billing_error"`) {
+		t.Fatalf("expected billing_error body, got %s", w.Body.String())
 	}
-	secondResponseID, _ := secondResp["id"].(string)
-	if secondResponseID == "" {
-		t.Fatalf("expected second response id, got %#v", secondResp)
-	}
-	secondSession, ok := h.getOpenAIResponsesSession(secondResponseID)
-	if !ok {
-		t.Fatalf("expected saved second response session for %s", secondResponseID)
-	}
-	if len(secondSession.Messages) != 2 {
-		t.Fatalf("expected second session to store only current tool result turn and assistant response, got %#v", secondSession.Messages)
-	}
-	if secondSession.Messages[0].Role != "tool" || secondSession.Messages[0].ToolCallID != "call_1" {
-		t.Fatalf("expected second session to start with current tool output only, got %#v", secondSession.Messages)
-	}
-	if calls != 2 {
-		t.Fatalf("expected two upstream calls, got %d", calls)
-	}
-	if len(secondPayload.ConversationState.History) == 0 {
-		t.Fatalf("expected restored assistant tool call in history, got %#v", secondPayload.ConversationState.History)
-	}
-	var restored bool
-	for _, msg := range secondPayload.ConversationState.History {
-		if msg.AssistantResponseMessage == nil {
-			continue
-		}
-		for _, toolUse := range msg.AssistantResponseMessage.ToolUses {
-			if toolUse.ToolUseID == "call_1" && toolUse.Name == "read_file" {
-				restored = true
-			}
-		}
-	}
-	if !restored {
-		t.Fatalf("expected previous response tool call restored in history, got %#v", secondPayload.ConversationState.History)
-	}
-	waitForAccountRequestCount(t, 2)
 }
 
-func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T) {
-	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+func TestHandleOpenAIChatPayloadGuardTruncatesLargeToolResultBeforeUpstream(t *testing.T) {
+	dir, err := os.MkdirTemp("", "kiro-go-openai-chat-tool-trim-*")
+	if err != nil {
+		t.Fatalf("temp dir: %v", err)
+	}
+	if err := config.Init(filepath.Join(dir, "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
 
@@ -664,6 +988,21 @@ func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T)
 	}
 	p.Reload()
 
+	var capturedPayload KiroPayload
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if err := json.NewDecoder(req.Body).Decode(&capturedPayload); err != nil {
+				t.Fatalf("decode upstream payload: %v", err)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 10, "outputTokens": 1}}}}))),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
 	body := strings.NewReader(`{
 		"model":"claude-sonnet-4.5",
 		"messages":[
@@ -678,24 +1017,110 @@ func TestHandleOpenAIChatPayloadGuardRejectsBeforeAccountSelection(t *testing.T)
 
 	h.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d body %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), `"invalid_request_error"`) || !strings.Contains(w.Body.String(), "current tool_result") {
-		t.Fatalf("expected OpenAI invalid_request_error payload guard response, got %s", w.Body.String())
+	ctx := capturedPayload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+	if ctx == nil || len(ctx.ToolResults) != 1 || len(ctx.ToolResults[0].Content) != 1 {
+		t.Fatalf("expected captured tool_result, got %#v", ctx)
 	}
-	if health := p.GetRuntimeHealth("acct-openai-guard"); health.ActiveConnections != 0 || health.RecentFailures != 0 || health.RecentSuccesses != 0 {
-		t.Fatalf("expected no account health changes before selection, got %#v", health)
+	if got := ctx.ToolResults[0].Content[0].Text; len(got) >= 1024*1024 || !strings.Contains(got, "truncated") {
+		t.Fatalf("expected truncated upstream tool_result, len=%d text prefix=%q", len(got), got[:min(64, len(got))])
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
-	if logs[0].AccountID != "" {
-		t.Fatalf("expected no selected account in request log, got %#v", logs[0])
+	if logs[0].PayloadOriginalBytes == 0 || !logs[0].PayloadTrimmed {
+		t.Fatalf("expected payload trim metadata, got %#v", logs[0])
 	}
-	if logs[0].PayloadOriginalBytes == 0 {
-		t.Fatalf("expected payload byte metadata, got %#v", logs[0])
+}
+
+func TestHandleClaudeMessagesLogsKeptAndTrimmedTools(t *testing.T) {
+	dir, err := os.MkdirTemp("", "kiro-tool-log-test-*")
+	if err != nil {
+		t.Fatalf("temp dir: %v", err)
+	}
+	if err := config.Init(filepath.Join(dir, "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-tool-log",
+		Enabled:     true,
+		AccessToken: "token-tool-log",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "ok"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	tools := []map[string]interface{}{}
+	for i := 0; i < 24; i++ {
+		name := fmt.Sprintf("mcp__fs__tool_%02d", i)
+		if i == 22 {
+			name = "task"
+		}
+		if i == 23 {
+			name = "agent"
+		}
+		tools = append(tools, map[string]interface{}{
+			"name":        name,
+			"description": strings.Repeat("Large tool description. ", 80),
+			"input_schema": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{"type": "string", "description": strings.Repeat("path ", 80)},
+				},
+			},
+		})
+	}
+	bodyBytes, err := json.Marshal(map[string]interface{}{
+		"model":      "claude-opus-4-7",
+		"max_tokens": 16,
+		"tools":      tools,
+		"messages": []map[string]interface{}{
+			{"role": "user", "content": "continue"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !containsString(entry.PayloadKeptTools, "agent") || !containsString(entry.PayloadKeptTools, "task") {
+		t.Fatalf("expected kept tools to include agent/task, got %#v", entry.PayloadKeptTools)
+	}
+	if len(entry.PayloadTrimmedTools) == 0 {
+		t.Fatalf("expected trimmed tool names in request log, got %#v", entry)
 	}
 }
 
@@ -1015,6 +1440,111 @@ func TestHandleClaudeNativeWebSearchUsesKiroMCP(t *testing.T) {
 	}
 	if resp.Content[2].Type != "text" || !strings.Contains(resp.Content[2].Text, "OpenAI News") {
 		t.Fatalf("expected text summary with search result title, got %#v", resp.Content[2])
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if config.GetAccounts()[0].RequestCount > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected async account stats update to complete")
+}
+
+func TestHandleClaudeNativeWebSearchStreamEmitsServerToolBlocksAndUsage(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{}
+
+	results := &kiroWebSearchResults{Results: []kiroWebSearchResult{{
+		Title:   "Kiro docs",
+		URL:     "https://kiro.dev/docs",
+		Snippet: "Kiro documentation",
+	}}}
+	w := httptest.NewRecorder()
+	h.sendClaudeNativeWebSearchStream(w, "claude-sonnet-4.5", "kiro docs", "web_search_tooluse_test", results, 123, 45)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	frames := parseSSEFrames(t, w.Body.String())
+	if len(frames) < 8 {
+		t.Fatalf("expected complete web_search SSE frame sequence, got %v body %q", frameEvents(frames), w.Body.String())
+	}
+	assertFrameEvent(t, frames, 0, "message_start")
+	assertNestedNumber(t, frames[0], "message", "usage", "input_tokens", 123)
+	assertFrameEvent(t, frames, 1, "content_block_start")
+	assertNestedString(t, frames[1], "content_block", "type", "server_tool_use")
+	assertNestedString(t, frames[1], "content_block", "name", "web_search")
+	assertFrameEvent(t, frames, 3, "content_block_start")
+	assertNestedString(t, frames[3], "content_block", "type", "web_search_tool_result")
+	assertFrameEvent(t, frames, 5, "content_block_start")
+	assertNestedString(t, frames[5], "content_block", "type", "text")
+	assertFrameEvent(t, frames, len(frames)-2, "message_delta")
+	assertObjectNumber(t, frames[len(frames)-2], "usage", "input_tokens", 123)
+	assertObjectNumber(t, frames[len(frames)-2], "usage", "output_tokens", 45)
+	assertFrameEvent(t, frames, len(frames)-1, "message_stop")
+}
+
+func TestHandleClaudeNativeWebSearchAccepts20260209ToolType(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	config.AddAccount(config.Account{
+		ID:          "acct-websearch-20260209",
+		Enabled:     true,
+		AccessToken: "token-1",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test-1",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	})
+	p.Reload()
+
+	var mcpCalled bool
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			mcpCalled = true
+			resultText := `{"results":[{"title":"New Search","url":"https://example.com","snippet":"ok"}],"query":"latest docs"}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(`{
+					"id":"web_search_tooluse_test",
+					"jsonrpc":"2.0",
+					"result":{"content":[{"type":"text","text":` + strconv.Quote(resultText) + `}],"isError":false}
+				}`)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{
+		"model":"claude-sonnet-4.5",
+		"max_tokens":256,
+		"tools":[{"name":"web_search","type":"web_search_20260209","max_uses":1}],
+		"tool_choice":{"type":"tool","name":"web_search"},
+		"messages":[{"role":"user","content":"latest docs"}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected web_search_20260209 to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if !mcpCalled {
+		t.Fatalf("expected Kiro MCP web search to be called")
+	}
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Content) < 2 || resp.Content[0].Type != "server_tool_use" || resp.Content[1].Type != "web_search_tool_result" {
+		t.Fatalf("expected Anthropic web search tool blocks, got %#v", resp.Content)
 	}
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
@@ -1420,6 +1950,293 @@ func TestHandleClaudeOpus47AdmissionGateLimitsUpstreamConcurrency(t *testing.T) 
 	waitForAccountRequestCount(t, 5)
 }
 
+func TestHandleClaudeGeneralModelAdmissionGateLimitsUpstreamConcurrency(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateModelAdmissionConfig(config.ModelAdmissionConfig{
+		Default: config.ModelAdmissionRule{MaxConcurrent: 2, MaxWaiting: 10},
+	}); err != nil {
+		t.Fatalf("update model admission config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	for i := 0; i < 5; i++ {
+		if err := config.AddAccount(config.Account{ID: fmt.Sprintf("acct-general-%d", i), Enabled: true, AccessToken: fmt.Sprintf("token-general-%d", i), ProfileArn: "arn:aws:codewhisperer:profile/test", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+
+	oldGate := modelAdmissionGate
+	applyModelAdmissionConfig()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		InitKiroHttpClient("")
+	})
+
+	var upstreamRunning int64
+	var maxUpstreamRunning int64
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			now := atomic.AddInt64(&upstreamRunning, 1)
+			for {
+				seen := atomic.LoadInt64(&maxUpstreamRunning)
+				if now <= seen || atomic.CompareAndSwapInt64(&maxUpstreamRunning, seen, now) {
+					break
+				}
+			}
+			time.Sleep(50 * time.Millisecond)
+			atomic.AddInt64(&upstreamRunning, -1)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			body := strings.NewReader(`{"model":"claude-sonnet-4.5","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+			req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+			w := httptest.NewRecorder()
+			h.handleClaudeMessagesInternal(w, req)
+			if w.Code != http.StatusOK {
+				t.Errorf("expected status 200, got %d body %s", w.Code, w.Body.String())
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := atomic.LoadInt64(&maxUpstreamRunning); got > 2 {
+		t.Fatalf("expected upstream concurrency <= 2 for general model, got %d", got)
+	}
+	waitForAccountRequestCount(t, 5)
+}
+
+func TestModelAdmissionGateAdaptivePressureTemporarilyReducesConcurrency(t *testing.T) {
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Default: config.ModelAdmissionRule{MaxConcurrent: 3, MaxWaiting: 10},
+	})
+	gate.recordPressure("claude-sonnet-4.5", 503, 5*time.Second)
+	gate.recordPressure("claude-sonnet-4.5", 503, 5*time.Second)
+
+	release, gated, err := gate.acquire("claude-sonnet-4.5", time.Second)
+	if err != nil || !gated {
+		t.Fatalf("expected first adaptive acquire, gated=%v err=%v", gated, err)
+	}
+	defer release()
+
+	_, gated, err = gate.acquire("claude-sonnet-4.5", 10*time.Millisecond)
+	if !gated {
+		t.Fatalf("expected adaptive gate to apply")
+	}
+	if err == nil {
+		t.Fatalf("expected adaptive pressure to reduce concurrency to one slot")
+	}
+}
+
+func TestModelAdmissionGatePressureHonorsRetryAfter(t *testing.T) {
+	now := time.Unix(100, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Default: config.ModelAdmissionRule{MaxConcurrent: 3, MaxWaiting: 10},
+	})
+	gate.now = func() time.Time { return now }
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
+
+	now = now.Add(45 * time.Second)
+	if !gate.hasPressure("claude-opus-4.7") {
+		t.Fatalf("expected pressure to remain active for upstream retry-after window")
+	}
+
+	now = now.Add(2 * time.Minute)
+	if gate.hasPressure("claude-opus-4.7") {
+		t.Fatalf("expected pressure to expire after retry-after window")
+	}
+}
+
+func TestAdminAdmissionPressureEndpointReportsActivePressure(t *testing.T) {
+	oldGate := modelAdmissionGate
+	now := time.Unix(100, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Default: config.ModelAdmissionRule{MaxConcurrent: 3, MaxWaiting: 10},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/admission-pressure", nil)
+	w := httptest.NewRecorder()
+	h.apiGetAdmissionPressure(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Pressure []AdmissionPressureSnapshot `json:"pressure"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Pressure) != 1 {
+		t.Fatalf("expected one pressure snapshot, got %#v", resp)
+	}
+	got := resp.Pressure[0]
+	if got.Model != "claude-opus-4-7" || got.Score < 4 || !got.Active || !got.ReducedConcurrency {
+		t.Fatalf("unexpected pressure snapshot: %#v", got)
+	}
+	if got.ExpiresAt.IsZero() || got.ExpiresInMs <= 0 {
+		t.Fatalf("expected expiry metadata, got %#v", got)
+	}
+}
+
+func TestAcquireAdmissionGatesStreamByDefault(t *testing.T) {
+	oldGate := modelAdmissionGate
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 0},
+		},
+	})
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+
+	held, gated, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
+	if err != nil || !gated {
+		t.Fatalf("pre-acquire gate: gated=%v err=%v", gated, err)
+	}
+	defer held()
+
+	h := &Handler{}
+	w := httptest.NewRecorder()
+	release, ok := h.acquireOpus47Admission(w, "claude-opus-4.7", true, true, time.Now().Add(10*time.Millisecond))
+	if ok {
+		release()
+		t.Fatalf("expected stream to be gated by default")
+	}
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 for stream gate timeout, got %d body %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAcquireAdmissionCanBypassStreamWhenConfigured(t *testing.T) {
+	oldGate := modelAdmissionGate
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		StreamBypass: true,
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 0},
+		},
+	})
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+
+	h := &Handler{}
+	w := httptest.NewRecorder()
+	release, ok := h.acquireOpus47Admission(w, "claude-opus-4.7", true, true, time.Now().Add(10*time.Millisecond))
+	if !ok {
+		t.Fatalf("expected stream without pressure to bypass admission when configured, got status %d body %s", w.Code, w.Body.String())
+	}
+	release()
+
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusTooManyRequests, time.Second)
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusTooManyRequests, time.Second)
+	held, gated, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
+	if err != nil || !gated {
+		t.Fatalf("pre-acquire pressured gate: gated=%v err=%v", gated, err)
+	}
+	defer held()
+
+	w = httptest.NewRecorder()
+	release, ok = h.acquireOpus47Admission(w, "claude-opus-4.7", true, true, time.Now().Add(10*time.Millisecond))
+	if ok {
+		release()
+		t.Fatalf("expected pressured stream to be gated and time out")
+	}
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 for pressured stream gate timeout, got %d body %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateSettings("admin-key", true, "secret"); err != nil {
+		t.Fatalf("update settings: %v", err)
+	}
+	if err := config.UpdateModelAdmissionConfig(config.ModelAdmissionConfig{
+		Default: config.ModelAdmissionRule{MaxConcurrent: 8, MaxWaiting: 120},
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-sonnet-4.5": {MaxConcurrent: 4, MaxWaiting: 30},
+		},
+	}); err != nil {
+		t.Fatalf("update model admission config: %v", err)
+	}
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix()}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/compat", nil)
+	req.Host = "0.0.0.0:8080"
+	req.Header.Set("X-Admin-Password", "secret")
+	w := httptest.NewRecorder()
+
+	h.handleAdminAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["baseUrl"] != "http://127.0.0.1:8080" {
+		t.Fatalf("expected local base URL, got %#v", resp["baseUrl"])
+	}
+	env, ok := resp["environment"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected environment map, got %#v", resp["environment"])
+	}
+	if env["ANTHROPIC_BASE_URL"] != "http://127.0.0.1:8080" {
+		t.Fatalf("expected ANTHROPIC_BASE_URL, got %#v", env)
+	}
+	if env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] != "1" || env["CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING"] != "1" {
+		t.Fatalf("expected Claude Code gateway flags, got %#v", env)
+	}
+	caps, ok := resp["capabilities"].(map[string]interface{})
+	if !ok || caps["anthropicMessages"] != true || caps["toolUse"] != true || caps["streaming"] != true {
+		t.Fatalf("expected compatibility capabilities, got %#v", resp["capabilities"])
+	}
+	for _, capName := range []string{"fineGrainedToolStreaming", "toolSearch", "promptCacheControl", "webSearch20260209", "adaptiveModelAdmission"} {
+		if caps[capName] != true {
+			t.Fatalf("expected capability %s, got %#v", capName, caps)
+		}
+	}
+	admission, ok := resp["modelAdmission"].(map[string]interface{})
+	if !ok || admission["default"] == nil || admission["models"] == nil {
+		t.Fatalf("expected model admission config, got %#v", resp["modelAdmission"])
+	}
+	notes, ok := resp["sub2apiNotes"].([]interface{})
+	if !ok || len(notes) == 0 {
+		t.Fatalf("expected sub2api notes, got %#v", resp["sub2apiNotes"])
+	}
+}
+
 func TestApplyOpus47AdmissionConfigUsesConfiguredGate(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -1467,9 +2284,15 @@ func TestHandleClaudeOpus47AdmissionGateSharesRetryBudget(t *testing.T) {
 	p.Reload()
 
 	oldGate := opus47AdmissionGate
+	oldModelGate := modelAdmissionGate
 	oldBudget := opusCapacityRetryBudget
 	oldSleep := sleepForOpusCapacityRetry
 	opus47AdmissionGate = newOpus47Gate(1, 10)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 10},
+		},
+	})
 	opusCapacityRetryBudget = 200 * time.Millisecond
 	var sleeps []time.Duration
 	sleepForOpusCapacityRetry = func(d time.Duration) {
@@ -1477,12 +2300,13 @@ func TestHandleClaudeOpus47AdmissionGateSharesRetryBudget(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		opus47AdmissionGate = oldGate
+		modelAdmissionGate = oldModelGate
 		opusCapacityRetryBudget = oldBudget
 		sleepForOpusCapacityRetry = oldSleep
 		InitKiroHttpClient("")
 	})
 
-	held, err := opus47AdmissionGate.acquire(time.Second)
+	held, _, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
 	if err != nil {
 		t.Fatalf("pre-acquire gate: %v", err)
 	}
@@ -1620,11 +2444,106 @@ func TestClaudeUpstreamErrorsMapToAnthropicErrorTypes(t *testing.T) {
 			wantStatus: http.StatusServiceUnavailable,
 			wantType:   "overloaded_error",
 		},
+		{
+			name:       "malformed upstream request",
+			err:        errors.New(`HTTP 400 from AmazonQ: {"message":"Improperly formed request.","reason":null}`),
+			wantStatus: http.StatusBadRequest,
+			wantType:   "invalid_request_error",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			gotStatus, gotType := claudeUpstreamErrorStatusAndType(tc.err)
+			if gotStatus != tc.wantStatus || gotType != tc.wantType {
+				t.Fatalf("expected %d/%s, got %d/%s", tc.wantStatus, tc.wantType, gotStatus, gotType)
+			}
+		})
+	}
+}
+
+func TestHandleClaudeStreamUpstreamMalformedBeforeFirstEventReturnsJSONError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-stream-malformed",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusBadRequest,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"Improperly formed request.","reason":null}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	w := httptest.NewRecorder()
+	body := `{"model":"claude-opus-4-7","stream":true,"max_tokens":32,"messages":[{"role":"user","content":"hello"}]}`
+	r := httptest.NewRequest("POST", "/v1/messages", strings.NewReader(body))
+	r.Header.Set("content-type", "application/json")
+
+	h.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 JSON error before stream starts, got %d body=%s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), "event:") || strings.Contains(w.Header().Get("Content-Type"), "text/event-stream") {
+		t.Fatalf("expected non-SSE JSON error before first stream event, content-type=%q body=%s", w.Header().Get("Content-Type"), w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "invalid_request_error") || !strings.Contains(w.Body.String(), "Improperly formed request") {
+		t.Fatalf("expected Anthropic invalid_request_error, body=%s", w.Body.String())
+	}
+}
+
+func TestOpenAIUpstreamErrorsPreserveRetryableStatusAndType(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantType   string
+	}{
+		{
+			name:       "rate limit",
+			err:        &rateLimitError{endpoint: "Kiro IDE", body: `{"message":"rate limited"}`, resetAt: time.Now().Add(time.Second)},
+			wantStatus: http.StatusTooManyRequests,
+			wantType:   "rate_limit_error",
+		},
+		{
+			name:       "upstream unavailable",
+			err:        errors.New("HTTP 503 from Kiro IDE"),
+			wantStatus: http.StatusServiceUnavailable,
+			wantType:   "server_error",
+		},
+		{
+			name:       "auth expired",
+			err:        errors.New("HTTP 401 from Kiro IDE: expired token"),
+			wantStatus: http.StatusUnauthorized,
+			wantType:   "authentication_error",
+		},
+		{
+			name:       "quota exhausted",
+			err:        errors.New("quota exhausted on Kiro IDE"),
+			wantStatus: http.StatusPaymentRequired,
+			wantType:   "billing_error",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotStatus, gotType := openAIUpstreamErrorStatusAndType(tc.err)
 			if gotStatus != tc.wantStatus || gotType != tc.wantType {
 				t.Fatalf("expected %d/%s, got %d/%s", tc.wantStatus, tc.wantType, gotStatus, gotType)
 			}
@@ -1743,6 +2662,93 @@ func TestHandleClaudeStreamToolUseStartsWithMessageStart(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeStreamMultipleToolUsesEmitsIndexedInputJSONDeltas(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-two-tool-stream",
+		Enabled:     true,
+		AccessToken: "token-two-tool-stream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_read_1",
+							"name":      "read_file",
+							"input":     map[string]interface{}{"path": "/tmp/a.go", "encoding": "utf-8"},
+							"stop":      true,
+						},
+					},
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_write_2",
+							"name":      "write_file",
+							"input":     map[string]interface{}{"path": "/tmp/b.go", "content": "package main\n"},
+							"stop":      true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tools":[{"name":"read_file","description":"Read file","input_schema":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}},{"name":"write_file","description":"Write file","input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}],"messages":[{"role":"user","content":"Read then write files"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	frames := parseSSEFrames(t, w.Body.String())
+	assertFrameEvent(t, frames, 0, "message_start")
+
+	next := assertToolUseBlock(t, frames, 1, 0, "toolu_read_1", "read_file", map[string]interface{}{
+		"path":     "/tmp/a.go",
+		"encoding": "utf-8",
+	})
+	next = assertToolUseBlock(t, frames, next, 1, "toolu_write_2", "write_file", map[string]interface{}{
+		"path":    "/tmp/b.go",
+		"content": "package main\n",
+	})
+
+	assertFrameEvent(t, frames, next, "message_delta")
+	assertNestedString(t, frames[next], "delta", "stop_reason", "tool_use")
+	next++
+	assertFrameEvent(t, frames, next, "message_stop")
+	next++
+	if next != len(frames) {
+		t.Fatalf("unexpected frames after message_stop: events=%v", frameEvents(frames[next:]))
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleClaudeStreamToolReferenceRestoresOriginalToolName(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -1820,6 +2826,74 @@ func TestHandleClaudeStreamToolReferenceRestoresOriginalToolName(t *testing.T) {
 		t.Fatalf("expected streamed tool_use not to expose sanitized name %q, got %q", kiroToolName, respBody)
 	}
 	waitForAccountRequestCount(t, 1)
+}
+
+func assertToolUseBlock(t *testing.T, frames []sseFrame, start, wantIndex int, wantID, wantName string, wantInput map[string]interface{}) int {
+	t.Helper()
+	assertFrameEvent(t, frames, start, "content_block_start")
+	assertFrameIndex(t, frames[start], wantIndex)
+	assertNestedString(t, frames[start], "content_block", "type", "tool_use")
+	assertNestedString(t, frames[start], "content_block", "id", wantID)
+	assertNestedString(t, frames[start], "content_block", "name", wantName)
+
+	var inputJSON strings.Builder
+	next := start + 1
+	for ; next < len(frames); next++ {
+		if frames[next].event == "content_block_stop" {
+			break
+		}
+		assertFrameEvent(t, frames, next, "content_block_delta")
+		assertFrameIndex(t, frames[next], wantIndex)
+		assertNestedString(t, frames[next], "delta", "type", "input_json_delta")
+		inputJSON.WriteString(requireNestedString(t, frames[next], "delta", "partial_json"))
+	}
+	if inputJSON.Len() == 0 {
+		t.Fatalf("expected tool input_json_delta for tool index %d, got events=%v", wantIndex, frameEvents(frames[start:]))
+	}
+	var gotInput map[string]interface{}
+	if err := json.Unmarshal([]byte(inputJSON.String()), &gotInput); err != nil {
+		t.Fatalf("invalid reconstructed tool input JSON %q: %v", inputJSON.String(), err)
+	}
+	if !reflect.DeepEqual(gotInput, wantInput) {
+		t.Fatalf("tool index %d reconstructed input = %#v, want %#v", wantIndex, gotInput, wantInput)
+	}
+	assertFrameEvent(t, frames, next, "content_block_stop")
+	assertFrameIndex(t, frames[next], wantIndex)
+	return next + 1
+}
+
+func assertObjectNumber(t *testing.T, frame sseFrame, objectKey, fieldKey string, want float64) {
+	t.Helper()
+	obj, ok := frame.data[objectKey].(map[string]interface{})
+	if !ok {
+		t.Fatalf("frame %q %s missing or non-object: %#v", frame.event, objectKey, frame.data[objectKey])
+	}
+	got, ok := obj[fieldKey].(float64)
+	if !ok {
+		t.Fatalf("frame %q %s.%s missing or non-numeric: %#v", frame.event, objectKey, fieldKey, obj[fieldKey])
+	}
+	if got != want {
+		t.Fatalf("frame %q %s.%s = %v, want %v", frame.event, objectKey, fieldKey, got, want)
+	}
+}
+
+func assertNestedNumber(t *testing.T, frame sseFrame, objectKey, nestedKey, fieldKey string, want float64) {
+	t.Helper()
+	obj, ok := frame.data[objectKey].(map[string]interface{})
+	if !ok {
+		t.Fatalf("frame %q %s missing or non-object: %#v", frame.event, objectKey, frame.data[objectKey])
+	}
+	nested, ok := obj[nestedKey].(map[string]interface{})
+	if !ok {
+		t.Fatalf("frame %q %s.%s missing or non-object: %#v", frame.event, objectKey, nestedKey, obj[nestedKey])
+	}
+	got, ok := nested[fieldKey].(float64)
+	if !ok {
+		t.Fatalf("frame %q %s.%s.%s missing or non-numeric: %#v", frame.event, objectKey, nestedKey, fieldKey, nested[fieldKey])
+	}
+	if got != want {
+		t.Fatalf("frame %q %s.%s.%s = %v, want %v", frame.event, objectKey, nestedKey, fieldKey, got, want)
+	}
 }
 
 func collectSSEEvents(body string) []string {
@@ -1925,6 +2999,20 @@ func waitForAccountRequestCount(t *testing.T, want int) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("expected async account stats request count >= %d", want)
+}
+
+func waitForAccountHealthWrite(t *testing.T, accountID string) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		for _, account := range config.GetAccounts() {
+			if account.ID == accountID && account.FailureCount > 0 {
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected account health write for %s", accountID)
 }
 
 func TestAdminAccountsExposeHealthCooldownFields(t *testing.T) {

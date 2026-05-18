@@ -1,0 +1,42 @@
+{
+  "runId": "opus47-gate2-math-stream100-202605170252",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "taskMode": "math",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 99,
+  "containsMarker": 99,
+  "warnings": 0,
+  "failed": 1,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1133,
+    "max": 75107,
+    "avg": 19156,
+    "p50": 13988,
+    "p90": 45145,
+    "p95": 61507,
+    "p99": 72495
+  },
+  "failures": [
+    {
+      "index": 100,
+      "marker": "opus47-gate2-math-stream100-202605170252-100",
+      "expected": "1100",
+      "status": 200,
+      "durationMs": 45145,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "hasMessageStop": true,
+      "textPreview": "100",
+      "rawPreview": "event: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_c1ae0fdb-4763-4e4d-b108-e4cb09058465\",\"model\":\"claude-opus-4.7\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":24,\"output_tokens\":0}},\"type\":\"message_start\"}\n\nevent: content_block_start\ndata: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"100\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\"},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":5903,\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-gate2-math-stream100-202605170252.jsonl"
+}

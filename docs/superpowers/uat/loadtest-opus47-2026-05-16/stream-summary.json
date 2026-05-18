@@ -1,0 +1,44 @@
+{
+  "runId": "opus47_stream_1778936246607",
+  "mode": "stream",
+  "model": "claude-opus-4.7",
+  "endpoint": "http://127.0.0.1:18080/v1/messages",
+  "total": 100,
+  "concurrency": 10,
+  "startedAt": "2026-05-16T12:57:26.608Z",
+  "endedAt": "2026-05-16T12:57:48.768Z",
+  "wall_ms": 22161,
+  "http_200": 100,
+  "correct": 100,
+  "events_positive": 100,
+  "failed": 0,
+  "latency_ms": {
+    "min": 1038,
+    "avg": 2029,
+    "p50": 1193,
+    "p90": 5302,
+    "p95": 6270,
+    "p99": 7618,
+    "max": 8256
+  },
+  "first_byte_ms": {
+    "min": 1036,
+    "avg": 2028,
+    "p50": 1192,
+    "p90": 5301,
+    "p95": 6269,
+    "p99": 7616,
+    "max": 8255
+  },
+  "events": {
+    "min": 6,
+    "avg": 6,
+    "p50": 6,
+    "p90": 6,
+    "p95": 6,
+    "p99": 6,
+    "max": 6
+  },
+  "error_samples": [],
+  "output": "/www/Kiro-Go/docs/superpowers/uat/loadtest-opus47-2026-05-16/stream-results.jsonl"
+}

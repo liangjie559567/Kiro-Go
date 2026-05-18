@@ -1,0 +1,27 @@
+{
+  "runId": "p0b-post-transport-stream-202605170218",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1669,
+    "max": 27509,
+    "avg": 6529,
+    "p50": 1915,
+    "p90": 18168,
+    "p95": 19075,
+    "p99": 25795
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/p0b-post-transport-stream-202605170218.jsonl"
+}

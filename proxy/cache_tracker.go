@@ -144,7 +144,7 @@ func (t *promptCacheTracker) Compute(accountID string, profile *promptCacheProfi
 		// First request for this account: report creation only if above threshold.
 		effectiveCreation := lastTokens
 		if effectiveCreation < minTokens {
-			effectiveCreation = 0
+			return promptCacheUsage{}
 		}
 		cache5m, cache1h := computePromptCacheTTLBreakdown(profile, 0)
 		return promptCacheUsage{
@@ -184,7 +184,14 @@ func (t *promptCacheTracker) Compute(accountID string, profile *promptCacheProfi
 	}
 
 	creation := maxInt(lastTokens-matchedTokens, 0)
+	if matchedTokens == 0 && creation < minTokens {
+		creation = 0
+	}
 	cache5m, cache1h := computePromptCacheTTLBreakdown(profile, matchedTokens)
+	if creation == 0 {
+		cache5m = 0
+		cache1h = 0
+	}
 	return promptCacheUsage{
 		CacheCreationInputTokens:   creation,
 		CacheReadInputTokens:       matchedTokens,

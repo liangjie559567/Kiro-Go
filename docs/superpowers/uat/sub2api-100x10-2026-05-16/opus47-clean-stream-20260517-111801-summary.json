@@ -1,0 +1,42 @@
+{
+  "runId": "opus47-clean-stream-20260517-111801",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "taskMode": "marker",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 99,
+  "containsMarker": 99,
+  "warnings": 0,
+  "failed": 1,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1019,
+    "max": 43011,
+    "avg": 12103,
+    "p50": 5599,
+    "p90": 34944,
+    "p95": 37123,
+    "p99": 42832
+  },
+  "failures": [
+    {
+      "index": 83,
+      "marker": "opus47-clean-stream-20260517-111801-083",
+      "expected": "opus47-clean-stream-20260517-111801-083",
+      "status": 200,
+      "durationMs": 36005,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "hasMessageStop": true,
+      "textPreview": "I can't discuss that.\n\nIf there's something I can help with—coding, debugging, writing, analysis—let me know what you're working on.",
+      "rawPreview": "event: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_c30621ba-a522-4874-8b72-d70eaa95c126\",\"model\":\"claude-opus-4.7\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":29,\"output_tokens\":0}},\"type\":\"message_start\"}\n\nevent: content_block_start\ndata: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"I can't discuss that.\\n\\nIf there's something I c\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"an help with—coding, debugging, writin\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"g, analysis—let me know what you're working on.\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_t"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-clean-stream-20260517-111801.jsonl"
+}

@@ -449,6 +449,35 @@ func TestBeginNextForModelSessionExceptPrefersStickyAccountWhenHealthy(t *testin
 	}
 }
 
+func TestBeginNextForModelSessionExceptKeepsAgentStickyKeysIndependent(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}, {ID: "acct-2"}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetStrategy(StrategyRoundRobin)
+	p.SetModelList("acct-1", []string{"claude-sonnet-4.5"})
+	p.SetModelList("acct-2", []string{"claude-sonnet-4.5"})
+	p.RememberSticky("session-1/agent-a", "claude-sonnet-4.5", "acct-1")
+	p.RememberSticky("session-1/agent-b", "claude-sonnet-4.5", "acct-2")
+
+	accA, releaseA := p.BeginNextForModelSessionExcept("claude-sonnet-4.5", "session-1/agent-a", nil)
+	defer releaseA()
+	accB, releaseB := p.BeginNextForModelSessionExcept("claude-sonnet-4.5", "session-1/agent-b", nil)
+	defer releaseB()
+
+	if accA == nil || accA.ID != "acct-1" {
+		t.Fatalf("expected agent-a to stay on acct-1, got %#v", accA)
+	}
+	if accB == nil || accB.ID != "acct-2" {
+		t.Fatalf("expected agent-b to stay on acct-2, got %#v", accB)
+	}
+}
+
 func TestBeginNextForModelSessionExceptSkipsBreakerOpenAccount(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),

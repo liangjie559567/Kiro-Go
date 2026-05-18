@@ -1,0 +1,95 @@
+{
+  "runId": "loadtest_stream_1778935398629",
+  "mode": "stream",
+  "total": 100,
+  "concurrency": 10,
+  "wall_ms": 25325,
+  "ok": 100,
+  "http_200": 100,
+  "correct": 100,
+  "events_positive": 100,
+  "errors": [],
+  "latency_ms": {
+    "min": 1588,
+    "max": 9132,
+    "avg": 1998,
+    "p50": 1788,
+    "p90": 2149,
+    "p95": 2691,
+    "p99": 8065
+  },
+  "first_byte_ms": {
+    "min": 1587,
+    "max": 9131,
+    "avg": 1997,
+    "p50": 1786,
+    "p90": 2149,
+    "p95": 2690,
+    "p99": 8065
+  },
+  "events": {
+    "min": 6,
+    "max": 6,
+    "avg": 6
+  },
+  "sample": [
+    {
+      "i": 4,
+      "mode": "stream",
+      "marker": "LT_STREAM_004_20260516",
+      "runId": "loadtest_stream_1778935398629",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1778,
+      "first_byte_ms": 1777,
+      "events": 6,
+      "error": null,
+      "text": "LT_STREAM_004_20260516",
+      "usage": {
+        "input_tokens": 4125,
+        "output_tokens": 10
+      },
+      "request_id": "req_1c8d4c23-baa9-4408-bdab-cf30b381a6e7"
+    },
+    {
+      "i": 8,
+      "mode": "stream",
+      "marker": "LT_STREAM_008_20260516",
+      "runId": "loadtest_stream_1778935398629",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1812,
+      "first_byte_ms": 1810,
+      "events": 6,
+      "error": null,
+      "text": "LT_STREAM_008_20260516",
+      "usage": {
+        "input_tokens": 4125,
+        "output_tokens": 10
+      },
+      "request_id": "req_35993c61-0517-4e17-ae92-58795ccb6b25"
+    },
+    {
+      "i": 2,
+      "mode": "stream",
+      "marker": "LT_STREAM_002_20260516",
+      "runId": "loadtest_stream_1778935398629",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1832,
+      "first_byte_ms": 1831,
+      "events": 6,
+      "error": null,
+      "text": "LT_STREAM_002_20260516",
+      "usage": {
+        "input_tokens": 4125,
+        "output_tokens": 10
+      },
+      "request_id": "req_d7dbde1b-1701-40e2-890c-2e791c2e81ad"
+    }
+  ],
+  "output": "/www/Kiro-Go/docs/superpowers/uat/loadtest-2026-05-16/stream-results.jsonl"
+}

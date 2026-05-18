@@ -1,0 +1,27 @@
+{
+  "runId": "opus47-sync-100x10-20260516232231",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1064,
+    "max": 52566,
+    "avg": 21079,
+    "p50": 24157,
+    "p90": 37347,
+    "p95": 42490,
+    "p99": 47655
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-sync-100x10-20260516232231.jsonl"
+}

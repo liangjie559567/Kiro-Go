@@ -9,6 +9,7 @@ import (
 	"kiro-go/config"
 	"kiro-go/logger"
 	"kiro-go/pool"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,6 +27,11 @@ var (
 	opusCapacityRetryBudget           = 90 * time.Second
 	sleepForOpusCapacityRetry         = time.Sleep
 	opus47AdmissionGate               = newOpus47Gate(2, 200)
+	modelAdmissionGate                = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 200},
+		},
+	})
 )
 
 const tokenRefreshSkewSeconds int64 = 120
@@ -59,10 +65,16 @@ type Handler struct {
 	modelsCacheTime int64
 	promptCache     *promptCacheTracker
 	tokenRefreshMu  sync.Mutex
+	tokenRefreshes  map[string]*tokenRefreshCall
 	requestLogsMu   sync.Mutex
 	requestLogs     *requestLogStore
 	responsesMu     sync.Mutex
 	responses       map[string]responsesSession
+}
+
+type tokenRefreshCall struct {
+	done chan struct{}
+	err  error
 }
 
 const (
@@ -215,6 +227,7 @@ func validateOpenAIRequestShape(req *OpenAIRequest) string {
 
 	hasNonSystem := false
 	hasUserContext := false
+	hasToolContext := false
 	lastRole := ""
 	for _, msg := range req.Messages {
 		role := strings.TrimSpace(msg.Role)
@@ -227,6 +240,9 @@ func validateOpenAIRequestShape(req *OpenAIRequest) string {
 		}
 
 		if role != "user" {
+			if role == "tool" && strings.TrimSpace(extractOpenAIMessageText(msg.Content)) != "" && strings.TrimSpace(msg.ToolCallID) != "" {
+				hasToolContext = true
+			}
 			continue
 		}
 		text, images := extractOpenAIUserContent(msg.Content)
@@ -241,8 +257,8 @@ func validateOpenAIRequestShape(req *OpenAIRequest) string {
 	if lastRole == "assistant" {
 		return "assistant-prefill final message is not supported; last message must be user or tool"
 	}
-	if !hasUserContext {
-		return "at least one non-empty user message is required"
+	if !hasUserContext && !hasToolContext {
+		return "at least one non-empty user or tool message is required"
 	}
 	return ""
 }
@@ -279,6 +295,47 @@ func (h *Handler) recordAccountModelFailure(accountID, model string, err error) 
 	return reason
 }
 
+func (h *Handler) updateRequestLogUpstreamAccount(r *http.Request, accountID, region string) {
+	if h == nil || h.pool == nil {
+		updateRequestLogUpstream(r, accountID, region)
+		return
+	}
+	health := h.pool.GetRuntimeHealth(accountID)
+	updateRequestLogUpstream(r, accountID, region, AccountRequestHealthSnapshot{
+		ActiveConnections: health.ActiveConnections,
+		RecentFailures:    health.RecentFailures,
+		RecentSuccesses:   health.RecentSuccesses,
+		AvgLatencyMS:      health.AvgLatencyMS,
+		Score:             health.Score,
+	})
+}
+
+func (h *Handler) updateRequestLogRoutingDecision(r *http.Request, model string, attempt int, account *config.Account) {
+	if account == nil {
+		return
+	}
+	strategy := config.GetLoadBalanceConfig().Strategy
+	if strings.TrimSpace(strategy) == "" {
+		strategy = string(pool.StrategyHealth)
+	}
+	pressure := modelAdmissionGate.hasPressure(model)
+	health := pool.RuntimeHealth{}
+	if h != nil && h.pool != nil {
+		health = h.pool.GetRuntimeHealth(account.ID)
+	}
+	decision := fmt.Sprintf("selected account=%s model=%s region=%s attempt=%d strategy=%s active=%d score=%d pressure=%t",
+		account.ID,
+		model,
+		resolveAccountKiroRegion(account),
+		attempt+1,
+		strategy,
+		health.ActiveConnections,
+		health.Score,
+		pressure,
+	)
+	updateRequestLogRouting(r, decision, strategy, pressure)
+}
+
 func rateLimitResetFromError(err error) time.Time {
 	if resetErr, ok := err.(rateLimitResetError); ok {
 		return resetErr.RateLimitResetAt()
@@ -307,9 +364,15 @@ func isOpus47Model(model string) bool {
 
 func requestStickyKey(r *http.Request, req *ClaudeRequest) string {
 	if r != nil {
+		sessionID := firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id")
+		if sessionID != "" {
+			agentID := firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-agent-id")
+			if agentID != "" {
+				return sessionID + "/" + agentID
+			}
+			return sessionID
+		}
 		for _, name := range []string{
-			"x-claude-code-session-id",
-			"x-claude-session-id",
 			"x-request-id",
 			"request-id",
 		} {
@@ -373,7 +436,7 @@ func opusCapacityRetryDelay(err error, deadline time.Time) (time.Duration, bool)
 func NewHandler() *Handler {
 	// 启动时应用代理配置
 	applyProxyConfig(config.GetProxyURL())
-	applyOpus47AdmissionConfig()
+	applyModelAdmissionConfig()
 
 	totalReq, successReq, failedReq, totalTokens, totalCredits := config.GetStats()
 	h := &Handler{
@@ -401,9 +464,21 @@ func NewHandler() *Handler {
 }
 
 func applyOpus47AdmissionConfig() {
+	applyModelAdmissionConfig()
+}
+
+func applyModelAdmissionConfig() {
 	admission := config.GetOpus47AdmissionConfig()
 	opus47AdmissionGate = newOpus47Gate(admission.MaxConcurrent, admission.MaxWaiting)
-	logger.Infof("[Opus47Admission] maxConcurrent=%d maxWaiting=%d", admission.MaxConcurrent, admission.MaxWaiting)
+	modelAdmission := config.GetModelAdmissionConfig()
+	modelAdmissionGate = newModelAdmissionGateSet(modelAdmission)
+	logger.Infof("[ModelAdmission] default=%d/%d models=%d legacyOpus47=%d/%d",
+		modelAdmission.Default.MaxConcurrent,
+		modelAdmission.Default.MaxWaiting,
+		len(modelAdmission.Models),
+		admission.MaxConcurrent,
+		admission.MaxWaiting,
+	)
 	pool.GetPool().SetStrategy(pool.Strategy(config.GetLoadBalanceConfig().Strategy))
 }
 
@@ -1163,7 +1238,8 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Req
 			return
 		}
 		used[account.ID] = true
-		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogUpstreamAccount(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogRoutingDecision(r, req.Model, attempt, account)
 
 		if err := h.ensureValidToken(account); err != nil {
 			lastErr = err
@@ -1470,7 +1546,7 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 			"stop_reason":   "end_turn",
 			"stop_sequence": nil,
 		},
-		"usage": map[string]int{"output_tokens": outputTokens},
+		"usage": map[string]int{"input_tokens": inputTokens, "output_tokens": outputTokens},
 	})
 	h.sendSSE(w, flusher, "message_stop", map[string]interface{}{"type": "message_stop"})
 }
@@ -1515,7 +1591,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			return
 		}
 		used[account.ID] = true
-		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogUpstreamAccount(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogRoutingDecision(r, model, attempt, account)
 
 		attemptPayload := cloneKiroPayload(payload)
 		if !h.finalizePayloadForClaudeAccount(w, r, account, attemptPayload) {
@@ -1590,12 +1667,14 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 					continue
 				}
 				h.recordFailure()
-				h.sendOpenAIError(w, 503, "server_error", "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+				h.sendOpenAIError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
 				return
 			}
 			if lastErr != nil {
 				h.recordFailure()
-				h.sendOpenAIError(w, 503, "server_error", lastErr.Error())
+				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+				h.sendOpenAIError(w, status, errType, lastErr.Error())
 			} else {
 				h.recordFailure()
 				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
@@ -1603,7 +1682,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 			return
 		}
 		used[account.ID] = true
-		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogUpstreamAccount(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogRoutingDecision(r, model, attempt, account)
 
 		attemptPayload := cloneKiroPayload(payload)
 		if !h.finalizePayloadForOpenAIAccount(w, r, account, attemptPayload) {
@@ -1645,7 +1725,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if stream || attempt >= 1 {
 			if err != nil {
 				h.recordFailure()
-				h.sendOpenAIError(w, 500, "server_error", err.Error())
+				status, errType := openAIUpstreamErrorStatusAndType(err)
+				h.sendOpenAIError(w, status, errType, err.Error())
 			}
 			return
 		}
@@ -1654,22 +1735,29 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
-	if stream || !isOpus47Model(model) {
+	if stream && modelAdmissionGate.shouldBypassStream(model) {
 		return func() {}, true
 	}
 	timeout := time.Until(deadline)
 	if timeout <= 0 {
 		timeout = 0
 	}
-	release, err := opus47AdmissionGate.acquire(timeout)
+	release, gated, err := modelAdmissionGate.acquire(model, timeout)
+	if !gated {
+		return func() {}, true
+	}
 	if err == nil {
 		return release, true
 	}
 	h.recordFailure()
+	modelLabel := strings.TrimSpace(model)
+	if modelLabel == "" {
+		modelLabel = "model"
+	}
 	if claudeFormat {
-		h.sendClaudeError(w, 503, "api_error", "Opus 4.7 concurrency queue timeout")
+		h.sendClaudeError(w, 503, "api_error", modelLabel+" concurrency queue timeout")
 	} else {
-		h.sendOpenAIError(w, 503, "server_error", "Opus 4.7 concurrency queue timeout")
+		h.sendOpenAIError(w, 503, "server_error", modelLabel+" concurrency queue timeout")
 	}
 	return nil, false
 }
@@ -1689,6 +1777,9 @@ func claudeUpstreamErrorStatusAndType(err error) (int, string) {
 	}
 	reason := classifyFailureReason(err)
 	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "http 400") || strings.Contains(msg, "bad request") || strings.Contains(msg, "improperly formed request") || strings.Contains(msg, "invalid request") {
+		return http.StatusBadRequest, "invalid_request_error"
+	}
 	switch reason {
 	case pool.FailureReasonRateLimited:
 		return http.StatusTooManyRequests, "rate_limit_error"
@@ -1706,12 +1797,34 @@ func claudeUpstreamErrorStatusAndType(err error) (int, string) {
 	}
 }
 
+func openAIUpstreamErrorStatusAndType(err error) (int, string) {
+	if err == nil {
+		return http.StatusInternalServerError, "server_error"
+	}
+	reason := classifyFailureReason(err)
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "http 400") || strings.Contains(msg, "bad request") || strings.Contains(msg, "improperly formed request") || strings.Contains(msg, "invalid request") {
+		return http.StatusBadRequest, "invalid_request_error"
+	}
+	switch reason {
+	case pool.FailureReasonRateLimited:
+		return http.StatusTooManyRequests, "rate_limit_error"
+	case pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
+		if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") {
+			return http.StatusGatewayTimeout, "server_error"
+		}
+		return http.StatusServiceUnavailable, "server_error"
+	case pool.FailureReasonAuthExpired:
+		return http.StatusUnauthorized, "authentication_error"
+	case pool.FailureReasonQuotaExhausted:
+		return http.StatusPaymentRequired, "billing_error"
+	default:
+		return http.StatusInternalServerError, "server_error"
+	}
+}
+
 // handleClaudeStream Claude 流式响应
 func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Request, account *config.Account, payload *KiroPayload, model string, thinking bool, thinkingOpts claudeThinkingResponseOptions, estimatedInputTokens int, cacheUsage promptCacheUsage, cacheProfile *promptCacheProfile, used map[string]bool, attempt int) (bool, error) {
-	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
 	if _, ok := w.(http.Flusher); !ok {
 		h.sendClaudeError(w, 500, "api_error", "Streaming not supported")
 		return true, fmt.Errorf("streaming not supported")
@@ -2012,16 +2125,24 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
+		status, _ := claudeUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountModelFailure(account.ID, model, err)
 		h.checkOverageError(err, account.ID)
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
 			return false, err
+		}
+		if !streamStarted {
+			status, errType := claudeUpstreamErrorStatusAndType(err)
+			h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
+			return true, err
 		}
 		startMessage()
 		_, errType := claudeUpstreamErrorStatusAndType(err)
 		sse.Error(errType, err.Error())
 		return true, err
 	}
+	modelAdmissionGate.recordPressure(model, http.StatusOK, latency)
 
 	// 刷新剩余缓冲区
 	processClaudeText("", false, true)
@@ -2203,6 +2324,8 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	latency := time.Since(startedAt)
 	if err != nil {
 		reason := classifyFailureReason(err)
+		status, _ := claudeUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountModelFailure(account.ID, model, err)
 		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
 			return false, err
@@ -2213,6 +2336,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 		return true, err
 	}
+	modelAdmissionGate.recordPressure(model, http.StatusOK, latency)
 
 	// 合并 thinking 内容（如果有 reasoningContentEvent 的内容）
 	thinkingFormat := thinkingOpts.Format
@@ -2390,8 +2514,7 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	previousResponseID, _ := payload["previous_response_id"].(string)
-	sessionReq := cloneOpenAIRequestForSession(req)
-	h.restoreOpenAIResponsesSession(r, payload, req)
+	h.restoreOpenAIResponsesSession(payload, req)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
@@ -2410,8 +2533,7 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 		h.sendOpenAIError(w, 400, "invalid_request_error", guardErr.Error())
 		return
 	}
-	sessionReq.Model = req.Model
-	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens, sessionReq, previousResponseID)
+	h.handleOpenAIResponsesWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, estimatedInputTokens, req, previousResponseID)
 }
 
 func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, req *OpenAIRequest, previousResponseID string) {
@@ -2437,12 +2559,14 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 					continue
 				}
 				h.recordFailure()
-				h.sendOpenAIError(w, 503, "server_error", "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+				h.sendOpenAIError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
 				return
 			}
 			if lastErr != nil {
 				h.recordFailure()
-				h.sendOpenAIError(w, 503, "server_error", lastErr.Error())
+				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+				h.sendOpenAIError(w, status, errType, lastErr.Error())
 			} else {
 				h.recordFailure()
 				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
@@ -2450,7 +2574,8 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 			return
 		}
 		used[account.ID] = true
-		updateRequestLogUpstream(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogUpstreamAccount(r, account.ID, resolveAccountKiroRegion(account))
+		h.updateRequestLogRoutingDecision(r, model, attempt, account)
 
 		attemptPayload := cloneKiroPayload(payload)
 		if !h.finalizePayloadForOpenAIAccount(w, r, account, attemptPayload) {
@@ -2491,7 +2616,8 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		}
 		if err != nil {
 			h.recordFailure()
-			h.sendOpenAIError(w, 500, "server_error", err.Error())
+			status, errType := openAIUpstreamErrorStatusAndType(err)
+			h.sendOpenAIError(w, status, errType, err.Error())
 			return
 		}
 		attempt++
@@ -2518,7 +2644,7 @@ func (h *Handler) finalizePayloadForOpenAIAccount(w http.ResponseWriter, r *http
 	return true
 }
 
-func (h *Handler) restoreOpenAIResponsesSession(r *http.Request, payload map[string]interface{}, req *OpenAIRequest) {
+func (h *Handler) restoreOpenAIResponsesSession(payload map[string]interface{}, req *OpenAIRequest) {
 	if h == nil || req == nil || payload == nil {
 		return
 	}
@@ -2527,48 +2653,80 @@ func (h *Handler) restoreOpenAIResponsesSession(r *http.Request, payload map[str
 	if len(chain) == 0 {
 		return
 	}
-	currentMessages := append([]OpenAIMessage(nil), req.Messages...)
-	currentToolIDs := currentOpenAIToolOutputIDs(currentMessages)
+	currentMessages := req.Messages
+	toolOutputIDs := currentOpenAIToolOutputIDs(currentMessages)
 	restored := make([]OpenAIMessage, 0)
-	restoredToolCalls := 0
 	for i, session := range chain {
-		messages := append([]OpenAIMessage(nil), session.Messages...)
+		messages := session.Messages
 		if i == len(chain)-1 {
-			messages = filterLatestAssistantToolCalls(messages, currentToolIDs)
-		}
-		for _, msg := range messages {
-			restoredToolCalls += len(msg.ToolCalls)
+			messages = filterLatestAssistantToolCalls(messages, toolOutputIDs)
 		}
 		restored = append(restored, messages...)
 	}
 	req.Messages = append(restored, currentMessages...)
-
-	inheritedTools := false
 	for i := len(chain) - 1; i >= 0; i-- {
 		session := chain[i]
 		if len(req.Tools) == 0 && len(session.Tools) > 0 {
 			req.Tools = append([]OpenAITool(nil), session.Tools...)
-			inheritedTools = true
 		}
 		if req.ToolChoice == nil && session.ToolChoice != nil {
 			req.ToolChoice = session.ToolChoice
-			inheritedTools = true
-		}
-		if len(req.Tools) > 0 && req.ToolChoice != nil {
-			break
 		}
 	}
-	updateRequestLogResponsesSession(r, previousID, len(chain), restoredToolCalls, inheritedTools)
 }
 
-func cloneOpenAIRequestForSession(req *OpenAIRequest) *OpenAIRequest {
-	if req == nil {
+func (h *Handler) collectOpenAIResponsesSessionChain(previousID string) []responsesSession {
+	previousID = strings.TrimSpace(previousID)
+	if previousID == "" {
 		return nil
 	}
-	clone := *req
-	clone.Messages = append([]OpenAIMessage(nil), req.Messages...)
-	clone.Tools = append([]OpenAITool(nil), req.Tools...)
-	return &clone
+	seen := make(map[string]bool)
+	var chain []responsesSession
+	for previousID != "" && !seen[previousID] {
+		seen[previousID] = true
+		session, ok := h.getOpenAIResponsesSession(previousID)
+		if !ok {
+			break
+		}
+		chain = append(chain, session)
+		previousID = strings.TrimSpace(session.PreviousResponseID)
+	}
+	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
+		chain[i], chain[j] = chain[j], chain[i]
+	}
+	return chain
+}
+
+func currentOpenAIToolOutputIDs(messages []OpenAIMessage) map[string]bool {
+	ids := make(map[string]bool)
+	for _, msg := range messages {
+		if msg.Role == "tool" && strings.TrimSpace(msg.ToolCallID) != "" {
+			ids[msg.ToolCallID] = true
+		}
+	}
+	return ids
+}
+
+func filterLatestAssistantToolCalls(messages []OpenAIMessage, keep map[string]bool) []OpenAIMessage {
+	if len(keep) == 0 {
+		return messages
+	}
+	filtered := append([]OpenAIMessage(nil), messages...)
+	for i := len(filtered) - 1; i >= 0; i-- {
+		msg := filtered[i]
+		if msg.Role != "assistant" || len(msg.ToolCalls) == 0 {
+			continue
+		}
+		toolCalls := make([]ToolCall, 0, len(msg.ToolCalls))
+		for _, toolCall := range msg.ToolCalls {
+			if keep[toolCall.ID] {
+				toolCalls = append(toolCalls, toolCall)
+			}
+		}
+		filtered[i].ToolCalls = toolCalls
+		return filtered
+	}
+	return filtered
 }
 
 func (h *Handler) getOpenAIResponsesSession(id string) (responsesSession, bool) {
@@ -2587,63 +2745,6 @@ func (h *Handler) getOpenAIResponsesSession(id string) (responsesSession, bool) 
 	session.Messages = append([]OpenAIMessage(nil), session.Messages...)
 	session.Tools = append([]OpenAITool(nil), session.Tools...)
 	return session, true
-}
-
-func (h *Handler) collectOpenAIResponsesSessionChain(previousID string) []responsesSession {
-	previousID = strings.TrimSpace(previousID)
-	if h == nil || previousID == "" {
-		return nil
-	}
-	var reversed []responsesSession
-	seen := map[string]bool{}
-	for previousID != "" && !seen[previousID] {
-		seen[previousID] = true
-		session, ok := h.getOpenAIResponsesSession(previousID)
-		if !ok {
-			break
-		}
-		reversed = append(reversed, session)
-		previousID = strings.TrimSpace(session.PreviousResponseID)
-	}
-	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
-		reversed[i], reversed[j] = reversed[j], reversed[i]
-	}
-	return reversed
-}
-
-func currentOpenAIToolOutputIDs(messages []OpenAIMessage) map[string]bool {
-	ids := map[string]bool{}
-	for _, msg := range messages {
-		if msg.Role != "tool" {
-			continue
-		}
-		id := strings.TrimSpace(msg.ToolCallID)
-		if id != "" {
-			ids[id] = true
-		}
-	}
-	return ids
-}
-
-func filterLatestAssistantToolCalls(messages []OpenAIMessage, keep map[string]bool) []OpenAIMessage {
-	if len(keep) == 0 {
-		return messages
-	}
-	out := append([]OpenAIMessage(nil), messages...)
-	for i := len(out) - 1; i >= 0; i-- {
-		if out[i].Role != "assistant" || len(out[i].ToolCalls) == 0 {
-			continue
-		}
-		filtered := make([]ToolCall, 0, len(out[i].ToolCalls))
-		for _, tc := range out[i].ToolCalls {
-			if keep[strings.TrimSpace(tc.ID)] {
-				filtered = append(filtered, tc)
-			}
-		}
-		out[i].ToolCalls = filtered
-		return out
-	}
-	return out
 }
 
 func (h *Handler) saveOpenAIResponsesSession(id, previousResponseID string, req *OpenAIRequest, content string, toolUses []KiroToolUse) {
@@ -3137,6 +3238,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	var credits float64
 	var realInputTokens int
 	streamStarted := false
+	createdSent := false
 
 	sendEvent := func(event string, payload interface{}) {
 		data, _ := json.Marshal(payload)
@@ -3146,10 +3248,16 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 		flusher.Flush()
 	}
 
-	sendEvent("response.created", map[string]interface{}{
-		"type":     "response.created",
-		"response": buildOpenAIResponsesObject(responseID, model, "", 0, 0, false),
-	})
+	ensureCreated := func() {
+		if createdSent {
+			return
+		}
+		createdSent = true
+		sendEvent("response.created", map[string]interface{}{
+			"type":     "response.created",
+			"response": buildOpenAIResponsesObject(responseID, model, "", 0, 0, false),
+		})
+	}
 
 	callback := &KiroStreamCallback{
 		OnText: func(text string, isThinking bool) {
@@ -3158,6 +3266,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 				return
 			}
 			content.WriteString(text)
+			ensureCreated()
 			sendEvent("response.output_text.delta", map[string]interface{}{
 				"type":  "response.output_text.delta",
 				"delta": text,
@@ -3165,6 +3274,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 		},
 		OnToolUse: func(tu KiroToolUse) {
 			toolUses = append(toolUses, tu)
+			ensureCreated()
 			args, _ := json.Marshal(tu.Input)
 			sendEvent("response.output_item.done", map[string]interface{}{
 				"type": "response.output_item.done",
@@ -3227,6 +3337,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
 	h.saveOpenAIResponsesSession(responseID, previousResponseID, req, finalContent, toolUses)
 
+	ensureCreated()
 	sendEvent("response.completed", map[string]interface{}{
 		"type":     "response.completed",
 		"response": buildOpenAIResponsesObjectWithToolUses(responseID, model, finalContent, toolUses, inputTokens, outputTokens, true),
@@ -3404,6 +3515,7 @@ func buildOpenAIResponsesObjectWithToolUses(id, model, text string, toolUses []K
 			"type":    "message",
 			"role":    "assistant",
 			"content": []map[string]interface{}{{"type": "output_text", "text": text}},
+			"status":  status,
 		})
 	}
 	return map[string]interface{}{
@@ -3440,17 +3552,47 @@ func (h *Handler) ensureValidToken(account *config.Account) error {
 	}
 
 	h.tokenRefreshMu.Lock()
-	defer h.tokenRefreshMu.Unlock()
+	if h.tokenRefreshes == nil {
+		h.tokenRefreshes = make(map[string]*tokenRefreshCall)
+	}
+	if call := h.tokenRefreshes[account.ID]; call != nil {
+		h.tokenRefreshMu.Unlock()
+		<-call.done
+		if call.err == nil {
+			h.syncLatestAccountToken(account)
+		}
+		return call.err
+	}
+	call := &tokenRefreshCall{done: make(chan struct{})}
+	h.tokenRefreshes[account.ID] = call
+	h.tokenRefreshMu.Unlock()
 
-	// Another concurrent request may have refreshed this account while we waited.
+	call.err = h.refreshExpiredToken(account)
+
+	h.tokenRefreshMu.Lock()
+	delete(h.tokenRefreshes, account.ID)
+	h.tokenRefreshMu.Unlock()
+	close(call.done)
+
+	return call.err
+}
+
+func (h *Handler) syncLatestAccountToken(account *config.Account) bool {
 	if latest := h.pool.GetByID(account.ID); latest != nil {
 		account.AccessToken = latest.AccessToken
 		account.RefreshToken = latest.RefreshToken
 		account.ExpiresAt = latest.ExpiresAt
 		account.ProfileArn = latest.ProfileArn
-		if account.ExpiresAt == 0 || time.Now().Unix() < account.ExpiresAt-tokenRefreshSkewSeconds {
-			return nil
-		}
+		return account.ExpiresAt == 0 || time.Now().Unix() < account.ExpiresAt-tokenRefreshSkewSeconds
+	}
+	return false
+}
+
+func (h *Handler) refreshExpiredToken(account *config.Account) error {
+	// Another concurrent request for the same account may have refreshed it
+	// before this call became the owner.
+	if h.syncLatestAccountToken(account) {
+		return nil
 	}
 
 	accessToken, refreshToken, expiresAt, profileArn, err := auth.RefreshToken(account)
@@ -3548,6 +3690,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetSettings(w, r)
 	case path == "/settings" && r.Method == "POST":
 		h.apiUpdateSettings(w, r)
+	case path == "/claude-code/compat" && r.Method == "GET":
+		h.apiGetClaudeCodeCompatibility(w, r)
 	case path == "/auto-refresh" && r.Method == "GET":
 		h.apiGetAutoRefresh(w, r)
 	case path == "/auto-refresh" && r.Method == "POST":
@@ -3568,8 +3712,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetRequestLogs(w, r)
 	case path == "/request-stats" && r.Method == "GET":
 		h.apiGetRequestStats(w, r)
-	case path == "/claude-code/readiness" && r.Method == "GET":
-		h.apiGetClaudeCodeReadiness(w, r)
+	case path == "/admission-pressure" && r.Method == "GET":
+		h.apiGetAdmissionPressure(w, r)
 	case path == "/request-logs/clear" && r.Method == "POST":
 		h.apiClearRequestLogs(w, r)
 	case path == "/generate-machine-id" && r.Method == "GET":
@@ -4248,68 +4392,91 @@ func (h *Handler) apiGetSettings(w http.ResponseWriter, r *http.Request) {
 		"clientApiKeys":     config.GetClientAccessConfig().ClientApiKeys,
 		"clientIPAllowlist": config.GetClientAccessConfig().ClientIPAllowlist,
 		"modelMappings":     config.GetClientAccessConfig().ModelMappings,
+		"modelAdmission":    config.GetModelAdmissionConfig(),
 		"port":              config.GetPort(),
 		"host":              config.GetHost(),
 		"allowOverUsage":    config.GetAllowOverUsage(),
 	})
 }
 
-func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Request) {
-	logs := h.ensureRequestLogStore().ListAll()
-	cutoff := time.Now().Add(-30 * time.Minute)
-	resp := map[string]interface{}{
-		"recentClaudeCode":       false,
-		"recentToolReferences":   false,
-		"recentMCPTools":         false,
-		"recentToolTrimming":     false,
-		"recentResponsesRestore": false,
-		"lastSeen":               "",
-		"examples":               []map[string]interface{}{},
+func (h *Handler) apiGetClaudeCodeCompatibility(w http.ResponseWriter, r *http.Request) {
+	baseURL := buildClaudeCodeBaseURL(r)
+	apiKey := config.GetApiKey()
+	clientKeys := config.GetClientApiKeys()
+	if len(clientKeys) > 0 {
+		apiKey = clientKeys[0]
 	}
-	examples := make([]map[string]interface{}, 0, 5)
-	for _, entry := range logs {
-		if entry.Timestamp.Before(cutoff) {
-			continue
-		}
-		betas := strings.ToLower(strings.Join(entry.AnthropicBetas, ","))
-		if entry.ClaudeCodeSessionID != "" || strings.Contains(betas, "tool") || strings.Contains(betas, "claude-code") {
-			resp["recentClaudeCode"] = true
-			if resp["lastSeen"] == "" {
-				resp["lastSeen"] = entry.Timestamp.Format(time.RFC3339)
-			}
-		}
-		if entry.ToolReferenceCount > 0 || len(entry.PayloadMaterializedToolRefs) > 0 || len(entry.PayloadDeferredTools) > 0 {
-			resp["recentToolReferences"] = true
-		}
-		if containsMCPToolName(entry.PayloadKeptTools) || containsMCPToolName(entry.PayloadTrimmedTools) || containsMCPToolName(entry.PayloadMaterializedToolRefs) {
-			resp["recentMCPTools"] = true
-		}
-		if entry.PayloadTrimmed || len(entry.PayloadTrimmedTools) > 0 {
-			resp["recentToolTrimming"] = true
-		}
-		if entry.ResponsesRestoredSessions > 0 {
-			resp["recentResponsesRestore"] = true
-		}
-		if len(examples) < 5 {
-			examples = append(examples, map[string]interface{}{
-				"timestamp": entry.Timestamp,
-				"endpoint":  entry.Endpoint,
-				"model":     entry.Model,
-			})
-		}
+	if !config.IsApiKeyRequired() {
+		apiKey = "any"
 	}
-	resp["examples"] = examples
-	json.NewEncoder(w).Encode(resp)
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"baseUrl": baseURL,
+		"environment": map[string]string{
+			"ANTHROPIC_BASE_URL":                             baseURL,
+			"ANTHROPIC_AUTH_TOKEN":                           apiKey,
+			"ANTHROPIC_API_KEY":                              apiKey,
+			"CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY":     "1",
+			"CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+			"ENABLE_TOOL_SEARCH":                             "true",
+		},
+		"capabilities": map[string]bool{
+			"anthropicMessages":        true,
+			"countTokens":              true,
+			"openAIChat":               true,
+			"openAIResponses":          true,
+			"models":                   true,
+			"streaming":                true,
+			"toolUse":                  true,
+			"toolReferences":           true,
+			"vision":                   true,
+			"webSearch":                true,
+			"webSearch20260209":        true,
+			"thinking":                 true,
+			"promptCaching":            true,
+			"promptCacheControl":       true,
+			"requestLogs":              true,
+			"modelAdmission":           true,
+			"adaptiveModelAdmission":   true,
+			"fineGrainedToolStreaming": true,
+			"toolSearch":               true,
+		},
+		"endpoints": []string{
+			"/v1/messages",
+			"/v1/messages/count_tokens",
+			"/v1/models",
+			"/v1/chat/completions",
+			"/v1/responses",
+			"/v1/stats",
+		},
+		"modelAdmission": config.GetModelAdmissionConfig(),
+		"sub2apiNotes": []string{
+			"Keep sub2api user/account concurrency above expected Claude Code parallelism so requests are not rejected before reaching Kiro-Go.",
+			"For local production validation, preserve the existing sub2api upstream base_url and API key; this endpoint is informational only.",
+			"Use Kiro-Go request logs to separate downstream admission failures from upstream Kiro errors.",
+		},
+	})
 }
 
-func containsMCPToolName(names []string) bool {
-	for _, name := range names {
-		lower := strings.ToLower(strings.TrimSpace(name))
-		if strings.Contains(lower, "mcp__") || strings.HasPrefix(lower, "mcp") {
-			return true
+func buildClaudeCodeBaseURL(r *http.Request) string {
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		host = fmt.Sprintf("%s:%d", config.GetHost(), config.GetPort())
+	}
+	if strings.HasPrefix(host, "0.0.0.0:") || strings.HasPrefix(host, "[::]:") {
+		_, port, err := net.SplitHostPort(host)
+		if err == nil {
+			host = "127.0.0.1:" + port
 		}
 	}
-	return false
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded == "http" || forwarded == "https" {
+		scheme = forwarded
+	}
+	return scheme + "://" + host
 }
 
 func (h *Handler) apiGetPromptFilter(w http.ResponseWriter, r *http.Request) {
@@ -4357,13 +4524,14 @@ func (h *Handler) apiUpdatePromptFilter(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) apiUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ApiKey            *string                   `json:"apiKey,omitempty"`
-		RequireApiKey     *bool                     `json:"requireApiKey,omitempty"`
-		ClientApiKeys     []string                  `json:"clientApiKeys,omitempty"`
-		ClientIPAllowlist []string                  `json:"clientIPAllowlist,omitempty"`
-		ModelMappings     []config.ModelMappingRule `json:"modelMappings,omitempty"`
-		Password          string                    `json:"password"`
-		AllowOverUsage    *bool                     `json:"allowOverUsage,omitempty"`
+		ApiKey            *string                      `json:"apiKey,omitempty"`
+		RequireApiKey     *bool                        `json:"requireApiKey,omitempty"`
+		ClientApiKeys     []string                     `json:"clientApiKeys,omitempty"`
+		ClientIPAllowlist []string                     `json:"clientIPAllowlist,omitempty"`
+		ModelMappings     []config.ModelMappingRule    `json:"modelMappings,omitempty"`
+		ModelAdmission    *config.ModelAdmissionConfig `json:"modelAdmission,omitempty"`
+		Password          string                       `json:"password"`
+		AllowOverUsage    *bool                        `json:"allowOverUsage,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(400)
@@ -4399,6 +4567,14 @@ func (h *Handler) apiUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
+	}
+	if req.ModelAdmission != nil {
+		if err := config.UpdateModelAdmissionConfig(*req.ModelAdmission); err != nil {
+			w.WriteHeader(400)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		applyModelAdmissionConfig()
 	}
 	if req.Password != "" {
 		if err := config.UpdateSettings(apiKey, requireApiKey, req.Password); err != nil {

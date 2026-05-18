@@ -1,0 +1,27 @@
+{
+  "runId": "p0c-sonnet8-stream100-202605170225",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1305,
+    "max": 16096,
+    "avg": 7385,
+    "p50": 2873,
+    "p90": 15031,
+    "p95": 15308,
+    "p99": 15899
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/p0c-sonnet8-stream100-202605170225.jsonl"
+}

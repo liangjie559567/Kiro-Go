@@ -1,0 +1,101 @@
+{
+  "runId": "full-feature-matrix-1778952052474",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "startedAt": "2026-05-16T17:20:52.474Z",
+  "checks": [
+    {
+      "name": "models",
+      "status": 200,
+      "ok": true,
+      "durationMs": 38,
+      "modelCount": 31,
+      "pass": true
+    },
+    {
+      "name": "count_tokens",
+      "status": 200,
+      "ok": true,
+      "durationMs": 12,
+      "inputTokens": 5,
+      "pass": true
+    },
+    {
+      "name": "sync_exact",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1850,
+      "text": "full-feature-matrix-1778952052474-sync-marker",
+      "correct": true,
+      "forbiddenMention": false,
+      "stopReason": "end_turn",
+      "pass": true
+    },
+    {
+      "name": "stream_exact",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1939,
+      "text": "full-feature-matrix-1778952052474-stream-marker",
+      "correct": true,
+      "hasMessageStop": true,
+      "parseErrorCount": 0,
+      "forbiddenMention": false,
+      "events": [
+        "message_start",
+        "content_block_start",
+        "content_block_delta",
+        "content_block_stop",
+        "message_delta",
+        "message_stop"
+      ],
+      "pass": true
+    },
+    {
+      "name": "system_no_wrapper",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1755,
+      "text": "full-feature-matrix-1778952052474-system-marker",
+      "correct": true,
+      "forbiddenMention": false,
+      "stopReason": "end_turn",
+      "pass": true
+    },
+    {
+      "name": "tool_cycle_first",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2005,
+      "stopReason": "tool_use",
+      "toolName": "get_project_status",
+      "hasToolUse": true,
+      "pass": true
+    },
+    {
+      "name": "tool_cycle_second",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1603,
+      "text": "The project status for beta is: **full-feature-matrix-1778952052474-tool-marker**",
+      "containsMarker": true,
+      "exact": false,
+      "forbiddenMention": false,
+      "stopReason": "end_turn",
+      "pass": true
+    },
+    {
+      "name": "tool_reference_accept",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1871,
+      "text": "tool-reference-accepted",
+      "accepted": true,
+      "forbiddenMention": false,
+      "stopReason": "end_turn",
+      "pass": true
+    }
+  ],
+  "finishedAt": "2026-05-16T17:21:03.548Z",
+  "pass": true
+}

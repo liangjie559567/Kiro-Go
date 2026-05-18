@@ -1,0 +1,85 @@
+{
+  "outDir": "docs/superpowers/uat/playwright-2026-05-17/sub2api-usage-selected-20260517033446",
+  "text": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nUsage Records\n\nView and manage all user usage records\n\n🇺🇸\nEN\n$9996782.90\nAD\nadmin\nAdmin\n\nTotal Requests\n\n9,302\n\nin selected range\n\nTotal Tokens\n\n100.62M\n\nIn: 58.96M / Out: 769.09K\n\nTotal Cost\n\n$406.0338\n\nCost $406.0338 · Standard $406.0338\n\nAvg Duration\n\n4.55s\n\nTime Range:\nLast 24 Hours\nGranularity:\nHour\nModel Distribution\nRequested\nUpstream\nMapping\nBy Tokens\nBy Actual Cost\nModel\tRequests\tTokens\tActual\tCost\tStandard\n\nclaude-opus-4-7\t2,322\t72.64M\t$313.83\t$313.83\t$313.83\n\nclaude-sonnet-4.5\t1,197\t4.95M\t$15.04\t$15.04\t$15.04\n\nclaude-opus-4.7\t412\t2.44M\t$12.26\t$12.26\t$12.26\n\nclaude-opus-4.7-thinking\t204\t1.22M\t$6.10\t$6.10\t$6.10\n\ndeepseek-3.2\t210\t963.66K\t$0.0000\t$0.0000\t$0.0000\n\ndeepseek-3.2-thinking\t204\t945.75K\t$0.0000\t$0.0000\t$0.0000\n\nclaude-haiku-4.5-thinking\t204\t874.05K\t$0.229\t$0.229\t$0.229\n\nclaude-sonnet-4-thinking\t204\t872.47K\t$2.74\t$2.74\t$2.74\n\nclaude-sonnet-4.5-thinking\t204\t871.54K\t$2.74\t$2.74\t$2.74\n\nclaude-opus-4.5\t210\t865.56K\t$4.33\t$4.33\t$4.33\n\nclaude-haiku-4.5\t210\t865.29K\t$0.217\t$0.217\t$0.217\n\nclaude-opus-4.5-thinking\t203\t857.70K\t$4.37\t$4.37\t$4.37\n\nclaude-sonnet-4.6\t208\t857.68K\t$2.58\t$2.58\t$2.58\n\nclaude-opus-4.6\t208\t857.67K\t$4.29\t$4.29\t$4.29\n\nclaude-sonnet-4\t208\t857.27K\t$2.57\t$2.57\t$2.57\n\ngpt-4o\t208\t856.83K\t$2.14\t$2.14\t$2.14\n\ngpt-4\t208\t856.83K\t$25.71\t$25.71\t$25.71\n\nclaude-opus-4.6-thinking\t204\t856.02K\t$4.31\t$4.31\t$4.31\n\nclaude-sonnet-4.6-thinking\t204\t853.37K\t$2.57\t$2.57\t$2.57\n\nminimax-m2.1\t210\t795.38K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.5\t210\t793.41K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.1-thinking\t204\t787.94K\t$0.0000\t$0.0000\t$0.0000\n\nminimax-m2.5-thinking\t204\t784.62K\t$0.0000\t$0.0000\t$0.0000\n\nglm-5\t210\t780.26K\t$0.0000\t$0.0000\t$0.0000\n\nglm-5-thinking\t204\t765.18K\t$0.0000\t$0.0000\t$0.0000\n\nqwen3-coder-next\t210\t611.92K\t$0.0000\t$0.0000\t$0.0000\n\nqwen3-coder-next-thinking\t204\t600.39K\t$0.0000\t$0.0000\t$0.0000\n\nauto\t210\t173.30K\t$0.0000\t$0.0000\t$0.0000\n\nauto-thinking\t204\t172.24K\t$0.0000\t$0.0000\t$0.0000\nGroup Usage Distribution\nBy Tokens\nBy Actual Cost\nGroup\tRequests\tTokens\tActual\tCost\tStandard\n\nclaude\t9,302\t100.62M\t$406.03\t$406.03\t$406.03\nEndpoint Distribution\nInbound\nUpstream\nPath\nBy Tokens\nBy Actual Cost\nEndpoint\tRequests\tTokens\tActual\tStandard\n\n/v1/messages\t9,294\t100.60M\t$405.98\t$405.98\n\n/v1/responses\t8\t19.09K\t$0.058\t$0.058\nToken Usage Trend\nUser\nAPI Key\nModel\nSelect an option\nAccount\n✕\nType\nSelect an option\nBilling Type\nAll Billing Types\nBilling Mode\nSelect an option\nGroup\nSelect an option\nRefresh\nReset\nColumn Settings\nCleanup\nExport Excel\nUSER\n\t\nAPI KEY\n\t\nACCOUNT\n\t\nMODEL\n\t\nENDPOINT\n\t\nGROUP\n\t\nTYPE\n\t\nBILLING MODE\n\t\nTOKENS\n\t\nCOST\n\t\nFIRST TOKEN\n\t\nDURATION\n\t\nTIME\n\t\nIP\n\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n18,695\n271\n57.0K\n\t\n$0.456269\nA $0.456269\n\t8.87s\t12.89s\t05/17/2026, 03:32:45\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,142\n16\n\t\n$0.012666\nA $0.012666\n\t1.94s\t1.94s\t05/17/2026, 03:28:34\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,145\n16\n\t\n$0.012675\nA $0.012675\n\t-\t1.77s\t05/17/2026, 03:28:32\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,145\n17\n\t\n$0.012690\nA $0.012690\n\t1.70s\t1.70s\t05/17/2026, 03:27:34\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,148\n17\n\t\n$0.012699\nA $0.012699\n\t-\t1.87s\t05/17/2026, 03:27:32\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n28,332\n352\n48.4K\n\t\n$0.174641\nA $0.174641\n\t3.17s\t8.37s\t05/17/2026, 03:27:26\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n26,806\n99\n47.5K\n\t\n$0.160255\nA $0.160255\n\t7.14s\t7.39s\t05/17/2026, 03:27:17\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n28,722\n161\n43.9K\n3.2K\n\t\n$0.241589\nA $0.241589\n\t11.75s\t12.80s\t05/17/2026, 03:27:10\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n21,294\n92\n37.3K\n\t\n$0.127409\nA $0.127409\n\t5.90s\t6.46s\t05/17/2026, 03:26:57\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n14,631\n47\n43.1K\n\t\n$0.343743\nA $0.343743\n\t6.22s\t6.58s\t05/17/2026, 03:26:48\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n30\n0\n\t\n$0.000090\nA $0.000090\n\t-\t1.33s\t05/17/2026, 03:14:41\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,717\n24\n\t\n$0.014511\nA $0.014511\n\t-\t2.10s\t05/17/2026, 03:14:40\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n30\n0\n\t\n$0.000090\nA $0.000090\n\t-\t1.23s\t05/17/2026, 03:13:19\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,717\n24\n\t\n$0.014511\nA $0.014511\n\t-\t2.15s\t05/17/2026, 03:13:17\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n31\n0\n\t\n$0.000093\nA $0.000093\n\t-\t1.22s\t05/17/2026, 03:11:52\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,717\n24\n\t\n$0.014511\nA $0.014511\n\t-\t2.20s\t05/17/2026, 03:11:51\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n32\n0\n\t\n$0.000096\nA $0.000096\n\t-\t1.28s\t05/17/2026, 03:08:46\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/responses\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,716\n24\n\t\n$0.014508\nA $0.014508\n\t-\t1.81s\t05/17/2026, 03:08:29\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,138\n19\n\t\n$0.012699\nA $0.012699\n\t1.60s\t1.69s\t05/17/2026, 03:08:12\t172.24.0.1\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-sonnet-4.5\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tSync\tToken\t\n4,138\n19\n\t\n$0.012699\nA $0.012699\n\t-\t2.23s\t05/17/2026, 03:08:10\t172.24.0.1\n\nShowing 1 to 20 of 9302 results\n\nPer page:\n20\n1\n2\n3\n...\n466",
+  "shot": "docs/superpowers/uat/playwright-2026-05-17/sub2api-usage-selected-20260517033446/sub2api-usage-account-selected.png",
+  "hasSelected": false,
+  "hasClaude": true,
+  "hasMessages": true,
+  "hasOpenAIRows": false,
+  "pageErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:18080/assets/GroupOptionItem-kd0-scVK.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/maskApiKey-ClKV8GuA.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/useClipboard-Bsz5Unup.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/v1/usage/dashboard/stats?timezone=Asia%2FShanghai",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/billingMode-DGyYxdnh.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/vendor-ui-BR9U7h12.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/TablePageLayout-D5ZCg44Q.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/PlatformIcon.vue_vue_type_script_setup_true_lang-DGdBs8lo.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/groups-DOs8N9rc.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/BaseDialog.vue_vue_type_script_setup_true_lang-CgQ5Df1Y.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/Pagination-CeegnEvd.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/GroupBadge.vue_vue_type_script_setup_true_lang-Celk-H6Q.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/KeysView-BOMrw6GG.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/ConfirmDialog.vue_vue_type_script_setup_true_lang-C9X-P59r.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/DataTable-DAYlNlCz.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/keys-B-laKrYM.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/SearchInput.vue_vue_type_script_setup_true_lang-C7zuqDpQ.js",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:18080/assets/UsageView-DaTawhj_.js",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "pass": false
+}

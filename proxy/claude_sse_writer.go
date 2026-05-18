@@ -41,6 +41,9 @@ func (s *claudeSSEWriter) Start() {
 		return
 	}
 	s.started = true
+	s.w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	s.w.Header().Set("Cache-Control", "no-cache")
+	s.w.Header().Set("Connection", "keep-alive")
 	s.write("message_start", map[string]interface{}{
 		"type": "message_start",
 		"message": map[string]interface{}{

@@ -1,0 +1,152 @@
+{
+  "run_id": "20260516PRE4",
+  "callable_both_modes": [
+    "auto",
+    "auto-thinking",
+    "claude-haiku-4.5",
+    "claude-haiku-4.5-thinking",
+    "claude-opus-4-7",
+    "claude-opus-4.5",
+    "claude-opus-4.5-thinking",
+    "claude-opus-4.6",
+    "claude-opus-4.6-thinking",
+    "claude-opus-4.7",
+    "claude-opus-4.7-thinking",
+    "claude-sonnet-4",
+    "claude-sonnet-4-thinking",
+    "claude-sonnet-4.5",
+    "claude-sonnet-4.5-thinking",
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.6-thinking",
+    "deepseek-3.2",
+    "deepseek-3.2-thinking",
+    "glm-5",
+    "glm-5-thinking",
+    "gpt-4",
+    "gpt-4o",
+    "minimax-m2.1",
+    "minimax-m2.1-thinking",
+    "minimax-m2.5",
+    "minimax-m2.5-thinking",
+    "qwen3-coder-next",
+    "qwen3-coder-next-thinking"
+  ],
+  "callable": {
+    "auto": {
+      "nonstream": true,
+      "stream": true
+    },
+    "auto-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-haiku-4.5": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-haiku-4.5-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4-7": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.5": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.5-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.6": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.6-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.7": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-opus-4.7-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4.5": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4.5-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4.6": {
+      "nonstream": true,
+      "stream": true
+    },
+    "claude-sonnet-4.6-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "deepseek-3.2": {
+      "nonstream": true,
+      "stream": true
+    },
+    "deepseek-3.2-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "glm-5": {
+      "nonstream": true,
+      "stream": true
+    },
+    "glm-5-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "gpt-4": {
+      "nonstream": true,
+      "stream": true
+    },
+    "gpt-4o": {
+      "nonstream": true,
+      "stream": true
+    },
+    "minimax-m2.1": {
+      "nonstream": true,
+      "stream": true
+    },
+    "minimax-m2.1-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "minimax-m2.5": {
+      "nonstream": true,
+      "stream": true
+    },
+    "minimax-m2.5-thinking": {
+      "nonstream": true,
+      "stream": true
+    },
+    "qwen3-coder-next": {
+      "nonstream": true,
+      "stream": true
+    },
+    "qwen3-coder-next-thinking": {
+      "nonstream": true,
+      "stream": true
+    }
+  }
+}

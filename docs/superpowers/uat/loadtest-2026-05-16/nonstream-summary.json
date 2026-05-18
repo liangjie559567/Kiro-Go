@@ -1,0 +1,74 @@
+{
+  "runId": "loadtest_nonstream_1778935332908",
+  "mode": "nonstream",
+  "total": 100,
+  "concurrency": 10,
+  "wall_ms": 20402,
+  "ok": 100,
+  "http_200": 100,
+  "correct": 100,
+  "errors": [],
+  "latency_ms": {
+    "min": 1617,
+    "max": 9409,
+    "avg": 1996,
+    "p50": 1846,
+    "p90": 2014,
+    "p95": 2256,
+    "p99": 6269
+  },
+  "sample": [
+    {
+      "i": 5,
+      "mode": "nonstream",
+      "marker": "LT_NONSTREAM_005_20260516",
+      "runId": "loadtest_nonstream_1778935332908",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1852,
+      "error": null,
+      "text": "LT_NONSTREAM_005_20260516",
+      "usage": {
+        "input_tokens": 4126,
+        "output_tokens": 10
+      },
+      "request_id": "3141e763-d246-4e5d-8968-80bb8c1e14a5, req_e9881e20-928f-4f6f-900c-f8d47a6ff073"
+    },
+    {
+      "i": 6,
+      "mode": "nonstream",
+      "marker": "LT_NONSTREAM_006_20260516",
+      "runId": "loadtest_nonstream_1778935332908",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1854,
+      "error": null,
+      "text": "LT_NONSTREAM_006_20260516",
+      "usage": {
+        "input_tokens": 4126,
+        "output_tokens": 10
+      },
+      "request_id": "5702eb4a-d7ec-469a-a818-ce0bbc4501c7, req_dae2afe1-5262-48d0-b77a-79fe74e9b3aa"
+    },
+    {
+      "i": 8,
+      "mode": "nonstream",
+      "marker": "LT_NONSTREAM_008_20260516",
+      "runId": "loadtest_nonstream_1778935332908",
+      "ok": true,
+      "correct": true,
+      "http": 200,
+      "latency_ms": 1854,
+      "error": null,
+      "text": "LT_NONSTREAM_008_20260516",
+      "usage": {
+        "input_tokens": 4126,
+        "output_tokens": 10
+      },
+      "request_id": "90f0137b-8bf5-4a15-80f6-082e061021d8, req_10172dfa-4ad1-421d-b448-3d93d0dddeca"
+    }
+  ],
+  "output": "/www/Kiro-Go/docs/superpowers/uat/loadtest-2026-05-16/nonstream-results.jsonl"
+}

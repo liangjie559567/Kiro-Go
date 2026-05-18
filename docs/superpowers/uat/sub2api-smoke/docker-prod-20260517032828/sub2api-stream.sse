@@ -1,0 +1,19 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_bd37f0d4-154f-498d-929a-9b6042677f30","model":"claude-sonnet-4.5","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":21,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"KIRO_SUB2API_VERIFY_20260517032828_STREAM","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"end_turn"},"type":"message_delta","usage":{"input_tokens":4142,"output_tokens":16}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+

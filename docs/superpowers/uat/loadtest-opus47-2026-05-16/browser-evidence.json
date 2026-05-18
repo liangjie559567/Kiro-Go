@@ -1,0 +1,41 @@
+{
+  "captured_at": "2026-05-16T21:02:00+08:00",
+  "sub2api": {
+    "route_note": "Playwright rendered sub2api through 127.0.0.1:13000 routed to the real 127.0.0.1:18080 service, with CSP headers removed from the proxied response so the deployed frontend could execute in this environment.",
+    "usage_page": {
+      "url": "http://127.0.0.1:13000/admin/usage",
+      "checks": {
+        "shows_claude_opus_4_7": true,
+        "shows_claude_opus_4_7_hyphen_pricing_bucket": true,
+        "shows_v1_messages": true,
+        "shows_claude_group": true,
+        "shows_202_opus47_rows_in_distribution": true
+      },
+      "screenshot": "sub2api-opus47-usage-2026-05-16.png"
+    },
+    "accounts_page": {
+      "url": "http://127.0.0.1:13000/admin/accounts",
+      "checks": {
+        "shows_kiro_claude_01": true,
+        "shows_anthropic_key": true,
+        "shows_active": true,
+        "shows_claude_group": true,
+        "shows_recent_use": true
+      },
+      "screenshot": "sub2api-opus47-accounts-2026-05-16.png"
+    }
+  },
+  "kiro_go": {
+    "url": "http://127.0.0.1:8080/admin",
+    "checks": {
+      "logged_in": true,
+      "shows_recent_request_logs": true,
+      "shows_claude_opus_4_7": true,
+      "shows_http_200": true,
+      "shows_latency_ms": true,
+      "shows_first_token_ms": true,
+      "shows_token_counts": true
+    },
+    "screenshot": "kiro-go-opus47-request-logs-2026-05-16.png"
+  }
+}

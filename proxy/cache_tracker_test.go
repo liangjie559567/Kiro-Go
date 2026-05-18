@@ -46,6 +46,32 @@ func TestPromptCacheTrackerComputeAndUpdate(t *testing.T) {
 	}
 }
 
+func TestPromptCacheTrackerUsesTypedToolCacheControl(t *testing.T) {
+	tracker := newPromptCacheTracker(time.Hour)
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Tools: []ClaudeTool{{
+			Name:        "write_file",
+			Description: strings.Repeat("Write project files with complete validation. ", 300),
+			InputSchema: map[string]interface{}{"type": "object"},
+			CacheControl: map[string]interface{}{
+				"type": "ephemeral",
+				"ttl":  "1h",
+			},
+		}},
+		Messages: []ClaudeMessage{{Role: "user", Content: "hello world"}},
+	}
+
+	profile := tracker.BuildClaudeProfile(req, 2048)
+	if profile == nil {
+		t.Fatalf("expected cache profile")
+	}
+	first := tracker.Compute("acct-1", profile)
+	if first.CacheCreation1hInputTokens <= 0 {
+		t.Fatalf("expected typed tool cache_control ttl to create 1h cache tokens, got %+v", first)
+	}
+}
+
 func TestBuildClaudeUsageMapIncludesCacheFields(t *testing.T) {
 	usage := promptCacheUsage{
 		CacheCreationInputTokens:   30,
@@ -260,5 +286,86 @@ func TestPromptCacheImplicitBreakpointAtMessageEnd(t *testing.T) {
 	result := tracker.Compute("acct-1", profile2)
 	if result.CacheReadInputTokens == 0 {
 		t.Fatalf("expected cache read via implicit message-end breakpoint, got %+v", result)
+	}
+}
+
+func TestPromptCacheBelowThresholdReportsNoCreationBreakdownOnFirstRequest(t *testing.T) {
+	tracker := newPromptCacheTracker(time.Hour)
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		System: []interface{}{
+			map[string]interface{}{
+				"type": "text",
+				"text": "short stable system prompt",
+				"cache_control": map[string]interface{}{
+					"type": "ephemeral",
+					"ttl":  "1h",
+				},
+			},
+		},
+		Messages: []ClaudeMessage{{Role: "user", Content: "hello"}},
+	}
+
+	profile := tracker.BuildClaudeProfile(req, 100)
+	if profile == nil {
+		t.Fatalf("expected cache profile")
+	}
+
+	usage := tracker.Compute("acct-short", profile)
+	if usage.CacheCreationInputTokens != 0 || usage.CacheReadInputTokens != 0 {
+		t.Fatalf("expected no cache usage below threshold, got %+v", usage)
+	}
+	if usage.CacheCreation5mInputTokens != 0 || usage.CacheCreation1hInputTokens != 0 {
+		t.Fatalf("expected no cache creation TTL breakdown below threshold, got %+v", usage)
+	}
+}
+
+func TestPromptCacheBelowThresholdReportsNoCreationWhenAccountHasOtherEntries(t *testing.T) {
+	tracker := newPromptCacheTracker(time.Hour)
+	longSystem := strings.Repeat("You are a helpful coding assistant with deep knowledge of Go, Rust, Python, and TypeScript. ", 80)
+	longReq := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		System: []interface{}{
+			map[string]interface{}{
+				"type": "text",
+				"text": longSystem,
+				"cache_control": map[string]interface{}{
+					"type": "ephemeral",
+				},
+			},
+		},
+		Messages: []ClaudeMessage{{Role: "user", Content: "prime cache"}},
+	}
+	longProfile := tracker.BuildClaudeProfile(longReq, 2048)
+	if longProfile == nil {
+		t.Fatalf("expected long cache profile")
+	}
+	tracker.Update("acct-mixed", longProfile)
+
+	shortReq := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		System: []interface{}{
+			map[string]interface{}{
+				"type": "text",
+				"text": "short stable system prompt",
+				"cache_control": map[string]interface{}{
+					"type": "ephemeral",
+					"ttl":  "1h",
+				},
+			},
+		},
+		Messages: []ClaudeMessage{{Role: "user", Content: "hello"}},
+	}
+	shortProfile := tracker.BuildClaudeProfile(shortReq, 100)
+	if shortProfile == nil {
+		t.Fatalf("expected short cache profile")
+	}
+
+	usage := tracker.Compute("acct-mixed", shortProfile)
+	if usage.CacheCreationInputTokens != 0 || usage.CacheReadInputTokens != 0 {
+		t.Fatalf("expected no cache usage below threshold with existing unrelated entries, got %+v", usage)
+	}
+	if usage.CacheCreation5mInputTokens != 0 || usage.CacheCreation1hInputTokens != 0 {
+		t.Fatalf("expected no cache creation TTL breakdown below threshold with existing unrelated entries, got %+v", usage)
 	}
 }

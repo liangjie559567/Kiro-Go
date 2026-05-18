@@ -1,0 +1,27 @@
+{
+  "runId": "phase1-real-stream-20260517005448",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1749,
+    "max": 21054,
+    "avg": 8990,
+    "p50": 2669,
+    "p90": 20106,
+    "p95": 20852,
+    "p99": 21042
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/phase1-real-stream-20260517005448.jsonl"
+}

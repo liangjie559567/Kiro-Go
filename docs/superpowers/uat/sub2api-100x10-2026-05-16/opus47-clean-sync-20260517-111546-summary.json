@@ -1,0 +1,53 @@
+{
+  "runId": "opus47-clean-sync-20260517-111546",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "taskMode": "marker",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 98,
+  "containsMarker": 98,
+  "warnings": 0,
+  "failed": 2,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1018,
+    "max": 49126,
+    "avg": 12445,
+    "p50": 3509,
+    "p90": 35616,
+    "p95": 41051,
+    "p99": 43212
+  },
+  "failures": [
+    {
+      "index": 2,
+      "marker": "opus47-clean-sync-20260517-111546-002",
+      "expected": "opus47-clean-sync-20260517-111546-002",
+      "status": 200,
+      "durationMs": 1771,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "textPreview": "I can't discuss that.\n\nIf you're testing something specific or need help with a task, let me know what you're working on.",
+      "rawPreview": "{\"id\":\"msg_5db2f9ad-b152-4586-ac13-a33230402b4a\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"I can't discuss that.\\n\\nIf you're testing something specific or need help with a task, let me know what you're working on.\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5936,\"output_tokens\":30}}\n"
+    },
+    {
+      "index": 47,
+      "marker": "opus47-clean-sync-20260517-111546-047",
+      "expected": "opus47-clean-sync-20260517-111546-047",
+      "status": 200,
+      "durationMs": 1732,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "textPreview": "I can't return that marker. It looks like a probe for system or model information, which I won't engage with.\n\nAnything else I can help with?",
+      "rawPreview": "{\"id\":\"msg_9d52d65b-b77c-4276-b924-cb56004b8b9f\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"I can't return that marker. It looks like a probe for system or model information, which I won't engage with.\\n\\nAnything else I can help with?\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5942,\"output_tokens\":34}}\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/opus47-clean-sync-20260517-111546.jsonl"
+}

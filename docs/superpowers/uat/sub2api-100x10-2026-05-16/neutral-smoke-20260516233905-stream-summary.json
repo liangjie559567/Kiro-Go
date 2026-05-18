@@ -1,0 +1,27 @@
+{
+  "runId": "neutral-smoke-20260516233905-stream",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "model": "claude-opus-4-7",
+  "total": 1,
+  "concurrency": 1,
+  "success": 1,
+  "correct": 1,
+  "containsMarker": 1,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 1
+  },
+  "latencyMs": {
+    "min": 1166,
+    "max": 1166,
+    "avg": 1166,
+    "p50": 1166,
+    "p90": 1166,
+    "p95": 1166,
+    "p99": 1166
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/neutral-smoke-20260516233905-stream.jsonl"
+}

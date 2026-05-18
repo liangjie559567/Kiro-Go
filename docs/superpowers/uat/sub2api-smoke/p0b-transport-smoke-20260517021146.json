@@ -1,0 +1,58 @@
+{
+  "runId": "p0b-transport-smoke-20260517021146",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-16T18:11:46.472Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 38,
+    "modelCount": 31
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 9,
+    "body": {
+      "input_tokens": 28
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2202,
+    "text": "p0b-transport-smoke-20260517021146-marker",
+    "textTrimmed": "p0b-transport-smoke-20260517021146-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 4137,
+      "output_tokens": 16
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1717,
+    "text": "p0b-transport-smoke-20260517021146-marker",
+    "textTrimmed": "p0b-transport-smoke-20260517021146-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-16T18:11:50.439Z"
+}

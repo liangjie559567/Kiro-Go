@@ -1,0 +1,471 @@
+CGTall-AI
+v0.1.126
+Dashboard
+Ops
+Users
+Groups
+Channels
+Subscriptions
+Accounts
+Announcements
+Proxies
+Redeem Codes
+Promo Codes
+Usage
+Settings
+MY ACCOUNT
+API Keys
+Usage
+Available Channels
+Channel Status
+My Subscriptions
+Redeem
+Profile
+Dark Mode
+Collapse
+Usage Records
+
+View and manage all user usage records
+
+🇺🇸
+EN
+$9996451.51
+AD
+admin
+Admin
+
+Total Requests
+
+23,606
+
+in selected range
+
+Total Tokens
+
+1.37B
+
+In: 116.39M / Out: 5.74M
+
+Total Cost
+
+$1443.2905
+
+Cost $1443.2905 · Standard $1443.2905
+
+Avg Duration
+
+7.74s
+
+Time Range:
+Last 24 Hours
+Granularity:
+Hour
+Model Distribution
+Requested
+Upstream
+Mapping
+By Tokens
+By Actual Cost
+Model	Requests	Tokens	Actual	Cost	Standard
+
+gpt-5.5	13,250	1.26B	$1.01K	$1.01K	$1.01K
+
+claude-opus-4-7	3,167	77.72M	$336.01	$336.01	$336.01
+
+claude-sonnet-4.5	1,399	5.79M	$17.61	$17.61	$17.61
+
+claude-opus-4.7	412	2.44M	$12.26	$12.26	$12.26
+
+claude-opus-4.7-thinking	204	1.22M	$6.10	$6.10	$6.10
+
+deepseek-3.2	210	963.66K	$0.0000	$0.0000	$0.0000
+
+deepseek-3.2-thinking	204	945.75K	$0.0000	$0.0000	$0.0000
+
+claude-haiku-4.5-thinking	204	874.05K	$0.229	$0.229	$0.229
+
+claude-sonnet-4-thinking	204	872.47K	$2.74	$2.74	$2.74
+
+claude-sonnet-4.5-thinking	204	871.54K	$2.74	$2.74	$2.74
+
+claude-opus-4.5	210	865.56K	$4.33	$4.33	$4.33
+
+claude-haiku-4.5	210	865.29K	$0.217	$0.217	$0.217
+
+claude-opus-4.5-thinking	203	857.70K	$4.37	$4.37	$4.37
+
+claude-sonnet-4.6	208	857.68K	$2.58	$2.58	$2.58
+
+claude-opus-4.6	208	857.67K	$4.29	$4.29	$4.29
+
+claude-sonnet-4	208	857.27K	$2.57	$2.57	$2.57
+
+gpt-4o	208	856.83K	$2.14	$2.14	$2.14
+
+gpt-4	208	856.83K	$25.71	$25.71	$25.71
+
+claude-opus-4.6-thinking	204	856.02K	$4.31	$4.31	$4.31
+
+claude-sonnet-4.6-thinking	204	853.37K	$2.57	$2.57	$2.57
+
+minimax-m2.1	210	795.38K	$0.0000	$0.0000	$0.0000
+
+minimax-m2.5	210	793.41K	$0.0000	$0.0000	$0.0000
+
+minimax-m2.1-thinking	204	787.94K	$0.0000	$0.0000	$0.0000
+
+minimax-m2.5-thinking	204	784.62K	$0.0000	$0.0000	$0.0000
+
+glm-5	210	780.26K	$0.0000	$0.0000	$0.0000
+
+glm-5-thinking	204	765.18K	$0.0000	$0.0000	$0.0000
+
+qwen3-coder-next	210	611.92K	$0.0000	$0.0000	$0.0000
+
+qwen3-coder-next-thinking	204	600.39K	$0.0000	$0.0000	$0.0000
+
+auto	210	173.30K	$0.0000	$0.0000	$0.0000
+
+auto-thinking	204	172.24K	$0.0000	$0.0000	$0.0000
+
+gpt-5.2	4	34.19K	$0.097	$0.097	$0.097
+
+gpt-image-2	3	14.47K	$0.603	$0.603	$0.603
+Group Usage Distribution
+By Tokens
+By Actual Cost
+Group	Requests	Tokens	Actual	Cost	Standard
+
+openai	13,465	1.26B	$1.01K	$1.01K	$1.01K
+
+claude	10,141	106.51M	$430.57	$430.57	$430.57
+Endpoint Distribution
+Inbound
+Upstream
+Path
+By Tokens
+By Actual Cost
+Endpoint	Requests	Tokens	Actual	Standard
+
+/responses	11,177	1.26B	$1.01K	$1.01K
+
+/v1/messages	10,341	106.53M	$430.72	$430.72
+
+/v1/chat/completions	2,077	305.21K	$2.84	$2.84
+
+/v1/responses	8	19.09K	$0.058	$0.058
+
+/v1/images/generations	3	14.47K	$0.603	$0.603
+Token Usage Trend
+User
+API Key
+Model
+Select an option
+Account
+Type
+Select an option
+Billing Type
+All Billing Types
+Billing Mode
+Select an option
+Group
+Select an option
+Refresh
+Reset
+Column Settings
+Cleanup
+Export Excel
+USER
+	
+API KEY
+	
+ACCOUNT
+	
+MODEL
+	
+ENDPOINT
+	
+GROUP
+	
+TYPE
+	
+BILLING MODE
+	
+TOKENS
+	
+COST
+	
+FIRST TOKEN
+	
+DURATION
+	
+TIME
+	
+IP
+
+
+admin@sub2api.local#1
+	openai	openai030	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+327
+69
+160.1K
+	
+$0.083769
+A $0.083769
+	2.98s	4.48s	05/17/2026, 11:26:51	166.88.98.134
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+684
+37
+142.7K
+	
+$0.075890
+A $0.075890
+	2.27s	3.12s	05/17/2026, 11:26:48	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai030	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+2,137
+175
+158.1K
+	
+$0.094975
+A $0.094975
+	3.95s	7.21s	05/17/2026, 11:26:46	166.88.98.134
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+494
+83
+142.7K
+	
+$0.076320
+A $0.076320
+	2.53s	4.16s	05/17/2026, 11:26:43	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+960
+711
+166.8K
+	
+$0.109522
+A $0.109522
+	4.29s	17.50s	05/17/2026, 11:26:43	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+1,351
+118
+141.7K
+	
+$0.081143
+A $0.081143
+	2.48s	4.71s	05/17/2026, 11:26:39	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai030	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+2,398
+202
+156.0K
+	
+$0.096066
+A $0.096066
+	3.50s	10.20s	05/17/2026, 11:26:39	166.88.98.134
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+420
+88
+141.7K
+	
+$0.075588
+A $0.075588
+	2.93s	5.73s	05/17/2026, 11:26:34	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai030	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+466
+319
+156.0K
+	
+$0.089916
+A $0.089916
+	8.50s	8.57s	05/17/2026, 11:26:29	166.88.98.134
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+685
+77
+141.2K
+	
+$0.076327
+A $0.076327
+	2.15s	3.67s	05/17/2026, 11:26:28	166.88.99.147
+
+admin@sub2api.local#1
+	openai	ao4	gpt-5.5	
+Inbound:/v1/chat/completions
+Upstream:/v1/responses
+	openai	Sync	Token	
+67
+15
+	
+$0.000785
+A $0.000785
+	-	1.59s	05/17/2026, 11:26:28	172.24.0.4
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+699
+37
+166.8K
+	
+$0.087997
+A $0.087997
+	3.77s	4.54s	05/17/2026, 11:26:26	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+930
+218
+140.7K
+	
+$0.081526
+A $0.081526
+	2.29s	6.31s	05/17/2026, 11:26:25	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai030	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+345
+75
+156.0K
+	
+$0.081991
+A $0.081991
+	3.72s	5.34s	05/17/2026, 11:26:20	166.88.98.134
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+1,998
+106
+165.2K
+	
+$0.095794
+A $0.095794
+	2.05s	4.12s	05/17/2026, 11:26:20	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+457
+428
+140.7K
+	
+$0.085461
+A $0.085461
+	23.05s	30.98s	05/17/2026, 11:26:18	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+1,258
+302
+165.8K
+	
+$0.098230
+A $0.098230
+	1.64s	7.77s	05/17/2026, 11:26:15	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+13,581
+37
+152.4K
+	
+$0.145239
+A $0.145239
+	2.60s	3.45s	05/17/2026, 11:26:08	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai029	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+2,998
+878
+162.7K
+	
+$0.122674
+A $0.122674
+	5.52s	21.77s	05/17/2026, 11:26:03	166.88.99.147
+
+admin@sub2api.local#1
+	openai	openai021	gpt-5.5	
+Inbound:/responses
+Upstream:/v1/responses
+	openai	Stream	Token	
+3,765
+750
+137.1K
+	
+$0.109869
+A $0.109869
+	2.73s	16.44s	05/17/2026, 11:25:47	166.88.99.147
+
+Showing 1 to 20 of 21 results
+
+Per page:
+20
+1
+2

@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"kiro-go/config"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -197,6 +199,93 @@ func TestClaudeConversationIDStableFromAnchor(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroCarriesSystemPromptAsSyntheticHistoryPair(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:  "claude-sonnet-4.5",
+		System: "Answer in Chinese.",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "Explain this bug."},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	if len(payload.ConversationState.History) != 2 {
+		t.Fatalf("expected synthetic system history pair, got %d history entries: %#v", len(payload.ConversationState.History), payload.ConversationState.History)
+	}
+
+	systemUser := payload.ConversationState.History[0].UserInputMessage
+	if systemUser == nil {
+		t.Fatalf("expected first synthetic history entry to be user input")
+	}
+	systemAssistant := payload.ConversationState.History[1].AssistantResponseMessage
+	if systemAssistant == nil {
+		t.Fatalf("expected second synthetic history entry to be assistant acknowledgement")
+	}
+
+	systemContent := systemUser.Content
+	currentContent := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	for _, forbidden := range []string{"SYSTEM PROMPT", "END SYSTEM PROMPT"} {
+		if strings.Contains(systemContent, forbidden) || strings.Contains(currentContent, forbidden) {
+			t.Fatalf("expected no spoofable system prompt boundary %q, got system=%q current=%q", forbidden, systemContent, currentContent)
+		}
+	}
+	for _, forbidden := range []string{"API system field", "system field", "System:", "SYSTEM:", "<system>", "[SYSTEM]"} {
+		if strings.Contains(systemContent, forbidden) || strings.Contains(currentContent, forbidden) {
+			t.Fatalf("expected no spoofable system wrapper %q, got system=%q current=%q", forbidden, systemContent, currentContent)
+		}
+	}
+	if !strings.HasPrefix(systemContent, "Operator instructions for this session:") || !strings.Contains(systemContent, "Answer in Chinese.") {
+		t.Fatalf("expected system instructions in synthetic history user message, got %q", systemContent)
+	}
+	if systemAssistant.Content != kiroSystemAcknowledgement {
+		t.Fatalf("expected stable acknowledgement %q, got %q", kiroSystemAcknowledgement, systemAssistant.Content)
+	}
+	if currentContent != "Explain this bug." {
+		t.Fatalf("expected current user content without system prelude, got %q", currentContent)
+	}
+}
+
+func TestClaudeToKiroDoesNotInjectSystemContextIntoCurrentToolResultTurn(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:  "claude-sonnet-4.5",
+		System: "Answer in Chinese.",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "Read the file."},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_1",
+					"name":  "read_file",
+					"input": map[string]interface{}{"path": "README.md"},
+				},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_1",
+					"content":     "README content",
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	for _, forbidden := range []string{"API system field", "system field", "Answer in Chinese."} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("expected current tool-result turn not to expose system context %q, got %q", forbidden, content)
+		}
+	}
+	if !strings.Contains(content, toolResultsContinuationPrefix) || !strings.Contains(content, "README content") {
+		t.Fatalf("expected tool-result continuation to remain, got %q", content)
+	}
+	if ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext; ctx == nil || len(ctx.ToolResults) != 1 {
+		t.Fatalf("expected current tool result context to remain, got %#v", ctx)
+	}
+}
+
 func TestClaudeToKiroExpandsToolReferencesWithSchema(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",
@@ -226,6 +315,61 @@ func TestClaudeToKiroExpandsToolReferencesWithSchema(t *testing.T) {
 	}
 	if got := payload.ToolNameMap[tool.ToolSpecification.Name]; got != "mcp__filesystem__read_file" {
 		t.Fatalf("expected outward name mapping, got %q", got)
+	}
+}
+
+func TestClaudeToKiroLazyLoadsRelevantToolReferences(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "please read project files"}},
+		Tools: []ClaudeTool{{
+			Name:        "explicit_tool",
+			Description: "Explicit client tool",
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		ToolReferences: []ClaudeToolReference{
+			{
+				Type:        "tool_reference",
+				ID:          "toolref_read",
+				Name:        "Read",
+				Description: "Read project files",
+				InputSchema: map[string]interface{}{"type": "object"},
+			},
+			{
+				Type:        "tool_reference",
+				ID:          "toolref_bash",
+				Name:        "Bash",
+				Description: "Run shell commands",
+				InputSchema: map[string]interface{}{"type": "object"},
+			},
+			{
+				Type:        "tool_reference",
+				ID:          "toolref_browser",
+				Name:        "mcp__browser__screenshot",
+				Description: "Capture browser screenshot",
+				InputSchema: map[string]interface{}{"type": "object"},
+			},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+	if ctx == nil {
+		t.Fatalf("expected tool context")
+	}
+	var names []string
+	for _, tool := range ctx.Tools {
+		names = append(names, tool.ToolSpecification.Name)
+	}
+	if strings.Join(names, ",") != "explicitTool,read,bash" {
+		t.Fatalf("expected explicit plus relevant/core references only, got %v", names)
+	}
+	if got := strings.Join(payload.MaterializedToolReferenceNames, ","); got != "Read,Bash" {
+		t.Fatalf("expected materialized reference metadata, got %q", got)
+	}
+	if got := strings.Join(payload.DeferredToolReferenceNames, ","); got != "mcp__browser__screenshot" {
+		t.Fatalf("expected deferred reference metadata, got %q", got)
 	}
 }
 
@@ -321,6 +465,101 @@ func TestClaudeToKiroStripsClaudeCodeTransportSystemMetadata(t *testing.T) {
 	}
 	if content != "hello" {
 		t.Fatalf("expected only user content to remain, got %q", content)
+	}
+}
+
+func TestClaudeCodePromptPreservesToolGuidanceAndStripsVolatileNoise(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePromptFilterConfig(true, true, true, nil); err != nil {
+		t.Fatalf("update prompt filter: %v", err)
+	}
+
+	req := &ClaudeRequest{
+		Model:     "claude-opus-4-7",
+		MaxTokens: 128,
+		System: `x-anthropic-billing-header: cc_version=2.1.92.abc; cc_entrypoint=cli; cch=00000;
+You are Claude Code, Anthropic's official CLI for Claude.
+<thinking_mode>enabled</thinking_mode>
+
+# Tone and style
+You are an interactive agent that helps users with software engineering tasks.
+
+# Doing tasks
+Work through the user's request carefully.
+
+# Using your tools
+Use tools when needed.
+
+gitStatus: dirty
+Recent commits: abc123
+
+# Project memory
+CLAUDE.md says: Always run targeted tests before reporting results.`,
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "hello"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	if len(payload.ConversationState.History) < 2 || payload.ConversationState.History[0].UserInputMessage == nil {
+		t.Fatalf("expected system prompt to be carried in synthetic history, got %#v", payload.ConversationState.History)
+	}
+	content := payload.ConversationState.History[0].UserInputMessage.Content
+
+	for _, forbidden := range []string{"SYSTEM PROMPT", "hidden system", "developer instructions", "x-anthropic-billing-header", "<thinking_mode>", "gitStatus:", "Recent commits:", "Anthropic's official CLI"} {
+		if strings.Contains(strings.ToLower(content), strings.ToLower(forbidden)) {
+			t.Fatalf("expected sanitized Claude Code prompt to avoid %q, got %q", forbidden, content)
+		}
+	}
+	for _, required := range []string{"# Tone and style", "# Doing tasks", "# Using your tools", "CLAUDE.md says: Always run targeted tests before reporting results."} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("expected Claude Code guidance %q to be preserved, got %q", required, content)
+		}
+	}
+	if payload.ConversationState.CurrentMessage.UserInputMessage.Content != "hello" {
+		t.Fatalf("expected current user content to stay clean, got %q", payload.ConversationState.CurrentMessage.UserInputMessage.Content)
+	}
+}
+
+func TestClaudeCodeStructuredSystemPromptPreservesUsefulSections(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePromptFilterConfig(true, true, true, nil); err != nil {
+		t.Fatalf("update prompt filter: %v", err)
+	}
+
+	req := &ClaudeRequest{
+		Model:     "claude-opus-4-7",
+		MaxTokens: 128,
+		System: []interface{}{
+			map[string]interface{}{"type": "text", "text": "x-anthropic-billing-header: cc_version=2.1.143; cc_entrypoint=cli; cch=00000;"},
+			map[string]interface{}{"type": "text", "text": "You are Claude Code, Anthropic's official CLI for Claude."},
+			map[string]interface{}{"type": "text", "text": "# Using your tools\nUse tools when needed."},
+		},
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "hello"},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	if len(payload.ConversationState.History) < 2 || payload.ConversationState.History[0].UserInputMessage == nil {
+		t.Fatalf("expected system prompt to be carried in synthetic history, got %#v", payload.ConversationState.History)
+	}
+	content := payload.ConversationState.History[0].UserInputMessage.Content
+
+	for _, forbidden := range []string{"x-anthropic-billing-header", "Anthropic's official CLI", "SYSTEM PROMPT"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("expected structured Claude Code transport prompt noise stripped, forbidden %q in %q", forbidden, content)
+		}
+	}
+	if !strings.Contains(content, "# Using your tools") || !strings.Contains(content, "Use tools when needed.") {
+		t.Fatalf("expected useful Claude Code tool guidance to be preserved, got %q", content)
+	}
+	if payload.ConversationState.CurrentMessage.UserInputMessage.Content != "hello" {
+		t.Fatalf("expected current user content to stay clean, got %q", payload.ConversationState.CurrentMessage.UserInputMessage.Content)
 	}
 }
 
@@ -584,6 +823,85 @@ func TestOpenAIResponsesToChatRequestNormalizesInstructionsAndInput(t *testing.T
 	}
 	if req.Messages[1].Role != "user" || req.Messages[1].Content != "Hello from Responses" {
 		t.Fatalf("unexpected user message: %#v", req.Messages[1])
+	}
+}
+
+func TestOpenAIResponsesToChatRequestPreservesFunctionTools(t *testing.T) {
+	payload := map[string]interface{}{
+		"model": "claude-sonnet-4.5",
+		"input": "read the file",
+		"tools": []interface{}{
+			map[string]interface{}{
+				"type":        "function",
+				"name":        "read_file",
+				"description": "Read a file",
+				"parameters": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"path": map[string]interface{}{"type": "string"},
+					},
+					"required": []interface{}{"path"},
+				},
+			},
+		},
+		"tool_choice": "auto",
+	}
+
+	req, err := OpenAIResponsesToChatRequest(payload)
+	if err != nil {
+		t.Fatalf("responses normalize: %v", err)
+	}
+	if len(req.Tools) != 1 {
+		t.Fatalf("expected one converted function tool, got %#v", req.Tools)
+	}
+	if req.Tools[0].Type != "function" || req.Tools[0].Function.Name != "read_file" {
+		t.Fatalf("unexpected function tool: %#v", req.Tools[0])
+	}
+	if req.Tools[0].Function.Description != "Read a file" {
+		t.Fatalf("unexpected tool description: %#v", req.Tools[0].Function.Description)
+	}
+	params, ok := req.Tools[0].Function.Parameters.(map[string]interface{})
+	if !ok || params["type"] != "object" {
+		t.Fatalf("expected parameters object, got %#v", req.Tools[0].Function.Parameters)
+	}
+}
+
+func TestOpenAIResponsesToChatRequestConvertsFunctionCallOutput(t *testing.T) {
+	payload := map[string]interface{}{
+		"model": "claude-sonnet-4.5",
+		"input": []interface{}{
+			map[string]interface{}{
+				"type":      "function_call",
+				"id":        "fc_1",
+				"call_id":   "call_1",
+				"name":      "read_file",
+				"arguments": `{"path":"/tmp/a.go"}`,
+			},
+			map[string]interface{}{
+				"type":    "function_call_output",
+				"call_id": "call_1",
+				"output":  "package main\n",
+			},
+		},
+	}
+
+	req, err := OpenAIResponsesToChatRequest(payload)
+	if err != nil {
+		t.Fatalf("responses normalize: %v", err)
+	}
+	if len(req.Messages) != 2 {
+		t.Fatalf("expected assistant tool call and tool output messages, got %#v", req.Messages)
+	}
+	assistant := req.Messages[0]
+	if assistant.Role != "assistant" || len(assistant.ToolCalls) != 1 {
+		t.Fatalf("expected assistant tool call, got %#v", assistant)
+	}
+	if assistant.ToolCalls[0].ID != "call_1" || assistant.ToolCalls[0].Function.Name != "read_file" || assistant.ToolCalls[0].Function.Arguments != `{"path":"/tmp/a.go"}` {
+		t.Fatalf("unexpected assistant tool call: %#v", assistant.ToolCalls[0])
+	}
+	tool := req.Messages[1]
+	if tool.Role != "tool" || tool.ToolCallID != "call_1" || tool.Content != "package main\n" {
+		t.Fatalf("unexpected tool output message: %#v", tool)
 	}
 }
 

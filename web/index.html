@@ -3048,19 +3048,55 @@
                 const statusColor = log.outcome === 'success' ? '#059669' : '#dc2626';
                 const tokenText = (log.inputTokens || 0) + ' / ' + (log.outputTokens || 0);
                 const latencyText = (log.durationMs || 0) + 'ms';
+                const compactValue = (value) => {
+                    if (value === undefined || value === null || value === '') return '-';
+                    if (Array.isArray(value)) {
+                        if (!value.length) return '-';
+                        const items = value.slice(0, 3).map(item => {
+                            if (item && typeof item === 'object') return JSON.stringify(item);
+                            return String(item);
+                        });
+                        return items.join(',') + (value.length > 3 ? ',+' + (value.length - 3) : '');
+                    }
+                    if (typeof value === 'object') return JSON.stringify(value);
+                    return String(value);
+                };
                 const reliability = [
                     'q:' + (log.queueWaitMs || 0) + 'ms',
                     'ft:' + (log.firstTokenMs || 0) + 'ms',
                     'try:' + (log.attempts || 1),
                     'tool:' + (log.toolUseCount || 0)
                 ].join(' ');
+                const routing = [
+                    'route:' + compactValue(log.routingDecision),
+                    'strategy:' + compactValue(log.routingStrategy),
+                    'pressure:' + compactValue(log.routingPressure)
+                ].join(' ');
+                const health = [
+                    'h:' + (log.accountHealthScore || 0),
+                    'conn:' + (log.accountActiveConnections || 0),
+                    'lat:' + (log.accountAvgLatencyMs || 0) + 'ms',
+                    'ok/fail:' + (log.accountRecentSuccesses || 0) + '/' + (log.accountRecentFailures || 0)
+                ].join(' ');
+                const toolBudget = [
+                    'tools:' + (log.payloadCurrentTools || 0),
+                    'schema:' + (log.payloadCurrentToolSchemaBytes || 0),
+                    'kept:' + ((log.payloadKeptTools || []).join(',') || '-'),
+                    'trimmed:' + ((log.payloadTrimmedTools || []).join(',') || '-')
+                ].join(' ');
+                const payloadMeta = [
+                    'defer:' + compactValue(log.payloadDeferredTools),
+                    'mat:' + compactValue(log.payloadMaterializedToolRefs),
+                    'pairs:' + compactValue(log.payloadCompactedPairs),
+                    'results:' + compactValue(log.payloadCompactedToolResults)
+                ].join(' ');
                 const accountText = [log.accountId || '-', log.region || ''].filter(Boolean).join(' / ');
                 return '<tr style="border-bottom:1px solid #f1f5f9">' +
                     '<td style="padding:8px;white-space:nowrap">' + escapeHtml(ts) + '</td>' +
-                    '<td style="padding:8px">' + escapeHtml(log.model || '-') + '</td>' +
-                    '<td style="padding:8px">' + escapeHtml(accountText) + '</td>' +
+                    '<td style="padding:8px" title="' + escapeHtml(routing) + '">' + escapeHtml(log.model || '-') + '<br><small style="color:#64748b">' + escapeHtml(routing) + '</small></td>' +
+                    '<td style="padding:8px" title="' + escapeHtml(health) + '">' + escapeHtml(accountText) + '<br><small style="color:#64748b">' + escapeHtml(health) + '</small></td>' +
                     '<td style="padding:8px;color:' + statusColor + '">' + (log.statusCode || '-') + '</td>' +
-                    '<td style="padding:8px" title="' + escapeHtml(reliability) + '">' + escapeHtml(latencyText) + '<br><small style="color:#64748b">' + escapeHtml(reliability) + '</small></td>' +
+                    '<td style="padding:8px" title="' + escapeHtml(reliability + ' | ' + toolBudget + ' | ' + payloadMeta) + '">' + escapeHtml(latencyText) + '<br><small style="color:#64748b">' + escapeHtml(reliability) + '</small><br><small style="color:#64748b">' + escapeHtml(payloadMeta) + '</small></td>' +
                     '<td style="padding:8px">' + escapeHtml(tokenText) + '</td>' +
                     '<td style="padding:8px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + escapeHtml(log.error || '') + '">' + escapeHtml(log.error || log.errorType || '-') + '</td>' +
                     '</tr>';
