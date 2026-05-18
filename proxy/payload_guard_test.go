@@ -116,6 +116,10 @@ func TestGuardKiroPayloadTruncatesLargeCurrentToolResult(t *testing.T) {
 	payload := ClaudeToKiro(&ClaudeRequest{
 		Model: "claude-opus-4.7",
 		Messages: []ClaudeMessage{
+			{Role: "user", Content: "read a large file"},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_now", "name": "readFile", "input": map[string]interface{}{"path": "large.txt"}},
+			}},
 			{Role: "user", Content: []interface{}{
 				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_now", "content": strings.Repeat("x", 4096)},
 			}},
