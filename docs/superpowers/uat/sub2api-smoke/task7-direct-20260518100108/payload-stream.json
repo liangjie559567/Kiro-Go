@@ -1,0 +1,1 @@
+{"model":"claude-sonnet-4.5","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"Return exactly this marker and nothing else: task7-direct-20260518100108-marker"}]}

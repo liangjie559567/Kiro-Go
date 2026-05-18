@@ -1,0 +1,15 @@
+{
+  "marker": "task7-direct-20260518100108-marker",
+  "sync": {
+    "status": 200,
+    "text": "task7-direct-20260518100108-marker",
+    "correct": true
+  },
+  "stream": {
+    "status": 200,
+    "text": "task7-direct-20260518100108-marker",
+    "correct": true,
+    "hasMessageStop": true,
+    "eventCount": 6
+  }
+}

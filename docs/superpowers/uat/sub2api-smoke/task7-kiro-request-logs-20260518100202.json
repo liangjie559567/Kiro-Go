@@ -1,0 +1,49 @@
+{
+  "logs": [
+    {
+      "requestId": "task7-direct-20260518100108-stream",
+      "clientRequestId": null,
+      "endpoint": "/v1/messages",
+      "model": "claude-sonnet-4.5",
+      "stream": true,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 1853,
+      "accountId": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+      "region": "us-east-1",
+      "attempts": 1,
+      "firstTokenMs": 1763,
+      "inputTokens": 4131,
+      "outputTokens": 14,
+      "payloadTrimmed": null,
+      "payloadDroppedToolCount": null,
+      "payloadDroppedMCPToolCount": null,
+      "recentResponsesRestore": null,
+      "toolUseCount": null
+    },
+    {
+      "requestId": "task7-direct-20260518100108-sync",
+      "clientRequestId": null,
+      "endpoint": "/v1/messages",
+      "model": "claude-sonnet-4.5",
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 2686,
+      "accountId": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+      "region": "us-east-1",
+      "attempts": 1,
+      "firstTokenMs": 2536,
+      "inputTokens": 4131,
+      "outputTokens": 14,
+      "payloadTrimmed": null,
+      "payloadDroppedToolCount": null,
+      "payloadDroppedMCPToolCount": null,
+      "recentResponsesRestore": null,
+      "toolUseCount": null
+    }
+  ],
+  "stats": {
+    "count": 6
+  }
+}
