@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -19,6 +20,8 @@ type anthropicEnvelope struct {
 	UserAgent          string
 	SessionID          string
 	AgentID            string
+	ParentAgentID      string
+	OfficialExtraKeys  []string
 }
 
 func parseAnthropicEnvelope(r *http.Request, body []byte) (*anthropicEnvelope, error) {
@@ -43,6 +46,7 @@ func parseAnthropicEnvelope(r *http.Request, body []byte) (*anthropicEnvelope, e
 			req.Extra[key] = decoded
 		}
 	}
+	officialExtraKeys := officialAnthropicExtraKeys(raw)
 	requestID := strings.TrimSpace(r.Header.Get("request-id"))
 	if requestID == "" {
 		requestID = strings.TrimSpace(r.Header.Get("x-request-id"))
@@ -62,7 +66,29 @@ func parseAnthropicEnvelope(r *http.Request, body []byte) (*anthropicEnvelope, e
 		UserAgent:          strings.TrimSpace(r.UserAgent()),
 		SessionID:          firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id"),
 		AgentID:            firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-agent-id"),
+		ParentAgentID:      firstNonEmptyHeader(r, "x-claude-code-parent-agent-id", "x-claude-parent-agent-id"),
+		OfficialExtraKeys:  officialExtraKeys,
 	}, nil
+}
+
+func officialAnthropicExtraKeys(raw map[string]json.RawMessage) []string {
+	official := map[string]bool{
+		"container":          true,
+		"context_management": true,
+		"mcp_servers":        true,
+		"service_tier":       true,
+		"metadata":           true,
+		"stop_sequences":     true,
+		"cache_control":      true,
+	}
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		if official[key] {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func parseAnthropicBetas(header string) map[string]bool {

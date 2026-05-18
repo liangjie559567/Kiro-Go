@@ -1,10 +1,12 @@
 package proxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -45,6 +47,40 @@ func TestParseAnthropicEnvelopeCapturesBetaAndUnknownFields(t *testing.T) {
 	}
 	if env.ClientRequestID != "client-req-1" {
 		t.Fatalf("unexpected request id %q", env.ClientRequestID)
+	}
+}
+
+func TestParseAnthropicEnvelopeCapturesParentAgentAndOfficialExtras(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4.5",
+		"max_tokens":64,
+		"messages":[{"role":"user","content":"hello"}],
+		"container":{"id":"container_1"},
+		"context_management":{"clear_function_results":true},
+		"mcp_servers":[{"name":"repo"}],
+		"service_tier":"standard_only",
+		"metadata":{"user_id":"u1"},
+		"stop_sequences":["END"]
+	}`)
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
+	r.Header.Set("X-Claude-Code-Session-Id", "session_1")
+	r.Header.Set("X-Claude-Code-Agent-Id", "agent_1")
+	r.Header.Set("X-Claude-Code-Parent-Agent-Id", "parent_1")
+	r.Header.Set("anthropic-beta", "fine-grained-tool-streaming-2025-05-14,context-management-2025-06-27")
+
+	env, err := parseAnthropicEnvelope(r, body)
+	if err != nil {
+		t.Fatalf("parseAnthropicEnvelope returned error: %v", err)
+	}
+	if env.ParentAgentID != "parent_1" {
+		t.Fatalf("expected parent agent id, got %q", env.ParentAgentID)
+	}
+	want := "container,context_management,mcp_servers,metadata,service_tier,stop_sequences"
+	if got := strings.Join(env.OfficialExtraKeys, ","); got != want {
+		t.Fatalf("expected official extra keys %q, got %q", want, got)
+	}
+	if !env.HasBeta("fine-grained-tool-streaming-2025-05-14") {
+		t.Fatalf("expected fine-grained beta to be parsed")
 	}
 }
 

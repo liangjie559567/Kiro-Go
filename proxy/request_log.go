@@ -20,53 +20,57 @@ const (
 )
 
 type RequestLogEntry struct {
-	Timestamp                     time.Time `json:"timestamp"`
-	RequestID                     string    `json:"requestId"`
-	Method                        string    `json:"method"`
-	Endpoint                      string    `json:"endpoint"`
-	Model                         string    `json:"model,omitempty"`
-	AccountID                     string    `json:"accountId,omitempty"`
-	Region                        string    `json:"region,omitempty"`
-	ClaudeCodeSessionID           string    `json:"claudeCodeSessionId,omitempty"`
-	ClaudeCodeAgentID             string    `json:"claudeCodeAgentId,omitempty"`
-	AnthropicRequestID            string    `json:"anthropicRequestId,omitempty"`
-	AnthropicVersion              string    `json:"anthropicVersion,omitempty"`
-	AnthropicBetas                []string  `json:"anthropicBetas,omitempty"`
-	ToolReferenceCount            int       `json:"toolReferenceCount,omitempty"`
-	PayloadOriginalBytes          int       `json:"payloadOriginalBytes,omitempty"`
-	PayloadFinalBytes             int       `json:"payloadFinalBytes,omitempty"`
-	PayloadTrimmed                bool      `json:"payloadTrimmed,omitempty"`
-	PayloadTrimmedCount           int       `json:"payloadTrimmedCount,omitempty"`
-	PayloadCurrentTools           int       `json:"payloadCurrentTools,omitempty"`
-	PayloadCurrentToolSchemaBytes int       `json:"payloadCurrentToolSchemaBytes,omitempty"`
-	PayloadKeptTools              []string  `json:"payloadKeptTools,omitempty"`
-	PayloadTrimmedTools           []string  `json:"payloadTrimmedTools,omitempty"`
-	PayloadDeferredTools          []string  `json:"payloadDeferredTools,omitempty"`
-	PayloadMaterializedToolRefs   []string  `json:"payloadMaterializedToolRefs,omitempty"`
-	PayloadCompactedPairs         int       `json:"payloadCompactedPairs,omitempty"`
-	PayloadCompactedToolResults   int       `json:"payloadCompactedToolResults,omitempty"`
-	AccountActiveConnections      int       `json:"accountActiveConnections,omitempty"`
-	AccountRecentFailures         int       `json:"accountRecentFailures,omitempty"`
-	AccountRecentSuccesses        int       `json:"accountRecentSuccesses,omitempty"`
-	AccountAvgLatencyMS           int64     `json:"accountAvgLatencyMs,omitempty"`
-	AccountHealthScore            int       `json:"accountHealthScore,omitempty"`
-	RoutingDecision               string    `json:"routingDecision,omitempty"`
-	RoutingStrategy               string    `json:"routingStrategy,omitempty"`
-	RoutingPressure               bool      `json:"routingPressure,omitempty"`
-	Stream                        bool      `json:"stream"`
-	StatusCode                    int       `json:"statusCode"`
-	Outcome                       string    `json:"outcome"`
-	DurationMs                    int64     `json:"durationMs"`
-	QueueWaitMs                   int64     `json:"queueWaitMs,omitempty"`
-	FirstTokenMs                  int64     `json:"firstTokenMs,omitempty"`
-	Attempts                      int       `json:"attempts,omitempty"`
-	ToolUseCount                  int       `json:"toolUseCount,omitempty"`
-	InputTokens                   int       `json:"inputTokens,omitempty"`
-	OutputTokens                  int       `json:"outputTokens,omitempty"`
-	CacheReadInputTokens          int       `json:"cacheReadInputTokens,omitempty"`
-	CacheCreationInputTokens      int       `json:"cacheCreationInputTokens,omitempty"`
-	ErrorType                     string    `json:"errorType,omitempty"`
-	Error                         string    `json:"error,omitempty"`
+	Timestamp                         time.Time `json:"timestamp"`
+	RequestID                         string    `json:"requestId"`
+	Method                            string    `json:"method"`
+	Endpoint                          string    `json:"endpoint"`
+	Model                             string    `json:"model,omitempty"`
+	AccountID                         string    `json:"accountId,omitempty"`
+	Region                            string    `json:"region,omitempty"`
+	ClaudeCodeSessionID               string    `json:"claudeCodeSessionId,omitempty"`
+	ClaudeCodeAgentID                 string    `json:"claudeCodeAgentId,omitempty"`
+	ClaudeCodeParentAgentID           string    `json:"claudeCodeParentAgentId,omitempty"`
+	AnthropicRequestID                string    `json:"anthropicRequestId,omitempty"`
+	AnthropicVersion                  string    `json:"anthropicVersion,omitempty"`
+	AnthropicBetas                    []string  `json:"anthropicBetas,omitempty"`
+	ToolReferenceCount                int       `json:"toolReferenceCount,omitempty"`
+	PayloadOriginalBytes              int       `json:"payloadOriginalBytes,omitempty"`
+	PayloadFinalBytes                 int       `json:"payloadFinalBytes,omitempty"`
+	PayloadTrimmed                    bool      `json:"payloadTrimmed,omitempty"`
+	PayloadTrimmedCount               int       `json:"payloadTrimmedCount,omitempty"`
+	PayloadCurrentTools               int       `json:"payloadCurrentTools,omitempty"`
+	PayloadCurrentToolSchemaBytes     int       `json:"payloadCurrentToolSchemaBytes,omitempty"`
+	PayloadKeptTools                  []string  `json:"payloadKeptTools,omitempty"`
+	PayloadTrimmedTools               []string  `json:"payloadTrimmedTools,omitempty"`
+	PayloadDeferredTools              []string  `json:"payloadDeferredTools,omitempty"`
+	PayloadMaterializedToolRefs       []string  `json:"payloadMaterializedToolRefs,omitempty"`
+	PayloadCompactedPairs             int       `json:"payloadCompactedPairs,omitempty"`
+	PayloadCompactedToolResults       int       `json:"payloadCompactedToolResults,omitempty"`
+	PayloadUnknownOfficialFields      []string  `json:"payloadUnknownOfficialFields,omitempty"`
+	FineGrainedToolStreamingRequested bool      `json:"fineGrainedToolStreamingRequested,omitempty"`
+	FineGrainedToolStreamingMode      string    `json:"fineGrainedToolStreamingMode,omitempty"`
+	AccountActiveConnections          int       `json:"accountActiveConnections,omitempty"`
+	AccountRecentFailures             int       `json:"accountRecentFailures,omitempty"`
+	AccountRecentSuccesses            int       `json:"accountRecentSuccesses,omitempty"`
+	AccountAvgLatencyMS               int64     `json:"accountAvgLatencyMs,omitempty"`
+	AccountHealthScore                int       `json:"accountHealthScore,omitempty"`
+	RoutingDecision                   string    `json:"routingDecision,omitempty"`
+	RoutingStrategy                   string    `json:"routingStrategy,omitempty"`
+	RoutingPressure                   bool      `json:"routingPressure,omitempty"`
+	Stream                            bool      `json:"stream"`
+	StatusCode                        int       `json:"statusCode"`
+	Outcome                           string    `json:"outcome"`
+	DurationMs                        int64     `json:"durationMs"`
+	QueueWaitMs                       int64     `json:"queueWaitMs,omitempty"`
+	FirstTokenMs                      int64     `json:"firstTokenMs,omitempty"`
+	Attempts                          int       `json:"attempts,omitempty"`
+	ToolUseCount                      int       `json:"toolUseCount,omitempty"`
+	InputTokens                       int       `json:"inputTokens,omitempty"`
+	OutputTokens                      int       `json:"outputTokens,omitempty"`
+	CacheReadInputTokens              int       `json:"cacheReadInputTokens,omitempty"`
+	CacheCreationInputTokens          int       `json:"cacheCreationInputTokens,omitempty"`
+	ErrorType                         string    `json:"errorType,omitempty"`
+	Error                             string    `json:"error,omitempty"`
 }
 
 type AccountRequestHealthSnapshot struct {
@@ -228,12 +232,13 @@ func (h *Handler) beginRequestLog(w http.ResponseWriter, r *http.Request) (*requ
 	ctx := &requestLogContext{
 		startedAt: time.Now(),
 		entry: RequestLogEntry{
-			Timestamp:           time.Now().UTC(),
-			RequestID:           requestID,
-			Method:              r.Method,
-			Endpoint:            r.URL.Path,
-			ClaudeCodeSessionID: strings.TrimSpace(r.Header.Get("X-Claude-Code-Session-Id")),
-			ClaudeCodeAgentID:   strings.TrimSpace(r.Header.Get("X-Claude-Code-Agent-Id")),
+			Timestamp:               time.Now().UTC(),
+			RequestID:               requestID,
+			Method:                  r.Method,
+			Endpoint:                r.URL.Path,
+			ClaudeCodeSessionID:     strings.TrimSpace(r.Header.Get("X-Claude-Code-Session-Id")),
+			ClaudeCodeAgentID:       strings.TrimSpace(r.Header.Get("X-Claude-Code-Agent-Id")),
+			ClaudeCodeParentAgentID: firstNonEmptyHeader(r, "X-Claude-Code-Parent-Agent-Id", "X-Claude-Parent-Agent-Id"),
 		},
 	}
 	recorder := &responseLogWriter{ResponseWriter: w}
@@ -279,6 +284,12 @@ func updateRequestLogAnthropic(r *http.Request, env *anthropicEnvelope) {
 	ctx.entry.AnthropicVersion = env.AnthropicVersion
 	ctx.entry.AnthropicBetas = sortedAnthropicBetas(env.Betas)
 	ctx.entry.ToolReferenceCount = len(env.Request.ToolReferences)
+	ctx.entry.ClaudeCodeParentAgentID = env.ParentAgentID
+	ctx.entry.PayloadUnknownOfficialFields = append([]string(nil), env.OfficialExtraKeys...)
+	if env.HasBeta("fine-grained-tool-streaming-2025-05-14") {
+		ctx.entry.FineGrainedToolStreamingRequested = true
+		ctx.entry.FineGrainedToolStreamingMode = "requested_partial"
+	}
 }
 
 func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {

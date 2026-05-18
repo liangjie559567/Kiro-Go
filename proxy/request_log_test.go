@@ -183,6 +183,47 @@ func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesParentAgentAndOfficialExtras(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	req.Header.Set("X-Claude-Code-Session-Id", "session_1")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent_1")
+	req.Header.Set("X-Claude-Code-Parent-Agent-Id", "parent_1")
+	rr := httptest.NewRecorder()
+
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+	if ctx == nil || recorder == nil {
+		t.Fatalf("expected request log context")
+	}
+	env := &anthropicEnvelope{
+		Request:           ClaudeRequest{Model: "claude-sonnet-4.5"},
+		SessionID:         "session_1",
+		AgentID:           "agent_1",
+		ParentAgentID:     "parent_1",
+		AnthropicVersion:  "2023-06-01",
+		BetaHeader:        "fine-grained-tool-streaming-2025-05-14",
+		Betas:             parseAnthropicBetas("fine-grained-tool-streaming-2025-05-14"),
+		OfficialExtraKeys: []string{"container", "mcp_servers"},
+	}
+	updateRequestLogAnthropic(loggedReq, env)
+	h.finishRequestLog(ctx, recorder)
+
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one log entry")
+	}
+	entry := entries[0]
+	if entry.ClaudeCodeParentAgentID != "parent_1" {
+		t.Fatalf("expected parent agent id, got %#v", entry)
+	}
+	if got := strings.Join(entry.PayloadUnknownOfficialFields, ","); got != "container,mcp_servers" {
+		t.Fatalf("expected official extra fields, got %#v", entry.PayloadUnknownOfficialFields)
+	}
+	if !entry.FineGrainedToolStreamingRequested || entry.FineGrainedToolStreamingMode != "requested_partial" {
+		t.Fatalf("expected fine-grained telemetry, got %#v", entry)
+	}
+}
+
 func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
