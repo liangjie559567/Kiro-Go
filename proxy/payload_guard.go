@@ -741,16 +741,24 @@ func truncateCurrentToolResultContinuationForPayload(payload *KiroPayload, budge
 		return false
 	}
 	current := &payload.ConversationState.CurrentMessage.UserInputMessage
-	if !strings.HasPrefix(current.Content, toolResultsContinuationPrefix) {
+	idx := strings.Index(current.Content, toolResultsContinuationPrefix)
+	if idx < 0 {
 		return false
 	}
 	if budgetBytes < minCurrentToolResultTextBytes {
 		budgetBytes = minCurrentToolResultTextBytes
 	}
-	if len(current.Content) <= budgetBytes {
+	prefix := strings.TrimSpace(current.Content[:idx])
+	continuation := strings.TrimSpace(current.Content[idx:])
+	if len(continuation) <= budgetBytes {
 		return false
 	}
-	current.Content = truncateTextWithNotice(current.Content, budgetBytes)
+	truncated := truncateTextWithNotice(continuation, budgetBytes)
+	if prefix == "" {
+		current.Content = truncated
+		return true
+	}
+	current.Content = prefix + "\n\n" + truncated
 	return true
 }
 

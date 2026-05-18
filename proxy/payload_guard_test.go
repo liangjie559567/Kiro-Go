@@ -146,6 +146,47 @@ func TestGuardKiroPayloadTruncatesLargeCurrentToolResult(t *testing.T) {
 	}
 }
 
+func TestGuardKiroPayloadKeepsRelocatedDocsAheadOfToolResultContinuation(t *testing.T) {
+	longDescription := strings.Repeat("Detailed usage guidance for the browser tool. ", 30)
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model: "claude-opus-4.7",
+		Tools: []ClaudeTool{{
+			Name:        "mcp__browser__screenshot",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		Messages: []ClaudeMessage{
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_now", "name": "mcp__browser__screenshot", "input": map[string]interface{}{}},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_now", "content": strings.Repeat("x", 4096)},
+			}},
+		},
+		MaxTokens: 64,
+	}, false)
+
+	result, err := guardKiroPayload(payload, payloadGuardOptions{SoftLimitBytes: 1024, HardLimitBytes: 7500})
+	if err != nil {
+		t.Fatalf("expected guard to truncate current tool_result, got error: %v", err)
+	}
+	if !result.Trimmed {
+		t.Fatalf("expected current tool_result trimming")
+	}
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	docIndex := strings.Index(content, "Operator tool documentation for this session")
+	continuationIndex := strings.Index(content, toolResultsContinuationPrefix)
+	if docIndex < 0 {
+		t.Fatalf("expected relocated docs after guard, got %q", content)
+	}
+	if continuationIndex < 0 {
+		t.Fatalf("expected tool-result continuation after guard, got %q", content)
+	}
+	if docIndex > continuationIndex {
+		t.Fatalf("expected relocated docs before tool-result continuation after guard, got %q", content)
+	}
+}
+
 func TestGuardKiroPayloadTruncatesLargeHistoryToolResultsBelowSoftLimit(t *testing.T) {
 	payload := &KiroPayload{}
 	payload.ConversationState.ChatTriggerType = "MANUAL"

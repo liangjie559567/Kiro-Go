@@ -258,6 +258,106 @@ func TestClaudeToKiroRelocatesLongToolDescriptionsToContext(t *testing.T) {
 	}
 }
 
+func TestClaudeToKiroRelocatesMaterializedToolReferenceDescriptions(t *testing.T) {
+	longDescription := strings.Repeat("Read project file usage guidance. ", 80)
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "please read project files"}},
+		ToolReferences: []ClaudeToolReference{{
+			Type:        "tool_reference",
+			ID:          "toolref_read",
+			Name:        "Read",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	current := payload.ConversationState.CurrentMessage.UserInputMessage
+	if !strings.Contains(current.Content, "Tool: Read") || !strings.Contains(current.Content, longDescription[:80]) {
+		t.Fatalf("expected full materialized reference docs in current context, got %q", current.Content)
+	}
+	ctx := current.UserInputMessageContext
+	if ctx == nil || len(ctx.Tools) != 1 {
+		t.Fatalf("expected materialized tool in context, got %#v", ctx)
+	}
+	desc := ctx.Tools[0].ToolSpecification.Description
+	if len(desc) > 220 || !strings.Contains(desc, "Full documentation") {
+		t.Fatalf("expected short reference description, got %q", desc)
+	}
+	if got := strings.Join(payload.MaterializedToolReferenceNames, ","); got != "Read" {
+		t.Fatalf("expected materialized reference metadata, got %q", got)
+	}
+	if payload.RelocatedToolDescriptions != 1 {
+		t.Fatalf("expected one relocated materialized description, got %d", payload.RelocatedToolDescriptions)
+	}
+}
+
+func TestClaudeToKiroRelocatedDocsDoNotMaterializeUnrelatedLazyReference(t *testing.T) {
+	longDescription := strings.Repeat("Capture browser screenshot documentation. ", 80)
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "use explicit tool only"}},
+		Tools: []ClaudeTool{{
+			Name:        "explicit_browser_helper",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		ToolReferences: []ClaudeToolReference{{
+			Type:        "tool_reference",
+			ID:          "toolref_browser",
+			Name:        "mcp__browser__screenshot",
+			Description: "Capture browser screenshot",
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	if got := strings.Join(payload.MaterializedToolReferenceNames, ","); got != "" {
+		t.Fatalf("expected unrelated reference to stay deferred, materialized %q", got)
+	}
+	if got := strings.Join(payload.DeferredToolReferenceNames, ","); got != "mcp__browser__screenshot" {
+		t.Fatalf("expected lazy reference to stay deferred, got %q", got)
+	}
+}
+
+func TestClaudeToKiroPrependsRelocatedDocsBeforeToolResultContinuation(t *testing.T) {
+	longDescription := strings.Repeat("Detailed usage guidance for the browser tool. ", 80)
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 128,
+		Tools: []ClaudeTool{{
+			Name:        "mcp__browser__screenshot",
+			Description: longDescription,
+			InputSchema: map[string]interface{}{"type": "object"},
+		}},
+		Messages: []ClaudeMessage{
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{"type": "tool_use", "id": "toolu_1", "name": "mcp__browser__screenshot", "input": map[string]interface{}{}},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": strings.Repeat("large result ", 1000)},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+	docIndex := strings.Index(content, "Operator tool documentation for this session")
+	continuationIndex := strings.Index(content, toolResultsContinuationPrefix)
+	if docIndex < 0 {
+		t.Fatalf("expected relocated docs in current context, got %q", content)
+	}
+	if continuationIndex < 0 {
+		t.Fatalf("expected tool-result continuation in current context, got %q", content)
+	}
+	if docIndex > continuationIndex {
+		t.Fatalf("expected relocated docs before tool-result continuation, got %q", content)
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",

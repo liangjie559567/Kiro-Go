@@ -294,13 +294,16 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		finalContent += minimalFallbackUserContent
 	}
 
-	toolsForKiro, relocatedDocs := relocateLongClaudeToolDescriptions(req.Tools)
-	if docs := buildRelocatedToolDocumentation(relocatedDocs); docs != "" {
-		finalContent = strings.TrimSpace(finalContent + "\n\n" + docs)
-	}
+	toolsForSelection, explicitRelocatedDocs := relocateLongClaudeToolDescriptions(req.Tools)
 
 	// 转换工具
-	toolSelection := mergeClaudeToolsAndReferences(toolsForKiro, req.ToolReferences, finalContent)
+	toolSelection := mergeClaudeToolsAndReferences(toolsForSelection, req.ToolReferences, finalContent)
+	var selectedRelocatedDocs []toolDescriptionRelocation
+	toolSelection.Tools, selectedRelocatedDocs = relocateLongClaudeToolDescriptions(toolSelection.Tools)
+	relocatedDocs := append(explicitRelocatedDocs, selectedRelocatedDocs...)
+	if docs := buildRelocatedToolDocumentation(relocatedDocs); docs != "" {
+		finalContent = addRelocatedToolDocumentation(finalContent, docs)
+	}
 	kiroTools, toolNameMap := convertClaudeTools(toolSelection.Tools)
 
 	// 构建 payload
@@ -376,6 +379,26 @@ func buildRelocatedToolDocumentation(relocated []toolDescriptionRelocation) stri
 		parts = append(parts, "Tool: "+item.Name+"\n"+item.Description)
 	}
 	return strings.Join(parts, "\n\n")
+}
+
+func addRelocatedToolDocumentation(content, docs string) string {
+	docs = strings.TrimSpace(docs)
+	content = strings.TrimSpace(content)
+	if docs == "" {
+		return content
+	}
+	if content == "" {
+		return docs
+	}
+	if idx := strings.Index(content, toolResultsContinuationPrefix); idx >= 0 {
+		before := strings.TrimSpace(content[:idx])
+		after := strings.TrimSpace(content[idx:])
+		if before == "" {
+			return docs + "\n\n" + after
+		}
+		return before + "\n\n" + docs + "\n\n" + after
+	}
+	return content + "\n\n" + docs
 }
 
 func knownClaudeToolUseIDs(messages []ClaudeMessage, beforeIndex int) map[string]bool {
