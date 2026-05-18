@@ -3009,8 +3009,11 @@
                 flag(!!data.recentToolReferences, 'tool_reference') +
                 flag(!!data.recentMCPTools, 'mcp tools') +
                 flag(!!data.recentToolTrimming, 'tool trimming') +
+                flag(!!data.recentToolResultTurns, 'tool_result turns') +
+                flag(!!(data.recentContextReminders || []).length, 'context reminder') +
                 flag(!!data.recentResponsesRestore, 'responses restore') +
                 '</div>' +
+                '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Context reminders: ' + escapeHtml(((data.recentContextReminders || []).join(', ')) || '-') + '</div>' +
                 '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Last seen: ' + escapeHtml(lastSeen) + '</div>' +
                 '<pre style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-size:12px;overflow:auto">export ANTHROPIC_BASE_URL=' + escapeHtml(location.origin) + '\nexport ANTHROPIC_AUTH_TOKEN=any\nexport ENABLE_TOOL_SEARCH=true</pre>' +
                 '</div>';
@@ -3085,6 +3088,8 @@
                     'trimmed:' + ((log.payloadTrimmedTools || []).join(',') || '-')
                 ].join(' ');
                 const payloadMeta = [
+                    'shape:' + compactValue(log.payloadCurrentMessageShape),
+                    'ctx:' + compactValue(log.payloadContextReminderKinds),
                     'defer:' + compactValue(log.payloadDeferredTools),
                     'mat:' + compactValue(log.payloadMaterializedToolRefs),
                     'pairs:' + compactValue(log.payloadCompactedPairs),

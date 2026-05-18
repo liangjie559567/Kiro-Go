@@ -2251,6 +2251,8 @@ func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 		AnthropicBetas:              []string{"tool-search-2025-10-19"},
 		ToolReferenceCount:          1,
 		PayloadTrimmed:              true,
+		PayloadCurrentMessageShape:  "text+tool_result",
+		PayloadContextReminderKinds: []string{"system", "language"},
 		PayloadKeptTools:            []string{"bash"},
 		PayloadTrimmedTools:         []string{"mcp__browser__screenshot"},
 		PayloadDeferredTools:        []string{"mcp__browser__snapshot"},
@@ -2274,6 +2276,21 @@ func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 		if resp[key] != true {
 			t.Fatalf("expected %s=true, got %#v", key, resp)
 		}
+	}
+	if resp["recentToolResultTurns"] != true {
+		t.Fatalf("expected recentToolResultTurns=true, got %#v", resp)
+	}
+	reminders, ok := resp["recentContextReminders"].([]interface{})
+	if !ok || len(reminders) != 2 || reminders[0] != "language" || reminders[1] != "system" {
+		t.Fatalf("expected sorted recent context reminders, got %#v", resp["recentContextReminders"])
+	}
+	examples, ok := resp["examples"].([]interface{})
+	if !ok || len(examples) == 0 {
+		t.Fatalf("expected readiness examples, got %#v", resp["examples"])
+	}
+	first, ok := examples[0].(map[string]interface{})
+	if !ok || first["currentMessageShape"] != "text+tool_result" {
+		t.Fatalf("expected readiness example to include current message shape, got %#v", first)
 	}
 }
 

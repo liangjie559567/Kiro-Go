@@ -77,6 +77,8 @@ type kiroPayloadSummary struct {
 	Tools                  int `json:"tools"`
 	CurrentTools           int `json:"currentTools"`
 	CurrentToolSchemaBytes int `json:"currentToolSchemaBytes"`
+	CurrentMessageShape    string
+	ContextReminderKinds   []string
 }
 
 func defaultPayloadGuardOptions() payloadGuardOptions {
@@ -260,6 +262,8 @@ func cloneKiroPayload(payload *KiroPayload) *KiroPayload {
 	}
 	cloned.DeferredToolReferenceNames = append([]string(nil), payload.DeferredToolReferenceNames...)
 	cloned.MaterializedToolReferenceNames = append([]string(nil), payload.MaterializedToolReferenceNames...)
+	cloned.CurrentMessageShape = payload.CurrentMessageShape
+	cloned.ContextReminderKinds = append([]string(nil), payload.ContextReminderKinds...)
 	return &cloned
 }
 
@@ -397,6 +401,8 @@ func summarizeKiroPayload(payload *KiroPayload) kiroPayloadSummary {
 	current := payload.ConversationState.CurrentMessage.UserInputMessage
 	summary.CurrentContentBytes = len(current.Content)
 	summary.Images += len(current.Images)
+	summary.CurrentMessageShape = payload.CurrentMessageShape
+	summary.ContextReminderKinds = append([]string(nil), payload.ContextReminderKinds...)
 	if current.UserInputMessageContext != nil {
 		summary.CurrentTools = len(current.UserInputMessageContext.Tools)
 		summary.Tools += summary.CurrentTools
@@ -631,12 +637,12 @@ func sanitizeKiroToolSchema(schema interface{}, depth int, opts payloadGuardOpti
 			if len(cleanedProps) > 0 {
 				out[key] = cleanedProps
 			}
-		case "items", "additionalProperties":
+		case "items":
 			if sub, ok := value.(map[string]interface{}); ok {
 				out[key] = sanitizeKiroToolSchema(sub, depth+1, opts)
-			} else if key == "additionalProperties" {
-				out[key] = value
 			}
+		case "additionalProperties":
+			continue
 		case "required":
 			if arr, ok := value.([]interface{}); ok && len(arr) > 0 {
 				if len(arr) > opts.MaxSchemaProperties {

@@ -291,6 +291,8 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 		Summary: kiroPayloadSummary{
 			CurrentTools:           8,
 			CurrentToolSchemaBytes: 2048,
+			CurrentMessageShape:    "text+tool_result",
+			ContextReminderKinds:   []string{"system", "language"},
 		},
 		KeptToolNames:    []string{"agent", "bash"},
 		TrimmedToolNames: []string{"mcp__fs__tool_23"},
@@ -323,6 +325,12 @@ func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	}
 	if entry.PayloadCompactedPairs != 2 || entry.PayloadCompactedToolResults != 1 {
 		t.Fatalf("expected compaction metadata, got %#v", entry)
+	}
+	if entry.PayloadCurrentMessageShape != "text+tool_result" {
+		t.Fatalf("expected current message shape metadata, got %#v", entry)
+	}
+	if got := strings.Join(entry.PayloadContextReminderKinds, ","); got != "system,language" {
+		t.Fatalf("expected context reminder metadata, got %q from %#v", got, entry.PayloadContextReminderKinds)
 	}
 }
 

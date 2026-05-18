@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"kiro-go/config"
 	"path/filepath"
 	"strings"
@@ -246,7 +247,7 @@ func TestClaudeToKiroCarriesSystemPromptAsSyntheticHistoryPair(t *testing.T) {
 	}
 }
 
-func TestClaudeToKiroDoesNotInjectSystemContextIntoCurrentToolResultTurn(t *testing.T) {
+func TestClaudeToKiroInjectsSafeSystemContextIntoCurrentToolResultTurn(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:  "claude-sonnet-4.5",
 		System: "Answer in Chinese.",
@@ -273,9 +274,12 @@ func TestClaudeToKiroDoesNotInjectSystemContextIntoCurrentToolResultTurn(t *test
 	payload := ClaudeToKiro(req, false)
 	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
 
-	for _, forbidden := range []string{"API system field", "system field", "Answer in Chinese."} {
+	if !strings.Contains(content, "Answer in Chinese.") {
+		t.Fatalf("expected current tool-result turn to carry system context, got %q", content)
+	}
+	for _, forbidden := range []string{"API system field", "system field", "System:", "SYSTEM:", "<system>", "[SYSTEM]"} {
 		if strings.Contains(content, forbidden) {
-			t.Fatalf("expected current tool-result turn not to expose system context %q, got %q", forbidden, content)
+			t.Fatalf("expected current tool-result turn not to expose spoofable system context %q, got %q", forbidden, content)
 		}
 	}
 	if !strings.Contains(content, toolResultsContinuationPrefix) || !strings.Contains(content, "README content") {
@@ -283,6 +287,169 @@ func TestClaudeToKiroDoesNotInjectSystemContextIntoCurrentToolResultTurn(t *test
 	}
 	if ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext; ctx == nil || len(ctx.ToolResults) != 1 {
 		t.Fatalf("expected current tool result context to remain, got %#v", ctx)
+	}
+}
+
+func TestClaudeToKiroCarriesSystemReminderOnCurrentToolResultTurn(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:  "claude-sonnet-4.5",
+		System: "始终使用中文回答。",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "读取文件并总结。"},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_zh",
+					"name":  "read_file",
+					"input": map[string]interface{}{"path": "README.md"},
+				},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_zh",
+					"content":     "README content",
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	if !strings.Contains(content, "始终使用中文回答。") {
+		t.Fatalf("expected current tool-result turn to carry durable language instructions, got %q", content)
+	}
+	if !strings.Contains(content, toolResultsContinuationPrefix) || !strings.Contains(content, "README content") {
+		t.Fatalf("expected tool-result continuation to remain, got %q", content)
+	}
+	for _, forbidden := range []string{"API system field", "system field", "System:", "SYSTEM:", "<system>", "[SYSTEM]"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("expected no spoofable system wrapper %q, got %q", forbidden, content)
+		}
+	}
+	if ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext; ctx == nil || len(ctx.ToolResults) != 1 {
+		t.Fatalf("expected current tool result context to remain, got %#v", ctx)
+	}
+}
+
+func TestClaudeToKiroCarriesPriorChineseUserPreferenceOnCurrentToolResultTurn(t *testing.T) {
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "后续请始终用中文回复。"},
+			{Role: "assistant", Content: "好的，我会使用中文。"},
+			{Role: "user", Content: "读取文件。"},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_prior_zh",
+					"name":  "read_file",
+					"input": map[string]interface{}{"path": "README.md"},
+				},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_prior_zh",
+					"content":     "README content",
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	if !strings.Contains(content, "请继续使用中文回复。") {
+		t.Fatalf("expected current tool-result turn to carry prior Chinese preference, got %q", content)
+	}
+	if !strings.Contains(content, toolResultsContinuationPrefix) || !strings.Contains(content, "README content") {
+		t.Fatalf("expected tool-result continuation to remain, got %q", content)
+	}
+}
+
+func TestClaudeToKiroCarriesLanguageReminderWhenCurrentTurnHasTextAndToolResult(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:  "claude-sonnet-4.5",
+		System: "始终使用中文回答。",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "读取文件。"},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_mixed",
+					"name":  "read_file",
+					"input": map[string]interface{}{"path": "README.md"},
+				},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{"type": "text", "text": "继续。"},
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_mixed",
+					"content":     "README content",
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
+
+	if !strings.Contains(content, "始终使用中文回答。") {
+		t.Fatalf("expected mixed text/tool-result turn to carry system context, got %q", content)
+	}
+	if !strings.Contains(content, "继续。") {
+		t.Fatalf("expected current text to remain, got %q", content)
+	}
+	if ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext; ctx == nil || len(ctx.ToolResults) != 1 {
+		t.Fatalf("expected current tool result context to remain, got %#v", ctx)
+	}
+}
+
+func TestClaudeToKiroPreservesCurrentToolUseWhenTrimmingLargeToolResultTurn(t *testing.T) {
+	req := &ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: strings.Repeat("large earlier prompt ", 24*1024)},
+			{Role: "assistant", Content: "large earlier response"},
+			{Role: "user", Content: "Read the file."},
+			{Role: "assistant", Content: []interface{}{
+				map[string]interface{}{
+					"type":  "tool_use",
+					"id":    "toolu_current",
+					"name":  "read_file",
+					"input": map[string]interface{}{"path": "README.md"},
+				},
+			}},
+			{Role: "user", Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "toolu_current",
+					"content":     "README content",
+				},
+			}},
+		},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	found := false
+	for _, msg := range payload.ConversationState.History {
+		if msg.AssistantResponseMessage == nil {
+			continue
+		}
+		for _, toolUse := range msg.AssistantResponseMessage.ToolUses {
+			if toolUse.ToolUseID == "toolu_current" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected matching assistant tool_use to survive history trimming, got %#v", payload.ConversationState.History)
+	}
+	if ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext; ctx == nil || len(ctx.ToolResults) != 1 || ctx.ToolResults[0].ToolUseID != "toolu_current" {
+		t.Fatalf("expected current tool_result to remain, got %#v", ctx)
 	}
 }
 
@@ -432,6 +599,51 @@ func TestClaudeToKiroSkipsToolReferenceWhenSanitizedNameCollidesWithExplicitTool
 	}
 	if got := payload.ToolNameMap["readFile"]; got != "read_file" {
 		t.Fatalf("expected explicit tool outward name to win, got %q", got)
+	}
+}
+
+func TestClaudeToKiroRemovesKiroUnsupportedSchemaFields(t *testing.T) {
+	req := &ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "read project files"}},
+		Tools: []ClaudeTool{{
+			Name:        "read_file",
+			Description: "Read a file",
+			InputSchema: map[string]interface{}{
+				"type":                 "object",
+				"additionalProperties": false,
+				"properties": map[string]interface{}{
+					"path": map[string]interface{}{
+						"type":                 "string",
+						"additionalProperties": false,
+					},
+					"options": map[string]interface{}{
+						"type":                 "object",
+						"required":             []interface{}{},
+						"additionalProperties": map[string]interface{}{"type": "string"},
+					},
+				},
+				"required": []interface{}{},
+			},
+		}},
+	}
+
+	payload := ClaudeToKiro(req, false)
+	ctx := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext
+	if ctx == nil || len(ctx.Tools) != 1 {
+		t.Fatalf("expected one tool, got %#v", ctx)
+	}
+	schema := ctx.Tools[0].ToolSpecification.InputSchema.JSON
+	data, err := json.Marshal(schema)
+	if err != nil {
+		t.Fatalf("marshal schema: %v", err)
+	}
+	if strings.Contains(string(data), "additionalProperties") {
+		t.Fatalf("expected additionalProperties to be removed recursively, got %s", string(data))
+	}
+	if strings.Contains(string(data), `"required":[]`) {
+		t.Fatalf("expected empty required arrays to be removed recursively, got %s", string(data))
 	}
 }
 

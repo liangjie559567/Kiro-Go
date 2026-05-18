@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -4469,10 +4470,13 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		"recentMCPTools":         false,
 		"recentToolTrimming":     false,
 		"recentResponsesRestore": false,
+		"recentToolResultTurns":  false,
+		"recentContextReminders": []string{},
 		"lastSeen":               "",
 		"examples":               []map[string]interface{}{},
 	}
 	examples := make([]map[string]interface{}, 0, 5)
+	reminderSet := make(map[string]bool)
 	for _, entry := range logs {
 		if entry.Timestamp.Before(cutoff) {
 			continue
@@ -4493,14 +4497,31 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		if entry.PayloadTrimmed || len(entry.PayloadTrimmedTools) > 0 {
 			resp["recentToolTrimming"] = true
 		}
+		if strings.Contains(entry.PayloadCurrentMessageShape, "tool_result") || entry.PayloadCompactedToolResults > 0 {
+			resp["recentToolResultTurns"] = true
+		}
+		for _, kind := range entry.PayloadContextReminderKinds {
+			kind = strings.TrimSpace(kind)
+			if kind != "" {
+				reminderSet[kind] = true
+			}
+		}
 		if len(examples) < 5 {
 			examples = append(examples, map[string]interface{}{
-				"timestamp": entry.Timestamp,
-				"endpoint":  entry.Endpoint,
-				"model":     entry.Model,
+				"timestamp":            entry.Timestamp,
+				"endpoint":             entry.Endpoint,
+				"model":                entry.Model,
+				"currentMessageShape":  entry.PayloadCurrentMessageShape,
+				"contextReminderKinds": append([]string(nil), entry.PayloadContextReminderKinds...),
 			})
 		}
 	}
+	reminders := make([]string, 0, len(reminderSet))
+	for kind := range reminderSet {
+		reminders = append(reminders, kind)
+	}
+	sort.Strings(reminders)
+	resp["recentContextReminders"] = reminders
 	resp["examples"] = examples
 	json.NewEncoder(w).Encode(resp)
 }

@@ -46,6 +46,8 @@ type RequestLogEntry struct {
 	PayloadMaterializedToolRefs       []string  `json:"payloadMaterializedToolRefs,omitempty"`
 	PayloadCompactedPairs             int       `json:"payloadCompactedPairs,omitempty"`
 	PayloadCompactedToolResults       int       `json:"payloadCompactedToolResults,omitempty"`
+	PayloadCurrentMessageShape        string    `json:"payloadCurrentMessageShape,omitempty"`
+	PayloadContextReminderKinds       []string  `json:"payloadContextReminderKinds,omitempty"`
 	PayloadUnknownOfficialFields      []string  `json:"payloadUnknownOfficialFields,omitempty"`
 	FineGrainedToolStreamingRequested bool      `json:"fineGrainedToolStreamingRequested,omitempty"`
 	FineGrainedToolStreamingMode      string    `json:"fineGrainedToolStreamingMode,omitempty"`
@@ -311,6 +313,8 @@ func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
 	ctx.entry.PayloadMaterializedToolRefs = append([]string(nil), result.MaterializedToolRefNames...)
 	ctx.entry.PayloadCompactedPairs = result.CompactedPairs
 	ctx.entry.PayloadCompactedToolResults = result.CompactedToolResults
+	ctx.entry.PayloadCurrentMessageShape = result.Summary.CurrentMessageShape
+	ctx.entry.PayloadContextReminderKinds = append([]string(nil), result.Summary.ContextReminderKinds...)
 }
 
 func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {

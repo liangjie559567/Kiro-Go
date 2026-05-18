@@ -211,6 +211,7 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	var currentContent string
 	var currentImages []KiroImage
 	var currentToolResults []KiroToolResult
+	languageReminder := ""
 
 	for i, msg := range req.Messages {
 		isLast := i == len(req.Messages)-1
@@ -218,6 +219,9 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 		if msg.Role == "user" {
 			content, images, toolResults := extractClaudeUserContent(msg.Content)
 			content = normalizeUserContent(content, len(images) > 0)
+			if reminder := detectChineseLanguagePreference(content); reminder != "" {
+				languageReminder = reminder
+			}
 
 			if isLast {
 				currentContent = content
@@ -256,16 +260,22 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	if systemPrompt != "" {
 		history = prependKiroSystemHistory(history, systemPrompt, modelID, origin)
 	}
-	history = trimKiroHistoryForPayloadSize(history, maxKiroHistoryPayloadBytes)
+	history = trimKiroHistoryForPayloadSizeWithCurrentResults(history, maxKiroHistoryPayloadBytes, currentToolResults)
 
 	// 构建最终内容
 	finalContent := ""
+	reminderKinds := contextReminderKinds(systemPrompt, languageReminder)
 	if currentContent != "" {
 		finalContent += currentContent
+		if len(currentToolResults) > 0 {
+			finalContent += "\n\n" + buildToolResultsContinuation(currentToolResults)
+			finalContent = prependKiroInstructionReminderToToolResultContinuation(finalContent, currentToolResultInstructionReminder(systemPrompt, languageReminder))
+		}
 	} else if len(currentImages) > 0 {
 		finalContent += normalizeUserContent("", true)
 	} else if len(currentToolResults) > 0 {
 		finalContent += buildToolResultsContinuation(currentToolResults)
+		finalContent = prependKiroInstructionReminderToToolResultContinuation(finalContent, currentToolResultInstructionReminder(systemPrompt, languageReminder))
 	} else {
 		finalContent += minimalFallbackUserContent
 	}
@@ -280,6 +290,10 @@ func ClaudeToKiro(req *ClaudeRequest, thinking bool) *KiroPayload {
 	payload.DeferredToolReferenceNames = toolSelection.DeferredNames
 	payload.MaterializedToolReferenceNames = toolSelection.MaterializedNames
 	payload.ToolSchemas = buildClaudeToolSchemaSummaries(toolSelection.Tools)
+	payload.CurrentMessageShape = describeKiroCurrentMessageShape(currentContent, len(currentImages) > 0, len(currentToolResults) > 0)
+	if len(currentToolResults) > 0 {
+		payload.ContextReminderKinds = reminderKinds
+	}
 	payload.ConversationState.ChatTriggerType = "MANUAL"
 	payload.ConversationState.AgentTaskType = "vibe"
 	payload.ConversationState.AgentContinuationId = uuid.New().String()
@@ -319,6 +333,65 @@ func buildKiroSystemContext(systemPrompt string) string {
 		return ""
 	}
 	return "Operator instructions for this session:\n\n" + systemPrompt
+}
+
+func prependKiroSystemContextToToolResultContinuation(content, systemPrompt string) string {
+	return prependKiroInstructionReminderToToolResultContinuation(content, buildKiroSystemContext(systemPrompt))
+}
+
+func currentToolResultInstructionReminder(systemPrompt, languageReminder string) string {
+	systemContent := buildKiroSystemContext(systemPrompt)
+	languageReminder = strings.TrimSpace(languageReminder)
+	if systemContent == "" {
+		if languageReminder == "" {
+			return ""
+		}
+		return "Operator instructions for this session:\n\n" + languageReminder
+	}
+	if languageReminder == "" || strings.Contains(systemContent, languageReminder) {
+		return systemContent
+	}
+	return systemContent + "\n\n" + languageReminder
+}
+
+func contextReminderKinds(systemPrompt, languageReminder string) []string {
+	kinds := make([]string, 0, 2)
+	if strings.TrimSpace(systemPrompt) != "" {
+		kinds = append(kinds, "system")
+	}
+	if strings.TrimSpace(languageReminder) != "" {
+		kinds = append(kinds, "language")
+	}
+	return kinds
+}
+
+func describeKiroCurrentMessageShape(content string, hasImages, hasToolResults bool) string {
+	parts := make([]string, 0, 3)
+	if strings.TrimSpace(content) != "" {
+		parts = append(parts, "text")
+	}
+	if hasImages {
+		parts = append(parts, "image")
+	}
+	if hasToolResults {
+		parts = append(parts, "tool_result")
+	}
+	if len(parts) == 0 {
+		return "fallback"
+	}
+	return strings.Join(parts, "+")
+}
+
+func prependKiroInstructionReminderToToolResultContinuation(content, reminder string) string {
+	reminder = strings.TrimSpace(reminder)
+	if reminder == "" {
+		return content
+	}
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return reminder
+	}
+	return reminder + "\n\n" + content
 }
 
 func prependKiroSystemHistory(history []KiroHistoryMessage, systemPrompt, modelID, origin string) []KiroHistoryMessage {
@@ -711,6 +784,34 @@ func stripEnvNoiseLines(prompt string) string {
 		out = append(out, line)
 	}
 	return strings.TrimSpace(collapseBlankLines(strings.Join(out, "\n")))
+}
+
+func detectChineseLanguagePreference(text string) string {
+	normalized := strings.ToLower(strings.TrimSpace(text))
+	if normalized == "" {
+		return ""
+	}
+	if strings.Contains(normalized, "不用中文") ||
+		strings.Contains(normalized, "不要中文") ||
+		strings.Contains(normalized, "不要用中文") ||
+		strings.Contains(normalized, "not chinese") ||
+		strings.Contains(normalized, "don't use chinese") ||
+		strings.Contains(normalized, "do not use chinese") {
+		return ""
+	}
+	if strings.Contains(normalized, "说中文") ||
+		strings.Contains(normalized, "用中文") ||
+		strings.Contains(normalized, "中文回复") ||
+		strings.Contains(normalized, "中文回答") ||
+		strings.Contains(normalized, "使用中文") ||
+		strings.Contains(normalized, "简体中文") ||
+		strings.Contains(normalized, "speak chinese") ||
+		strings.Contains(normalized, "answer in chinese") ||
+		strings.Contains(normalized, "respond in chinese") ||
+		strings.Contains(normalized, "reply in chinese") {
+		return "请继续使用中文回复。"
+	}
+	return ""
 }
 
 // claudeCodeBackendPrompt is injected when a Claude Code CLI system prompt is detected.
@@ -1142,9 +1243,8 @@ func schemaRequiredFields(schema interface{}) []string {
 	return required
 }
 
-// ensureObjectSchema ensures the JSON schema has "type": "object" at the top level
-// and removes invalid null values from "required" fields (recursively).
-// Kiro API rejects tool schemas with "required": null.
+// ensureObjectSchema ensures the JSON schema has "type": "object" at the top
+// level and removes fields that the Kiro API rejects.
 func ensureObjectSchema(schema interface{}) interface{} {
 	m, ok := schema.(map[string]interface{})
 	if !ok {
@@ -1157,8 +1257,8 @@ func ensureObjectSchema(schema interface{}) interface{} {
 	return m
 }
 
-// cleanSchema recursively removes or fixes invalid "required": null entries
-// in a JSON Schema tree.
+// cleanSchema recursively removes JSON Schema fields that trigger Kiro's vague
+// "Improperly formed request" response.
 func cleanSchema(m map[string]interface{}) {
 	// Fix "required" field: must be array or absent
 	if req, exists := m["required"]; exists {
@@ -1183,12 +1283,10 @@ func cleanSchema(m map[string]interface{}) {
 		cleanSchema(items)
 	}
 
-	// Recurse into nested object schemas (e.g., additionalProperties, allOf, oneOf, anyOf)
-	for _, key := range []string{"additionalProperties"} {
-		if sub, ok := m[key].(map[string]interface{}); ok {
-			cleanSchema(sub)
-		}
-	}
+	// Kiro does not accept additionalProperties, even when it is false or a schema.
+	delete(m, "additionalProperties")
+
+	// Recurse into nested combinator schemas.
 	for _, key := range []string{"allOf", "oneOf", "anyOf"} {
 		if arr, ok := m[key].([]interface{}); ok {
 			for _, item := range arr {
@@ -1712,6 +1810,7 @@ func OpenAIToKiro(req *OpenAIRequest, thinking bool) *KiroPayload {
 	// 构建 payload
 	payload := &KiroPayload{}
 	payload.ToolSchemas = buildOpenAIToolSchemaSummaries(req.Tools)
+	payload.CurrentMessageShape = describeKiroCurrentMessageShape(currentContent, len(currentImages) > 0, len(currentToolResults) > 0)
 	payload.ConversationState.ChatTriggerType = "MANUAL"
 	payload.ConversationState.ConversationID = buildConversationID(modelID, systemPrompt, firstOpenAIConversationAnchor(nonSystemMessages))
 	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{

@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"fmt"
 	"kiro-go/config"
 	"strings"
@@ -267,6 +268,50 @@ func TestGuardKiroPayloadSanitizesLargeToolSchemas(t *testing.T) {
 	}
 	if got := currentToolsJSONSize(payload); got > maxKiroToolSchemaBytes {
 		t.Fatalf("expected tool schemas under %d bytes, got %d", maxKiroToolSchemaBytes, got)
+	}
+}
+
+func TestGuardKiroPayloadRemovesUnsupportedAdditionalProperties(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: "read",
+		ModelID: "claude-sonnet-4.5",
+		Origin:  "AI_EDITOR",
+		UserInputMessageContext: &UserInputMessageContext{
+			Tools: []KiroToolWrapper{{}},
+		},
+	}
+	spec := &payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools[0].ToolSpecification
+	spec.Name = "readFile"
+	spec.Description = "Read a file"
+	spec.InputSchema = InputSchema{JSON: map[string]interface{}{
+		"type":                 "object",
+		"required":             []interface{}{},
+		"additionalProperties": false,
+		"properties": map[string]interface{}{
+			"path": map[string]interface{}{
+				"type":                 "string",
+				"additionalProperties": false,
+			},
+		},
+	}}
+
+	result, err := guardKiroPayload(payload, defaultPayloadGuardOptions())
+	if err != nil {
+		t.Fatalf("guard payload: %v", err)
+	}
+	if !result.Trimmed {
+		t.Fatalf("expected schema sanitization to be reported")
+	}
+	data, err := json.Marshal(spec.InputSchema.JSON)
+	if err != nil {
+		t.Fatalf("marshal schema: %v", err)
+	}
+	if strings.Contains(string(data), "additionalProperties") {
+		t.Fatalf("expected additionalProperties removed, got %s", string(data))
+	}
+	if strings.Contains(string(data), `"required":[]`) {
+		t.Fatalf("expected empty required removed, got %s", string(data))
 	}
 }
 

@@ -759,6 +759,11 @@ type KiroPayload struct {
 	// requirements so upstream tool_use events can be checked before they are
 	// emitted back to strict clients such as Claude Code.
 	ToolSchemas map[string]toolSchemaSummary `json:"-"`
+
+	// Context continuity metadata is not sent upstream. It is only recorded in
+	// local request logs/readiness diagnostics to explain Claude Code turns.
+	CurrentMessageShape  string   `json:"-"`
+	ContextReminderKinds []string `json:"-"`
 }
 
 type toolSchemaSummary struct {
