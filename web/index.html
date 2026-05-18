@@ -1233,6 +1233,7 @@
         </div>
         <div id="tabApi" class="tab-content hidden">
             <div id="claude-code-readiness"></div>
+            <div id="claude-code-model-readiness"></div>
             <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="api.endpoints"></span></div>
                 <p style="margin-bottom:10px;font-weight:500;font-size:14px">Claude API</p>
@@ -2143,6 +2144,7 @@
             document.getElementById('modelsEndpoint').textContent = baseUrl + '/v1/models';
             document.getElementById('statsEndpoint').textContent = baseUrl + '/v1/stats';
             loadClaudeCodeReadiness();
+            loadClaudeCodeModelReadiness();
             // 自动检查更新
             setTimeout(() => checkUpdate(false), 2000);
         }
@@ -2997,10 +2999,28 @@
             if (el) el.innerHTML = renderClaudeCodeReadiness(data);
             return data;
         }
+        async function loadClaudeCodeModelReadiness() {
+            if (!password) return;
+            try {
+                const resp = await fetch('/admin/api/claude-code/model-readiness', { headers: { 'X-Admin-Password': password } });
+                const data = await resp.json();
+                const el = document.getElementById('claude-code-model-readiness');
+                if (!el) return;
+                el.innerHTML = '<div style="margin-top:10px;color:#475569;font-size:12px">' +
+                    'model: ' + escapeHtml(data.requestedModel || '-') +
+                    ' -> ' + escapeHtml(data.mappedModel || '-') +
+                    ' · ' + escapeHtml(data.reason || '-') +
+                    '</div>';
+            } catch (e) { }
+        }
         function renderClaudeCodeReadiness(data) {
             if (!data) return '<div class="card"><div style="color:#64748b">Claude Code readiness: unavailable</div></div>';
             const flag = (ok, text) => '<span class="badge ' + (ok ? 'badge-success' : 'badge-info') + '" style="' + (ok ? '' : 'background:#e2e8f0;color:#475569') + '">' + escapeHtml(text) + '</span>';
             const lastSeen = data.lastSeen ? new Date(data.lastSeen).toLocaleString() : '-';
+            const examples = Array.isArray(data.examples) ? data.examples : [];
+            const hasParent = !!data.recentParentAgents || examples.some(e => e.parentAgentId);
+            const hasUnsupported = !!data.recentUnsupportedBlocks || examples.some(e => (e.unsupportedContentBlocks || []).length);
+            const hasFineGrained = !!data.recentFineGrainedToolStreaming || examples.some(e => e.fineGrainedToolStreamingMode);
             return '<div class="card">' +
                 '<div class="card-header"><span class="card-title">Claude Code</span><button class="btn btn-sm btn-secondary" onclick="loadClaudeCodeReadiness()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
                 '<div style="font-size:13px;color:#64748b;margin-bottom:10px">Use ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.</div>' +
@@ -3012,6 +3032,11 @@
                 flag(!!data.recentToolResultTurns, 'tool_result turns') +
                 flag(!!(data.recentContextReminders || []).length, 'context reminder') +
                 flag(!!data.recentResponsesRestore, 'responses restore') +
+                flag(hasParent, 'parent-agent') +
+                flag(hasUnsupported, 'unsupported blocks') +
+                flag(!!data.recentToolResultImages, 'tool-result images') +
+                flag(!!data.recentOrphanedToolResults, 'orphan tool_result') +
+                flag(hasFineGrained, 'fine-grained requested') +
                 '</div>' +
                 '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Context reminders: ' + escapeHtml(((data.recentContextReminders || []).join(', ')) || '-') + '</div>' +
                 '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Last seen: ' + escapeHtml(lastSeen) + '</div>' +
@@ -3093,7 +3118,11 @@
                     'defer:' + compactValue(log.payloadDeferredTools),
                     'mat:' + compactValue(log.payloadMaterializedToolRefs),
                     'pairs:' + compactValue(log.payloadCompactedPairs),
-                    'results:' + compactValue(log.payloadCompactedToolResults)
+                    'results:' + compactValue(log.payloadCompactedToolResults),
+                    'parent:' + compactValue(log.claudeCodeParentAgentId),
+                    'orphans:' + compactValue(log.payloadOrphanedToolResultsConverted),
+                    'tri:' + compactValue(log.payloadToolResultImages),
+                    'fg:' + compactValue(log.fineGrainedToolStreamingMode)
                 ].join(' ');
                 const accountText = [log.accountId || '-', log.region || ''].filter(Boolean).join(' / ');
                 return '<tr style="border-bottom:1px solid #f1f5f9">' +
