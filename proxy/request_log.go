@@ -71,6 +71,9 @@ type RequestLogEntry struct {
 	FirstTokenMs                        int64     `json:"firstTokenMs,omitempty"`
 	Attempts                            int       `json:"attempts,omitempty"`
 	ToolUseCount                        int       `json:"toolUseCount,omitempty"`
+	SuppressedToolUseCount              int       `json:"suppressedToolUseCount,omitempty"`
+	SuppressedToolUseNames              []string  `json:"suppressedToolUseNames,omitempty"`
+	SuppressedToolUseReasons            []string  `json:"suppressedToolUseReasons,omitempty"`
 	InputTokens                         int       `json:"inputTokens,omitempty"`
 	OutputTokens                        int       `json:"outputTokens,omitempty"`
 	CacheReadInputTokens                int       `json:"cacheReadInputTokens,omitempty"`
@@ -333,6 +336,33 @@ func updateRequestLogPayloadFinalBytes(r *http.Request, finalBytes int) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.PayloadFinalBytes = finalBytes
+}
+
+func updateRequestLogSuppressedToolUse(r *http.Request, name, reason string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	name = strings.TrimSpace(name)
+	reason = strings.TrimSpace(reason)
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.SuppressedToolUseCount++
+	if name != "" && !stringSliceContains(ctx.entry.SuppressedToolUseNames, name) {
+		ctx.entry.SuppressedToolUseNames = append(ctx.entry.SuppressedToolUseNames, name)
+	}
+	if reason != "" && !stringSliceContains(ctx.entry.SuppressedToolUseReasons, reason) {
+		ctx.entry.SuppressedToolUseReasons = append(ctx.entry.SuppressedToolUseReasons, reason)
+	}
+}
+
+func stringSliceContains(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedAnthropicBetas(in map[string]bool) []string {

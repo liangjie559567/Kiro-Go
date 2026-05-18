@@ -224,6 +224,34 @@ func TestRequestLogCapturesParentAgentAndOfficialExtras(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesSuppressedToolUses(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+	rr := httptest.NewRecorder()
+
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+	if ctx == nil || recorder == nil {
+		t.Fatalf("expected request log context")
+	}
+	updateRequestLogSuppressedToolUse(loggedReq, "request_user_input", "input does not satisfy client tool schema")
+	h.finishRequestLog(ctx, recorder)
+
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one log entry")
+	}
+	entry := entries[0]
+	if entry.SuppressedToolUseCount != 1 {
+		t.Fatalf("expected suppressed tool count, got %#v", entry)
+	}
+	if strings.Join(entry.SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed tool name, got %#v", entry)
+	}
+	if !strings.Contains(strings.Join(entry.SuppressedToolUseReasons, ","), "schema") {
+		t.Fatalf("expected suppressed tool reason, got %#v", entry)
+	}
+}
+
 func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

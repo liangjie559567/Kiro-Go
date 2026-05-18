@@ -282,13 +282,14 @@ func InitKiroHttpClient(proxyURL string) {
 }
 
 func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback) *KiroStreamCallback {
-	if callback == nil || payload == nil || (callback.OnToolUse == nil && callback.OnValidatedToolUse == nil) {
+	if callback == nil || payload == nil || (callback.OnToolUse == nil && callback.OnValidatedToolUse == nil && callback.OnSuppressedToolUse == nil) {
 		return callback
 	}
 	if len(payload.ToolNameMap) == 0 && len(payload.ToolSchemas) == 0 {
 		return callback
 	}
 	originalOnToolUse := callback.OnToolUse
+	originalOnSuppressedToolUse := callback.OnSuppressedToolUse
 	nameMap := payload.ToolNameMap
 	schemas := payload.ToolSchemas
 	wrapped := *callback
@@ -298,7 +299,11 @@ func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback)
 		}
 		tu.Input = repairToolUseInputForClientSchema(tu.Name, tu.Input, schemas[tu.Name])
 		if !toolUseInputSatisfiesSchema(tu, schemas) {
-			logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: input does not satisfy client tool schema", tu.ToolUseID, tu.Name)
+			reason := "input does not satisfy client tool schema"
+			logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: %s", tu.ToolUseID, tu.Name, reason)
+			if originalOnSuppressedToolUse != nil {
+				originalOnSuppressedToolUse(tu, reason)
+			}
 			return
 		}
 		if originalOnToolUse != nil {
@@ -313,7 +318,11 @@ func wrapKiroToolUseCallback(payload *KiroPayload, callback *KiroStreamCallback)
 			}
 			tu.Input = repairToolUseInputForClientSchema(tu.Name, tu.Input, schemas[tu.Name])
 			if !toolUseInputSatisfiesSchema(tu, schemas) {
-				logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: input does not satisfy client tool schema", tu.ToolUseID, tu.Name)
+				reason := "input does not satisfy client tool schema"
+				logger.Warnf("[ToolUse] Dropping invalid tool_use id=%s name=%s: %s", tu.ToolUseID, tu.Name, reason)
+				if originalOnSuppressedToolUse != nil {
+					originalOnSuppressedToolUse(tu, reason)
+				}
 				return false
 			}
 			return originalOnValidatedToolUse(tu)
@@ -1073,13 +1082,14 @@ type InferenceConfig struct {
 
 // KiroStreamCallback stream response callbacks
 type KiroStreamCallback struct {
-	OnText             func(text string, isThinking bool)
-	OnToolUse          func(toolUse KiroToolUse)
-	OnValidatedToolUse func(toolUse KiroToolUse) bool
-	OnComplete         func(inputTokens, outputTokens int)
-	OnError            func(err error)
-	OnCredits          func(credits float64)
-	OnContextUsage     func(percentage float64)
+	OnText              func(text string, isThinking bool)
+	OnToolUse           func(toolUse KiroToolUse)
+	OnValidatedToolUse  func(toolUse KiroToolUse) bool
+	OnSuppressedToolUse func(toolUse KiroToolUse, reason string)
+	OnComplete          func(inputTokens, outputTokens int)
+	OnError             func(err error)
+	OnCredits           func(credits float64)
+	OnContextUsage      func(percentage float64)
 }
 
 // ==================== API Call ====================

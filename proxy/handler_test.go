@@ -3025,7 +3025,7 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	}
 
 	p := &pool.AccountPool{}
-	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
 	if err := config.AddAccount(config.Account{
 		ID:          "acct-invalid-tool-stream",
 		Enabled:     true,
@@ -3070,7 +3070,7 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
 	w := httptest.NewRecorder()
 
-	h.handleClaudeMessagesInternal(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
@@ -3084,6 +3084,20 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	}
 	if !strings.Contains(respBody, `"stop_reason":"end_turn"`) {
 		t.Fatalf("expected end_turn stop, got %q", respBody)
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	entry := entries[0]
+	if entry.SuppressedToolUseCount != 1 {
+		t.Fatalf("expected one suppressed tool use, got %#v", entry)
+	}
+	if strings.Join(entry.SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed tool name, got %#v", entry)
+	}
+	if !strings.Contains(strings.Join(entry.SuppressedToolUseReasons, ","), "schema") {
+		t.Fatalf("expected suppressed tool reason, got %#v", entry)
 	}
 	waitForAccountRequestCount(t, 1)
 }

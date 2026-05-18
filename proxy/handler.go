@@ -2109,6 +2109,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			sse.ToolUse(tu)
 			return true
 		},
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
 			outputTokens = outTok
