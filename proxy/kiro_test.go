@@ -584,6 +584,55 @@ func TestCallKiroAPIFlushesUnstoppedToolUseAtStreamEnd(t *testing.T) {
 	}
 }
 
+func TestCallKiroAPIFlushesUnstoppedValidatedToolUseAtStreamEnd(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "toolUseEvent", payload: map[string]interface{}{"toolUseId": "toolu_unstopped", "name": "read_file", "input": map[string]interface{}{"path": "/tmp/a.go"}}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 4, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "read file"}},
+	}, false)
+
+	var got []KiroToolUse
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{
+		OnValidatedToolUse: func(tu KiroToolUse) bool {
+			got = append(got, tu)
+			return true
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallKiroAPI: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected unstopped validated tool use to be flushed, got %#v", got)
+	}
+	if got[0].ToolUseID != "toolu_unstopped" || got[0].Name != "read_file" || got[0].Input["path"] != "/tmp/a.go" {
+		t.Fatalf("unexpected flushed validated tool use: %#v", got[0])
+	}
+}
+
 func TestWrapToolUseDropsInvalidRequiredArguments(t *testing.T) {
 	payload := &KiroPayload{
 		ToolNameMap: map[string]string{"readFile": "read_file"},

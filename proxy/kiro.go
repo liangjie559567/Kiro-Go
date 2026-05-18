@@ -1448,7 +1448,7 @@ func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
 		}
 	}
 
-	if currentToolUse != nil && callback.OnToolUse != nil {
+	if currentToolUse != nil && (callback.OnToolUse != nil || callback.OnValidatedToolUse != nil) {
 		finishToolUse(currentToolUse, callback)
 	}
 
