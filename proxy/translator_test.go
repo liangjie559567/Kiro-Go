@@ -234,8 +234,11 @@ func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 		t.Fatalf("expected merged history, got %#v", payload.ConversationState.History)
 	}
 	firstUser := payload.ConversationState.History[0].UserInputMessage
-	if firstUser == nil || !strings.Contains(firstUser.Content, "first user") || !strings.Contains(firstUser.Content, "second user") {
+	if firstUser == nil {
 		t.Fatalf("expected adjacent user text to merge, got %#v", firstUser)
+	}
+	if firstUser.Content != "first user\n\nsecond user" {
+		t.Fatalf("expected adjacent mixed user text to preserve boundary, got %q", firstUser.Content)
 	}
 	ctx := firstUser.UserInputMessageContext
 	if ctx == nil || len(ctx.ToolResults) != 2 {
