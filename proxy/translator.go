@@ -381,6 +381,36 @@ func buildRelocatedToolDocumentation(relocated []toolDescriptionRelocation) stri
 	return strings.Join(parts, "\n\n")
 }
 
+func validateClaudeToolNames(tools []ClaudeTool, refs []ClaudeToolReference) string {
+	type namedTool struct {
+		Kind string
+		Name string
+	}
+	items := make([]namedTool, 0, len(tools)+len(refs))
+	for _, tool := range tools {
+		items = append(items, namedTool{Kind: "tool", Name: tool.Name})
+	}
+	for _, ref := range refs {
+		items = append(items, namedTool{Kind: "tool_reference", Name: ref.Name})
+	}
+	seen := map[string]string{}
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			continue
+		}
+		if len(name) > 64 {
+			return fmt.Sprintf("Tool name %q exceeds Kiro API limit of 64 characters; shorten the tool name or use Claude Code Tool Search with a shorter alias", name)
+		}
+		sanitized := sanitizeToolName(name)
+		if previous, ok := seen[sanitized]; ok && previous != name {
+			return fmt.Sprintf("Tool names %q and %q collide after Kiro-safe sanitization as %q; rename one tool", previous, name, sanitized)
+		}
+		seen[sanitized] = name
+	}
+	return ""
+}
+
 func addRelocatedToolDocumentation(content, docs string) string {
 	docs = strings.TrimSpace(docs)
 	content = strings.TrimSpace(content)
@@ -1537,11 +1567,11 @@ func cleanSchema(m map[string]interface{}) {
 
 // sanitizeToolName normalizes a tool name to characters the Kiro API accepts.
 // Kiro tool names must be pure camelCase (no underscores or dashes).
-// Separators (_, -, and multi-underscore namespace prefixes) are converted to camelCase boundaries.
+// Separators (_, -, ., and multi-underscore namespace prefixes) are converted to camelCase boundaries.
 func sanitizeToolName(name string) string {
 	// Split on underscores and dashes, including multi-underscore namespace prefixes.
 	parts := strings.FieldsFunc(name, func(r rune) bool {
-		return r == '_' || r == '-'
+		return r == '_' || r == '-' || r == '.'
 	})
 	if len(parts) == 0 {
 		return "tool"

@@ -1183,6 +1183,10 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
 	}
+	if msg := validateClaudeToolNames(req.Tools, req.ToolReferences); msg != "" {
+		h.sendClaudeError(w, http.StatusBadRequest, "invalid_request_error", msg)
+		return
+	}
 
 	// 解析模型和 thinking 模式
 	thinkingCfg := config.GetThinkingConfig()

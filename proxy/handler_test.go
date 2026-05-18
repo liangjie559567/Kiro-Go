@@ -852,6 +852,30 @@ func TestRestoreOpenAIResponsesSessionFiltersLatestToolCallsByCurrentOutputs(t *
 	}
 }
 
+func TestHandleClaudeMessagesRejectsTooLongRawToolName(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	body := `{
+		"model":"claude-sonnet-4.5",
+		"max_tokens":64,
+		"tools":[{"name":"` + strings.Repeat("a", 65) + `","description":"too long","input_schema":{"type":"object"}}],
+		"messages":[{"role":"user","content":"hello"}]
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+
+	h.handleClaudeMessages(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "Tool name") || !strings.Contains(rr.Body.String(), "64") {
+		t.Fatalf("expected actionable tool-name error, got %s", rr.Body.String())
+	}
+}
+
 func TestHandleOpenAIResponsesStreamRetriesBeforeFirstEvent(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

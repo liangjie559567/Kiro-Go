@@ -392,6 +392,16 @@ func TestClaudeToKiroDoesNotSplitUserTextThatMentionsToolResults(t *testing.T) {
 	}
 }
 
+func TestValidateClaudeToolNamesDetectsSanitizedCollision(t *testing.T) {
+	msg := validateClaudeToolNames(
+		[]ClaudeTool{{Name: "mcp.fs.read", Description: "a", InputSchema: map[string]interface{}{"type": "object"}}},
+		[]ClaudeToolReference{{Name: "mcp-fs-read", Description: "b", InputSchema: map[string]interface{}{"type": "object"}}},
+	)
+	if !strings.Contains(msg, "collide") {
+		t.Fatalf("expected collision message, got %q", msg)
+	}
+}
+
 func TestClaudeToKiroMergesAdjacentSameRoleMessages(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:     "claude-sonnet-4.5",
