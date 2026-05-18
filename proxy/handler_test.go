@@ -2518,7 +2518,7 @@ func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
-	if err := config.AddAccount(config.Account{ID: "disabled-account", Email: "disabled@example.com", Enabled: false}); err != nil {
+	if err := config.AddAccount(config.Account{ID: "disabled-account", Email: "ab@example.com", Enabled: false}); err != nil {
 		t.Fatalf("add disabled account: %v", err)
 	}
 	p := &pool.AccountPool{}
@@ -2534,11 +2534,25 @@ func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if strings.TrimSpace(fmt.Sprint(resp["routingReason"])) == "" {
+	if got := strings.TrimSpace(fmt.Sprint(resp["routingReason"])); got != "no enabled accounts" {
+		t.Fatalf("expected disabled-only routing reason, got %q in %#v", got, resp)
+	}
+	accounts, ok := resp["accounts"].([]interface{})
+	if !ok || len(accounts) != 1 {
 		t.Fatalf("expected routingReason, got %#v", resp)
 	}
-	if _, ok := resp["accounts"].([]interface{}); !ok {
-		t.Fatalf("expected account readiness list, got %#v", resp)
+	account, ok := accounts[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected account readiness row, got %#v", accounts[0])
+	}
+	if account["id"] != "disabled-account" || account["enabled"] != false || account["schedulable"] != false {
+		t.Fatalf("expected disabled non-schedulable account row, got %#v", account)
+	}
+	if account["reason"] != "disabled account" {
+		t.Fatalf("expected disabled reason, got %#v", account)
+	}
+	if got := fmt.Sprint(account["email"]); got == "ab@example.com" || !strings.HasSuffix(got, "@example.com") {
+		t.Fatalf("expected masked email preserving domain, got %q", got)
 	}
 }
 

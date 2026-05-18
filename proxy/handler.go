@@ -4535,9 +4535,9 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 	cached := append([]ModelInfo(nil), h.cachedModels...)
 	h.modelsCacheMu.RUnlock()
 	listed, supportsImage := modelListedAndVision(cached, mapped)
-	accountRows, schedulableCount := h.claudeCodeModelReadinessAccountRows(mapped)
+	accountRows, enabledCount, schedulableCount := h.claudeCodeModelReadinessAccountRows(mapped)
 	routingReason := "no enabled accounts"
-	if len(accountRows) > 0 {
+	if enabledCount > 0 {
 		routingReason = "accounts evaluated"
 	}
 	if schedulableCount > 0 {
@@ -4562,13 +4562,17 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[string]interface{}, int) {
+func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[string]interface{}, int, int) {
 	accounts := config.GetAccounts()
 	rows := make([]map[string]interface{}, 0, len(accounts))
+	enabledCount := 0
 	schedulableCount := 0
 	now := time.Now().Unix()
 
 	for _, account := range accounts {
+		if account.Enabled {
+			enabledCount++
+		}
 		healthy := account.Enabled
 		if account.CooldownUntil > 0 && now < account.CooldownUntil {
 			healthy = false
@@ -4622,7 +4626,7 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 		})
 	}
 
-	return rows, schedulableCount
+	return rows, enabledCount, schedulableCount
 }
 
 func maskReadinessEmail(email string) string {
@@ -4632,8 +4636,13 @@ func maskReadinessEmail(email string) string {
 		return email
 	}
 	local := parts[0]
-	if len(local) > 2 {
-		local = local[:2] + "***"
+	switch {
+	case len(local) == 0:
+		local = "***"
+	case len(local) == 1:
+		local = local[:1] + "***"
+	default:
+		local = local[:1] + "***"
 	}
 	return local + "@" + parts[1]
 }
