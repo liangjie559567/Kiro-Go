@@ -1061,6 +1061,9 @@ func UpdateAccountStats(id string, requestCount, errorCount, totalTokens int, to
 	defer cfgLock.Unlock()
 	for i, a := range cfg.Accounts {
 		if a.ID == id {
+			if requestCount < a.RequestCount {
+				return nil
+			}
 			cfg.Accounts[i].RequestCount = requestCount
 			cfg.Accounts[i].ErrorCount = errorCount
 			cfg.Accounts[i].TotalTokens = totalTokens

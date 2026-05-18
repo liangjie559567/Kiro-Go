@@ -401,3 +401,24 @@ func TestUpdateAndClearAccountHealth(t *testing.T) {
 		t.Fatalf("expected cleared health state, got %#v", got)
 	}
 }
+
+func TestUpdateAccountStatsIgnoresStaleRequestCount(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfgLock.Lock()
+	cfg.Accounts = []Account{{ID: "acct-1"}}
+	cfgLock.Unlock()
+
+	if err := UpdateAccountStats("acct-1", 2, 0, 20, 2.0, 200); err != nil {
+		t.Fatalf("update newer stats: %v", err)
+	}
+	if err := UpdateAccountStats("acct-1", 1, 0, 10, 1.0, 100); err != nil {
+		t.Fatalf("update stale stats: %v", err)
+	}
+
+	got := GetAccounts()[0]
+	if got.RequestCount != 2 || got.TotalTokens != 20 || got.TotalCredits != 2.0 || got.LastUsed != 200 {
+		t.Fatalf("expected stale stats update to be ignored, got %#v", got)
+	}
+}
