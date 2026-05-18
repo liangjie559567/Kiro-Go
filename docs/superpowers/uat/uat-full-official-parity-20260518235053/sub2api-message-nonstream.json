@@ -1,0 +1,1 @@
+{"id":"resp_017df4d11fd4e4a7016a0b35ed195c8191a4d9dfd63bcc8619","type":"message","role":"assistant","content":[{"type":"text","text":"UAT_FULL_PARITY_SUB2API_NONSTREAM"}],"model":"claude-sonnet-4.5","stop_reason":"end_turn","usage":{"input_tokens":126,"output_tokens":21,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}

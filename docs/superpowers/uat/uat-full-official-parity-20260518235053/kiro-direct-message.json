@@ -1,0 +1,1 @@
+{"id":"msg_65e69738-6c03-4da6-ade8-9500f1727ee4","type":"message","role":"assistant","content":[{"type":"text","text":"UAT_FULL_PARITY_DIRECT"}],"model":"claude-sonnet-4.5","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":4703,"output_tokens":7}}

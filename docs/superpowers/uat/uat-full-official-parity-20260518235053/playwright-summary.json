@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "errors": [
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "type": "console",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "screenshots": [
+    "docs/superpowers/uat/uat-full-official-parity-20260518235053/kiro-admin-login-or-dashboard.png",
+    "docs/superpowers/uat/uat-full-official-parity-20260518235053/kiro-claude-readiness-json.png",
+    "docs/superpowers/uat/uat-full-official-parity-20260518235053/kiro-model-readiness-json.png",
+    "docs/superpowers/uat/uat-full-official-parity-20260518235053/sub2api-health-json.png",
+    "docs/superpowers/uat/uat-full-official-parity-20260518235053/sub2api-root.png"
+  ],
+  "checkedAt": "2026-05-18T15:55:17.154Z"
+}

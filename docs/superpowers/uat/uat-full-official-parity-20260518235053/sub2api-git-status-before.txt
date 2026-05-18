@@ -1,0 +1,10 @@
+ M Dockerfile
+ M backend/internal/service/account_test_service.go
+ M backend/internal/service/account_test_service_openai_compact_test.go
+ M backend/internal/service/antigravity_gateway_service.go
+ M backend/internal/service/antigravity_gateway_service_test.go
+ M backend/internal/service/gateway_forward_as_responses_test.go
+ M backend/migrations/auth_identity_payment_migrations_regression_test.go
+ M deploy/Dockerfile
+?? backend/migrations/136_backfill_kiro_claude_haiku_dated_alias.sql
+?? deploy/docker-compose.current.yml

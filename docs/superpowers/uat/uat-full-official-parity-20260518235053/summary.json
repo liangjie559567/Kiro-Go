@@ -1,0 +1,36 @@
+{
+  "date": "2026-05-18",
+  "goTests": "PASS: go test ./... completed successfully",
+  "kiroDockerHealth": "PASS: rebuilt kiro-go container and /health returned status ok",
+  "sub2apiHealth": "PASS: rebuilt sub2api service and /health returned status ok",
+  "sub2apiNonStream": "PASS: HTTP 200 and assistant text UAT_FULL_PARITY_SUB2API_NONSTREAM",
+  "sub2apiStream": "PASS: HTTP 200, SSE included message_start, content_block_delta text for UAT_FULL_PARITY_SUB2API_STREAM, and message_stop",
+  "playwright": "PARTIAL: script exited 0 and wrote screenshots, but playwright-summary.json records expected unauthenticated 401 console errors for admin JSON pages",
+  "databaseCountsStable": "PASS: users=3 groups=4 accounts=82 api_keys=4 before and after sub2api smokes",
+  "screenshotAnalysis": [
+    "Kiro admin screenshot is a nonblank 1440x1000 PNG showing the login/dashboard surface.",
+    "Kiro readiness/model-readiness screenshots are nonblank 1440x1000 PNGs; authenticated JSON artifacts contain readiness keys and model capability matrix.",
+    "Sub2api health screenshot is a nonblank 1440x1000 PNG and health JSON returned status ok.",
+    "Sub2api root screenshot is a nonblank 1440x1106 PNG showing the web UI/login surface."
+  ],
+  "artifacts": [
+    "kiro-health.json",
+    "kiro-models.json",
+    "kiro-direct-message.json",
+    "sub2api-git-status-before.txt",
+    "sub2api-db-counts-before.txt",
+    "sub2api-db-counts-after.txt",
+    "sub2api-health.json",
+    "sub2api-message-nonstream.json",
+    "sub2api-message-stream.sse",
+    "kiro-request-logs.json",
+    "kiro-claude-readiness.json",
+    "kiro-model-readiness.json",
+    "playwright-summary.json",
+    "kiro-admin-login-or-dashboard.png",
+    "kiro-claude-readiness-json.png",
+    "kiro-model-readiness-json.png",
+    "sub2api-health-json.png",
+    "sub2api-root.png"
+  ]
+}
