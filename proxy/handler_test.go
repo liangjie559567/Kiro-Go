@@ -2360,6 +2360,35 @@ func TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeReadinessIncludesNewParitySignals(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(10)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:                           time.Now().UTC(),
+		ClaudeCodeSessionID:                 "session_1",
+		ClaudeCodeAgentID:                   "agent_1",
+		ClaudeCodeParentAgentID:             "parent_1",
+		PayloadToolResultImages:             1,
+		PayloadOrphanedToolResultsConverted: 1,
+		PayloadUnsupportedContentBlocks:     []string{"document"},
+		FineGrainedToolStreamingRequested:   true,
+		FineGrainedToolStreamingMode:        "requested_partial",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	rr := httptest.NewRecorder()
+
+	h.apiGetClaudeCodeReadiness(rr, req)
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	for _, key := range []string{"recentParentAgents", "recentToolResultImages", "recentOrphanedToolResults", "recentUnsupportedBlocks", "recentFineGrainedToolStreaming"} {
+		if body[key] != true {
+			t.Fatalf("expected %s=true, got %#v", key, body)
+		}
+	}
+}
+
 func TestAdminClaudeCodeReadinessReportsDeferredMCPToolReferences(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

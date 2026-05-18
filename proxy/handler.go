@@ -4514,15 +4514,20 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
 	cutoff := time.Now().Add(-30 * time.Minute)
 	resp := map[string]interface{}{
-		"recentClaudeCode":       false,
-		"recentToolReferences":   false,
-		"recentMCPTools":         false,
-		"recentToolTrimming":     false,
-		"recentResponsesRestore": false,
-		"recentToolResultTurns":  false,
-		"recentContextReminders": []string{},
-		"lastSeen":               "",
-		"examples":               []map[string]interface{}{},
+		"recentClaudeCode":               false,
+		"recentToolReferences":           false,
+		"recentMCPTools":                 false,
+		"recentToolTrimming":             false,
+		"recentResponsesRestore":         false,
+		"recentToolResultTurns":          false,
+		"recentParentAgents":             false,
+		"recentToolResultImages":         false,
+		"recentOrphanedToolResults":      false,
+		"recentUnsupportedBlocks":        false,
+		"recentFineGrainedToolStreaming": false,
+		"recentContextReminders":         []string{},
+		"lastSeen":                       "",
+		"examples":                       []map[string]interface{}{},
 	}
 	examples := make([]map[string]interface{}, 0, 5)
 	reminderSet := make(map[string]bool)
@@ -4549,6 +4554,21 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		if strings.Contains(entry.PayloadCurrentMessageShape, "tool_result") || entry.PayloadCompactedToolResults > 0 {
 			resp["recentToolResultTurns"] = true
 		}
+		if entry.ClaudeCodeParentAgentID != "" {
+			resp["recentParentAgents"] = true
+		}
+		if entry.PayloadToolResultImages > 0 {
+			resp["recentToolResultImages"] = true
+		}
+		if entry.PayloadOrphanedToolResultsConverted > 0 {
+			resp["recentOrphanedToolResults"] = true
+		}
+		if len(entry.PayloadUnsupportedContentBlocks) > 0 {
+			resp["recentUnsupportedBlocks"] = true
+		}
+		if entry.FineGrainedToolStreamingRequested {
+			resp["recentFineGrainedToolStreaming"] = true
+		}
 		for _, kind := range entry.PayloadContextReminderKinds {
 			kind = strings.TrimSpace(kind)
 			if kind != "" {
@@ -4557,11 +4577,14 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		}
 		if len(examples) < 5 {
 			examples = append(examples, map[string]interface{}{
-				"timestamp":            entry.Timestamp,
-				"endpoint":             entry.Endpoint,
-				"model":                entry.Model,
-				"currentMessageShape":  entry.PayloadCurrentMessageShape,
-				"contextReminderKinds": append([]string(nil), entry.PayloadContextReminderKinds...),
+				"timestamp":                    entry.Timestamp,
+				"endpoint":                     entry.Endpoint,
+				"model":                        entry.Model,
+				"currentMessageShape":          entry.PayloadCurrentMessageShape,
+				"contextReminderKinds":         append([]string(nil), entry.PayloadContextReminderKinds...),
+				"parentAgentId":                entry.ClaudeCodeParentAgentID,
+				"unsupportedContentBlocks":     append([]string(nil), entry.PayloadUnsupportedContentBlocks...),
+				"fineGrainedToolStreamingMode": entry.FineGrainedToolStreamingMode,
 			})
 		}
 	}
