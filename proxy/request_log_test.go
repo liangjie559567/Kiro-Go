@@ -148,6 +148,24 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesMaxTokensZeroMode(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogMaxTokensZeroMode(loggedReq, "local_zero_output")
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if logs[0].MaxTokensZeroMode != "local_zero_output" {
+		t.Fatalf("expected max_tokens=0 mode, got %#v", logs[0])
+	}
+}
+
 func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

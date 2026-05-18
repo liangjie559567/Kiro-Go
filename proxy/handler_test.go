@@ -1604,6 +1604,34 @@ func TestHandleClaudeNativeWebSearchAccepts20260209ToolType(t *testing.T) {
 	t.Fatalf("expected async account stats update to complete")
 }
 
+func TestHandleClaudeMessagesMaxTokensZeroReturnsCompatibleNoOutputResponse(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{requestLogs: newRequestLogStore(5), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","max_tokens":0,"messages":[{"role":"user","content":"warm cache"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.StopReason != "max_tokens" {
+		t.Fatalf("expected max_tokens stop reason, got %#v", resp)
+	}
+	if len(resp.Content) != 0 || resp.Usage.OutputTokens != 0 {
+		t.Fatalf("expected zero-output response, got %#v", resp)
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 || entries[0].MaxTokensZeroMode != "local_zero_output" {
+		t.Fatalf("expected max_tokens=0 request log mode, got %#v", entries)
+	}
+}
+
 func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

@@ -1203,6 +1203,27 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
 
+	if req.MaxTokens == 0 {
+		updateRequestLogMaxTokensZeroMode(r, "local_zero_output")
+		updateRequestLogUsage(r, estimatedInputTokens, 0, 0, 0)
+		h.recordSuccess(estimatedInputTokens, 0, 0)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(ClaudeResponse{
+			ID:           "msg_" + uuid.New().String(),
+			Type:         "message",
+			Role:         "assistant",
+			Content:      []ClaudeContentBlock{},
+			Model:        req.Model,
+			StopReason:   "max_tokens",
+			StopSequence: nil,
+			Usage: ClaudeUsage{
+				InputTokens:  estimatedInputTokens,
+				OutputTokens: 0,
+			},
+		})
+		return
+	}
+
 	if hasNativeClaudeWebSearch(req.Tools) {
 		h.handleClaudeNativeWebSearch(w, r, &req, estimatedInputTokens)
 		return

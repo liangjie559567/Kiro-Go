@@ -78,6 +78,7 @@ type RequestLogEntry struct {
 	OutputTokens                        int       `json:"outputTokens,omitempty"`
 	CacheReadInputTokens                int       `json:"cacheReadInputTokens,omitempty"`
 	CacheCreationInputTokens            int       `json:"cacheCreationInputTokens,omitempty"`
+	MaxTokensZeroMode                   string    `json:"maxTokensZeroMode,omitempty"`
 	ErrorType                           string    `json:"errorType,omitempty"`
 	Error                               string    `json:"error,omitempty"`
 }
@@ -416,6 +417,16 @@ func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheRead
 	ctx.entry.OutputTokens = outputTokens
 	ctx.entry.CacheReadInputTokens = cacheReadInputTokens
 	ctx.entry.CacheCreationInputTokens = cacheCreationInputTokens
+}
+
+func updateRequestLogMaxTokensZeroMode(r *http.Request, mode string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.MaxTokensZeroMode = strings.TrimSpace(mode)
 }
 
 func updateRequestLogReliability(r *http.Request, queueWaitMs int64, attempts int, firstTokenMs int64, toolUseCount int) {
