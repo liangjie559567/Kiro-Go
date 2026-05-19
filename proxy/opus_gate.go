@@ -150,8 +150,13 @@ func (g *modelAdmissionGateSet) acquire(model string, timeout time.Duration) (fu
 	if g.now != nil {
 		now = g.now()
 	}
-	if state != nil && now.Before(state.expiresAt) && state.effectiveMaxConcurrent > 0 {
-		effective = state.effectiveMaxConcurrent
+	if state != nil && state.effectiveMaxConcurrent > 0 {
+		switch {
+		case now.Before(state.expiresAt):
+			effective = state.effectiveMaxConcurrent
+		case state.lastSuccessAt.After(state.expiresAt) && state.effectiveMaxConcurrent != gate.maxConcurrent:
+			effective = state.effectiveMaxConcurrent
+		}
 	}
 	inner := gate.gateForLimit(effective)
 	g.mu.Unlock()
@@ -361,7 +366,7 @@ func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 			maxConcurrent = gate.maxConcurrent
 		}
 		effective := maxConcurrent
-		if state.effectiveMaxConcurrent > 0 && active {
+		if state.effectiveMaxConcurrent > 0 && (active || state.lastSuccessAt.After(state.expiresAt) || state.effectiveMaxConcurrent == maxConcurrent) {
 			effective = state.effectiveMaxConcurrent
 		}
 		var activeRequests, queueDepth int

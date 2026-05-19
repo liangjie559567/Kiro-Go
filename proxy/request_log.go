@@ -604,6 +604,16 @@ func updateRequestLogAdmission(r *http.Request, wait time.Duration, effectiveLim
 	ctx.entry.AdmissionPressureScore = pressureScore
 }
 
+func updateRequestLogCapacityRetryCount(r *http.Request, count int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.CapacityRetryCount = count
+}
+
 func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter) {
 	if ctx == nil || rw == nil {
 		return

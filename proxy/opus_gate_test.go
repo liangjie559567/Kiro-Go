@@ -31,4 +31,21 @@ func TestModelAdmissionGateReducesAndRecoversEffectiveConcurrency(t *testing.T) 
 	if got := g.effectiveMaxConcurrent("claude-opus-4.7"); got != 2 {
 		t.Fatalf("after recovery effective concurrency = %d, want 2", got)
 	}
+	release1, gated, err := g.acquire("claude-opus-4.7", time.Second)
+	if err != nil || !gated {
+		t.Fatalf("first acquire after recovery gated=%v err=%v", gated, err)
+	}
+	defer release1()
+	release2, gated, err := g.acquire("claude-opus-4.7", time.Second)
+	if err != nil || !gated {
+		t.Fatalf("second acquire after recovery gated=%v err=%v", gated, err)
+	}
+	defer release2()
+	release3, gated, err := g.acquire("claude-opus-4.7", time.Millisecond)
+	if err != errOpus47GateTimeout || !gated {
+		if release3 != nil {
+			release3()
+		}
+		t.Fatalf("third acquire after recovery gated=%v err=%v, want timeout", gated, err)
+	}
 }

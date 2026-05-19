@@ -1795,6 +1795,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	var lastErr error
 	used := make(map[string]bool)
 	attempt := 0
+	capacityRetryCount := 0
 	sessionKey := requestStickyKey(r, effectiveReq)
 
 	for {
@@ -1803,6 +1804,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
+					capacityRetryCount++
+					updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 					sleepForOpusCapacityRetry(delay)
 					used = make(map[string]bool)
 					continue
@@ -1887,6 +1890,7 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 	used := make(map[string]bool)
 	var lastErr error
 	attempt := 0
+	capacityRetryCount := 0
 
 	for {
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
@@ -1894,6 +1898,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
+					capacityRetryCount++
+					updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 					sleepForOpusCapacityRetry(delay)
 					used = make(map[string]bool)
 					continue
@@ -2787,6 +2793,7 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	used := make(map[string]bool)
 	var lastErr error
 	attempt := 0
+	capacityRetryCount := 0
 
 	for {
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
@@ -2794,6 +2801,8 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		if account == nil {
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
+					capacityRetryCount++
+					updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 					sleepForOpusCapacityRetry(delay)
 					used = make(map[string]bool)
 					continue
