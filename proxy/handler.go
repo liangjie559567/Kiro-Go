@@ -1163,6 +1163,7 @@ func (h *Handler) handleCountTokens(w http.ResponseWriter, r *http.Request) {
 		estimatedTokens = 1
 	}
 
+	updateRequestLogCountTokensMode(r, "estimated")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Kiro-Go-Token-Count-Mode", "estimated")
 	json.NewEncoder(w).Encode(map[string]int{"input_tokens": estimatedTokens})
@@ -1212,6 +1213,15 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	effectiveReq := cloneClaudeRequestForThinking(&req, thinking)
 	thinkingResponseOpts := resolveClaudeThinkingResponseOptions(req.Thinking, thinkingCfg.ClaudeFormat)
 	estimatedInputTokens := estimateClaudeRequestInputTokens(effectiveReq)
+	if len(effectiveReq.Messages) > 0 {
+		last := effectiveReq.Messages[len(effectiveReq.Messages)-1]
+		if strings.TrimSpace(last.Role) == "assistant" && !finalAssistantMessageHasToolUse(last.Content) {
+			text, _ := extractClaudeAssistantContent(last.Content)
+			if strings.TrimSpace(text) != "" {
+				updateRequestLogAssistantPrefillMode(r, "emulated_text_prefill")
+			}
+		}
+	}
 
 	if req.MaxTokens == 0 && maxTokensPresent {
 		updateRequestLogMaxTokensZeroMode(r, "local_zero_output")

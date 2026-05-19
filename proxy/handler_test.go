@@ -1791,6 +1791,54 @@ func TestHandleCountTokensMarksEstimateInHeader(t *testing.T) {
 	}
 }
 
+func TestClaudeCountTokensRecordsEstimatedMode(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", body)
+	w := httptest.NewRecorder()
+	ctx, req, recorder, _ := h.beginRequestLog(w, req)
+
+	h.handleCountTokens(w, req)
+	h.finishRequestLog(ctx, recorder)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	entries := h.ensureRequestLogStore().List(5)
+	if len(entries) != 1 || entries[0].CountTokensMode != "estimated" {
+		t.Fatalf("expected estimated count-token mode, got %#v", entries)
+	}
+}
+
+func TestClaudeAssistantTextPrefillRecordsEmulatedMode(t *testing.T) {
+	req := ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 64,
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: "Return JSON"},
+			{Role: "assistant", Content: "{\"ok\":"},
+		},
+	}
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
+	httpReq := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	ctx, httpReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), httpReq)
+
+	normalized := normalizeAssistantPrefillForKiro(req.Messages)
+	if len(normalized) != 2 || normalized[1].Role != "user" {
+		t.Fatalf("expected text prefill to be converted to user instruction, got %#v", normalized)
+	}
+	updateRequestLogAssistantPrefillMode(httpReq, "emulated_text_prefill")
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+	entries := h.ensureRequestLogStore().List(5)
+	if len(entries) != 1 || entries[0].AssistantPrefillMode != "emulated_text_prefill" {
+		t.Fatalf("expected assistant prefill mode, got %#v", entries)
+	}
+}
+
 func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
