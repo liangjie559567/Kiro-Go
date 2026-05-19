@@ -3392,6 +3392,8 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		h.recordFailure()
 		reason := classifyFailureReason(err)
+		status, _ := openAIUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountFailure(account.ID, err)
 		h.checkOverageError(err, account.ID)
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
@@ -3439,6 +3441,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -3560,6 +3563,8 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
+		status, _ := openAIUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountFailure(account.ID, err)
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
 			return false, err
@@ -3589,6 +3594,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -3637,6 +3643,8 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
+		status, _ := openAIUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountFailure(account.ID, err)
 		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
 			return false, err
@@ -3663,6 +3671,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
@@ -3706,6 +3715,8 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	releaseRequest()
 	if err != nil {
 		reason := classifyFailureReason(err)
+		status, _ := openAIUpstreamErrorStatusAndType(err)
+		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountFailure(account.ID, err)
 		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
 			return false, err
@@ -3730,6 +3741,7 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.UpdateStats(account.ID, inputTokens+outputTokens, credits)
