@@ -13,10 +13,12 @@ import (
 var errOpus47GateTimeout = errors.New("opus 4.7 concurrency gate timeout")
 
 type opus47Gate struct {
-	slots  chan struct{}
-	queue  chan struct{}
-	mu     sync.RWMutex
-	active int
+	mu            sync.Mutex
+	active        int
+	waiting       int
+	maxConcurrent int
+	maxWaiting    int
+	notify        chan struct{}
 }
 
 type modelAdmissionGateSet struct {
@@ -32,10 +34,7 @@ type modelAdmissionGateSet struct {
 
 type adaptiveAdmissionGate struct {
 	maxConcurrent int
-	maxWaiting    int
-	base          *opus47Gate
-	reduced       *opus47Gate
-	dynamic       map[int]*opus47Gate
+	gate          *opus47Gate
 }
 
 type admissionPressureState struct {
@@ -101,29 +100,8 @@ func (g *modelAdmissionGateSet) shouldBypassStream(model string) bool {
 func newAdaptiveAdmissionGate(maxConcurrent, maxWaiting int) *adaptiveAdmissionGate {
 	return &adaptiveAdmissionGate{
 		maxConcurrent: maxConcurrent,
-		maxWaiting:    maxWaiting,
-		base:          newOpus47Gate(maxConcurrent, maxWaiting),
-		reduced:       newOpus47Gate(1, maxWaiting),
-		dynamic:       make(map[int]*opus47Gate),
+		gate:          newOpus47Gate(maxConcurrent, maxWaiting),
 	}
-}
-
-func (g *adaptiveAdmissionGate) gateForLimit(limit int) *opus47Gate {
-	if g == nil {
-		return nil
-	}
-	if limit >= g.maxConcurrent {
-		return g.base
-	}
-	if limit <= 1 {
-		return g.reduced
-	}
-	if existing := g.dynamic[limit]; existing != nil {
-		return existing
-	}
-	next := newOpus47Gate(limit, g.maxWaiting)
-	g.dynamic[limit] = next
-	return next
 }
 
 func normalizeAdmissionModel(model string) string {
@@ -135,35 +113,26 @@ func (g *modelAdmissionGateSet) acquire(model string, timeout time.Duration) (fu
 		return func() {}, false, nil
 	}
 	normalizedModel := normalizeAdmissionModel(model)
-	g.mu.Lock()
+	g.mu.RLock()
 	gate := g.models[normalizedModel]
 	if gate == nil {
 		gate = g.def
 	}
 	if gate == nil {
-		g.mu.Unlock()
+		g.mu.RUnlock()
 		return func() {}, false, nil
 	}
-	effective := gateMaxConcurrent(gate)
-	state := g.pressure[normalizedModel]
-	now := time.Now()
-	if g.now != nil {
-		now = g.now()
-	}
-	if state != nil && state.effectiveMaxConcurrent > 0 {
-		switch {
-		case now.Before(state.expiresAt):
-			effective = state.effectiveMaxConcurrent
-		case state.lastSuccessAt.After(state.expiresAt) && state.effectiveMaxConcurrent != gate.maxConcurrent:
-			effective = state.effectiveMaxConcurrent
-		}
-	}
-	inner := gate.gateForLimit(effective)
-	g.mu.Unlock()
+	inner := gate.gate
+	g.mu.RUnlock()
 	if inner == nil {
 		return func() {}, false, nil
 	}
-	release, err := inner.acquire(timeout)
+	release, err := inner.acquireWithLimit(timeout, func() int {
+		return g.effectiveMaxConcurrent(normalizedModel)
+	})
+	if err == errOpus47GateTimeout {
+		g.recordQueueTimeout(normalizedModel)
+	}
 	return release, true, err
 }
 
@@ -248,6 +217,43 @@ func (g *modelAdmissionGateSet) recordPressureUntil(model string, statusCode int
 	}
 	state.lastPressureAt = now
 	state.expiresAt = expiresAt
+}
+
+func (g *modelAdmissionGateSet) recordQueueTimeout(model string) {
+	if g == nil {
+		return
+	}
+	model = normalizeAdmissionModel(model)
+	if model == "" {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	gate := g.models[model]
+	if gate == nil {
+		gate = g.def
+	}
+	if gate == nil {
+		return
+	}
+	now := time.Now()
+	if g.now != nil {
+		now = g.now()
+	}
+	ttl := g.pressureT
+	if ttl <= 0 {
+		ttl = 30 * time.Second
+	}
+	state := g.pressureStateForUpdateLocked(model, gate, now, false)
+	state.score += 2
+	if state.score > 6 {
+		state.score = 6
+	}
+	state.recentQueueTimeouts++
+	state.lastPressureAt = now
+	if !state.expiresAt.After(now) {
+		state.expiresAt = now.Add(ttl)
+	}
 }
 
 func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duration) {
@@ -371,7 +377,7 @@ func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 		}
 		var activeRequests, queueDepth int
 		if gate != nil {
-			activeRequests, queueDepth = gate.gateForLimit(effective).snapshot()
+			activeRequests, queueDepth = gate.gate.snapshot()
 		}
 		expiresIn := int64(0)
 		if active {
@@ -408,55 +414,97 @@ func newOpus47Gate(maxConcurrent, maxWaiting int) *opus47Gate {
 		maxWaiting = 0
 	}
 	return &opus47Gate{
-		slots: make(chan struct{}, maxConcurrent),
-		queue: make(chan struct{}, maxConcurrent+maxWaiting),
+		maxConcurrent: maxConcurrent,
+		maxWaiting:    maxWaiting,
+		notify:        make(chan struct{}),
 	}
 }
 
-func (g *opus47Gate) acquire(timeout time.Duration) (func(), error) {
+func (g *opus47Gate) acquire(timeout time.Duration, limits ...func() int) (func(), error) {
 	if g == nil {
 		return func() {}, nil
 	}
+	if len(limits) > 0 && limits[0] != nil {
+		return g.acquireWithLimit(timeout, limits[0])
+	}
+	return g.acquireWithLimit(timeout, func() int {
+		return g.maxConcurrent
+	})
+}
 
+func (g *opus47Gate) acquireWithLimit(timeout time.Duration, limit func() int) (func(), error) {
+	if g == nil {
+		return func() {}, nil
+	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	select {
-	case g.queue <- struct{}{}:
-	case <-timer.C:
-		return nil, errOpus47GateTimeout
-	}
+	queued := false
+	for {
+		currentLimit := 1
+		if limit != nil {
+			currentLimit = limit()
+		}
+		if currentLimit <= 0 {
+			currentLimit = 1
+		}
 
-	select {
-	case g.slots <- struct{}{}:
-	case <-timer.C:
-		<-g.queue
-		return nil, errOpus47GateTimeout
+		g.mu.Lock()
+		if g.active < currentLimit {
+			if queued && g.waiting > 0 {
+				g.waiting--
+			}
+			g.active++
+			g.mu.Unlock()
+			break
+		}
+		if !queued {
+			if g.waiting >= g.maxWaiting {
+				g.mu.Unlock()
+				return nil, errOpus47GateTimeout
+			}
+			g.waiting++
+			queued = true
+		}
+		notify := g.notify
+		g.mu.Unlock()
+		select {
+		case <-notify:
+		case <-timer.C:
+			g.mu.Lock()
+			if queued && g.waiting > 0 {
+				g.waiting--
+			}
+			g.mu.Unlock()
+			return nil, errOpus47GateTimeout
+		}
 	}
-	g.mu.Lock()
-	g.active++
-	g.mu.Unlock()
 
 	var once sync.Once
 	return func() {
 		once.Do(func() {
-			<-g.slots
-			<-g.queue
 			g.mu.Lock()
 			if g.active > 0 {
 				g.active--
 			}
+			g.broadcastLocked()
 			g.mu.Unlock()
 		})
 	}, nil
+}
+
+func (g *opus47Gate) broadcastLocked() {
+	close(g.notify)
+	g.notify = make(chan struct{})
 }
 
 func (g *opus47Gate) snapshot() (active int, queueDepth int) {
 	if g == nil {
 		return 0, 0
 	}
-	g.mu.RLock()
+	g.mu.Lock()
 	active = g.active
-	g.mu.RUnlock()
-	return active, len(g.queue)
+	queueDepth = g.waiting
+	g.mu.Unlock()
+	return active, queueDepth
 }
