@@ -4678,39 +4678,89 @@ func modelReadinessReason(listed bool) string {
 	return "model not found in current Kiro-Go model cache"
 }
 
+func layeredCapability(status, detail string, compat map[string]string, official map[string]string, evidence map[string]interface{}) map[string]interface{} {
+	out := map[string]interface{}{
+		"status":                  status,
+		"detail":                  detail,
+		"claudeCodeCompatibility": compat,
+		"officialAnthropicParity": official,
+	}
+	if evidence == nil {
+		evidence = map[string]interface{}{}
+	}
+	out["evidence"] = evidence
+	return out
+}
+
+func basicCapability(status, detail string) map[string]interface{} {
+	return map[string]interface{}{
+		"status": status,
+		"detail": detail,
+	}
+}
+
+func readinessEvidence(entry *RequestLogEntry, mode string, proof string) map[string]interface{} {
+	if entry == nil {
+		return map[string]interface{}{
+			"mode":  mode,
+			"proof": proof,
+		}
+	}
+	return map[string]interface{}{
+		"lastSeenAt":    entry.Timestamp.Format(time.RFC3339),
+		"lastRequestId": entry.RequestID,
+		"model":         entry.Model,
+		"mode":          mode,
+		"proof":         proof,
+	}
+}
+
+func modelDisallowsAssistantPrefill(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.Contains(model, "opus-4.7") ||
+		strings.Contains(model, "opus-4-7") ||
+		strings.Contains(model, "opus-4.6") ||
+		strings.Contains(model, "opus-4-6") ||
+		strings.Contains(model, "sonnet-4.6") ||
+		strings.Contains(model, "sonnet-4-6")
+}
+
 func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Request) {
 	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
 	cutoff := time.Now().Add(-30 * time.Minute)
 	resp := map[string]interface{}{
-		"capabilities": map[string]map[string]string{
-			"messages": {
-				"status": "PASS",
-				"detail": "/v1/messages is implemented",
-			},
-			"countTokens": {
-				"status": "PARTIAL",
-				"detail": "Token counts are estimated by Kiro-Go",
-			},
-			"maxTokensZero": {
-				"status": "PARTIAL",
-				"detail": "Returns local zero-output compatibility response; not a proven upstream cache warmup",
-			},
-			"assistantPrefill": {
-				"status": "PARTIAL",
-				"detail": "Text prefill is converted into continuation instruction; tool-use prefill is rejected",
-			},
-			"fineGrainedToolStreaming": {
-				"status": "PARTIAL",
-				"detail": "Anthropic SSE input_json_delta is emitted from complete Kiro tool input; true upstream partial JSON parity depends on Kiro stream shape",
-			},
-			"toolSchemaValidation": {
-				"status": "PASS",
-				"detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
-			},
-			"toolReference": {
-				"status": "PASS",
-				"detail": "tool_reference is accepted and materialized when relevant",
-			},
+		"capabilities": map[string]interface{}{
+			"messages": basicCapability("PASS", "/v1/messages is implemented"),
+			"countTokens": layeredCapability(
+				"PARTIAL",
+				"Claude Code compatible estimated token counting; official exact count is not proven",
+				map[string]string{"status": "PASS", "mode": "estimated", "proof": "count_tokens endpoint is implemented"},
+				map[string]string{"status": "PARTIAL", "mode": "estimated", "proof": "no upstream exact count_tokens evidence"},
+				readinessEvidence(nil, "estimated", "no recent count_tokens request in readiness window"),
+			),
+			"maxTokensZero": layeredCapability(
+				"PARTIAL",
+				"Claude Code compatible zero-output response; official cache warmup is not proven",
+				map[string]string{"status": "PASS", "mode": "local_zero_output", "proof": "local zero-output response shape is implemented"},
+				map[string]string{"status": "BLOCKED_BY_UPSTREAM", "mode": "local_zero_output", "proof": "no upstream cache warmup evidence"},
+				readinessEvidence(nil, "local_zero_output", "no recent max_tokens=0 request in readiness window"),
+			),
+			"assistantPrefill": layeredCapability(
+				"PARTIAL",
+				"Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+				map[string]string{"status": "EMULATED_PASS", "mode": "emulated_text_prefill", "proof": "text prefill conversion is implemented"},
+				map[string]string{"status": "PARTIAL", "mode": "emulated_text_prefill", "proof": "native upstream prefill is not proven"},
+				readinessEvidence(nil, "emulated_text_prefill", "no recent assistant text prefill request in readiness window"),
+			),
+			"fineGrainedToolStreaming": layeredCapability(
+				"PARTIAL",
+				"Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+				map[string]string{"status": "PASS", "mode": "kiro_go_chunked_complete_input", "proof": "Anthropic SSE input_json_delta writer is implemented"},
+				map[string]string{"status": "PARTIAL", "mode": "kiro_go_chunked_complete_input", "proof": "upstream partial tool input deltas are not proven"},
+				readinessEvidence(nil, "kiro_go_chunked_complete_input", "no recent fine-grained tool stream in readiness window"),
+			),
+			"toolSchemaValidation": basicCapability("PASS", "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them"),
+			"toolReference":        basicCapability("PASS", "tool_reference is accepted and materialized when relevant"),
 		},
 		"recentClaudeCode":               false,
 		"recentToolReferences":           false,
@@ -4730,6 +4780,7 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 	}
 	examples := make([]map[string]interface{}, 0, 5)
 	reminderSet := make(map[string]bool)
+	var recentCountTokens, recentMaxTokensZero, recentFineGrained, recentAssistantPrefill *RequestLogEntry
 	for _, entry := range logs {
 		if entry.Timestamp.Before(cutoff) {
 			continue
@@ -4771,6 +4822,19 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		if entry.SuppressedToolUseCount > 0 {
 			resp["recentSuppressedToolUses"] = true
 		}
+		entryCopy := entry
+		if entry.CountTokensMode != "" && recentCountTokens == nil {
+			recentCountTokens = &entryCopy
+		}
+		if entry.MaxTokensZeroMode != "" && recentMaxTokensZero == nil {
+			recentMaxTokensZero = &entryCopy
+		}
+		if entry.FineGrainedToolStreamingMode != "" && recentFineGrained == nil {
+			recentFineGrained = &entryCopy
+		}
+		if entry.AssistantPrefillMode != "" && recentAssistantPrefill == nil {
+			recentAssistantPrefill = &entryCopy
+		}
 		for _, kind := range entry.PayloadContextReminderKinds {
 			kind = strings.TrimSpace(kind)
 			if kind != "" {
@@ -4799,6 +4863,55 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 	sort.Strings(reminders)
 	resp["recentContextReminders"] = reminders
 	resp["examples"] = examples
+	capabilities := resp["capabilities"].(map[string]interface{})
+	if recentCountTokens != nil {
+		capabilities["countTokens"] = layeredCapability(
+			"PARTIAL",
+			"Claude Code compatible estimated token counting; official exact count is not proven",
+			map[string]string{"status": "PASS", "mode": recentCountTokens.CountTokensMode, "proof": "count_tokens endpoint returned input_tokens"},
+			map[string]string{"status": "PARTIAL", "mode": recentCountTokens.CountTokensMode, "proof": "no upstream exact count_tokens evidence"},
+			readinessEvidence(recentCountTokens, recentCountTokens.CountTokensMode, "recent count_tokens request completed"),
+		)
+	}
+	if recentMaxTokensZero != nil {
+		officialStatus := "BLOCKED_BY_UPSTREAM"
+		officialProof := "no upstream cache warmup evidence"
+		if recentMaxTokensZero.CacheCreationInputTokens > 0 || recentMaxTokensZero.CacheReadInputTokens > 0 {
+			officialStatus = "PASS"
+			officialProof = "upstream cache usage tokens were observed"
+		}
+		capabilities["maxTokensZero"] = layeredCapability(
+			"PARTIAL",
+			"Claude Code compatible zero-output response; official cache warmup is not proven",
+			map[string]string{"status": "PASS", "mode": recentMaxTokensZero.MaxTokensZeroMode, "proof": "zero-output response shape completed"},
+			map[string]string{"status": officialStatus, "mode": recentMaxTokensZero.MaxTokensZeroMode, "proof": officialProof},
+			readinessEvidence(recentMaxTokensZero, recentMaxTokensZero.MaxTokensZeroMode, "recent max_tokens=0 request completed"),
+		)
+	}
+	if recentFineGrained != nil {
+		capabilities["fineGrainedToolStreaming"] = layeredCapability(
+			"PARTIAL",
+			"Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+			map[string]string{"status": "PASS", "mode": recentFineGrained.FineGrainedToolStreamingMode, "proof": "recent request asked for fine-grained tool streaming"},
+			map[string]string{"status": "PARTIAL", "mode": recentFineGrained.FineGrainedToolStreamingMode, "proof": "upstream partial tool input deltas are not proven"},
+			readinessEvidence(recentFineGrained, recentFineGrained.FineGrainedToolStreamingMode, "recent fine-grained tool-stream request observed"),
+		)
+	}
+	if recentAssistantPrefill != nil {
+		officialStatus := "PARTIAL"
+		officialProof := "native upstream prefill is not proven"
+		if modelDisallowsAssistantPrefill(recentAssistantPrefill.Model) {
+			officialStatus = "UNSUPPORTED_BY_MODEL"
+			officialProof = "official model family does not support assistant prefill"
+		}
+		capabilities["assistantPrefill"] = layeredCapability(
+			"PARTIAL",
+			"Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+			map[string]string{"status": "EMULATED_PASS", "mode": recentAssistantPrefill.AssistantPrefillMode, "proof": "recent assistant text prefill was converted"},
+			map[string]string{"status": officialStatus, "mode": recentAssistantPrefill.AssistantPrefillMode, "proof": officialProof},
+			readinessEvidence(recentAssistantPrefill, recentAssistantPrefill.AssistantPrefillMode, "recent assistant text prefill request observed"),
+		)
+	}
 	json.NewEncoder(w).Encode(resp)
 }
 

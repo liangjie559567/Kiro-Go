@@ -2971,6 +2971,87 @@ func TestClaudeCodeReadinessReportsPartialCapabilities(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeReadinessReportsLayeredPartialCapabilities(t *testing.T) {
+	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(10)}
+	now := time.Now().UTC()
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:       now,
+		RequestID:       "req-count",
+		Endpoint:        "/v1/messages/count_tokens",
+		Model:           "claude-sonnet-4.5",
+		StatusCode:      200,
+		Outcome:         "success",
+		CountTokensMode: "estimated",
+	})
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:         now,
+		RequestID:         "req-zero",
+		Endpoint:          "/v1/messages",
+		Model:             "claude-sonnet-4.5",
+		StatusCode:        200,
+		Outcome:           "success",
+		MaxTokensZeroMode: "local_zero_output",
+	})
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:                         now,
+		RequestID:                         "req-fg",
+		Endpoint:                          "/v1/messages",
+		Model:                             "claude-sonnet-4.5",
+		StatusCode:                        200,
+		Outcome:                           "success",
+		FineGrainedToolStreamingRequested: true,
+		FineGrainedToolStreamingMode:      "kiro_go_chunked_complete_input",
+	})
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:            now,
+		RequestID:            "req-prefill",
+		Endpoint:             "/v1/messages",
+		Model:                "claude-opus-4.7",
+		StatusCode:           200,
+		Outcome:              "success",
+		AssistantPrefillMode: "emulated_text_prefill",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/readiness", nil)
+	w := httptest.NewRecorder()
+
+	h.apiGetClaudeCodeReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	capabilities := resp["capabilities"].(map[string]interface{})
+	for _, name := range []string{"countTokens", "maxTokensZero", "fineGrainedToolStreaming", "assistantPrefill"} {
+		capability := capabilities[name].(map[string]interface{})
+		if capability["status"] != "PARTIAL" {
+			t.Fatalf("expected %s top-level PARTIAL, got %#v", name, capability)
+		}
+		if _, ok := capability["claudeCodeCompatibility"].(map[string]interface{}); !ok {
+			t.Fatalf("expected %s claudeCodeCompatibility object, got %#v", name, capability)
+		}
+		if _, ok := capability["officialAnthropicParity"].(map[string]interface{}); !ok {
+			t.Fatalf("expected %s officialAnthropicParity object, got %#v", name, capability)
+		}
+		if _, ok := capability["evidence"].(map[string]interface{}); !ok {
+			t.Fatalf("expected %s evidence object, got %#v", name, capability)
+		}
+	}
+	count := capabilities["countTokens"].(map[string]interface{})
+	countCompat := count["claudeCodeCompatibility"].(map[string]interface{})
+	if countCompat["status"] != "PASS" || countCompat["mode"] != "estimated" {
+		t.Fatalf("expected countTokens compatibility PASS estimated, got %#v", countCompat)
+	}
+	prefill := capabilities["assistantPrefill"].(map[string]interface{})
+	prefillCompat := prefill["claudeCodeCompatibility"].(map[string]interface{})
+	if prefillCompat["status"] != "EMULATED_PASS" || prefillCompat["mode"] != "emulated_text_prefill" {
+		t.Fatalf("expected assistant prefill emulated compatibility, got %#v", prefillCompat)
+	}
+	prefillOfficial := prefill["officialAnthropicParity"].(map[string]interface{})
+	if prefillOfficial["status"] != "UNSUPPORTED_BY_MODEL" {
+		t.Fatalf("expected opus 4.7 prefill unsupported by model, got %#v", prefillOfficial)
+	}
+}
+
 func TestAdminClaudeCodeReadinessReportsDeferredMCPToolReferences(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
