@@ -1,0 +1,8 @@
+ id |       name       | key_prefix | status | group_id |   quota    | quota_used | expires_at 
+----+------------------+------------+--------+----------+------------+------------+------------
+  1 | openai           | sk-b5f7d16 | active |        2 | 0.00000000 | 0.00000000 | 
+  2 | claude           | sk-aa1c261 | active |        1 | 0.00000000 | 0.00000000 | 
+  3 | lin              | sk-805ece0 | active |        2 | 0.00000000 | 0.00000000 | 
+  4 | OpenAI Frist API | sk-2231752 | active |        2 | 0.00000000 | 0.00000000 | 
+(4 rows)
+

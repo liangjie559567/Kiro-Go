@@ -1,0 +1,11 @@
+ usage_logs_after 
+------------------
+            57904
+(1 row)
+
+  id   |                request_id                | api_key_id | account_id | requested_model |      model      | upstream_model | stream | input_tokens | output_tokens | duration_ms | inbound_endpoint | upstream_endpoint |          created_at           
+-------+------------------------------------------+------------+------------+-----------------+-----------------+----------------+--------+--------------+---------------+-------------+------------------+-------------------+-------------------------------
+ 57933 | req_47a2a6e3-99c2-410b-afcb-80cec036e053 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 |                | f      |         5913 |            12 |        8257 | /v1/messages     | /v1/messages      | 2026-05-19 10:39:06.558316+08
+ 57934 | req_c85419ab-ee66-4d68-ab1e-2c6bc4b322f0 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 |                | t      |         5921 |            14 |        7236 | /v1/messages     | /v1/messages      | 2026-05-19 10:39:13.817323+08
+(2 rows)
+

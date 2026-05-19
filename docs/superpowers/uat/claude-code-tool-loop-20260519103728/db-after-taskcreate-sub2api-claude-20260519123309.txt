@@ -1,0 +1,12 @@
+  id   |                request_id                | api_key_id | account_id | requested_model |      model      | inbound_endpoint | upstream_endpoint | stream | request_type |          created_at           
+-------+------------------------------------------+------------+------------+-----------------+-----------------+------------------+-------------------+--------+--------------+-------------------------------
+ 58336 | req_8c6d9924-ef07-4711-9e30-fc1707de22b3 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:34:17.338008+08
+ 58334 | req_89a7fa89-131e-452a-93cc-4565c93bb417 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | f      |            1 | 2026-05-19 12:33:59.793253+08
+ 58264 | req_20c780b1-f301-474d-b0ba-7e939bdd4c0e |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:59.145217+08
+ 58262 | req_efa9ff08-f44c-4e66-a64c-d506de6f0e66 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:49.825988+08
+ 58260 | req_76b48202-50bf-419a-9f1c-94f046c2e445 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:33.917969+08
+ 58258 | req_b2b0d2f5-8f6e-43b4-a8dd-f0e6ac8ee730 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:23.854034+08
+ 58257 | req_6f5ea4c9-a40d-406a-9a4c-940d9ddf1a4a |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:12.49394+08
+ 58256 | req_f1aa8cf1-8309-4b44-b648-0095853e86df |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 12:21:07.519924+08
+(8 rows)
+

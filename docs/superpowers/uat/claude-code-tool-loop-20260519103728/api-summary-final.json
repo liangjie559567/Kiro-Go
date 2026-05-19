@@ -1,0 +1,49 @@
+{
+  "directToolAuthenticated": {
+    "httpOk": true,
+    "hasMessageStop": true,
+    "stopReason": "tool_use",
+    "toolUseCount": 1,
+    "textPreview": "I'll use a read-only tool to inspect the project structure.",
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_stop",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ]
+  },
+  "sub2apiNonstream": {
+    "hasMarker": true,
+    "stopReason": "end_turn",
+    "model": "claude-opus-4.7",
+    "inputTokens": 5913,
+    "outputTokens": 12
+  },
+  "sub2apiStream": {
+    "hasMarker": true,
+    "hasMessageStop": true
+  },
+  "database": {
+    "hasRowsAfterBeforeId": true,
+    "containsClaudeOpus": true,
+    "containsMessagesEndpoint": true
+  },
+  "kiroLogs": {
+    "count": 4,
+    "hasDirectAuthRequest": true,
+    "hasParentAgent": true,
+    "hasSuppressedDetailField": false
+  },
+  "readiness": {
+    "recentClaudeCode": true,
+    "recentParentAgents": true,
+    "recentSuppressedToolUses": false,
+    "recentFineGrainedToolStreaming": true
+  }
+}

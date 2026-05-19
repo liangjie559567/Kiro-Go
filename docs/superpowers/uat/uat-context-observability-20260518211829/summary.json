@@ -1,0 +1,291 @@
+{
+  "runId": "uat-context-observability-20260518211829",
+  "startedAt": "2026-05-18T13:21:20.945Z",
+  "outDir": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829",
+  "note": "Playwright-MCP was not exposed in this Codex environment; evidence uses real Chromium Playwright with /usr/bin/google-chrome.",
+  "api": {
+    "kiroHealth": {
+      "ok": true,
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "uptime": 207,
+        "version": "1.0.8"
+      }
+    },
+    "kiroStatus": {
+      "ok": true,
+      "status": 200,
+      "accounts": 21,
+      "available": 21,
+      "totalRequests": 3625
+    },
+    "kiroCompat": {
+      "ok": true,
+      "status": 200,
+      "capabilities": {
+        "anthropicMessages": true,
+        "toolUse": true,
+        "toolReferences": true,
+        "toolSearch": true,
+        "fineGrainedToolStreaming": true,
+        "requestLogs": true,
+        "openAIResponses": true
+      }
+    },
+    "subHealth": {
+      "ok": true,
+      "status": 200,
+      "body": {
+        "status": "ok"
+      }
+    },
+    "directToolUse": {
+      "requestId": "uat-context-observability-20260518211829-direct-tooluse",
+      "status": 200,
+      "stopReason": "tool_use",
+      "hasToolUse": true,
+      "toolName": "read_file"
+    },
+    "directToolResult": {
+      "requestId": "uat-context-observability-20260518211829-direct-toolresult",
+      "status": 200,
+      "stopReason": "end_turn",
+      "textContainsRunId": true,
+      "containsChinese": true,
+      "textPreview": "我已经读取了 README.md 文件。文件内容显示这是一个 Kiro-Go 项目，包含标记 uat-context-observability-20260518211829。\n\n你需要我对这个项目做什么吗？"
+    },
+    "subLogin": {
+      "status": 200,
+      "hasToken": true
+    },
+    "subDashboard": {
+      "ok": true,
+      "status": 200
+    },
+    "subAccounts": {
+      "ok": true,
+      "status": 200
+    },
+    "subGroups": {
+      "ok": true,
+      "status": 200
+    },
+    "subUsage": {
+      "ok": true,
+      "status": 200
+    },
+    "subMessage": {
+      "requestId": "uat-context-observability-20260518211829-sub2api-message",
+      "status": 200,
+      "textContainsRunId": true,
+      "textPreview": "uat-context-observability-20260518211829"
+    },
+    "kiroReadiness": {
+      "status": 200,
+      "recentClaudeCode": true,
+      "recentToolReferences": false,
+      "recentMCPTools": false,
+      "recentToolResultTurns": true,
+      "recentContextReminders": [
+        "language",
+        "system"
+      ],
+      "examples": [
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "model": "claude-opus-4-7",
+          "timestamp": "2026-05-18T13:21:26.352590779Z"
+        },
+        {
+          "contextReminderKinds": [
+            "system",
+            "language"
+          ],
+          "currentMessageShape": "tool_result",
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T13:21:23.769408716Z"
+        },
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "model": "claude-sonnet-4.5",
+          "timestamp": "2026-05-18T13:21:21.07473379Z"
+        }
+      ]
+    }
+  },
+  "db": {
+    "before": {
+      "usageRows": 54600,
+      "lastUsage": "2026-05-18T21:21:20.631342+08:00"
+    },
+    "after": {
+      "usageRows": 54606,
+      "lastUsage": "2026-05-18T21:21:35.343471+08:00"
+    },
+    "latest": [
+      {
+        "id": 54640,
+        "account_id": 21,
+        "api_key_id": 1,
+        "requested_model": "gpt-5.5",
+        "upstream_model": null,
+        "model": "gpt-5.5",
+        "stream": true,
+        "created_at": "2026-05-18T21:21:35.343471+08:00",
+        "duration_ms": 5440,
+        "input_tokens": 398,
+        "output_tokens": 153,
+        "request_id": "generated:r171t2vuginmu8-5mu"
+      },
+      {
+        "id": 54639,
+        "account_id": 32,
+        "api_key_id": 1,
+        "requested_model": "gpt-5.5",
+        "upstream_model": null,
+        "model": "gpt-5.5",
+        "stream": true,
+        "created_at": "2026-05-18T21:21:34.825502+08:00",
+        "duration_ms": 3852,
+        "input_tokens": 512,
+        "output_tokens": 37,
+        "request_id": "generated:r171t2vuginmu8-5mt"
+      },
+      {
+        "id": 54638,
+        "account_id": 24,
+        "api_key_id": 2,
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "model": "claude-opus-4-7",
+        "stream": false,
+        "created_at": "2026-05-18T21:21:34.121323+08:00",
+        "duration_ms": 7768,
+        "input_tokens": 5904,
+        "output_tokens": 15,
+        "request_id": "req_c36c2ed6-ea01-48b6-99cb-b6b2570ccab1"
+      },
+      {
+        "id": 54637,
+        "account_id": 21,
+        "api_key_id": 1,
+        "requested_model": "gpt-5.5",
+        "upstream_model": null,
+        "model": "gpt-5.5",
+        "stream": true,
+        "created_at": "2026-05-18T21:21:29.822733+08:00",
+        "duration_ms": 6190,
+        "input_tokens": 730,
+        "output_tokens": 136,
+        "request_id": "generated:r171t2vuginmu8-5mo"
+      },
+      {
+        "id": 54636,
+        "account_id": 32,
+        "api_key_id": 1,
+        "requested_model": "gpt-5.5",
+        "upstream_model": null,
+        "model": "gpt-5.5",
+        "stream": true,
+        "created_at": "2026-05-18T21:21:25.927576+08:00",
+        "duration_ms": 4049,
+        "input_tokens": 427,
+        "output_tokens": 37,
+        "request_id": "generated:r171t2vuginmu8-5ml"
+      },
+      {
+        "id": 54635,
+        "account_id": 21,
+        "api_key_id": 1,
+        "requested_model": "gpt-5.5",
+        "upstream_model": null,
+        "model": "gpt-5.5",
+        "stream": true,
+        "created_at": "2026-05-18T21:21:23.569304+08:00",
+        "duration_ms": 8090,
+        "input_tokens": 2498,
+        "output_tokens": 234,
+        "request_id": "generated:r171t2vuginmu8-5mi"
+      }
+    ]
+  },
+  "browser": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedRequests": [],
+    "screenshotStats": {
+      "kiroAccounts": 467736,
+      "kiroApi": 99127,
+      "kiroSettings": 544174,
+      "subDashboard": 383086,
+      "subAccounts": 289872,
+      "subGroups": 252739,
+      "subUsage": 737243
+    },
+    "textChecks": {
+      "kiroApiHasClaudeCode": true,
+      "kiroApiHasNewContextBadges": true,
+      "kiroSettingsHasEndpoint": true,
+      "subDashboardHasAdmin": true,
+      "subAccountsHasAccounts": true,
+      "subGroupsHasGroup": true,
+      "subUsageHasUsage": true,
+      "subUsageNoOnboardingOverlay": true
+    }
+  },
+  "screenshots": {
+    "kiroAccounts": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/kiro-admin-accounts.png",
+    "kiroApi": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/kiro-admin-api-readiness.png",
+    "kiroSettings": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/kiro-admin-settings.png",
+    "subDashboard": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/sub2api-admin-dashboard.png",
+    "subAccounts": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/sub2api-admin-accounts.png",
+    "subGroups": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/sub2api-admin-groups.png",
+    "subUsage": "/www/Kiro-Go/docs/superpowers/uat/uat-context-observability-20260518211829/sub2api-admin-usage.png"
+  },
+  "evidence": {
+    "directToolResultLog": {
+      "timestamp": "2026-05-18T13:21:23.769408716Z",
+      "requestId": "uat-context-observability-20260518211829-direct-toolresult",
+      "anthropicRequestId": "uat-context-observability-20260518211829-direct-toolresult",
+      "endpoint": "/v1/messages",
+      "model": "claude-sonnet-4.5",
+      "statusCode": 200,
+      "outcome": "success",
+      "payloadOriginalBytes": 1708,
+      "payloadFinalBytes": 1938,
+      "payloadTrimmed": true,
+      "payloadCurrentMessageShape": "tool_result",
+      "payloadContextReminderKinds": [
+        "system",
+        "language"
+      ],
+      "payloadCurrentTools": 1,
+      "payloadCurrentToolSchemaBytes": 191
+    },
+    "recentLogCount": 6
+  },
+  "checks": {
+    "dockerHealth": true,
+    "adminApi": true,
+    "compatApi": true,
+    "directToolUseOk": true,
+    "directToolResultOk": true,
+    "readinessSeesContext": true,
+    "requestLogHasContextMetadata": true,
+    "sub2apiHealth": true,
+    "sub2apiAdminApis": true,
+    "sub2apiMessageOk": true,
+    "dbUsageIncreased": true,
+    "dbLatestHasSub2apiClaudeRow": true,
+    "screenshotsExist": true,
+    "screenshotTextLooksCorrect": true,
+    "browserNoPageErrors": true
+  },
+  "pass": true
+}

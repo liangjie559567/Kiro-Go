@@ -1,0 +1,32 @@
+{
+  "httpError": false,
+  "frameCount": 9,
+  "events": [
+    "message_start",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop"
+  ],
+  "stopReason": "tool_use",
+  "toolUseCount": 1,
+  "toolUses": [
+    {
+      "id": "tooluse_o3MN0UEkL4hZNt7xMuMaeL",
+      "name": "TaskCreate",
+      "startInput": {},
+      "partialJson": "{\"activeForm\":\"Running Phase 46 discuss\",\"description\":\"Running Phase 46 discuss\",\"subject\":\"Phase 46 discuss\"}",
+      "reconstructedInput": {
+        "activeForm": "Running Phase 46 discuss",
+        "description": "Running Phase 46 discuss",
+        "subject": "Phase 46 discuss"
+      },
+      "reconstructedError": null
+    }
+  ],
+  "hasMessageStop": true
+}

@@ -341,6 +341,20 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 	}
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	switch normalized {
+	case "bash":
+		repairBashInput(repaired)
+	case "edit":
+		repairEditInput(repaired)
+	case "multiedit":
+		repairMultiEditInput(repaired)
+	case "glob":
+		repairGlobInput(repaired)
+	case "grep":
+		repairGrepInput(repaired)
+	case "ls":
+		repairLSInput(repaired)
+	case "write":
+		repairWriteInput(repaired)
 	case "read":
 		aliasToCanonical(repaired, "path", "file_path")
 		aliasToCanonical(repaired, "file", "file_path")
@@ -357,7 +371,98 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 	return repaired
 }
 
+func repairBashInput(input map[string]interface{}) {
+	aliasToCanonical(input, "cmd", "command")
+	aliasToCanonical(input, "shell_command", "command")
+	aliasToCanonical(input, "script", "command")
+	aliasToCanonical(input, "summary", "description")
+	coerceStringField(input, "command")
+	coerceStringField(input, "description")
+	coerceIntegerField(input, "timeout")
+}
+
+func repairEditInput(input map[string]interface{}) {
+	aliasToCanonical(input, "path", "file_path")
+	aliasToCanonical(input, "file", "file_path")
+	aliasToCanonical(input, "old", "old_string")
+	aliasToCanonical(input, "oldText", "old_string")
+	aliasToCanonical(input, "old_text", "old_string")
+	aliasToCanonical(input, "new", "new_string")
+	aliasToCanonical(input, "newText", "new_string")
+	aliasToCanonical(input, "new_text", "new_string")
+	aliasToCanonical(input, "replaceAll", "replace_all")
+	coerceStringField(input, "file_path")
+	coerceStringField(input, "old_string")
+	coerceStringField(input, "new_string")
+	coerceBoolField(input, "replace_all")
+}
+
+func repairMultiEditInput(input map[string]interface{}) {
+	aliasToCanonical(input, "path", "file_path")
+	aliasToCanonical(input, "file", "file_path")
+	coerceStringField(input, "file_path")
+	edits, ok := input["edits"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, raw := range edits {
+		edit, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		aliasToCanonical(edit, "old", "old_string")
+		aliasToCanonical(edit, "oldText", "old_string")
+		aliasToCanonical(edit, "old_text", "old_string")
+		aliasToCanonical(edit, "new", "new_string")
+		aliasToCanonical(edit, "newText", "new_string")
+		aliasToCanonical(edit, "new_text", "new_string")
+		aliasToCanonical(edit, "replaceAll", "replace_all")
+		coerceStringField(edit, "old_string")
+		coerceStringField(edit, "new_string")
+		coerceBoolField(edit, "replace_all")
+	}
+}
+
+func repairGlobInput(input map[string]interface{}) {
+	aliasToCanonical(input, "query", "pattern")
+	aliasToCanonical(input, "glob", "pattern")
+	aliasToCanonical(input, "directory", "path")
+	aliasToCanonical(input, "dir", "path")
+	coerceStringField(input, "pattern")
+	coerceStringField(input, "path")
+}
+
+func repairGrepInput(input map[string]interface{}) {
+	aliasToCanonical(input, "query", "pattern")
+	aliasToCanonical(input, "regex", "pattern")
+	aliasToCanonical(input, "regexp", "pattern")
+	aliasToCanonical(input, "directory", "path")
+	aliasToCanonical(input, "dir", "path")
+	aliasToCanonical(input, "include", "glob")
+	coerceStringField(input, "pattern")
+	coerceStringField(input, "path")
+	coerceStringField(input, "glob")
+}
+
+func repairLSInput(input map[string]interface{}) {
+	aliasToCanonical(input, "dir", "path")
+	aliasToCanonical(input, "directory", "path")
+	if _, ok := input["path"]; !ok {
+		input["path"] = "."
+	}
+	coerceStringField(input, "path")
+}
+
+func repairWriteInput(input map[string]interface{}) {
+	aliasToCanonical(input, "path", "file_path")
+	aliasToCanonical(input, "file", "file_path")
+	aliasToCanonical(input, "text", "content")
+	coerceStringField(input, "file_path")
+	coerceStringField(input, "content")
+}
+
 func repairTaskCreateInput(input map[string]interface{}) {
+	mergeFirstTaskCreateCandidate(input)
 	aliasToCanonical(input, "active_form", "activeForm")
 	aliasToCanonical(input, "active_forming", "activeForm")
 	aliasToCanonical(input, "active", "activeForm")
@@ -367,13 +472,65 @@ func repairTaskCreateInput(input map[string]interface{}) {
 		}
 	}
 	if _, ok := input["description"]; !ok {
-		if value, exists := firstPresent(input, "descriptionText", "details", "content", "subject", "title"); exists {
+		if value, exists := firstPresent(input, "descriptionText", "details", "content", "activeForm", "subject", "title"); exists {
 			input["description"] = value
 		}
 	}
 	coerceStringField(input, "subject")
 	coerceStringField(input, "description")
 	coerceStringField(input, "activeForm")
+	if _, ok := input["description"]; !ok {
+		if activeForm, ok := input["activeForm"].(string); ok && strings.TrimSpace(activeForm) != "" {
+			input["description"] = activeForm
+		} else if subject, ok := input["subject"].(string); ok && strings.TrimSpace(subject) != "" {
+			input["description"] = subject
+		}
+	}
+}
+
+func mergeFirstTaskCreateCandidate(input map[string]interface{}) {
+	if input == nil {
+		return
+	}
+	var candidate map[string]interface{}
+	if tasks, ok := input["tasks"].([]interface{}); ok && len(tasks) > 0 {
+		candidate, _ = tasks[0].(map[string]interface{})
+	}
+	if candidate == nil {
+		if task, ok := input["task"].(map[string]interface{}); ok {
+			candidate = task
+		}
+	}
+	if candidate == nil {
+		if todo, ok := input["todo"].(map[string]interface{}); ok {
+			candidate = todo
+		}
+	}
+	if candidate == nil {
+		return
+	}
+	for _, pair := range [][2]string{
+		{"subject", "subject"},
+		{"title", "subject"},
+		{"content", "subject"},
+		{"description", "description"},
+		{"descriptionText", "description"},
+		{"details", "description"},
+		{"activeForm", "activeForm"},
+		{"active_form", "activeForm"},
+		{"active_forming", "activeForm"},
+		{"active", "activeForm"},
+	} {
+		if _, exists := input[pair[1]]; exists {
+			continue
+		}
+		if value, ok := candidate[pair[0]]; ok && value != nil {
+			input[pair[1]] = value
+		}
+	}
+	delete(input, "tasks")
+	delete(input, "task")
+	delete(input, "todo")
 }
 
 func repairTaskUpdateInput(input map[string]interface{}) {
@@ -513,6 +670,34 @@ func coerceStringField(input map[string]interface{}, field string) {
 		input[field] = v.String()
 	case int, int64, int32, float64, float32:
 		input[field] = strings.TrimSpace(fmt.Sprint(v))
+	}
+}
+
+func coerceBoolField(input map[string]interface{}, field string) {
+	value, ok := input[field]
+	if !ok || value == nil {
+		return
+	}
+	switch v := value.(type) {
+	case bool:
+		return
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "true", "yes", "1", "on":
+			input[field] = true
+		case "false", "no", "0", "off", "":
+			input[field] = false
+		}
+	case json.Number:
+		if n, err := v.Int64(); err == nil {
+			input[field] = n != 0
+		}
+	case int:
+		input[field] = v != 0
+	case int64:
+		input[field] = v != 0
+	case float64:
+		input[field] = v != 0
 	}
 }
 

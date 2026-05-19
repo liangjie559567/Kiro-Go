@@ -1,0 +1,27 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_18bec9ba-8148-4e2a-8426-1c323747af98","model":"claude-sonnet-4.5","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":132,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"I'll create a task for Phase 46 discuss.","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: content_block_start
+data: {"content_block":{"type":"tool_use","id":"tooluse_o3MN0UEkL4hZNt7xMuMaeL","name":"TaskCreate","input":{}},"index":1,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"partial_json":"{\"activeForm\":\"Running Phase 46 discuss\",\"description\":\"Running Phase 46 discuss\",\"subject\":\"Phase 46 discuss\"}","type":"input_json_delta"},"index":1,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":1,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"tool_use"},"type":"message_delta","usage":{"input_tokens":4864,"output_tokens":86}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

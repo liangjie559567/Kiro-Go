@@ -1,0 +1,117 @@
+                                              Table "public.usage_logs"
+          Column          |           Type           | Collation | Nullable |                Default                 
+--------------------------+--------------------------+-----------+----------+----------------------------------------
+ id                       | bigint                   |           | not null | nextval('usage_logs_id_seq'::regclass)
+ user_id                  | bigint                   |           | not null | 
+ api_key_id               | bigint                   |           | not null | 
+ account_id               | bigint                   |           | not null | 
+ request_id               | character varying(64)    |           |          | 
+ model                    | character varying(100)   |           | not null | 
+ input_tokens             | integer                  |           | not null | 0
+ output_tokens            | integer                  |           | not null | 0
+ cache_creation_tokens    | integer                  |           | not null | 0
+ cache_read_tokens        | integer                  |           | not null | 0
+ cache_creation_5m_tokens | integer                  |           | not null | 0
+ cache_creation_1h_tokens | integer                  |           | not null | 0
+ input_cost               | numeric(20,10)           |           | not null | 0
+ output_cost              | numeric(20,10)           |           | not null | 0
+ cache_creation_cost      | numeric(20,10)           |           | not null | 0
+ cache_read_cost          | numeric(20,10)           |           | not null | 0
+ total_cost               | numeric(20,10)           |           | not null | 0
+ actual_cost              | numeric(20,10)           |           | not null | 0
+ stream                   | boolean                  |           | not null | false
+ duration_ms              | integer                  |           |          | 
+ created_at               | timestamp with time zone |           | not null | now()
+ group_id                 | bigint                   |           |          | 
+ subscription_id          | bigint                   |           |          | 
+ rate_multiplier          | numeric(10,4)            |           | not null | 1
+ first_token_ms           | integer                  |           |          | 
+ billing_type             | smallint                 |           | not null | 0
+ user_agent               | character varying(512)   |           |          | 
+ image_count              | integer                  |           |          | 0
+ image_size               | character varying(10)    |           |          | 
+ ip_address               | character varying(45)    |           |          | 
+ account_rate_multiplier  | numeric(10,4)            |           |          | 
+ reasoning_effort         | character varying(20)    |           |          | 
+ cache_ttl_overridden     | boolean                  |           | not null | false
+ openai_ws_mode           | boolean                  |           | not null | false
+ request_type             | smallint                 |           | not null | 0
+ service_tier             | character varying(16)    |           |          | 
+ inbound_endpoint         | character varying(128)   |           |          | 
+ upstream_endpoint        | character varying(128)   |           |          | 
+ upstream_model           | character varying(100)   |           |          | 
+ requested_model          | character varying(100)   |           |          | 
+ channel_id               | bigint                   |           |          | 
+ model_mapping_chain      | character varying(500)   |           |          | 
+ billing_tier             | character varying(50)    |           |          | 
+ billing_mode             | character varying(20)    |           |          | 
+ image_output_tokens      | integer                  |           | not null | 0
+ image_output_cost        | numeric(20,10)           |           | not null | 0
+ account_stats_cost       | numeric(20,10)           |           |          | 
+Indexes:
+    "usage_logs_pkey" PRIMARY KEY, btree (id)
+    "idx_usage_logs_account_created_at" btree (account_id, created_at)
+    "idx_usage_logs_account_id" btree (account_id)
+    "idx_usage_logs_api_key_created_at" btree (api_key_id, created_at)
+    "idx_usage_logs_api_key_id" btree (api_key_id)
+    "idx_usage_logs_billing_type" btree (billing_type)
+    "idx_usage_logs_created_at" btree (created_at)
+    "idx_usage_logs_created_model_upstream_model" btree (created_at, model, upstream_model)
+    "idx_usage_logs_created_requested_model_upstream_model" btree (created_at, requested_model, upstream_model)
+    "idx_usage_logs_group_created_at_not_null" btree (group_id, created_at) WHERE group_id IS NOT NULL
+    "idx_usage_logs_group_id" btree (group_id)
+    "idx_usage_logs_ip_address" btree (ip_address)
+    "idx_usage_logs_model" btree (model)
+    "idx_usage_logs_model_created_at" btree (model, created_at)
+    "idx_usage_logs_request_id_api_key_unique" UNIQUE, btree (request_id, api_key_id)
+    "idx_usage_logs_request_type_created_at" btree (request_type, created_at)
+    "idx_usage_logs_service_tier_created_at" btree (service_tier, created_at)
+    "idx_usage_logs_sub_created" btree (subscription_id, created_at)
+    "idx_usage_logs_subscription_id" btree (subscription_id)
+    "idx_usage_logs_user_created" btree (user_id, created_at)
+    "idx_usage_logs_user_id" btree (user_id)
+Check constraints:
+    "usage_logs_request_type_check" CHECK (request_type = ANY (ARRAY[0, 1, 2, 3]))
+Foreign-key constraints:
+    "usage_logs_account_id_fkey" FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+    "usage_logs_api_key_id_fkey" FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
+    "usage_logs_group_id_fkey" FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+    "usage_logs_subscription_id_fkey" FOREIGN KEY (subscription_id) REFERENCES user_subscriptions(id) ON DELETE SET NULL
+    "usage_logs_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "billing_usage_entries" CONSTRAINT "billing_usage_entries_usage_log_id_fkey" FOREIGN KEY (usage_log_id) REFERENCES usage_logs(id) ON DELETE CASCADE
+
+ usage_logs_count 
+------------------
+            57112
+(1 row)
+
+                                                 Table "public.channels"
+             Column             |           Type           | Collation | Nullable |               Default                
+--------------------------------+--------------------------+-----------+----------+--------------------------------------
+ id                             | bigint                   |           | not null | nextval('channels_id_seq'::regclass)
+ name                           | character varying(100)   |           | not null | 
+ description                    | text                     |           |          | ''::text
+ status                         | character varying(20)    |           | not null | 'active'::character varying
+ created_at                     | timestamp with time zone |           | not null | now()
+ updated_at                     | timestamp with time zone |           | not null | now()
+ model_mapping                  | jsonb                    |           |          | '{}'::jsonb
+ billing_model_source           | character varying(20)    |           |          | 'channel_mapped'::character varying
+ restrict_models                | boolean                  |           |          | false
+ features                       | text                     |           | not null | ''::text
+ apply_pricing_to_account_stats | boolean                  |           | not null | false
+ features_config                | jsonb                    |           | not null | '{}'::jsonb
+Indexes:
+    "channels_pkey" PRIMARY KEY, btree (id)
+    "idx_channels_name" UNIQUE, btree (name)
+    "idx_channels_status" btree (status)
+Referenced by:
+    TABLE "channel_account_stats_pricing_rules" CONSTRAINT "channel_account_stats_pricing_rules_channel_id_fkey" FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+    TABLE "channel_groups" CONSTRAINT "channel_groups_channel_id_fkey" FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+    TABLE "channel_model_pricing" CONSTRAINT "channel_model_pricing_channel_id_fkey" FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+
+ channels_count 
+----------------
+              2
+(1 row)
+

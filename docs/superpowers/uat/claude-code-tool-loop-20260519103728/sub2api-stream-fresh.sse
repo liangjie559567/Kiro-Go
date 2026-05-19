@@ -1,0 +1,18 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_2e4ae6cc-e8c7-4511-8abd-44f72ee02c07","model":"claude-opus-4.7","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":28,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"uat-tool-loop-20260519103728-stream","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"end_turn"},"type":"message_delta","usage":{"input_tokens":5921,"output_tokens":14}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

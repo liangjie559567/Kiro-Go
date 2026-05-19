@@ -1,0 +1,6 @@
+uat_dir=docs/superpowers/uat/claude-code-tool-loop-20260519103728
+marker=uat-tool-loop-20260519103728
+sub2_key_prefix=sk-aa1c261...
+kiro_admin_password_length=32
+kiro_api_key_prefix=sk-R2BgT...
+kiro_api_key_length=35

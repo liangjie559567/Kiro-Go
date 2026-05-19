@@ -1,0 +1,90 @@
+{
+  "date": "2026-05-19",
+  "overallVerdict": "PASS",
+  "externalBlockers": [],
+  "supersededBlockers": [
+    {
+      "name": "direct_postfix_tool_loop_retest",
+      "previousStatus": "BLOCKED_EXTERNAL_429",
+      "oldEvidence": "direct-tool-auth-postfix.summary.json",
+      "supersededBy": [
+        "direct-tool-auth-final.summary.json",
+        "direct-tool-result-final.json",
+        "kiro-request-logs-final2.json"
+      ],
+      "reason": "Fresh retry produced a valid streamed LS tool input and a complete tool_result follow-up turn."
+    },
+    {
+      "name": "taskcreate_suppression_root_cause",
+      "previousStatus": "REPRODUCED_FROM_REAL_LOGS",
+      "oldEvidence": "request-logs-debug-parallel.json",
+      "supersededBy": [
+        "direct-taskcreate.summary.json",
+        "kiro-request-logs-taskcreate-20260519123309.json"
+      ],
+      "reason": "TaskCreate tasks[] is repaired to a single Claude Code TaskCreate input and is no longer suppressed in direct validation."
+    }
+  ],
+  "freshVerification": {
+    "goTest": "PASS",
+    "dockerBuildAndRun": "PASS",
+    "kiroHealth": "PASS",
+    "sub2apiHealth": "PASS",
+    "directTaskCreate": "PASS",
+    "sub2apiNonstream": "PASS",
+    "sub2apiStream": "PASS",
+    "postgresUsageRows": "PASS",
+    "playwrightAdminRoutes": "PASS",
+    "directToolLoop": "PASS"
+  },
+  "rootCause": {
+    "status": "FIXED_AND_LIVE_VERIFIED",
+    "symptom": "Claude Code sessions could pause/interruption around tool loops after Kiro-Go suppressed TaskCreate and parallel Bash cancellation surfaced.",
+    "cause": "Kiro-Go suppressed model-emitted TaskCreate inputs shaped as tasks[] because Claude Code TaskCreate expects a single-task object; payload trimming also deprioritized taskCreate/taskUpdate/taskOutput.",
+    "correction": "For streamed tool_use, content_block_start.input is only a placeholder; final tool input must be reconstructed from input_json_delta.",
+    "fix": "Promote TaskCreate tasks[0] to subject/description/activeForm, synthesize missing description, repair common Claude Code filesystem/shell aliases, and prioritize task lifecycle tools during trimming.",
+    "liveEvidence": [
+      "direct-taskcreate.summary.json",
+      "kiro-request-logs-taskcreate-20260519123309.json",
+      "direct-tool-auth-final.summary.json"
+    ]
+  },
+  "keyEvidence": {
+    "report": "REPORT.md",
+    "health": [
+      "kiro-health-taskcreate-20260519123309.json",
+      "sub2api-health-taskcreate-20260519123309.json",
+      "docker-ps-taskcreate-20260519123309.txt"
+    ],
+    "api": [
+      "sub2api-taskcreate-message.json",
+      "sub2api-taskcreate-stream.sse",
+      "direct-taskcreate.summary.json",
+      "kiro-request-logs-taskcreate-20260519123309.json"
+    ],
+    "database": [
+      "db-after-taskcreate-sub2api-claude-20260519123309.txt",
+      "db-usage-logs-schema.txt"
+    ],
+    "screenshots": [
+      "kiro-admin-dashboard-final.png",
+      "kiro-admin-api-readiness-final.png",
+      "sub2api-admin-accounts-final.png",
+      "sub2api-admin-groups-final.png",
+      "sub2api-admin-usage-final.png"
+    ],
+    "directToolLoop": [
+      "direct-tool-auth-final.sse",
+      "direct-tool-auth-final.summary.json",
+      "direct-tool-result-final-request.json",
+      "direct-tool-result-final.json"
+    ]
+  },
+  "invalidOrSupersededEvidence": [
+    "sub2api-accounts.png",
+    "sub2api-groups.png",
+    "sub2api-simple-accounts.png",
+    "sub2api-simple-groups.png",
+    "sub2api-simple-usage.png"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "msg_43634f5f-4093-4411-b69f-d9eb0558614b",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-4.7",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 5917,
+    "output_tokens": 9
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Kiro-Go sub2api opus nonstream ok"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+  id   | api_key_id | account_id | requested_model |  model  |   inbound_endpoint   | upstream_endpoint | stream | request_type |          created_at           
+-------+------------+------------+-----------------+---------+----------------------+-------------------+--------+--------------+-------------------------------
+ 58019 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:52:01.270421+08
+ 58018 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:54.003879+08
+ 58017 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:40.034024+08
+ 58016 |          1 |         74 | gpt-5.5         | gpt-5.5 | /v1/chat/completions | /v1/responses     | f      |            1 | 2026-05-19 10:51:35.398009+08
+ 58015 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:33.370275+08
+ 58014 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:13.470701+08
+ 58013 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:10.269799+08
+ 58012 |          1 |         74 | gpt-5.5         | gpt-5.5 | /responses           | /v1/responses     | t      |            2 | 2026-05-19 10:51:02.878328+08
+(8 rows)
+

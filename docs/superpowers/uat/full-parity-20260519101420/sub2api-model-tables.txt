@@ -1,0 +1,3 @@
+ERROR:  syntax error at or near "%"
+LINE 1: ... where table_schema='public' and table_name ilike %model% or...
+                                                             ^

@@ -1,0 +1,80 @@
+                                         Table "public.api_keys"
+     Column      |           Type           | Collation | Nullable |               Default                
+-----------------+--------------------------+-----------+----------+--------------------------------------
+ id              | bigint                   |           | not null | nextval('api_keys_id_seq'::regclass)
+ user_id         | bigint                   |           | not null | 
+ key             | character varying(128)   |           | not null | 
+ name            | character varying(100)   |           | not null | 
+ group_id        | bigint                   |           |          | 
+ status          | character varying(20)    |           | not null | 'active'::character varying
+ created_at      | timestamp with time zone |           | not null | now()
+ updated_at      | timestamp with time zone |           | not null | now()
+ deleted_at      | timestamp with time zone |           |          | 
+ ip_whitelist    | jsonb                    |           |          | 
+ ip_blacklist    | jsonb                    |           |          | 
+ quota           | numeric(20,8)            |           | not null | 0
+ quota_used      | numeric(20,8)            |           | not null | 0
+ expires_at      | timestamp with time zone |           |          | 
+ last_used_at    | timestamp with time zone |           |          | 
+ rate_limit_5h   | numeric(20,8)            |           | not null | 0
+ rate_limit_1d   | numeric(20,8)            |           | not null | 0
+ rate_limit_7d   | numeric(20,8)            |           | not null | 0
+ usage_5h        | numeric(20,8)            |           | not null | 0
+ usage_1d        | numeric(20,8)            |           | not null | 0
+ usage_7d        | numeric(20,8)            |           | not null | 0
+ window_5h_start | timestamp with time zone |           |          | 
+ window_1d_start | timestamp with time zone |           |          | 
+ window_7d_start | timestamp with time zone |           |          | 
+Indexes:
+    "api_keys_pkey" PRIMARY KEY, btree (id)
+    "api_keys_key_key" UNIQUE CONSTRAINT, btree (key)
+    "idx_api_keys_deleted_at" btree (deleted_at)
+    "idx_api_keys_expires_at" btree (expires_at) WHERE deleted_at IS NULL
+    "idx_api_keys_group_id" btree (group_id)
+    "idx_api_keys_key_trgm" gin (key gin_trgm_ops)
+    "idx_api_keys_last_used_at" btree (last_used_at) WHERE deleted_at IS NULL
+    "idx_api_keys_name_trgm" gin (name gin_trgm_ops)
+    "idx_api_keys_quota_quota_used" btree (quota, quota_used) WHERE deleted_at IS NULL
+    "idx_api_keys_status" btree (status)
+    "idx_api_keys_user_id" btree (user_id)
+Foreign-key constraints:
+    "api_keys_group_id_fkey" FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+    "api_keys_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "billing_usage_entries" CONSTRAINT "billing_usage_entries_api_key_id_fkey" FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
+    TABLE "content_moderation_logs" CONSTRAINT "content_moderation_logs_api_key_id_fkey" FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL
+    TABLE "usage_logs" CONSTRAINT "usage_logs_api_key_id_fkey" FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
+
+ api_key_count 
+---------------
+             4
+(1 row)
+
+   column_name   |        data_type         
+-----------------+--------------------------
+ id              | bigint
+ user_id         | bigint
+ key             | character varying
+ name            | character varying
+ group_id        | bigint
+ status          | character varying
+ created_at      | timestamp with time zone
+ updated_at      | timestamp with time zone
+ deleted_at      | timestamp with time zone
+ ip_whitelist    | jsonb
+ ip_blacklist    | jsonb
+ quota           | numeric
+ quota_used      | numeric
+ expires_at      | timestamp with time zone
+ last_used_at    | timestamp with time zone
+ rate_limit_5h   | numeric
+ rate_limit_1d   | numeric
+ rate_limit_7d   | numeric
+ usage_5h        | numeric
+ usage_1d        | numeric
+ usage_7d        | numeric
+ window_5h_start | timestamp with time zone
+ window_1d_start | timestamp with time zone
+ window_7d_start | timestamp with time zone
+(24 rows)
+

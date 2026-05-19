@@ -1,0 +1,23 @@
+{
+  "model": "claude-sonnet-4.5",
+  "max_tokens": 256,
+  "stream": true,
+  "tools": [
+    {
+      "name": "TaskCreate",
+      "description": "Create exactly one visible task. Use subject, description, and activeForm fields only.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "subject": {"type":"string"},
+          "description": {"type":"string"},
+          "activeForm": {"type":"string"}
+        },
+        "required": ["subject", "description"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "tool_choice": {"type":"tool", "name":"TaskCreate", "disable_parallel_tool_use": true},
+  "messages": [{"role":"user","content":"Call TaskCreate once for Phase 46 discuss. The subject should be 'Phase 46 discuss' and activeForm should be 'Running Phase 46 discuss'."}]
+}

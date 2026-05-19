@@ -1,0 +1,10 @@
+ usage_logs_before 
+-------------------
+             57897
+(1 row)
+
+ max_usage_id_before 
+---------------------
+               57931
+(1 row)
+

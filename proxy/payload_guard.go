@@ -602,7 +602,7 @@ func coreClaudeCodeToolPriority(name string) int {
 	switch name {
 	case "agent", "task":
 		return 90
-	case "todowrite", "todoread":
+	case "taskcreate", "taskupdate", "taskoutput", "taskget", "tasklist", "taskstop", "todowrite", "todoread":
 		return 70
 	case "bash", "read", "write", "edit", "multiedit", "glob", "grep", "ls":
 		return 50

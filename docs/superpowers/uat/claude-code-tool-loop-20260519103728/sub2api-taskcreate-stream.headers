@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Cache-Control: no-cache
+Connection: keep-alive
+Content-Type: text/event-stream; charset=utf-8
+Date: Tue, 19 May 2026 04:34:17 GMT
+Referrer-Policy: strict-origin-when-cross-origin
+X-Accel-Buffering: no
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: req_8c6d9924-ef07-4711-9e30-fc1707de22b3
+Transfer-Encoding: chunked
+

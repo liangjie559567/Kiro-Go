@@ -445,7 +445,7 @@ func TestGuardKiroPayloadPreservesClaudeCodeCoreToolsWithoutPromptText(t *testin
 	payload := malformedRiskToolHistoryPayload(2, 24)
 	payload.ConversationState.CurrentMessage.UserInputMessage.Content = ""
 	tools := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools
-	coreNames := []string{"agent", "task", "todoWrite", "bash", "read", "write", "edit", "multiEdit"}
+	coreNames := []string{"agent", "task", "taskCreate", "taskUpdate", "taskOutput", "taskGet", "taskList", "taskStop", "todoWrite", "bash", "read", "write", "edit", "multiEdit"}
 	for i, name := range coreNames {
 		tools[len(tools)-1-i].ToolSpecification.Name = name
 	}
@@ -462,6 +462,37 @@ func TestGuardKiroPayloadPreservesClaudeCodeCoreToolsWithoutPromptText(t *testin
 	for _, name := range coreNames {
 		if !containsString(got, name) {
 			t.Fatalf("expected core Claude Code tool %q to survive trimming without prompt text, got %#v", name, got)
+		}
+	}
+}
+
+func TestGuardKiroPayloadPrioritizesTaskLifecycleToolsFromClaudeCodeLogShape(t *testing.T) {
+	payload := malformedRiskToolHistoryPayload(2, 26)
+	payload.ConversationState.CurrentMessage.UserInputMessage.Content = ""
+	tools := payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools
+	realLogOrder := []string{
+		"agent", "write", "bash", "edit", "read", "webFetch", "webSearch", "notebookEdit",
+		"taskGet", "taskList", "taskStop", "cronDelete", "askUserQuestion", "cronCreate",
+		"enterPlanMode", "enterWorktree", "exitPlanMode", "exitWorktree", "monitor",
+		"pushNotification", "scheduleWakeup", "skill", "taskCreate", "taskOutput",
+		"taskUpdate", "cronList",
+	}
+	for i, name := range realLogOrder {
+		tools[i].ToolSpecification.Name = name
+	}
+	payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools = tools
+
+	result, err := guardKiroPayload(payload, defaultPayloadGuardOptions())
+	if err != nil {
+		t.Fatalf("guard payload: %v", err)
+	}
+	if !result.Trimmed {
+		t.Fatalf("expected tool trimming")
+	}
+	got := toolNamesForTest(payload.ConversationState.CurrentMessage.UserInputMessage.UserInputMessageContext.Tools)
+	for _, name := range []string{"taskCreate", "taskUpdate", "taskOutput", "taskGet", "taskList", "taskStop"} {
+		if !containsString(got, name) {
+			t.Fatalf("expected task lifecycle tool %q to survive trimming, got %#v", name, got)
 		}
 	}
 }

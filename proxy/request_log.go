@@ -20,67 +20,75 @@ const (
 )
 
 type RequestLogEntry struct {
-	Timestamp                           time.Time `json:"timestamp"`
-	RequestID                           string    `json:"requestId"`
-	Method                              string    `json:"method"`
-	Endpoint                            string    `json:"endpoint"`
-	Model                               string    `json:"model,omitempty"`
-	AccountID                           string    `json:"accountId,omitempty"`
-	Region                              string    `json:"region,omitempty"`
-	ClaudeCodeSessionID                 string    `json:"claudeCodeSessionId,omitempty"`
-	ClaudeCodeAgentID                   string    `json:"claudeCodeAgentId,omitempty"`
-	ClaudeCodeParentAgentID             string    `json:"claudeCodeParentAgentId,omitempty"`
-	AnthropicRequestID                  string    `json:"anthropicRequestId,omitempty"`
-	AnthropicVersion                    string    `json:"anthropicVersion,omitempty"`
-	AnthropicBetas                      []string  `json:"anthropicBetas,omitempty"`
-	ToolReferenceCount                  int       `json:"toolReferenceCount,omitempty"`
-	PayloadOriginalBytes                int       `json:"payloadOriginalBytes,omitempty"`
-	PayloadFinalBytes                   int       `json:"payloadFinalBytes,omitempty"`
-	PayloadTrimmed                      bool      `json:"payloadTrimmed,omitempty"`
-	PayloadTrimmedCount                 int       `json:"payloadTrimmedCount,omitempty"`
-	PayloadCurrentTools                 int       `json:"payloadCurrentTools,omitempty"`
-	PayloadCurrentToolSchemaBytes       int       `json:"payloadCurrentToolSchemaBytes,omitempty"`
-	PayloadKeptTools                    []string  `json:"payloadKeptTools,omitempty"`
-	PayloadTrimmedTools                 []string  `json:"payloadTrimmedTools,omitempty"`
-	PayloadDeferredTools                []string  `json:"payloadDeferredTools,omitempty"`
-	PayloadMaterializedToolRefs         []string  `json:"payloadMaterializedToolRefs,omitempty"`
-	PayloadCompactedPairs               int       `json:"payloadCompactedPairs,omitempty"`
-	PayloadCompactedToolResults         int       `json:"payloadCompactedToolResults,omitempty"`
-	PayloadOrphanedToolResultsConverted int       `json:"payloadOrphanedToolResultsConverted,omitempty"`
-	PayloadToolResultImages             int       `json:"payloadToolResultImages,omitempty"`
-	PayloadRelocatedToolDescriptions    int       `json:"payloadRelocatedToolDescriptions,omitempty"`
-	PayloadUnsupportedContentBlocks     []string  `json:"payloadUnsupportedContentBlocks,omitempty"`
-	PayloadCurrentMessageShape          string    `json:"payloadCurrentMessageShape,omitempty"`
-	PayloadContextReminderKinds         []string  `json:"payloadContextReminderKinds,omitempty"`
-	PayloadUnknownOfficialFields        []string  `json:"payloadUnknownOfficialFields,omitempty"`
-	FineGrainedToolStreamingRequested   bool      `json:"fineGrainedToolStreamingRequested,omitempty"`
-	FineGrainedToolStreamingMode        string    `json:"fineGrainedToolStreamingMode,omitempty"`
-	AccountActiveConnections            int       `json:"accountActiveConnections,omitempty"`
-	AccountRecentFailures               int       `json:"accountRecentFailures,omitempty"`
-	AccountRecentSuccesses              int       `json:"accountRecentSuccesses,omitempty"`
-	AccountAvgLatencyMS                 int64     `json:"accountAvgLatencyMs,omitempty"`
-	AccountHealthScore                  int       `json:"accountHealthScore,omitempty"`
-	RoutingDecision                     string    `json:"routingDecision,omitempty"`
-	RoutingStrategy                     string    `json:"routingStrategy,omitempty"`
-	RoutingPressure                     bool      `json:"routingPressure,omitempty"`
-	Stream                              bool      `json:"stream"`
-	StatusCode                          int       `json:"statusCode"`
-	Outcome                             string    `json:"outcome"`
-	DurationMs                          int64     `json:"durationMs"`
-	QueueWaitMs                         int64     `json:"queueWaitMs,omitempty"`
-	FirstTokenMs                        int64     `json:"firstTokenMs,omitempty"`
-	Attempts                            int       `json:"attempts,omitempty"`
-	ToolUseCount                        int       `json:"toolUseCount,omitempty"`
-	SuppressedToolUseCount              int       `json:"suppressedToolUseCount,omitempty"`
-	SuppressedToolUseNames              []string  `json:"suppressedToolUseNames,omitempty"`
-	SuppressedToolUseReasons            []string  `json:"suppressedToolUseReasons,omitempty"`
-	InputTokens                         int       `json:"inputTokens,omitempty"`
-	OutputTokens                        int       `json:"outputTokens,omitempty"`
-	CacheReadInputTokens                int       `json:"cacheReadInputTokens,omitempty"`
-	CacheCreationInputTokens            int       `json:"cacheCreationInputTokens,omitempty"`
-	MaxTokensZeroMode                   string    `json:"maxTokensZeroMode,omitempty"`
-	ErrorType                           string    `json:"errorType,omitempty"`
-	Error                               string    `json:"error,omitempty"`
+	Timestamp                           time.Time                 `json:"timestamp"`
+	RequestID                           string                    `json:"requestId"`
+	Method                              string                    `json:"method"`
+	Endpoint                            string                    `json:"endpoint"`
+	Model                               string                    `json:"model,omitempty"`
+	AccountID                           string                    `json:"accountId,omitempty"`
+	Region                              string                    `json:"region,omitempty"`
+	ClaudeCodeSessionID                 string                    `json:"claudeCodeSessionId,omitempty"`
+	ClaudeCodeAgentID                   string                    `json:"claudeCodeAgentId,omitempty"`
+	ClaudeCodeParentAgentID             string                    `json:"claudeCodeParentAgentId,omitempty"`
+	AnthropicRequestID                  string                    `json:"anthropicRequestId,omitempty"`
+	AnthropicVersion                    string                    `json:"anthropicVersion,omitempty"`
+	AnthropicBetas                      []string                  `json:"anthropicBetas,omitempty"`
+	ToolReferenceCount                  int                       `json:"toolReferenceCount,omitempty"`
+	PayloadOriginalBytes                int                       `json:"payloadOriginalBytes,omitempty"`
+	PayloadFinalBytes                   int                       `json:"payloadFinalBytes,omitempty"`
+	PayloadTrimmed                      bool                      `json:"payloadTrimmed,omitempty"`
+	PayloadTrimmedCount                 int                       `json:"payloadTrimmedCount,omitempty"`
+	PayloadCurrentTools                 int                       `json:"payloadCurrentTools,omitempty"`
+	PayloadCurrentToolSchemaBytes       int                       `json:"payloadCurrentToolSchemaBytes,omitempty"`
+	PayloadKeptTools                    []string                  `json:"payloadKeptTools,omitempty"`
+	PayloadTrimmedTools                 []string                  `json:"payloadTrimmedTools,omitempty"`
+	PayloadDeferredTools                []string                  `json:"payloadDeferredTools,omitempty"`
+	PayloadMaterializedToolRefs         []string                  `json:"payloadMaterializedToolRefs,omitempty"`
+	PayloadCompactedPairs               int                       `json:"payloadCompactedPairs,omitempty"`
+	PayloadCompactedToolResults         int                       `json:"payloadCompactedToolResults,omitempty"`
+	PayloadOrphanedToolResultsConverted int                       `json:"payloadOrphanedToolResultsConverted,omitempty"`
+	PayloadToolResultImages             int                       `json:"payloadToolResultImages,omitempty"`
+	PayloadRelocatedToolDescriptions    int                       `json:"payloadRelocatedToolDescriptions,omitempty"`
+	PayloadUnsupportedContentBlocks     []string                  `json:"payloadUnsupportedContentBlocks,omitempty"`
+	PayloadCurrentMessageShape          string                    `json:"payloadCurrentMessageShape,omitempty"`
+	PayloadContextReminderKinds         []string                  `json:"payloadContextReminderKinds,omitempty"`
+	PayloadUnknownOfficialFields        []string                  `json:"payloadUnknownOfficialFields,omitempty"`
+	FineGrainedToolStreamingRequested   bool                      `json:"fineGrainedToolStreamingRequested,omitempty"`
+	FineGrainedToolStreamingMode        string                    `json:"fineGrainedToolStreamingMode,omitempty"`
+	AccountActiveConnections            int                       `json:"accountActiveConnections,omitempty"`
+	AccountRecentFailures               int                       `json:"accountRecentFailures,omitempty"`
+	AccountRecentSuccesses              int                       `json:"accountRecentSuccesses,omitempty"`
+	AccountAvgLatencyMS                 int64                     `json:"accountAvgLatencyMs,omitempty"`
+	AccountHealthScore                  int                       `json:"accountHealthScore,omitempty"`
+	RoutingDecision                     string                    `json:"routingDecision,omitempty"`
+	RoutingStrategy                     string                    `json:"routingStrategy,omitempty"`
+	RoutingPressure                     bool                      `json:"routingPressure,omitempty"`
+	Stream                              bool                      `json:"stream"`
+	StatusCode                          int                       `json:"statusCode"`
+	Outcome                             string                    `json:"outcome"`
+	DurationMs                          int64                     `json:"durationMs"`
+	QueueWaitMs                         int64                     `json:"queueWaitMs,omitempty"`
+	FirstTokenMs                        int64                     `json:"firstTokenMs,omitempty"`
+	Attempts                            int                       `json:"attempts,omitempty"`
+	ToolUseCount                        int                       `json:"toolUseCount,omitempty"`
+	SuppressedToolUseCount              int                       `json:"suppressedToolUseCount,omitempty"`
+	SuppressedToolUseNames              []string                  `json:"suppressedToolUseNames,omitempty"`
+	SuppressedToolUseReasons            []string                  `json:"suppressedToolUseReasons,omitempty"`
+	SuppressedToolUseDetails            []SuppressedToolUseDetail `json:"suppressedToolUseDetails,omitempty"`
+	InputTokens                         int                       `json:"inputTokens,omitempty"`
+	OutputTokens                        int                       `json:"outputTokens,omitempty"`
+	CacheReadInputTokens                int                       `json:"cacheReadInputTokens,omitempty"`
+	CacheCreationInputTokens            int                       `json:"cacheCreationInputTokens,omitempty"`
+	MaxTokensZeroMode                   string                    `json:"maxTokensZeroMode,omitempty"`
+	ErrorType                           string                    `json:"errorType,omitempty"`
+	Error                               string                    `json:"error,omitempty"`
+}
+
+type SuppressedToolUseDetail struct {
+	ToolUseID    string `json:"toolUseId,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	InputSummary string `json:"inputSummary,omitempty"`
 }
 
 type AccountRequestHealthSnapshot struct {
@@ -355,6 +363,39 @@ func updateRequestLogSuppressedToolUse(r *http.Request, name, reason string) {
 	if reason != "" && !stringSliceContains(ctx.entry.SuppressedToolUseReasons, reason) {
 		ctx.entry.SuppressedToolUseReasons = append(ctx.entry.SuppressedToolUseReasons, reason)
 	}
+}
+
+func updateRequestLogSuppressedToolUseDetail(r *http.Request, tu KiroToolUse, reason string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	detail := SuppressedToolUseDetail{
+		ToolUseID:    strings.TrimSpace(tu.ToolUseID),
+		Name:         strings.TrimSpace(tu.Name),
+		Reason:       strings.TrimSpace(reason),
+		InputSummary: summarizeSuppressedToolInput(tu.Input),
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	if len(ctx.entry.SuppressedToolUseDetails) < 20 {
+		ctx.entry.SuppressedToolUseDetails = append(ctx.entry.SuppressedToolUseDetails, detail)
+	}
+}
+
+func summarizeSuppressedToolInput(input map[string]interface{}) string {
+	if len(input) == 0 {
+		return "{}"
+	}
+	data, err := json.Marshal(input)
+	if err != nil {
+		return "<unserializable>"
+	}
+	const maxSummaryBytes = 512
+	if len(data) <= maxSummaryBytes {
+		return string(data)
+	}
+	return string(data[:maxSummaryBytes]) + "...(truncated)"
 }
 
 func stringSliceContains(values []string, needle string) bool {

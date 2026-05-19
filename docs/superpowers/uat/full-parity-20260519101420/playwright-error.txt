@@ -1,0 +1,2 @@
+page.waitForTimeout: Target page, context or browser has been closed
+    at main (/www/Kiro-Go/docs/superpowers/uat/full-parity-20260519101420/browser-uat.js:75:16)

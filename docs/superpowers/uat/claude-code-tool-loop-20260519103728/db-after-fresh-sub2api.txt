@@ -1,0 +1,12 @@
+  id   | api_key_id | account_id | requested_model |      model      | inbound_endpoint | upstream_endpoint | stream | request_type |          created_at           
+-------+------------+------------+-----------------+-----------------+------------------+-------------------+--------+--------------+-------------------------------
+ 58030 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 10:52:48.001373+08
+ 58024 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | f      |            1 | 2026-05-19 10:52:29.152672+08
+ 57934 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 10:39:13.817323+08
+ 57933 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | f      |            1 | 2026-05-19 10:39:06.558316+08
+ 57799 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 10:18:43.10825+08
+ 57793 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | f      |            1 | 2026-05-19 10:18:14.979826+08
+ 57724 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 10:07:49.908757+08
+ 57721 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages     | /v1/messages      | t      |            2 | 2026-05-19 10:07:34.521274+08
+(8 rows)
+

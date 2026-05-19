@@ -1,0 +1,6 @@
+?   	kiro-go/logger	[no test files]
+ok  	kiro-go	0.009s
+ok  	kiro-go/auth	0.009s
+ok  	kiro-go/config	0.026s
+ok  	kiro-go/pool	0.008s
+ok  	kiro-go/proxy	1.406s

@@ -1,0 +1,18 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_f2c47150-1e6f-4fec-9ff9-b69339c0ebdf","model":"claude-opus-4.7","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":15,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"Kiro-Go sub2api stream ok.","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"end_turn"},"type":"message_delta","usage":{"input_tokens":5911,"output_tokens":7}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

@@ -1,0 +1,31 @@
+{
+  "httpError": false,
+  "frameCount": 10,
+  "events": [
+    "message_start",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_delta",
+    "content_block_stop",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop"
+  ],
+  "stopReason": "tool_use",
+  "toolUseCount": 1,
+  "toolUses": [
+    {
+      "id": "tooluse_Hi5RAkMKvZnPRJTmJJp5EV",
+      "name": "LS",
+      "startInput": {},
+      "partialJson": "{\"path\":\".\"}",
+      "reconstructedInput": {
+        "path": "."
+      },
+      "reconstructedError": null
+    }
+  ],
+  "hasMessageStop": true
+}

@@ -1,0 +1,30 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_20aa602d-a941-4931-9887-951d83fe7c85","model":"claude-sonnet-4.5","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":464,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"I'll use a read-only tool to inspect the pr","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_delta
+data: {"delta":{"text":"oject structure.","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: content_block_start
+data: {"content_block":{"type":"tool_use","id":"tooluse_Hi5RAkMKvZnPRJTmJJp5EV","name":"LS","input":{}},"index":1,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"partial_json":"{\"path\":\".\"}","type":"input_json_delta"},"index":1,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":1,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"tool_use"},"type":"message_delta","usage":{"input_tokens":5151,"output_tokens":30}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

@@ -1,0 +1,57 @@
+                                              Table "public.accounts"
+          Column           |           Type           | Collation | Nullable |               Default                
+---------------------------+--------------------------+-----------+----------+--------------------------------------
+ id                        | bigint                   |           | not null | nextval('accounts_id_seq'::regclass)
+ name                      | character varying(100)   |           | not null | 
+ platform                  | character varying(50)    |           | not null | 
+ type                      | character varying(20)    |           | not null | 
+ credentials               | jsonb                    |           | not null | '{}'::jsonb
+ extra                     | jsonb                    |           | not null | '{}'::jsonb
+ proxy_id                  | bigint                   |           |          | 
+ concurrency               | integer                  |           | not null | 3
+ priority                  | integer                  |           | not null | 50
+ status                    | character varying(20)    |           | not null | 'active'::character varying
+ error_message             | text                     |           |          | 
+ last_used_at              | timestamp with time zone |           |          | 
+ created_at                | timestamp with time zone |           | not null | now()
+ updated_at                | timestamp with time zone |           | not null | now()
+ deleted_at                | timestamp with time zone |           |          | 
+ schedulable               | boolean                  |           | not null | true
+ rate_limited_at           | timestamp with time zone |           |          | 
+ rate_limit_reset_at       | timestamp with time zone |           |          | 
+ overload_until            | timestamp with time zone |           |          | 
+ session_window_start      | timestamp with time zone |           |          | 
+ session_window_end        | timestamp with time zone |           |          | 
+ session_window_status     | character varying(20)    |           |          | 
+ temp_unschedulable_until  | timestamp with time zone |           |          | 
+ temp_unschedulable_reason | text                     |           |          | 
+ notes                     | text                     |           |          | 
+ expires_at                | timestamp with time zone |           |          | 
+ auto_pause_on_expired     | boolean                  |           | not null | true
+ rate_multiplier           | numeric(10,4)            |           | not null | 1.0
+ load_factor               | integer                  |           |          | 
+Indexes:
+    "accounts_pkey" PRIMARY KEY, btree (id)
+    "idx_accounts_active_schedulable" btree (priority, status) WHERE deleted_at IS NULL AND schedulable = true
+    "idx_accounts_deleted_at" btree (deleted_at)
+    "idx_accounts_extra_gin" gin (extra)
+    "idx_accounts_last_used_at" btree (last_used_at)
+    "idx_accounts_name_trgm" gin (name gin_trgm_ops)
+    "idx_accounts_overload_until" btree (overload_until)
+    "idx_accounts_platform" btree (platform)
+    "idx_accounts_priority" btree (priority)
+    "idx_accounts_proxy_id" btree (proxy_id)
+    "idx_accounts_rate_limit_reset_at" btree (rate_limit_reset_at)
+    "idx_accounts_rate_limited_at" btree (rate_limited_at)
+    "idx_accounts_schedulable" btree (schedulable)
+    "idx_accounts_schedulable_hot" btree (platform, priority) WHERE deleted_at IS NULL AND status::text = 'active'::text AND schedulable = true
+    "idx_accounts_status" btree (status)
+    "idx_accounts_temp_unschedulable_until" btree (temp_unschedulable_until) WHERE deleted_at IS NULL
+    "idx_accounts_type" btree (type)
+Foreign-key constraints:
+    "accounts_proxy_id_fkey" FOREIGN KEY (proxy_id) REFERENCES proxies(id) ON DELETE SET NULL
+Referenced by:
+    TABLE "account_groups" CONSTRAINT "account_groups_account_id_fkey" FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+    TABLE "scheduled_test_plans" CONSTRAINT "scheduled_test_plans_account_id_fkey" FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+    TABLE "usage_logs" CONSTRAINT "usage_logs_account_id_fkey" FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+

@@ -1,0 +1,148 @@
+{
+  "runId": "uat-claude-code-language-context-20260518210107",
+  "outDir": "docs/superpowers/uat/uat-claude-code-language-context-20260518210107",
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "uptime": 30,
+      "version": "1.0.8"
+    }
+  },
+  "pure": {
+    "requestId": "uat-claude-code-language-context-20260518210107-prior-user-pure-tool-result",
+    "status": 200,
+    "stopReason": "end_turn",
+    "text": "Kiro-Go 是一个为 Claude 兼容客户端设计的 API 代理服务。\n\n这是一个代理工具，允许兼容 Claude API 的客户端通过它来访问服务。",
+    "language": {
+      "zh": 40,
+      "en": 24,
+      "ok": true
+    },
+    "body": {
+      "id": "msg_afa93a0d-cae8-4473-8607-f6ddf6883163",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Kiro-Go 是一个为 Claude 兼容客户端设计的 API 代理服务。\n\n这是一个代理工具，允许兼容 Claude API 的客户端通过它来访问服务。"
+        }
+      ],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4922,
+        "output_tokens": 37
+      }
+    }
+  },
+  "mixed": {
+    "requestId": "uat-claude-code-language-context-20260518210107-system-mixed-text-tool-result",
+    "status": 200,
+    "stopReason": "end_turn",
+    "text": "README.md 文件的内容是：\n\n**Kiro-Go supports Claude Code and tool calling.**\n\n这个文件说明 Kiro-Go 支持 Claude Code 和工具调用功能。",
+    "language": {
+      "zh": 21,
+      "en": 62,
+      "ok": true
+    },
+    "body": {
+      "id": "msg_a83aab8c-3966-4379-9f5f-b18f44e0aeba",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "README.md 文件的内容是：\n\n**Kiro-Go supports Claude Code and tool calling.**\n\n这个文件说明 Kiro-Go 支持 Claude Code 和工具调用功能。"
+        }
+      ],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4967,
+        "output_tokens": 38
+      }
+    }
+  },
+  "logs": [
+    {
+      "timestamp": "2026-05-18T13:01:10.027660312Z",
+      "requestId": "uat-claude-code-language-context-20260518210107-system-mixed-text-tool-result",
+      "method": "POST",
+      "endpoint": "/v1/messages",
+      "model": "claude-sonnet-4.5",
+      "accountId": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+      "region": "us-east-1",
+      "claudeCodeSessionId": "uat-claude-code-language-context-20260518210107",
+      "claudeCodeAgentId": "language-context-uat",
+      "anthropicRequestId": "uat-claude-code-language-context-20260518210107-system-mixed-text-tool-result",
+      "anthropicVersion": "2023-06-01",
+      "payloadOriginalBytes": 1583,
+      "payloadFinalBytes": 1813,
+      "payloadTrimmed": true,
+      "payloadCurrentTools": 1,
+      "payloadCurrentToolSchemaBytes": 191,
+      "payloadKeptTools": [
+        "readFile"
+      ],
+      "accountActiveConnections": 1,
+      "accountRecentSuccesses": 1,
+      "accountAvgLatencyMs": 2773,
+      "accountHealthScore": 75,
+      "routingDecision": "selected account=6d524028-56ee-41e9-aad9-eaba82d4d75b model=claude-sonnet-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=75 pressure=false",
+      "routingStrategy": "health",
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 2525,
+      "firstTokenMs": 1794,
+      "attempts": 1,
+      "inputTokens": 4967,
+      "outputTokens": 38
+    },
+    {
+      "timestamp": "2026-05-18T13:01:07.250661378Z",
+      "requestId": "uat-claude-code-language-context-20260518210107-prior-user-pure-tool-result",
+      "method": "POST",
+      "endpoint": "/v1/messages",
+      "model": "claude-sonnet-4.5",
+      "accountId": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+      "region": "us-east-1",
+      "claudeCodeSessionId": "uat-claude-code-language-context-20260518210107",
+      "claudeCodeAgentId": "language-context-uat",
+      "anthropicRequestId": "uat-claude-code-language-context-20260518210107-prior-user-pure-tool-result",
+      "anthropicVersion": "2023-06-01",
+      "payloadOriginalBytes": 1374,
+      "payloadFinalBytes": 1604,
+      "payloadTrimmed": true,
+      "payloadCurrentTools": 1,
+      "payloadCurrentToolSchemaBytes": 191,
+      "payloadKeptTools": [
+        "readFile"
+      ],
+      "accountActiveConnections": 1,
+      "accountHealthScore": 85,
+      "routingDecision": "selected account=6d524028-56ee-41e9-aad9-eaba82d4d75b model=claude-sonnet-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false",
+      "routingStrategy": "health",
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 2774,
+      "firstTokenMs": 1905,
+      "attempts": 1,
+      "inputTokens": 4922,
+      "outputTokens": 37
+    }
+  ],
+  "checks": {
+    "healthOk": true,
+    "pureOk": true,
+    "mixedOk": true,
+    "no400": true,
+    "logsFound": true
+  },
+  "pass": true
+}

@@ -1,0 +1,2 @@
+selected_key_name=claude
+selected_key_prefix=sk-aa1c261

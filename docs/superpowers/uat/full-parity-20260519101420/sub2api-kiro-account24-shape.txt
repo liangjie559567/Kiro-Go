@@ -1,0 +1,5 @@
+ id |      name      | platform  |  type  | status | schedulable | passthrough 
+----+----------------+-----------+--------+--------+-------------+-------------
+ 24 | kiro_claude_01 | anthropic | apikey | active | t           | true
+(1 row)
+

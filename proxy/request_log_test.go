@@ -252,6 +252,18 @@ func TestRequestLogCapturesSuppressedToolUses(t *testing.T) {
 		t.Fatalf("expected request log context")
 	}
 	updateRequestLogSuppressedToolUse(loggedReq, "request_user_input", "input does not satisfy client tool schema")
+	updateRequestLogSuppressedToolUseDetail(loggedReq, KiroToolUse{
+		ToolUseID: "toolu_bad",
+		Name:      "request_user_input",
+		Input: map[string]interface{}{
+			"questions": []interface{}{
+				map[string]interface{}{"header": "A"},
+				map[string]interface{}{"header": "B"},
+				map[string]interface{}{"header": "C"},
+				map[string]interface{}{"header": "D"},
+			},
+		},
+	}, "input does not satisfy client tool schema")
 	h.finishRequestLog(ctx, recorder)
 
 	entries := h.requestLogs.List(1)
@@ -267,6 +279,13 @@ func TestRequestLogCapturesSuppressedToolUses(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(entry.SuppressedToolUseReasons, ","), "schema") {
 		t.Fatalf("expected suppressed tool reason, got %#v", entry)
+	}
+	if len(entry.SuppressedToolUseDetails) != 1 {
+		t.Fatalf("expected one suppressed tool detail, got %#v", entry.SuppressedToolUseDetails)
+	}
+	detail := entry.SuppressedToolUseDetails[0]
+	if detail.ToolUseID != "toolu_bad" || detail.Name != "request_user_input" || !strings.Contains(detail.InputSummary, "questions") {
+		t.Fatalf("unexpected suppressed tool detail: %#v", detail)
 	}
 }
 

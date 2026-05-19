@@ -2158,6 +2158,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		},
 		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
 			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
 		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
@@ -3174,6 +3175,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 		},
 		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
 			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
 		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
@@ -3349,6 +3351,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 		},
 		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
 			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
 		},
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
 		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
@@ -4710,6 +4713,7 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		"recentOrphanedToolResults":      false,
 		"recentUnsupportedBlocks":        false,
 		"recentFineGrainedToolStreaming": false,
+		"recentSuppressedToolUses":       false,
 		"recentContextReminders":         []string{},
 		"lastSeen":                       "",
 		"examples":                       []map[string]interface{}{},
@@ -4754,6 +4758,9 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		if entry.FineGrainedToolStreamingRequested {
 			resp["recentFineGrainedToolStreaming"] = true
 		}
+		if entry.SuppressedToolUseCount > 0 {
+			resp["recentSuppressedToolUses"] = true
+		}
 		for _, kind := range entry.PayloadContextReminderKinds {
 			kind = strings.TrimSpace(kind)
 			if kind != "" {
@@ -4770,6 +4777,8 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 				"parentAgentId":                entry.ClaudeCodeParentAgentID,
 				"unsupportedContentBlocks":     append([]string(nil), entry.PayloadUnsupportedContentBlocks...),
 				"fineGrainedToolStreamingMode": entry.FineGrainedToolStreamingMode,
+				"suppressedToolUseCount":       entry.SuppressedToolUseCount,
+				"suppressedToolUseNames":       append([]string(nil), entry.SuppressedToolUseNames...),
 			})
 		}
 	}

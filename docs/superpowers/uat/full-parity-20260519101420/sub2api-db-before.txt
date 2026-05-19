@@ -1,0 +1,83 @@
+                           List of tables
+ Schema |                  Name                   | Type  |  Owner  
+--------+-----------------------------------------+-------+---------
+ public | account_groups                          | table | sub2api
+ public | accounts                                | table | sub2api
+ public | announcement_reads                      | table | sub2api
+ public | announcements                           | table | sub2api
+ public | api_keys                                | table | sub2api
+ public | atlas_schema_revisions                  | table | sub2api
+ public | auth_identities                         | table | sub2api
+ public | auth_identity_channels                  | table | sub2api
+ public | auth_identity_migration_reports         | table | sub2api
+ public | billing_usage_entries                   | table | sub2api
+ public | channel_account_stats_model_pricing     | table | sub2api
+ public | channel_account_stats_pricing_intervals | table | sub2api
+ public | channel_account_stats_pricing_rules     | table | sub2api
+ public | channel_groups                          | table | sub2api
+ public | channel_model_pricing                   | table | sub2api
+ public | channel_monitor_aggregation_watermark   | table | sub2api
+ public | channel_monitor_daily_rollups           | table | sub2api
+ public | channel_monitor_histories               | table | sub2api
+ public | channel_monitor_request_templates       | table | sub2api
+ public | channel_monitors                        | table | sub2api
+ public | channel_pricing_intervals               | table | sub2api
+ public | channels                                | table | sub2api
+ public | content_moderation_logs                 | table | sub2api
+ public | error_passthrough_rules                 | table | sub2api
+ public | groups                                  | table | sub2api
+ public | idempotency_records                     | table | sub2api
+ public | identity_adoption_decisions             | table | sub2api
+ public | ops_alert_events                        | table | sub2api
+ public | ops_alert_rules                         | table | sub2api
+ public | ops_error_logs                          | table | sub2api
+ public | ops_job_heartbeats                      | table | sub2api
+ public | ops_metrics_daily                       | table | sub2api
+ public | ops_metrics_hourly                      | table | sub2api
+ public | ops_retry_attempts                      | table | sub2api
+ public | ops_system_log_cleanup_audits           | table | sub2api
+ public | ops_system_logs                         | table | sub2api
+ public | ops_system_metrics                      | table | sub2api
+ public | orphan_allowed_groups_audit             | table | sub2api
+ public | payment_audit_logs                      | table | sub2api
+ public | payment_orders                          | table | sub2api
+ public | payment_provider_instances              | table | sub2api
+ public | pending_auth_sessions                   | table | sub2api
+ public | promo_code_usages                       | table | sub2api
+ public | promo_codes                             | table | sub2api
+ public | proxies                                 | table | sub2api
+ public | redeem_codes                            | table | sub2api
+ public | scheduled_test_plans                    | table | sub2api
+ public | scheduled_test_results                  | table | sub2api
+ public | scheduler_outbox                        | table | sub2api
+ public | schema_migrations                       | table | sub2api
+ public | security_secrets                        | table | sub2api
+ public | settings                                | table | sub2api
+ public | subscription_plans                      | table | sub2api
+ public | tls_fingerprint_profiles                | table | sub2api
+ public | usage_billing_dedup                     | table | sub2api
+ public | usage_billing_dedup_archive             | table | sub2api
+ public | usage_cleanup_tasks                     | table | sub2api
+ public | usage_dashboard_aggregation_watermark   | table | sub2api
+ public | usage_dashboard_daily                   | table | sub2api
+ public | usage_dashboard_daily_users             | table | sub2api
+ public | usage_dashboard_hourly                  | table | sub2api
+ public | usage_dashboard_hourly_users            | table | sub2api
+ public | usage_logs                              | table | sub2api
+ public | user_affiliate_ledger                   | table | sub2api
+ public | user_affiliates                         | table | sub2api
+ public | user_allowed_groups                     | table | sub2api
+ public | user_attribute_definitions              | table | sub2api
+ public | user_attribute_values                   | table | sub2api
+ public | user_avatars                            | table | sub2api
+ public | user_group_rate_multipliers             | table | sub2api
+ public | user_provider_default_grants            | table | sub2api
+ public | user_subscriptions                      | table | sub2api
+ public | users                                   | table | sub2api
+(73 rows)
+
+              now              
+-------------------------------
+ 2026-05-19 10:15:10.032687+08
+(1 row)
+

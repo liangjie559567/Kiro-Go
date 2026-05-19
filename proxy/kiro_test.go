@@ -943,6 +943,104 @@ func TestWrapToolUseRepairsClaudeCodeTaskCreateAliases(t *testing.T) {
 	}
 }
 
+func TestWrapToolUseRepairsClaudeCodeTaskCreateTasksArray(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"TaskCreate": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"subject":     map[string]interface{}{"type": "string"},
+					"description": map[string]interface{}{"type": "string"},
+					"activeForm":  map[string]interface{}{"type": "string"},
+				},
+				"required":             []interface{}{"subject", "description"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_task_create",
+		Name:      "TaskCreate",
+		Input: map[string]interface{}{
+			"tasks": []interface{}{
+				map[string]interface{}{
+					"subject":     "Phase 46: discuss/smart-discuss",
+					"description": "Collect context before planning",
+					"activeForm":  "Running Phase 46 discuss",
+				},
+				map[string]interface{}{
+					"subject":     "Phase 47: execute",
+					"description": "Execute next phase",
+					"activeForm":  "Running Phase 47",
+				},
+			},
+		},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected repaired TaskCreate tasks array to pass, got %#v", got)
+	}
+	if got[0].Input["subject"] != "Phase 46: discuss/smart-discuss" || got[0].Input["description"] != "Collect context before planning" {
+		t.Fatalf("expected first task promoted to TaskCreate fields, got %#v", got[0].Input)
+	}
+	if got[0].Input["activeForm"] != "Running Phase 46 discuss" {
+		t.Fatalf("expected first task activeForm promoted, got %#v", got[0].Input)
+	}
+	if _, ok := got[0].Input["tasks"]; ok {
+		t.Fatalf("expected tasks array removed after repair, got %#v", got[0].Input)
+	}
+}
+
+func TestWrapToolUseRepairsClaudeCodeTaskCreateTasksArrayWithoutDescription(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"TaskCreate": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"subject":     map[string]interface{}{"type": "string"},
+					"description": map[string]interface{}{"type": "string"},
+					"activeForm":  map[string]interface{}{"type": "string"},
+				},
+				"required":             []interface{}{"subject", "description"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_task_create",
+		Name:      "TaskCreate",
+		Input: map[string]interface{}{
+			"tasks": []interface{}{
+				map[string]interface{}{
+					"subject":    "Phase 46: discuss/smart-discuss",
+					"activeForm": "Phase 46 discuss",
+				},
+			},
+		},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected repaired TaskCreate without description to pass, got %#v", got)
+	}
+	if got[0].Input["description"] != "Phase 46 discuss" {
+		t.Fatalf("expected missing description to fall back to activeForm, got %#v", got[0].Input)
+	}
+}
+
 func TestWrapToolUseRepairsClaudeCodeTodoWriteAliases(t *testing.T) {
 	payload := &KiroPayload{
 		ToolSchemas: map[string]toolSchemaSummary{
@@ -1005,6 +1103,101 @@ func TestWrapToolUseRepairsClaudeCodeTodoWriteAliases(t *testing.T) {
 	}
 }
 
+func TestWrapToolUseRepairsClaudeCodeFilesystemAndShellAliases(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"Bash": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"command":     map[string]interface{}{"type": "string"},
+					"description": map[string]interface{}{"type": "string"},
+					"timeout":     map[string]interface{}{"type": []interface{}{"integer", "null"}},
+				},
+				"required":             []interface{}{"command"},
+				"additionalProperties": false,
+			}},
+			"Edit": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"file_path":   map[string]interface{}{"type": "string"},
+					"old_string":  map[string]interface{}{"type": "string"},
+					"new_string":  map[string]interface{}{"type": "string"},
+					"replace_all": map[string]interface{}{"type": []interface{}{"boolean", "null"}},
+				},
+				"required":             []interface{}{"file_path", "old_string", "new_string"},
+				"additionalProperties": false,
+			}},
+			"Glob": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"pattern": map[string]interface{}{"type": "string"},
+					"path":    map[string]interface{}{"type": []interface{}{"string", "null"}},
+				},
+				"required":             []interface{}{"pattern"},
+				"additionalProperties": false,
+			}},
+			"Grep": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"pattern": map[string]interface{}{"type": "string"},
+					"path":    map[string]interface{}{"type": []interface{}{"string", "null"}},
+					"glob":    map[string]interface{}{"type": []interface{}{"string", "null"}},
+				},
+				"required":             []interface{}{"pattern"},
+				"additionalProperties": false,
+			}},
+			"LS": {Schema: map[string]interface{}{
+				"type":                 "object",
+				"properties":           map[string]interface{}{"path": map[string]interface{}{"type": "string"}},
+				"required":             []interface{}{"path"},
+				"additionalProperties": false,
+			}},
+			"Write": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"file_path": map[string]interface{}{"type": "string"},
+					"content":   map[string]interface{}{"type": "string"},
+				},
+				"required":             []interface{}{"file_path", "content"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_bash", Name: "Bash", Input: map[string]interface{}{"cmd": "go test ./...", "timeout": "120"}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_edit", Name: "Edit", Input: map[string]interface{}{"path": "/tmp/a.go", "old": "a", "new": "b", "replaceAll": "true"}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_glob", Name: "Glob", Input: map[string]interface{}{"query": "*.go", "directory": "/www/Kiro-Go"}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_grep", Name: "Grep", Input: map[string]interface{}{"regex": "func main", "directory": "/www/Kiro-Go", "include": "*.go"}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_ls", Name: "LS", Input: map[string]interface{}{"dir": "/www/Kiro-Go"}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_ls_empty", Name: "LS", Input: map[string]interface{}{}})
+	callback.OnToolUse(KiroToolUse{ToolUseID: "toolu_write", Name: "Write", Input: map[string]interface{}{"path": "/tmp/out.txt", "text": "hello"}})
+
+	if len(got) != 7 {
+		t.Fatalf("expected all repaired Claude Code tool uses to pass, got %#v", got)
+	}
+	assertToolInputValue(t, got, "toolu_bash", "command", "go test ./...")
+	assertToolInputValue(t, got, "toolu_bash", "timeout", 120)
+	assertToolInputValue(t, got, "toolu_edit", "file_path", "/tmp/a.go")
+	assertToolInputValue(t, got, "toolu_edit", "old_string", "a")
+	assertToolInputValue(t, got, "toolu_edit", "new_string", "b")
+	assertToolInputValue(t, got, "toolu_edit", "replace_all", true)
+	assertToolInputValue(t, got, "toolu_glob", "pattern", "*.go")
+	assertToolInputValue(t, got, "toolu_glob", "path", "/www/Kiro-Go")
+	assertToolInputValue(t, got, "toolu_grep", "pattern", "func main")
+	assertToolInputValue(t, got, "toolu_grep", "path", "/www/Kiro-Go")
+	assertToolInputValue(t, got, "toolu_grep", "glob", "*.go")
+	assertToolInputValue(t, got, "toolu_ls", "path", "/www/Kiro-Go")
+	assertToolInputValue(t, got, "toolu_ls_empty", "path", ".")
+	assertToolInputValue(t, got, "toolu_write", "file_path", "/tmp/out.txt")
+	assertToolInputValue(t, got, "toolu_write", "content", "hello")
+}
+
 func TestWrapToolUseAllowsValidRequiredArgumentsAndRestoresName(t *testing.T) {
 	payload := &KiroPayload{
 		ToolNameMap: map[string]string{"readFile": "read_file"},
@@ -1035,6 +1228,20 @@ func TestWrapToolUseAllowsValidRequiredArgumentsAndRestoresName(t *testing.T) {
 	if got[0].Name != "read_file" || got[0].Input["path"] != "README.md" {
 		t.Fatalf("expected original name and input preserved, got %#v", got[0])
 	}
+}
+
+func assertToolInputValue(t *testing.T, uses []KiroToolUse, id, key string, want interface{}) {
+	t.Helper()
+	for _, use := range uses {
+		if use.ToolUseID != id {
+			continue
+		}
+		if got := use.Input[key]; got != want {
+			t.Fatalf("tool %s input[%s] = %#v, want %#v; full input=%#v", id, key, got, want, use.Input)
+		}
+		return
+	}
+	t.Fatalf("tool use %s not found in %#v", id, uses)
 }
 
 func mustParseURL(t *testing.T, raw string) *url.URL {

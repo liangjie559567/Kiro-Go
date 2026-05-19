@@ -1,0 +1,1 @@
+{"model":"claude-opus-4-7","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"Return exactly this stream marker and nothing else: uat-tool-loop-20260519103728-stream"}]}

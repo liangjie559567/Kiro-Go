@@ -1,0 +1,24 @@
+{
+  "screenshots": {
+    "accountsShot": "docs/superpowers/uat/uat-zh-context-20260518204755/kiro-admin-accounts-post-zh-fix.png",
+    "apiShot": "docs/superpowers/uat/uat-zh-context-20260518204755/kiro-admin-api-post-zh-fix.png",
+    "settingsShot": "docs/superpowers/uat/uat-zh-context-20260518204755/kiro-admin-settings-post-zh-fix.png"
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "textChecks": {
+    "accountsHasEnabledAccounts": true,
+    "apiHasClaudeCode": true,
+    "settingsHasEndpoint": true,
+    "apiShowsClaudeCodeToolBadges": true,
+    "apiShowsMessagesEndpoint": true
+  },
+  "requestLogCheck": {
+    "status": 200,
+    "hasZhRun": true,
+    "recentCount": 2
+  },
+  "pass": true,
+  "screenshotReview": "Manual screenshot review confirmed Claude Code card, client/tool_reference/mcp tools/tool trimming/responses restore badges, Last seen timestamp, and /v1/messages endpoint are visible."
+}

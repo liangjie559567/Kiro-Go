@@ -1,0 +1,6 @@
+/www/sub2api/deploy/.env
+/www/sub2api/deploy/docker-compose.dev.yml
+/www/sub2api/deploy/docker-compose.local.yml
+/www/sub2api/deploy/docker-compose.yml
+/www/sub2api/deploy/docker-compose.standalone.yml
+/www/sub2api/deploy/docker-compose.current.yml

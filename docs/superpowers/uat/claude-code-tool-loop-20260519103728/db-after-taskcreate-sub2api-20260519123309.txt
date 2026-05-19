@@ -1,0 +1,12 @@
+  id   |                request_id                | api_key_id | account_id | requested_model |      model      |   inbound_endpoint   | upstream_endpoint | stream | request_type |          created_at           
+-------+------------------------------------------+------------+------------+-----------------+-----------------+----------------------+-------------------+--------+--------------+-------------------------------
+ 58342 | generated:rchznntt19013-5xz              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:35:18.777481+08
+ 58341 | generated:rchznntt19013-5xw              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:35:10.713716+08
+ 58340 | generated:rchznntt19013-5xt              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:35:02.171052+08
+ 58339 | generated:rchznntt19013-5xq              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:34:49.701159+08
+ 58338 | generated:rchznntt19013-5xn              |          1 |         86 | gpt-5.5         | gpt-5.5         | /v1/chat/completions | /v1/responses     | f      |            1 | 2026-05-19 12:34:35.208919+08
+ 58337 | generated:rchznntt19013-5xk              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:34:32.99179+08
+ 58336 | req_8c6d9924-ef07-4711-9e30-fc1707de22b3 |          2 |         24 | claude-opus-4-7 | claude-opus-4-7 | /v1/messages         | /v1/messages      | t      |            2 | 2026-05-19 12:34:17.338008+08
+ 58335 | generated:rchznntt19013-5xf              |          1 |         74 | gpt-5.5         | gpt-5.5         | /responses           | /v1/responses     | t      |            2 | 2026-05-19 12:34:10.178461+08
+(8 rows)
+

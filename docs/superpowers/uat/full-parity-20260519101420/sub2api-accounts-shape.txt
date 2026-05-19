@@ -1,0 +1,44 @@
+ id |      name      | platform  |  type  | status | schedulable | groups 
+----+----------------+-----------+--------+--------+-------------+--------
+  2 | openai002      | openai    | oauth  | active | t           | openai
+  8 | openai008      | openai    | oauth  | active | t           | openai
+  9 | openai009      | openai    | oauth  | active | t           | openai
+ 10 | openai010      | openai    | oauth  | active | t           | openai
+ 21 | openai016      | openai    | oauth  | error  | t           | openai
+ 22 | openai017      | openai    | oauth  | error  | t           | openai
+ 24 | kiro_claude_01 | anthropic | apikey | active | t           | claude
+ 29 | openai012      | openai    | oauth  | error  | t           | openai
+ 30 | openai011      | openai    | oauth  | error  | t           | openai
+ 31 | openai020      | openai    | oauth  | error  | t           | openai
+ 32 | openai019      | openai    | oauth  | error  | t           | openai
+ 35 | openai014      | openai    | oauth  | error  | t           | openai
+ 36 | openai015      | openai    | oauth  | error  | t           | openai
+ 37 | openai019      | openai    | oauth  | error  | t           | openai
+ 43 | openai021      | openai    | oauth  | error  | t           | openai
+ 45 | openai029      | openai    | oauth  | error  | t           | openai
+ 46 | openai022      | openai    | oauth  | error  | t           | openai
+ 47 | openai027      | openai    | oauth  | error  | t           | openai
+ 49 | openai023      | openai    | oauth  | error  | t           | openai
+ 51 | openai025      | openai    | oauth  | error  | t           | openai
+ 52 | openai028      | openai    | oauth  | error  | t           | openai
+ 54 | ao4            | openai    | oauth  | error  | t           | openai
+ 56 | ap6            | openai    | oauth  | error  | t           | openai
+ 57 | ap7            | openai    | oauth  | error  | t           | openai
+ 58 | ap8            | openai    | oauth  | error  | t           | openai
+ 59 | ar10           | openai    | oauth  | error  | t           | openai
+ 60 | ar8            | openai    | oauth  | error  | t           | openai
+ 62 | ao6            | openai    | oauth  | error  | t           | openai
+ 63 | by2            | openai    | oauth  | error  | t           | openai
+ 64 | by1            | openai    | oauth  | error  | t           | openai
+ 65 | bx7            | openai    | oauth  | error  | t           | openai
+ 68 | bx2            | openai    | oauth  | error  | t           | openai
+ 69 | bx1            | openai    | oauth  | error  | t           | openai
+ 70 | bo3            | openai    | oauth  | error  | t           | openai
+ 71 | bo1            | openai    | oauth  | error  | t           | openai
+ 72 | bl4            | openai    | oauth  | error  | t           | openai
+ 73 | cd1            | openai    | oauth  | error  | t           | openai
+ 74 | cd2            | openai    | oauth  | active | t           | openai
+ 76 | cd5            | openai    | oauth  | error  | t           | openai
+ 77 | cd6            | openai    | oauth  | error  | t           | openai
+(40 rows)
+

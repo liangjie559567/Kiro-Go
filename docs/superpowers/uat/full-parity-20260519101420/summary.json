@@ -1,0 +1,16 @@
+{
+  "status": "PARTIAL",
+  "timestamp": "2026-05-19T10:25:48+08:00",
+  "go_tests": "PASS",
+  "docker": "PASS",
+  "kiro_health": "PASS",
+  "sub2api_health": "PASS",
+  "sub2api_nonstream": "PASS",
+  "sub2api_stream": "PASS",
+  "database_evidence": "PASS",
+  "playwright_screenshots": "PARTIAL",
+  "sonnet45_alias_attempt": "FAIL_EXPECTED_ALIAS_NOT_SCHEDULABLE",
+  "notes": [
+    "Overall is PARTIAL when any evidence item is PARTIAL even if core API/database calls pass."
+  ]
+}

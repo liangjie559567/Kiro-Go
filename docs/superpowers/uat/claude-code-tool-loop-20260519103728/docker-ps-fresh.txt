@@ -1,0 +1,7 @@
+kiro-go-kiro-go-1    kiro-go-kiro-go                            0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp                                                    Up 48 seconds
+sub2api              sub2api:local                              0.0.0.0:18080->8080/tcp                                                                        Up 11 hours (healthy)
+sub2api-postgres     postgres:18-alpine                         5432/tcp                                                                                       Up 25 hours (healthy)
+sub2api-redis        redis:8-alpine                             6379/tcp                                                                                       Up 25 hours (healthy)
+waoowaoo-redis       redis:7-alpine                             0.0.0.0:16379->6379/tcp, [::]:16379->6379/tcp                                                  Up 2 days (healthy)
+xboard-redis-1       redis:8-alpine                             6379/tcp                                                                                       Up 2 days
+redis                redis:alpine                               6379/tcp                                                                                       Up 2 days

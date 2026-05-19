@@ -1,0 +1,1 @@
+Kiro-Go 是一个为 Claude 兼容客户端提供的 API 代理服务。
