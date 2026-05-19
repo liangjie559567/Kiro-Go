@@ -248,10 +248,10 @@ func normalizeOpus47ClaudeRequest(req *ClaudeRequest, claudeCodeCompatible bool)
 		return meta
 	}
 	mapped, suffixThinking := ParseModelAndThinking(req.Model, configuredThinkingSuffix())
-	req.Model = mapped
-	if !isOpus47RequestModel(req.Model) {
+	if !isOpus47RequestModel(mapped) {
 		return meta
 	}
+	req.Model = mapped
 	meta.Opus47 = true
 	if req.Temperature != 0 {
 		req.Temperature = 0

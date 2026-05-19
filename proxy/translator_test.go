@@ -34,6 +34,9 @@ func TestParseModelAndThinkingPreservesUnknownNonOpusClaudeAliases(t *testing.T)
 	for _, model := range []string{
 		"claude-sonnet-5-latest",
 		"claude-haiku-4-20260514",
+		"claude-sonnet-4-latest",
+		"claude-sonnet-4-5-latest",
+		"claude-haiku-4-5-20260514",
 	} {
 		gotModel, gotThinking := ParseModelAndThinking(model, "-thinking")
 		if gotModel != model || gotThinking {

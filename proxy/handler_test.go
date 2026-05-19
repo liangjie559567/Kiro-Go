@@ -4292,26 +4292,34 @@ func TestNormalizeOpus47ClaudeRequestUsesAdaptiveThinkingAndDropsSampling(t *tes
 }
 
 func TestNormalizeOpus47ClaudeRequestLeavesNonOpusRequestUnchanged(t *testing.T) {
-	req := ClaudeRequest{
-		Model:       "claude-sonnet-5-latest",
-		MaxTokens:   64,
-		Temperature: 0.7,
-		TopP:        0.9,
-		Thinking:    &ClaudeThinkingConfig{Type: "enabled", BudgetTokens: 2048, Display: "summarized"},
-		Messages:    []ClaudeMessage{{Role: "user", Content: "hello"}},
-	}
-	meta := normalizeOpus47ClaudeRequest(&req, true)
-	if req.Model != "claude-sonnet-5-latest" {
-		t.Fatalf("expected model unchanged, got %q", req.Model)
-	}
-	if req.Temperature != 0.7 || req.TopP != 0.9 {
-		t.Fatalf("expected sampling params unchanged, got temperature=%v top_p=%v", req.Temperature, req.TopP)
-	}
-	if req.Thinking == nil || req.Thinking.Type != "enabled" || req.Thinking.BudgetTokens != 2048 || req.Thinking.Display != "summarized" {
-		t.Fatalf("expected thinking unchanged, got %#v", req.Thinking)
-	}
-	if meta.Opus47 || meta.ThinkingNormalized || meta.SamplingDropped {
-		t.Fatalf("expected empty metadata, got %#v", meta)
+	for _, model := range []string{
+		"claude-sonnet-5-latest",
+		"claude-sonnet-4-5",
+		"claude-3-sonnet",
+	} {
+		t.Run(model, func(t *testing.T) {
+			req := ClaudeRequest{
+				Model:       model,
+				MaxTokens:   64,
+				Temperature: 0.7,
+				TopP:        0.9,
+				Thinking:    &ClaudeThinkingConfig{Type: "enabled", BudgetTokens: 2048, Display: "summarized"},
+				Messages:    []ClaudeMessage{{Role: "user", Content: "hello"}},
+			}
+			meta := normalizeOpus47ClaudeRequest(&req, true)
+			if req.Model != model {
+				t.Fatalf("expected model unchanged, got %q", req.Model)
+			}
+			if req.Temperature != 0.7 || req.TopP != 0.9 {
+				t.Fatalf("expected sampling params unchanged, got temperature=%v top_p=%v", req.Temperature, req.TopP)
+			}
+			if req.Thinking == nil || req.Thinking.Type != "enabled" || req.Thinking.BudgetTokens != 2048 || req.Thinking.Display != "summarized" {
+				t.Fatalf("expected thinking unchanged, got %#v", req.Thinking)
+			}
+			if meta.Opus47 || meta.ThinkingNormalized || meta.SamplingDropped {
+				t.Fatalf("expected empty metadata, got %#v", meta)
+			}
+		})
 	}
 }
 

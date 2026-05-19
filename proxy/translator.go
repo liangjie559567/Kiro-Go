@@ -79,7 +79,8 @@ func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
 
 	// 映射模型（有序匹配，长 key 优先）
 	for _, m := range modelMapOrdered {
-		if strings.Contains(lower, m.key) {
+		if (strings.HasPrefix(lower, "claude-") && lower == m.key) ||
+			(!strings.HasPrefix(lower, "claude-") && strings.Contains(lower, m.key)) {
 			return m.value, thinking
 		}
 	}
@@ -103,7 +104,7 @@ func normalizeClaudeModelName(model string) string {
 		probe = m[1]
 	}
 	for _, mapping := range modelMapOrdered {
-		if lower == mapping.key || probe == mapping.key {
+		if lower == mapping.key {
 			return mapping.value
 		}
 	}
