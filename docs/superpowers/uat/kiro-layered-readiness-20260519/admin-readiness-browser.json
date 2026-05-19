@@ -1,0 +1,52 @@
+{
+  "url": "http://127.0.0.1:8080/admin",
+  "bbox": {
+    "x": 186,
+    "y": 150,
+    "width": 1068,
+    "height": 1049.578125
+  },
+  "textPreview": "Claude Code\n刷新\nUse ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.\nclient\ntool_reference\nmcp tools\ntool trimming\ntool_result turns\ncontext reminder\nresponses restore\nparent-agent\nunsupported blocks\ntool-result images\norphan tool_result\nfine-grained requested\ntool suppressed\nContext reminders: language, system\nLast seen: 5/19/2026, 7:38:10 PM\nassistantPrefill\nPARTIAL\nText prefill is emulated as a continuation instruction; tool-use prefill is rejected\nClaude Code · emulated_text_prefill\ntext prefill conversion is implemented\nEMULATED_PASS\nOfficial API · emulated_text_prefill\nnative upstream prefill is not proven\nPARTIAL\nEvidence: emulated_text_prefill\ncountTokens\nPARTIAL\nClaude Code compatible estimated token counting; official exact count is not proven\nClaude Code · estimated\ncount_tokens endpoint returned input_tokens\nPASS\nOfficial API · estimated\nno upstream exact count_tokens evidence\nPARTIAL\nEvidence: 27d4af15-3881-45c7-aa36-3a2a20c1acbb · claude-opus-4-7 · estimated\nfineGrainedToolStreaming\nPARTIAL\nClaude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape\nClaude Code · kiro_go_chunked_complete_input\nAnthropic SSE input_json_delta writer is implemented\nPASS\nOfficial API · kiro_go_chunked_complete_input\nupstream partial tool input deltas are not proven\nPARTIAL\nEvidence: kiro_go_chunked_complete_input\nmaxTokensZero\nPARTIAL\nClaude Code compatible zero-output response; official cache warmup is not proven\nClaude Code · local_zero_output\nzero-output response shape completed\nPASS\nOfficial API · local_zero_output\nno upstream cache warmup evidence\nBLOCKED_BY_UPSTREAM\nEvidence: layered-readiness-1779190333111-4jnoxupwbtk · claude-sonnet-4.5 · local_zero_output\nmessages\nPASS\n/v1/messages is implemented\ntoolReference\nPASS\ntool_reference is accepted and materialized when relevant\ntoolSchemaValidation\nPASS\nInvalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them\nexport ANTHROPIC_BASE_URL=http://127.0.0.1:8080\nexport ANTHROPIC_AUTH_TOKEN=any\nexport ENABLE_TOOL_SEARCH=true",
+  "domChecks": {
+    "hasClaudeCode": true,
+    "hasOfficialApi": true,
+    "hasEvidence": true,
+    "hasCountTokens": true,
+    "hasAssistantPrefill": true,
+    "hasFineGrained": true,
+    "hasMaxTokensZero": true,
+    "badges": [
+      "client",
+      "tool_reference",
+      "mcp tools",
+      "tool trimming",
+      "tool_result turns",
+      "context reminder",
+      "responses restore",
+      "parent-agent",
+      "unsupported blocks",
+      "tool-result images",
+      "orphan tool_result",
+      "fine-grained requested",
+      "tool suppressed",
+      "PARTIAL",
+      "EMULATED_PASS",
+      "PARTIAL",
+      "PARTIAL",
+      "PASS",
+      "PARTIAL",
+      "PARTIAL",
+      "PASS",
+      "PARTIAL",
+      "PARTIAL",
+      "PASS",
+      "BLOCKED_BY_UPSTREAM",
+      "PASS",
+      "PASS",
+      "PASS"
+    ],
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false
+  }
+}

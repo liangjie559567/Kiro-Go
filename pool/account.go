@@ -12,6 +12,10 @@ import (
 
 const overageFrequencyScale = 10
 const tokenRefreshSkewSeconds int64 = 120
+const temporaryLimitSingleAccountBaseCooldown = 3 * time.Second
+const temporaryLimitMultiAccountBaseCooldown = time.Minute
+const temporaryLimitMaxCooldown = 24 * time.Hour
+const modelCapacityBaseCooldown = 3 * time.Second
 
 type FailureReason string
 
@@ -21,6 +25,8 @@ const (
 	FailureReasonAuthExpired      FailureReason = "auth_expired"
 	FailureReasonSuspended        FailureReason = "suspended"
 	FailureReasonRateLimited      FailureReason = "rate_limited"
+	FailureReasonTemporaryLimited FailureReason = "temporary_limited"
+	FailureReasonModelCapacity    FailureReason = "model_capacity"
 	FailureReasonTransientNetwork FailureReason = "transient_network"
 	FailureReasonUpstream5xx      FailureReason = "upstream_5xx"
 )
@@ -32,6 +38,21 @@ type RuntimeHealth struct {
 	AvgLatencyMS      int64 `json:"avgLatencyMs"`
 	LastUpdatedAt     int64 `json:"lastUpdatedAt"`
 	Score             int   `json:"score"`
+}
+
+type ModelBlockState struct {
+	AccountsEvaluated int
+	Blocked           int
+	AllBlocked        bool
+	LastReason        FailureReason
+	RetryAt           time.Time
+}
+
+type CooldownState struct {
+	CoolingDown bool
+	Reason      FailureReason
+	RetryAt     time.Time
+	RiskGroup   bool
 }
 
 type Strategy string
@@ -90,6 +111,10 @@ func ClassifyFailureReason(err error) FailureReason {
 		return FailureReasonQuotaExhausted
 	case strings.Contains(msg, "temporarily_suspended"), strings.Contains(msg, "account suspended"), strings.Contains(msg, "suspended"):
 		return FailureReasonSuspended
+	case strings.Contains(msg, "suspicious activity") && strings.Contains(msg, "temporary limits"):
+		return FailureReasonTemporaryLimited
+	case strings.Contains(msg, "insufficient_model_capacity"), strings.Contains(msg, "experiencing high traffic"), strings.Contains(msg, "model capacity"):
+		return FailureReasonModelCapacity
 	case strings.Contains(msg, "429"), strings.Contains(msg, "rate limit"), strings.Contains(msg, "too many requests"):
 		return FailureReasonRateLimited
 	case strings.Contains(msg, "401"), strings.Contains(msg, "403"), strings.Contains(msg, "expired"), strings.Contains(msg, "invalid token"):
@@ -104,19 +129,46 @@ func ClassifyFailureReason(err error) FailureReason {
 	}
 }
 
+// AccountRiskGroupKey returns the upstream risk subject shared by accounts.
+// Kiro generation throttling can apply to the CodeWhisperer profile or the
+// stable user-id prefix, so temporary-limit protection must cool the group.
+func AccountRiskGroupKey(account config.Account) string {
+	if profileArn := strings.TrimSpace(account.ProfileArn); profileArn != "" {
+		return "profile:" + profileArn
+	}
+	if userID := strings.TrimSpace(account.UserId); userID != "" {
+		if idx := strings.Index(userID, "."); idx > 0 {
+			return "user-prefix:" + userID[:idx]
+		}
+		return "user:" + userID
+	}
+	return ""
+}
+
+func (p *AccountPool) riskGroupKeyForIDLocked(id string) string {
+	for i := range p.accounts {
+		if p.accounts[i].ID == id {
+			return AccountRiskGroupKey(p.accounts[i])
+		}
+	}
+	return ""
+}
+
 // AccountPool 账号池
 type AccountPool struct {
-	mu            sync.RWMutex
-	accounts      []config.Account
-	totalAccounts int
-	currentIndex  uint64
-	cooldowns     map[string]time.Time       // 账号冷却时间
-	errorCounts   map[string]int             // 连续错误计数
-	failures      map[string]FailureReason   // Last failure classification
-	modelLists    map[string]map[string]bool // accountID -> set of modelIDs
-	runtimeHealth map[string]*runtimeHealthState
-	breakers      *modelBreakerState
-	strategy      Strategy
+	mu             sync.RWMutex
+	accounts       []config.Account
+	totalAccounts  int
+	currentIndex   uint64
+	cooldowns      map[string]time.Time       // 账号冷却时间
+	errorCounts    map[string]int             // 连续错误计数
+	failures       map[string]FailureReason   // Last failure classification
+	groupCooldowns map[string]time.Time       // shared upstream risk-group cooldowns
+	groupFailures  map[string]FailureReason   // shared upstream risk-group failure classification
+	modelLists     map[string]map[string]bool // accountID -> set of modelIDs
+	runtimeHealth  map[string]*runtimeHealthState
+	breakers       *modelBreakerState
+	strategy       Strategy
 }
 
 var (
@@ -128,13 +180,15 @@ var (
 func GetPool() *AccountPool {
 	poolOnce.Do(func() {
 		pool = &AccountPool{
-			cooldowns:     make(map[string]time.Time),
-			errorCounts:   make(map[string]int),
-			failures:      make(map[string]FailureReason),
-			modelLists:    make(map[string]map[string]bool),
-			runtimeHealth: make(map[string]*runtimeHealthState),
-			breakers:      newModelBreakerState(),
-			strategy:      Strategy(config.GetLoadBalanceConfig().Strategy),
+			cooldowns:      make(map[string]time.Time),
+			errorCounts:    make(map[string]int),
+			failures:       make(map[string]FailureReason),
+			groupCooldowns: make(map[string]time.Time),
+			groupFailures:  make(map[string]FailureReason),
+			modelLists:     make(map[string]map[string]bool),
+			runtimeHealth:  make(map[string]*runtimeHealthState),
+			breakers:       newModelBreakerState(),
+			strategy:       Strategy(config.GetLoadBalanceConfig().Strategy),
 		}
 		pool.Reload()
 	})
@@ -150,6 +204,12 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.failures == nil {
 		p.failures = make(map[string]FailureReason)
+	}
+	if p.groupCooldowns == nil {
+		p.groupCooldowns = make(map[string]time.Time)
+	}
+	if p.groupFailures == nil {
+		p.groupFailures = make(map[string]FailureReason)
 	}
 	if p.modelLists == nil {
 		p.modelLists = make(map[string]map[string]bool)
@@ -199,6 +259,13 @@ func (p *AccountPool) Reload() {
 	}
 	p.accounts = weighted
 	p.totalAccounts = len(enabled)
+	now := time.Now()
+	for _, account := range enabled {
+		if FailureReason(account.LastFailureReason) != FailureReasonTemporaryLimited || account.CooldownUntil <= now.Unix() {
+			continue
+		}
+		p.recordRiskGroupCooldownLocked(account, FailureReasonTemporaryLimited, time.Unix(account.CooldownUntil, 0))
+	}
 }
 
 // GetNext 获取下一个可用账号（加权轮询）
@@ -234,26 +301,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 			continue
 		}
 
-		// 跳过冷却中的账号
-		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
-			seen[acc.ID] = true
-			continue
-		}
-
-		// 跳过账号自身持久化冷却中的账号
-		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
-			seen[acc.ID] = true
-			continue
-		}
-
-		// 跳过即将过期的 Token
-		if acc.ExpiresAt > 0 && time.Now().Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
-			seen[acc.ID] = true
-			continue
-		}
-
-		// 跳过额度已用尽的账号（账号级 AllowOverage 或全局 AllowOverUsage 可放行）
-		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
+		if !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
 			seen[acc.ID] = true
 			continue
 		}
@@ -276,24 +324,11 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		if excluded != nil && excluded[acc.ID] {
 			continue
 		}
-		// 额度用尽的账号不作为 fallback（除非账号级或全局允许超额）
-		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
+		if !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
 			continue
 		}
-		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
-			continue
-		}
-		if cooldown, ok := p.cooldowns[acc.ID]; ok {
-			if now.Before(cooldown) {
-				continue
-			}
-			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
-				best = acc
-			}
-		} else {
-			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
-				best = acc
-			}
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+			best = acc
 		}
 	}
 	return best
@@ -370,8 +405,12 @@ func (p *AccountPool) RecordModelFailure(accountID, model string, reason Failure
 	now := time.Now()
 	delay := 30 * time.Second
 	switch reason {
+	case FailureReasonModelCapacity:
+		delay = modelCapacityBaseCooldown
 	case FailureReasonRateLimited:
 		delay = time.Minute
+	case FailureReasonTemporaryLimited:
+		delay = temporaryLimitMultiAccountCooldownForCount(1)
 	case FailureReasonAuthExpired:
 		delay = 10 * time.Minute
 	case FailureReasonQuotaExhausted, FailureReasonSuspended:
@@ -415,19 +454,7 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 			seen[acc.ID] = true
 			continue
 		}
-		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
-			seen[acc.ID] = true
-			continue
-		}
-		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
-			seen[acc.ID] = true
-			continue
-		}
-		if acc.ExpiresAt > 0 && time.Now().Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
-			seen[acc.ID] = true
-			continue
-		}
-		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
+		if !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
 			seen[acc.ID] = true
 			continue
 		}
@@ -454,22 +481,11 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 		if !p.accountHasModel(acc.ID, model) {
 			continue
 		}
-		if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
-			continue
-		}
-		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+		if !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
 			continue
 		}
 		if !p.breakers.isClosed(acc.ID, model) {
 			continue
-		}
-		if cooldown, ok := p.cooldowns[acc.ID]; ok {
-			if now.Before(cooldown) {
-				continue
-			}
-			if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
-				best = acc
-			}
 		}
 		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
 			best = acc
@@ -572,6 +588,11 @@ func (p *AccountPool) accountBaseUsableLocked(acc *config.Account, now time.Time
 	if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
 		return false
 	}
+	if key := AccountRiskGroupKey(*acc); key != "" {
+		if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
+			return false
+		}
+	}
 	if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 		return false
 	}
@@ -657,6 +678,13 @@ func (p *AccountPool) RecordSuccessWithLatency(id string, latency time.Duration)
 
 func (p *AccountPool) clearExpiredCooldownsLocked(now time.Time) {
 	nowUnix := now.Unix()
+	for key, cooldown := range p.groupCooldowns {
+		if now.Before(cooldown) {
+			continue
+		}
+		delete(p.groupCooldowns, key)
+		delete(p.groupFailures, key)
+	}
 	cleared := make(map[string]bool)
 	for i := range p.accounts {
 		id := p.accounts[i].ID
@@ -683,6 +711,10 @@ func (p *AccountPool) clearFailureStateLocked(id string) {
 	delete(p.cooldowns, id)
 	p.errorCounts[id] = 0
 	delete(p.failures, id)
+	if key := p.riskGroupKeyForIDLocked(id); key != "" {
+		delete(p.groupCooldowns, key)
+		delete(p.groupFailures, key)
+	}
 	for i := range p.accounts {
 		if p.accounts[i].ID == id {
 			p.accounts[i].FailureCount = 0
@@ -695,6 +727,9 @@ func (p *AccountPool) clearFailureStateLocked(id string) {
 
 // RecordFailure 记录请求错误，设置冷却
 func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
+	if reason == FailureReasonModelCapacity {
+		return
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
@@ -715,6 +750,8 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 		cooldown = 10 * time.Minute
 	case FailureReasonRateLimited:
 		cooldown = time.Minute
+	case FailureReasonTemporaryLimited:
+		cooldown = p.temporaryLimitCooldownForCountLocked(id, p.errorCounts[id])
 	case FailureReasonTransientNetwork, FailureReasonUpstream5xx:
 		if p.errorCounts[id] >= 3 {
 			cooldown = time.Minute
@@ -736,6 +773,9 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 			until := now.Add(cooldown)
 			p.cooldowns[id] = until
 			p.accounts[i].CooldownUntil = until.Unix()
+			if reason == FailureReasonTemporaryLimited {
+				p.recordRiskGroupCooldownLocked(p.accounts[i], reason, until)
+			}
 		}
 		if config.Get() != nil {
 			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
@@ -748,6 +788,9 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 }
 
 func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetAt time.Time) {
+	if reason == FailureReasonModelCapacity {
+		return
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ensureStateLocked()
@@ -762,6 +805,12 @@ func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetA
 	if !resetAt.After(now) {
 		resetAt = now
 	}
+	if reason == FailureReasonTemporaryLimited {
+		floor := now.Add(p.temporaryLimitCooldownForCountLocked(id, p.errorCounts[id]))
+		if resetAt.Before(floor) {
+			resetAt = floor
+		}
+	}
 
 	for i := range p.accounts {
 		if p.accounts[i].ID != id {
@@ -772,10 +821,75 @@ func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetA
 		p.accounts[i].LastFailureAt = now.Unix()
 		p.cooldowns[id] = resetAt
 		p.accounts[i].CooldownUntil = resetAt.Unix()
+		if reason == FailureReasonTemporaryLimited {
+			p.recordRiskGroupCooldownLocked(p.accounts[i], reason, resetAt)
+		}
 		if config.Get() != nil {
 			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
 		}
 	}
+}
+
+func (p *AccountPool) recordRiskGroupCooldownLocked(account config.Account, reason FailureReason, until time.Time) {
+	key := AccountRiskGroupKey(account)
+	if key == "" {
+		return
+	}
+	if current, ok := p.groupCooldowns[key]; !ok || until.After(current) {
+		p.groupCooldowns[key] = until
+	}
+	p.groupFailures[key] = reason
+}
+
+func (p *AccountPool) temporaryLimitCooldownForCountLocked(id string, count int) time.Duration {
+	base := temporaryLimitMultiAccountBaseCooldown
+	if p.enabledAccountCountLocked() <= 1 {
+		base = temporaryLimitSingleAccountBaseCooldown
+	}
+	return temporaryLimitCooldownForCount(base, count)
+}
+
+func (p *AccountPool) enabledAccountCountLocked() int {
+	count := 0
+	seen := make(map[string]bool, len(p.accounts))
+	for _, acc := range p.accounts {
+		if seen[acc.ID] {
+			continue
+		}
+		seen[acc.ID] = true
+		if acc.Enabled {
+			count++
+		}
+	}
+	if count == 0 && len(seen) > 0 {
+		return len(seen)
+	}
+	return count
+}
+
+func temporaryLimitMultiAccountCooldownForCount(count int) time.Duration {
+	return temporaryLimitCooldownForCount(temporaryLimitMultiAccountBaseCooldown, count)
+}
+
+func temporaryLimitCooldownForCount(base time.Duration, count int) time.Duration {
+	if count < 1 {
+		count = 1
+	}
+	cooldown := base
+	for i := 1; i < count; i++ {
+		if cooldown >= temporaryLimitMaxCooldown/2 {
+			return temporaryLimitMaxCooldown
+		}
+		cooldown *= 2
+	}
+	if cooldown > temporaryLimitMaxCooldown {
+		return temporaryLimitMaxCooldown
+	}
+	return cooldown
+}
+
+func TemporaryLimitRetryAfterFloor() time.Duration {
+	return temporaryLimitMultiAccountBaseCooldown
 }
 
 func (p *AccountPool) BeginRequest(id string) func() {
@@ -808,6 +922,105 @@ func (p *AccountPool) GetRuntimeHealth(id string) RuntimeHealth {
 		return runtimeHealthState{}.export()
 	}
 	return p.runtimeHealth[id].export()
+}
+
+func (p *AccountPool) ModelBlockState(model string, now time.Time) ModelBlockState {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	p.clearExpiredCooldownsLocked(now)
+
+	state := ModelBlockState{}
+	seen := make(map[string]bool)
+	allowOverUsage := config.GetAllowOverUsage()
+	for i := range p.accounts {
+		acc := p.accounts[i]
+		if seen[acc.ID] {
+			continue
+		}
+		seen[acc.ID] = true
+		if !p.accountHasModel(acc.ID, model) {
+			continue
+		}
+		if acc.ExpiresAt > 0 && now.Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
+			continue
+		}
+		if isOverUsageLimit(acc) && !acc.AllowOverage && !allowOverUsage {
+			continue
+		}
+		state.AccountsEvaluated++
+
+		reason := FailureReasonUnknown
+		retryAt := time.Time{}
+		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
+			reason = p.failures[acc.ID]
+			retryAt = cooldown
+		}
+		if key := AccountRiskGroupKey(acc); key != "" {
+			if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
+				if reason == "" || reason == FailureReasonUnknown {
+					reason = p.groupFailures[key]
+				}
+				if retryAt.IsZero() || cooldown.After(retryAt) {
+					retryAt = cooldown
+				}
+			}
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+			if reason == "" || reason == FailureReasonUnknown {
+				reason = FailureReason(acc.LastFailureReason)
+			}
+			if retryAt.IsZero() || time.Unix(acc.CooldownUntil, 0).After(retryAt) {
+				retryAt = time.Unix(acc.CooldownUntil, 0)
+			}
+		}
+		if !p.breakers.isClosed(acc.ID, model) {
+			if reason == "" || reason == FailureReasonUnknown {
+				reason = p.failures[acc.ID]
+			}
+			if e := p.breakers.entries[breakerKey(acc.ID, model)]; e != nil && e.RetryAt.After(retryAt) {
+				retryAt = e.RetryAt
+				if reason == "" || reason == FailureReasonUnknown {
+					reason = e.Reason
+				}
+			}
+		}
+		if reason == "" || reason == FailureReasonUnknown {
+			continue
+		}
+		state.Blocked++
+		if state.LastReason == "" || reasonPriority(reason) > reasonPriority(state.LastReason) {
+			state.LastReason = reason
+		}
+		if retryAt.After(state.RetryAt) {
+			state.RetryAt = retryAt
+		}
+	}
+	state.AllBlocked = state.AccountsEvaluated > 0 && state.Blocked == state.AccountsEvaluated
+	return state
+}
+
+func reasonPriority(reason FailureReason) int {
+	switch reason {
+	case FailureReasonModelCapacity:
+		return 95
+	case FailureReasonTemporaryLimited:
+		return 100
+	case FailureReasonRateLimited:
+		return 90
+	case FailureReasonQuotaExhausted:
+		return 80
+	case FailureReasonSuspended:
+		return 70
+	case FailureReasonAuthExpired:
+		return 60
+	case FailureReasonUpstream5xx:
+		return 50
+	case FailureReasonTransientNetwork:
+		return 40
+	default:
+		return 0
+	}
 }
 
 func (p *AccountPool) runtimeHealthForLocked(id string) *runtimeHealthState {
@@ -870,10 +1083,7 @@ func (p *AccountPool) AvailableCount() int {
 			continue
 		}
 		seen[acc.ID] = true
-		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
-			continue
-		}
-		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+		if !p.accountBaseUsableLocked(&acc, now, config.GetAllowOverUsage()) {
 			continue
 		}
 		count++
@@ -927,17 +1137,50 @@ func (p *AccountPool) GetAllAccounts() []config.Account {
 }
 
 func (p *AccountPool) IsCoolingDown(id string, now time.Time) bool {
+	return p.CooldownState(id, now).CoolingDown
+}
+
+func (p *AccountPool) CooldownState(id string, now time.Time) CooldownState {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+	state := CooldownState{}
 	if cooldown, ok := p.cooldowns[id]; ok && now.Before(cooldown) {
-		return true
+		state.CoolingDown = true
+		state.Reason = p.failures[id]
+		state.RetryAt = cooldown
 	}
 	for _, acc := range p.accounts {
-		if acc.ID == id && acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
-			return true
+		if acc.ID != id {
+			continue
+		}
+		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
+			retryAt := time.Unix(acc.CooldownUntil, 0)
+			state.CoolingDown = true
+			if state.Reason == "" || state.Reason == FailureReasonUnknown {
+				state.Reason = FailureReason(acc.LastFailureReason)
+			}
+			if retryAt.After(state.RetryAt) {
+				state.RetryAt = retryAt
+			}
+		}
+		if key := AccountRiskGroupKey(acc); key != "" {
+			if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
+				extendsCooldown := !state.CoolingDown || cooldown.After(state.RetryAt)
+				state.CoolingDown = true
+				if state.Reason == "" || state.Reason == FailureReasonUnknown {
+					state.Reason = p.groupFailures[key]
+				}
+				if extendsCooldown {
+					state.RiskGroup = true
+					state.RetryAt = cooldown
+				}
+			}
 		}
 	}
-	return false
+	if state.Reason == "" {
+		state.Reason = FailureReasonUnknown
+	}
+	return state
 }
 
 func isOverUsageLimit(acc config.Account) bool {

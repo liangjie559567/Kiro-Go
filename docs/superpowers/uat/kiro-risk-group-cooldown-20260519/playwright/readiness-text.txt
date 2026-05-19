@@ -1,0 +1,23 @@
+model: claude-sonnet-4.5 -> claude-sonnet-4.5 · model listed by Kiro-Go model cache · routing: schedulable accounts available
+ID	Email	Enabled	Healthy	Lists model	Schedulable	Cooldown	Reason
+93fb7e70-3ccf-4330-9d8d-b25c89322ae4	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+6d524028-56ee-41e9-aad9-eaba82d4d75b	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+fef84be2-f929-4ea2-afa9-5f8702016868	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+f4454cf1-1b38-4fed-ad1d-076795f4d8cd	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+62c85da6-7eac-46eb-a8c9-7470695df3c7	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+95d9dcb5-f544-4bcb-9aee-ff1890938a82	c***@gmail.com	yes	yes	yes	yes	-	schedulable
+b96e50b4-e443-47ea-ac2b-568537eab945	l***@gmail.com	yes	yes	yes	yes	-	schedulable
+125bd142-5218-45d9-8748-3e29a775050b	v***@gmail.com	yes	yes	yes	yes	-	schedulable
+6f572596-acd3-4e06-947a-4dd11424d4df	w***@gmail.com	yes	yes	yes	yes	-	schedulable
+1e7bad65-4a46-40d0-81bd-19fde0f14954	s***@gmail.com	yes	yes	yes	yes	-	schedulable
+71cf722d-a7b0-49a1-9998-bef22a11cf45	w***@gmail.com	yes	yes	yes	yes	-	schedulable
+7170ccb6-30cc-40fe-9f79-4344389c034b	m***@gmail.com	yes	yes	yes	yes	-	schedulable
+54a00e6f-a582-4083-a197-ea2a1a0cb847	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+61a48fab-58c1-49b0-957a-b4caf88b51d0	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+ae380baf-1725-4733-9ffe-cc227764b6c4	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+2980ad67-e95f-498f-a774-9e420b3f6f2f	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+2ba05a3b-74e2-4500-9d29-fb84fda5416e	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+fb3056fa-28f8-413b-9a53-52ab3c854daf	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+ed9239cb-65ef-4970-941c-1d716127c8cd	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+8a5910cb-c52e-498f-923c-93b174be628d	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+efa39437-556e-43e7-84b7-f727ad7cb576	r***@gmail.com	yes	yes	yes	yes	-	schedulable

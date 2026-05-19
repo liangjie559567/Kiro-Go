@@ -51,7 +51,7 @@ const ThinkingModePrompt = `<thinking_mode>enabled</thinking_mode>
 
 const minimalFallbackUserContent = "."
 const toolResultsContinuationPrefix = "Tool results:"
-const maxKiroHistoryPayloadBytes = 420 * 1024
+const maxKiroHistoryPayloadBytes = 1536 * 1024
 const kiroSystemAcknowledgement = "Understood. Following these instructions for the rest of the conversation."
 
 // ParseModelAndThinking 解析模型名称，返回实际模型和是否启用 thinking
@@ -1765,8 +1765,9 @@ func KiroToClaudeResponse(content, thinkingContent string, includeEmptyThinkingB
 
 	if thinkingContent != "" || includeEmptyThinkingBlock {
 		blocks = append(blocks, ClaudeContentBlock{
-			Type:     "thinking",
-			Thinking: thinkingContent,
+			Type:      "thinking",
+			Thinking:  thinkingContent,
+			Signature: generateClaudeThinkingSignature(),
 		})
 	}
 

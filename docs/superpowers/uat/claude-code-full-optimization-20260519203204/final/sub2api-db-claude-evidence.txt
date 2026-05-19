@@ -1,0 +1,37 @@
+ id |          name           | platform  |  type  | status | schedulable |      base_url       | concurrency | rate_limited_at | rate_limit_reset_at | temp_unschedulable_until | temp_unschedulable_reason 
+----+-------------------------+-----------+--------+--------+-------------+---------------------+-------------+-----------------+---------------------+--------------------------+---------------------------
+ 24 | kiro_claude_01          | anthropic | apikey | active | t           | http://kiro-go:8080 |          12 |                 |                     |                          | 
+ 39 |          kiro_claude_02 | anthropic | apikey | active | t           | http://kiro-go:8080 |          10 |                 |                     |                          | 
+ 40 | kiro_claude_03          | anthropic | apikey | active | t           | http://kiro-go:8080 |          10 |                 |                     |                          | 
+ 41 | kiro_claude_04          | anthropic | apikey | active | t           | http://kiro-go:8080 |          10 |                 |                     |                          | 
+ 42 | kiro_claude_05          | anthropic | apikey | active | t           | http://kiro-go:8080 |          10 |                 |                     |                          | 
+(5 rows)
+
+ account_id | group_name 
+------------+------------
+          2 | openai
+          9 | openai
+         24 | claude
+         74 | openai
+         83 | openai
+         88 | openai
+         89 | openai
+         90 | openai
+         91 | openai
+         92 | openai
+         93 | openai
+         94 | openai
+         95 | openai
+         96 | openai
+         97 | openai
+         98 | openai
+(16 rows)
+
+ id |       name       | user_id | group_id | status |   quota    | quota_used |         last_used_at          
+----+------------------+---------+----------+--------+------------+------------+-------------------------------
+  1 | openai           |       1 |        2 | active | 0.00000000 | 0.00000000 | 2026-05-19 20:44:40.015279+08
+  2 | claude           |       1 |        1 | active | 0.00000000 | 0.00000000 | 2026-05-19 20:42:03.773766+08
+  3 | lin              |       2 |        2 | active | 0.00000000 | 0.00000000 | 2026-05-19 16:17:36.767371+08
+  4 | OpenAI Frist API |       3 |        2 | active | 0.00000000 | 0.00000000 | 2026-05-19 01:15:36.748158+08
+(4 rows)
+

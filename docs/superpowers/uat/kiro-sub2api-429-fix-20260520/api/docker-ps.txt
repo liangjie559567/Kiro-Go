@@ -1,0 +1,7 @@
+kiro-go-kiro-go-1    Up 5 minutes            0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+sub2api              Up 26 hours (healthy)   0.0.0.0:18080->8080/tcp
+sub2api-postgres     Up 41 hours (healthy)   5432/tcp
+sub2api-redis        Up 41 hours (healthy)   6379/tcp
+waoowaoo-redis       Up 3 days (healthy)     0.0.0.0:16379->6379/tcp, [::]:16379->6379/tcp
+xboard-redis-1       Up 3 days               6379/tcp
+redis                Up 3 days               6379/tcp

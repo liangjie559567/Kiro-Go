@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-sync-100x10-contextfix-20260519174646",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1459,
+    "max": 28925,
+    "avg": 13957,
+    "p50": 13325,
+    "p90": 26796,
+    "p95": 27950,
+    "p99": 28667
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-sync-100x10-contextfix-20260519174646.jsonl"
+}

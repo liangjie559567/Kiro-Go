@@ -112,6 +112,24 @@ func TestGuardKiroPayloadRejectsOversizedCurrentToolResult(t *testing.T) {
 	}
 }
 
+func TestGuardKiroPayloadRejectsOversizedCurrentUserContent(t *testing.T) {
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model: "claude-sonnet-4.5",
+		Messages: []ClaudeMessage{
+			{Role: "user", Content: strings.Repeat("x", maxKiroCurrentContentBytes+1)},
+		},
+		MaxTokens: 64,
+	}, false)
+
+	_, err := guardKiroPayload(payload, defaultPayloadGuardOptions())
+	if err == nil {
+		t.Fatalf("expected invalid payload error")
+	}
+	if !strings.Contains(err.Error(), "payload remains too large") {
+		t.Fatalf("expected payload-too-large error, got %v", err)
+	}
+}
+
 func TestGuardKiroPayloadTruncatesLargeCurrentToolResult(t *testing.T) {
 	payload := ClaudeToKiro(&ClaudeRequest{
 		Model: "claude-opus-4.7",
@@ -217,7 +235,7 @@ func TestGuardKiroPayloadDoesNotTruncateUserTextMentioningToolResults(t *testing
 	}
 }
 
-func TestGuardKiroPayloadTruncatesLargeHistoryToolResultsBelowSoftLimit(t *testing.T) {
+func TestDefaultGuardPreservesLargeHistoryToolResultsBelowSoftLimit(t *testing.T) {
 	payload := &KiroPayload{}
 	payload.ConversationState.ChatTriggerType = "MANUAL"
 	payload.ConversationState.ConversationID = "conv-1"
@@ -253,18 +271,96 @@ func TestGuardKiroPayloadTruncatesLargeHistoryToolResultsBelowSoftLimit(t *testi
 	if err != nil {
 		t.Fatalf("guard payload: %v", err)
 	}
+	if result.Trimmed {
+		t.Fatalf("expected default guard to preserve historical tool_result content below soft limit, got %#v", result)
+	}
+	finalSummary := summarizeKiroPayload(payload)
+	if finalSummary.HistoryToolResultBytes != originalSummary.HistoryToolResultBytes {
+		t.Fatalf("expected historical tool result bytes preserved, before=%d after=%d", originalSummary.HistoryToolResultBytes, finalSummary.HistoryToolResultBytes)
+	}
+}
+
+func TestConservativeGuardTruncatesLargeHistoryToolResults(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.ChatTriggerType = "MANUAL"
+	payload.ConversationState.ConversationID = "conv-1"
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: "current",
+		ModelID: "claude-opus-4.7",
+		Origin:  "AI_EDITOR",
+	}
+	for i := 0; i < 42; i++ {
+		toolUseID := fmt.Sprintf("toolu_%02d", i)
+		payload.ConversationState.History = append(payload.ConversationState.History,
+			KiroHistoryMessage{AssistantResponseMessage: &KiroAssistantResponseMessage{
+				Content:  "use tool",
+				ToolUses: []KiroToolUse{{ToolUseID: toolUseID, Name: "readFile", Input: map[string]interface{}{"path": fmt.Sprintf("file-%02d.txt", i)}}},
+			}},
+			KiroHistoryMessage{UserInputMessage: &KiroUserInputMessage{
+				Content: "tool result",
+				UserInputMessageContext: &UserInputMessageContext{
+					ToolResults: []KiroToolResult{{ToolUseID: toolUseID, Content: []KiroResultContent{{Text: strings.Repeat("x", 6200)}}, Status: "success"}},
+				},
+			}},
+		)
+	}
+	originalSummary := summarizeKiroPayload(payload)
+
+	result, err := guardKiroPayload(payload, conservativePayloadGuardOptions())
+	if err != nil {
+		t.Fatalf("guard payload: %v", err)
+	}
 	if !result.Trimmed {
-		t.Fatalf("expected historical tool_result trimming below soft limit")
+		t.Fatalf("expected conservative historical tool_result trimming")
 	}
 	finalSummary := summarizeKiroPayload(payload)
 	if finalSummary.HistoryToolResultBytes >= originalSummary.HistoryToolResultBytes {
 		t.Fatalf("expected historical tool result bytes to shrink, before=%d after=%d", originalSummary.HistoryToolResultBytes, finalSummary.HistoryToolResultBytes)
 	}
-	if finalSummary.HistoryMessages > maxKiroHistoryMessages || finalSummary.HistoryToolUses > maxKiroHistoryToolUses {
-		t.Fatalf("expected historical tool window under structural limits, got %#v", finalSummary)
+}
+
+func TestDefaultGuardPreservesClaudeCodeSizedToolHistory(t *testing.T) {
+	payload := &KiroPayload{}
+	payload.ConversationState.ChatTriggerType = "MANUAL"
+	payload.ConversationState.ConversationID = "conv-claude-code"
+	payload.ConversationState.CurrentMessage.UserInputMessage = KiroUserInputMessage{
+		Content: "continue using the file contents already read",
+		ModelID: "claude-opus-4.7",
+		Origin:  "AI_EDITOR",
 	}
-	if hasOrphanedKiroToolMessages(payload.ConversationState.History) {
-		t.Fatalf("expected no orphan tool messages after trimming")
+	for i := 0; i < 60; i++ {
+		toolUseID := fmt.Sprintf("toolu_read_%02d", i)
+		payload.ConversationState.History = append(payload.ConversationState.History,
+			KiroHistoryMessage{AssistantResponseMessage: &KiroAssistantResponseMessage{
+				Content:  "read core file",
+				ToolUses: []KiroToolUse{{ToolUseID: toolUseID, Name: "Read", Input: map[string]interface{}{"file_path": fmt.Sprintf("/repo/core-%02d.go", i)}}},
+			}},
+			KiroHistoryMessage{UserInputMessage: &KiroUserInputMessage{
+				Content: "file content",
+				UserInputMessageContext: &UserInputMessageContext{
+					ToolResults: []KiroToolResult{{ToolUseID: toolUseID, Content: []KiroResultContent{{Text: strings.Repeat("important file content ", 320)}}, Status: "success"}},
+				},
+			}},
+		)
+	}
+	originalSummary := summarizeKiroPayload(payload)
+	if originalSummary.TotalBytes < 350*1024 || originalSummary.TotalBytes > 700*1024 {
+		t.Fatalf("test setup should resemble observed Claude Code payload size, got %#v", originalSummary)
+	}
+
+	result, err := guardKiroPayload(payload, defaultPayloadGuardOptions())
+	if err != nil {
+		t.Fatalf("guard payload: %v", err)
+	}
+	if result.Trimmed {
+		t.Fatalf("expected default guard to preserve Claude Code sized file history, got %#v", result)
+	}
+	finalSummary := summarizeKiroPayload(payload)
+	if finalSummary.HistoryToolUses != originalSummary.HistoryToolUses || finalSummary.HistoryMessages != originalSummary.HistoryMessages {
+		t.Fatalf("expected history shape preserved, before=%#v after=%#v", originalSummary, finalSummary)
+	}
+	if finalSummary.HistoryToolResultBytes != originalSummary.HistoryToolResultBytes {
+		t.Fatalf("expected file tool_result bytes preserved, before=%d after=%d", originalSummary.HistoryToolResultBytes, finalSummary.HistoryToolResultBytes)
 	}
 }
 

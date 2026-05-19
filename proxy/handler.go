@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"kiro-go/auth"
@@ -27,6 +28,7 @@ var (
 	listAvailableModelsForHealthCheck = ListAvailableModels
 	opusCapacityRetryBudget           = 90 * time.Second
 	sleepForOpusCapacityRetry         = time.Sleep
+	adminAccountTestMinSpacing        = 3 * time.Second
 	opus47AdmissionGate               = newOpus47Gate(2, 200)
 	modelAdmissionGate                = newModelAdmissionGateSet(config.ModelAdmissionConfig{
 		Models: map[string]config.ModelAdmissionRule{
@@ -36,6 +38,8 @@ var (
 )
 
 const tokenRefreshSkewSeconds int64 = 120
+
+const poolTemporaryLimitStatus = http.StatusTooManyRequests
 
 func defaultEnsureValidTokenForHealthCheck(h *Handler, account *config.Account) error {
 	return h.ensureValidToken(account)
@@ -69,6 +73,8 @@ type Handler struct {
 	tokenRefreshes  map[string]*tokenRefreshCall
 	requestLogsMu   sync.Mutex
 	requestLogs     *requestLogStore
+	accountTestMu   sync.Mutex
+	accountTestLast map[string]time.Time
 	responsesMu     sync.Mutex
 	responses       map[string]responsesSession
 }
@@ -371,7 +377,7 @@ func (h *Handler) recordAccountFailure(accountID string, err error) pool.Failure
 	if h.pool == nil {
 		return reason
 	}
-	if reason == pool.FailureReasonRateLimited {
+	if reason == pool.FailureReasonRateLimited || reason == pool.FailureReasonTemporaryLimited {
 		if resetErr, ok := err.(rateLimitResetError); ok {
 			h.pool.RecordFailureUntil(accountID, reason, resetErr.RateLimitResetAt())
 			return reason
@@ -437,10 +443,94 @@ func rateLimitResetFromError(err error) time.Time {
 	return time.Time{}
 }
 
-func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
-	if attempt > 0 {
-		return false
+func rateLimitRetryAfterHeaders(reason pool.FailureReason, resetAt time.Time) http.Header {
+	headers := http.Header{}
+	var delay time.Duration
+	if resetAt.After(time.Now()) {
+		delay = time.Until(resetAt)
 	}
+	if reason == pool.FailureReasonTemporaryLimited {
+		if floor := pool.TemporaryLimitRetryAfterFloor(); delay < floor {
+			delay = floor
+		}
+	}
+	if delay <= 0 {
+		return headers
+	}
+	seconds := int((delay + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	headers.Set("Retry-After", strconv.Itoa(seconds))
+	return headers
+}
+
+type poolTemporaryLimitError struct {
+	model   string
+	resetAt time.Time
+}
+
+func (e *poolTemporaryLimitError) Error() string {
+	return fmt.Sprintf("No available accounts for %s: upstream temporary limits are cooling down (TEMPORARY_LIMITED)", e.model)
+}
+
+func (e *poolTemporaryLimitError) RateLimitResetAt() time.Time {
+	return e.resetAt
+}
+
+func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model string, lastErr error, claude bool) {
+	if lastErr == nil && h != nil && h.pool != nil {
+		if model != "" {
+			if err := h.modelBlockedError(model); err != nil {
+				lastErr = err
+			}
+		}
+	}
+	if claude {
+		if lastErr != nil {
+			status, errType := claudeUpstreamErrorStatusAndType(lastErr)
+			h.sendClaudeUpstreamError(w, status, errType, lastErr.Error(), lastErr)
+			return
+		}
+		h.sendClaudeError(w, http.StatusServiceUnavailable, "api_error", "No available accounts")
+		return
+	}
+
+	if lastErr != nil {
+		status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+		h.sendOpenAIError(w, status, errType, lastErr.Error())
+		return
+	}
+	h.sendOpenAIError(w, http.StatusServiceUnavailable, "server_error", "No available accounts")
+}
+
+func (h *Handler) modelBlockedError(model string) error {
+	state := h.pool.ModelBlockState(model, time.Now())
+	if state.AccountsEvaluated == 0 || state.Blocked == 0 || !state.AllBlocked {
+		return nil
+	}
+	reason := state.LastReason
+	switch reason {
+	case pool.FailureReasonTemporaryLimited:
+		return &poolTemporaryLimitError{model: model, resetAt: state.RetryAt}
+	case pool.FailureReasonRateLimited:
+		return &rateLimitError{
+			endpoint: "Kiro account pool",
+			body:     fmt.Sprintf(`{"message":"No available accounts for %s: upstream rate limits are cooling down","reason":"RATE_LIMITED"}`, model),
+			resetAt:  state.RetryAt,
+		}
+	case pool.FailureReasonQuotaExhausted:
+		return fmt.Errorf("No available accounts for %s: all evaluated accounts are quota exhausted", model)
+	case pool.FailureReasonSuspended:
+		return fmt.Errorf("No available accounts for %s: all evaluated accounts are suspended", model)
+	case pool.FailureReasonAuthExpired:
+		return fmt.Errorf("No available accounts for %s: all evaluated accounts require token refresh", model)
+	default:
+		return fmt.Errorf("No available accounts for %s: all evaluated accounts are cooling down (%s)", model, reason)
+	}
+}
+
+func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
 	switch reason {
 	case pool.FailureReasonQuotaExhausted, pool.FailureReasonRateLimited, pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
 		return true
@@ -495,9 +585,9 @@ func shouldWaitAndRetryOpus47(err error, model string) bool {
 	}
 	reason := classifyFailureReason(err)
 	switch reason {
-	case pool.FailureReasonQuotaExhausted, pool.FailureReasonAuthExpired, pool.FailureReasonSuspended:
+	case pool.FailureReasonQuotaExhausted, pool.FailureReasonAuthExpired, pool.FailureReasonSuspended, pool.FailureReasonTemporaryLimited:
 		return false
-	case pool.FailureReasonRateLimited:
+	case pool.FailureReasonRateLimited, pool.FailureReasonModelCapacity:
 		return true
 	default:
 		return isOpus47CapacityLimit(err, model)
@@ -1815,14 +1905,8 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				h.sendClaudeUpstreamError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error(), lastErr)
 				return
 			}
-			if lastErr != nil {
-				h.recordFailure()
-				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
-				h.sendClaudeUpstreamError(w, status, errType, lastErr.Error(), lastErr)
-			} else {
-				h.recordFailure()
-				h.sendClaudeError(w, 503, "api_error", "No available accounts")
-			}
+			h.recordFailure()
+			h.sendNoAvailableAccountsError(w, model, lastErr, true)
 			return
 		}
 		used[account.ID] = true
@@ -1867,7 +1951,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			attempt++
 			continue
 		}
-		if stream || attempt >= 1 {
+		if stream {
 			if err != nil {
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
@@ -1909,14 +1993,8 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 				h.sendOpenAIError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
 				return
 			}
-			if lastErr != nil {
-				h.recordFailure()
-				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
-				h.sendOpenAIError(w, status, errType, lastErr.Error())
-			} else {
-				h.recordFailure()
-				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
-			}
+			h.recordFailure()
+			h.sendNoAvailableAccountsError(w, model, lastErr, false)
 			return
 		}
 		used[account.ID] = true
@@ -1960,7 +2038,7 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 			attempt++
 			continue
 		}
-		if stream || attempt >= 1 {
+		if stream {
 			if err != nil {
 				h.recordFailure()
 				status, errType := openAIUpstreamErrorStatusAndType(err)
@@ -2016,13 +2094,19 @@ func claudeUpstreamErrorStatusAndType(err error) (int, string) {
 	if err == nil {
 		return http.StatusInternalServerError, "api_error"
 	}
+	var poolTempErr *poolTemporaryLimitError
+	if errors.As(err, &poolTempErr) {
+		return poolTemporaryLimitStatus, "rate_limit_error"
+	}
 	reason := classifyFailureReason(err)
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "http 400") || strings.Contains(msg, "bad request") || strings.Contains(msg, "improperly formed request") || strings.Contains(msg, "invalid request") {
 		return http.StatusBadRequest, "invalid_request_error"
 	}
 	switch reason {
-	case pool.FailureReasonRateLimited:
+	case pool.FailureReasonTemporaryLimited:
+		return poolTemporaryLimitStatus, "rate_limit_error"
+	case pool.FailureReasonRateLimited, pool.FailureReasonModelCapacity:
 		return http.StatusTooManyRequests, "rate_limit_error"
 	case pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
 		if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") {
@@ -2042,13 +2126,19 @@ func openAIUpstreamErrorStatusAndType(err error) (int, string) {
 	if err == nil {
 		return http.StatusInternalServerError, "server_error"
 	}
+	var poolTempErr *poolTemporaryLimitError
+	if errors.As(err, &poolTempErr) {
+		return poolTemporaryLimitStatus, "rate_limit_error"
+	}
 	reason := classifyFailureReason(err)
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "http 400") || strings.Contains(msg, "bad request") || strings.Contains(msg, "improperly formed request") || strings.Contains(msg, "invalid request") {
 		return http.StatusBadRequest, "invalid_request_error"
 	}
 	switch reason {
-	case pool.FailureReasonRateLimited:
+	case pool.FailureReasonTemporaryLimited:
+		return poolTemporaryLimitStatus, "rate_limit_error"
+	case pool.FailureReasonRateLimited, pool.FailureReasonModelCapacity:
 		return http.StatusTooManyRequests, "rate_limit_error"
 	case pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
 		if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") {
@@ -2110,7 +2200,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	startContentBlock := func(blockType string) {
 		startMessage()
 		if blockType == "thinking" {
-			sse.startBlock("thinking", map[string]string{"type": "thinking", "thinking": ""})
+			signature := generateClaudeThinkingSignature()
+			sse.startBlock("thinking", map[string]string{"type": "thinking", "thinking": "", "signature": signature})
+			sse.activeSignature = signature
 		} else {
 			sse.startBlock("text", map[string]string{"type": "text", "text": ""})
 		}
@@ -2549,6 +2641,10 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 			toolUses = append(toolUses, tu)
 			updateRequestLogReliability(r, -1, 0, 0, len(toolUses))
 		},
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
+		},
 		OnComplete: func(inTok, outTok int) {
 			inputTokens = inTok
 			outputTokens = outTok
@@ -2655,6 +2751,18 @@ func claudeErrorHeadersForUpstreamError(err error) http.Header {
 	if err == nil {
 		return headers
 	}
+	var poolTempErr *poolTemporaryLimitError
+	if errors.As(err, &poolTempErr) {
+		headers.Set("Retry-After", retryAfterSeconds(pool.FailureReasonTemporaryLimited, poolTempErr.RateLimitResetAt()))
+		headers.Set("X-Kiro-Go-Error-Reason", "TEMPORARY_LIMITED")
+		return headers
+	}
+	reason := classifyFailureReason(err)
+	if reason == pool.FailureReasonTemporaryLimited {
+		headers.Set("Retry-After", retryAfterSeconds(reason, rateLimitResetFromError(err)))
+		headers.Set("X-Kiro-Go-Error-Reason", "TEMPORARY_LIMITED")
+		return headers
+	}
 	status, errType := claudeUpstreamErrorStatusAndType(err)
 	if status != http.StatusTooManyRequests || errType != "rate_limit_error" {
 		return headers
@@ -2663,16 +2771,28 @@ func claudeErrorHeadersForUpstreamError(err error) http.Header {
 	if resetAt.IsZero() {
 		return headers
 	}
-	delay := time.Until(resetAt)
+	headers.Set("Retry-After", retryAfterSeconds(reason, resetAt))
+	return headers
+}
+
+func retryAfterSeconds(reason pool.FailureReason, resetAt time.Time) string {
+	var delay time.Duration
+	if resetAt.After(time.Now()) {
+		delay = time.Until(resetAt)
+	}
+	if reason == pool.FailureReasonTemporaryLimited {
+		if floor := pool.TemporaryLimitRetryAfterFloor(); delay < floor {
+			delay = floor
+		}
+	}
 	if delay <= 0 {
-		return headers
+		delay = time.Second
 	}
 	seconds := int((delay + time.Second - 1) / time.Second)
 	if seconds < 1 {
 		seconds = 1
 	}
-	headers.Set("Retry-After", strconv.Itoa(seconds))
-	return headers
+	return strconv.Itoa(seconds)
 }
 
 func (h *Handler) sendClaudeErrorWithHeaders(w http.ResponseWriter, status int, errType, message string, headers http.Header) {
@@ -3627,7 +3747,11 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 				content += text
 			}
 		},
-		OnToolUse:  func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
+		OnToolUse: func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
+		},
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
 		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
 		OnCredits:  func(c float64) { credits = c },
@@ -3699,7 +3823,11 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 				content += text
 			}
 		},
-		OnToolUse:  func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
+		OnToolUse: func(tu KiroToolUse) { toolUses = append(toolUses, tu) },
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			updateRequestLogSuppressedToolUse(r, tu.Name, reason)
+			updateRequestLogSuppressedToolUseDetail(r, tu, reason)
+		},
 		OnComplete: func(inTok, outTok int) { inputTokens = inTok; outputTokens = outTok },
 		OnError:    func(err error) { h.recordAccountFailure(account.ID, err) },
 		OnCredits:  func(c float64) { credits = c },
@@ -4020,11 +4148,21 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) apiGetAccounts(w http.ResponseWriter, r *http.Request) {
 	accounts := config.GetAccounts()
 	poolAccounts := h.pool.GetAllAccounts()
+	now := time.Now().Unix()
 
 	// 合并运行时统计
 	statsMap := make(map[string]config.Account)
 	for _, a := range poolAccounts {
 		statsMap[a.ID] = a
+	}
+	riskGroupSizes := make(map[string]int)
+	riskGroupKeys := make(map[string]string, len(accounts))
+	for _, a := range accounts {
+		key := pool.AccountRiskGroupKey(a)
+		riskGroupKeys[a.ID] = key
+		if key != "" {
+			riskGroupSizes[key]++
+		}
 	}
 
 	// 隐藏敏感信息
@@ -4032,49 +4170,71 @@ func (h *Handler) apiGetAccounts(w http.ResponseWriter, r *http.Request) {
 	for i, a := range accounts {
 		// 获取运行时统计
 		stats := statsMap[a.ID]
+		cooldownState := h.pool.CooldownState(a.ID, time.Now())
+		coolingDown := cooldownState.CoolingDown || a.CooldownUntil > now
+		cooldownRemaining := int64(0)
+		if !cooldownState.RetryAt.IsZero() && cooldownState.RetryAt.Unix() > now {
+			cooldownRemaining = cooldownState.RetryAt.Unix() - now
+		} else if coolingDown {
+			cooldownRemaining = a.CooldownUntil - now
+		}
+		riskGroupKey := riskGroupKeys[a.ID]
+		lastFailureReason := a.LastFailureReason
+		if cooldownState.RiskGroup && cooldownState.Reason != "" && cooldownState.Reason != pool.FailureReasonUnknown {
+			lastFailureReason = string(cooldownState.Reason)
+		}
+		cooldownUntil := a.CooldownUntil
+		if cooldownState.RiskGroup && !cooldownState.RetryAt.IsZero() && cooldownState.RetryAt.Unix() > cooldownUntil {
+			cooldownUntil = cooldownState.RetryAt.Unix()
+		}
 
 		result[i] = map[string]interface{}{
-			"id":                a.ID,
-			"email":             a.Email,
-			"userId":            a.UserId,
-			"nickname":          a.Nickname,
-			"authMethod":        a.AuthMethod,
-			"provider":          a.Provider,
-			"region":            a.Region,
-			"enabled":           a.Enabled,
-			"banStatus":         a.BanStatus,
-			"banReason":         a.BanReason,
-			"banTime":           a.BanTime,
-			"lastFailureReason": a.LastFailureReason,
-			"lastFailureAt":     a.LastFailureAt,
-			"cooldownUntil":     a.CooldownUntil,
-			"failureCount":      a.FailureCount,
-			"expiresAt":         a.ExpiresAt,
-			"hasToken":          a.AccessToken != "",
-			"machineId":         a.MachineId,
-			"weight":            a.Weight,
-			"allowOverage":      a.AllowOverage,
-			"overageWeight":     a.OverageWeight,
-			"proxyURL":          a.ProxyURL,
-			"subscriptionType":  a.SubscriptionType,
-			"subscriptionTitle": a.SubscriptionTitle,
-			"daysRemaining":     a.DaysRemaining,
-			"usageCurrent":      a.UsageCurrent,
-			"usageLimit":        a.UsageLimit,
-			"usagePercent":      a.UsagePercent,
-			"nextResetDate":     a.NextResetDate,
-			"lastRefresh":       a.LastRefresh,
-			"trialUsageCurrent": a.TrialUsageCurrent,
-			"trialUsageLimit":   a.TrialUsageLimit,
-			"trialUsagePercent": a.TrialUsagePercent,
-			"trialStatus":       a.TrialStatus,
-			"trialExpiresAt":    a.TrialExpiresAt,
-			"requestCount":      stats.RequestCount,
-			"errorCount":        stats.ErrorCount,
-			"totalTokens":       stats.TotalTokens,
-			"totalCredits":      stats.TotalCredits,
-			"lastUsed":          stats.LastUsed,
-			"runtimeHealth":     h.pool.GetRuntimeHealth(a.ID),
+			"id":                       a.ID,
+			"email":                    a.Email,
+			"userId":                   a.UserId,
+			"nickname":                 a.Nickname,
+			"authMethod":               a.AuthMethod,
+			"provider":                 a.Provider,
+			"region":                   a.Region,
+			"enabled":                  a.Enabled,
+			"banStatus":                a.BanStatus,
+			"banReason":                a.BanReason,
+			"banTime":                  a.BanTime,
+			"lastFailureReason":        lastFailureReason,
+			"lastFailureAt":            a.LastFailureAt,
+			"cooldownUntil":            cooldownUntil,
+			"coolingDown":              coolingDown,
+			"cooldownRemainingSeconds": cooldownRemaining,
+			"cooldownSource":           map[bool]string{true: "risk_group", false: "account"}[cooldownState.RiskGroup],
+			"failureCount":             a.FailureCount,
+			"riskGroupKey":             riskGroupKey,
+			"riskGroupSize":            riskGroupSizes[riskGroupKey],
+			"expiresAt":                a.ExpiresAt,
+			"hasToken":                 a.AccessToken != "",
+			"machineId":                a.MachineId,
+			"weight":                   a.Weight,
+			"allowOverage":             a.AllowOverage,
+			"overageWeight":            a.OverageWeight,
+			"proxyURL":                 a.ProxyURL,
+			"subscriptionType":         a.SubscriptionType,
+			"subscriptionTitle":        a.SubscriptionTitle,
+			"daysRemaining":            a.DaysRemaining,
+			"usageCurrent":             a.UsageCurrent,
+			"usageLimit":               a.UsageLimit,
+			"usagePercent":             a.UsagePercent,
+			"nextResetDate":            a.NextResetDate,
+			"lastRefresh":              a.LastRefresh,
+			"trialUsageCurrent":        a.TrialUsageCurrent,
+			"trialUsageLimit":          a.TrialUsageLimit,
+			"trialUsagePercent":        a.TrialUsagePercent,
+			"trialStatus":              a.TrialStatus,
+			"trialExpiresAt":           a.TrialExpiresAt,
+			"requestCount":             stats.RequestCount,
+			"errorCount":               stats.ErrorCount,
+			"totalTokens":              stats.TotalTokens,
+			"totalCredits":             stats.TotalCredits,
+			"lastUsed":                 stats.LastUsed,
+			"runtimeHealth":            h.pool.GetRuntimeHealth(a.ID),
 		}
 	}
 	json.NewEncoder(w).Encode(result)
@@ -4808,7 +4968,11 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 			enabledCount++
 		}
 		healthy := account.Enabled
-		if account.CooldownUntil > 0 && now < account.CooldownUntil {
+		cooldownState := pool.CooldownState{}
+		if h.pool != nil {
+			cooldownState = h.pool.CooldownState(account.ID, time.Now())
+		}
+		if cooldownState.CoolingDown || (account.CooldownUntil > 0 && now < account.CooldownUntil) {
 			healthy = false
 		}
 		if account.ExpiresAt > 0 && now > account.ExpiresAt-tokenRefreshSkewSeconds {
@@ -4838,6 +5002,10 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 		switch {
 		case !account.Enabled:
 			reason = "disabled account"
+		case cooldownState.Reason == pool.FailureReasonTemporaryLimited && cooldownState.RiskGroup:
+			reason = "temporary limited risk group cooling down"
+		case cooldownState.Reason == pool.FailureReasonTemporaryLimited:
+			reason = "temporary limited account cooling down"
 		case !healthy:
 			reason = "unhealthy account"
 		case usageBlocked:
@@ -4846,6 +5014,12 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 			reason = "model not listed"
 		}
 
+		cooldownRemaining := int64(0)
+		if !cooldownState.RetryAt.IsZero() && cooldownState.RetryAt.Unix() > now {
+			cooldownRemaining = cooldownState.RetryAt.Unix() - now
+		} else if account.CooldownUntil > now {
+			cooldownRemaining = account.CooldownUntil - now
+		}
 		rows = append(rows, map[string]interface{}{
 			"id":          account.ID,
 			"email":       maskReadinessEmail(account.Email),
@@ -4854,6 +5028,13 @@ func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[strin
 			"listsModel":  listsModel,
 			"schedulable": schedulable,
 			"reason":      reason,
+			"coolingDown": cooldownState.CoolingDown,
+			"cooldownSource": map[bool]string{
+				true:  "risk_group",
+				false: "account",
+			}[cooldownState.RiskGroup],
+			"cooldownRemainingSeconds": cooldownRemaining,
+			"lastFailureReason":        string(cooldownState.Reason),
 		})
 	}
 
@@ -5392,6 +5573,59 @@ func (h *Handler) apiTestAccount(w http.ResponseWriter, r *http.Request, id stri
 		json.NewEncoder(w).Encode(map[string]string{"error": "Account not found"})
 		return
 	}
+	if retryAfter, throttled := h.reserveAccountTest(account.ID); throttled {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":             true,
+			"status":              "test_throttled",
+			"reason":              "admin_test_rate_limited",
+			"message":             "Account generation test skipped to avoid triggering upstream limits",
+			"retry_after_seconds": retryAfter,
+		})
+		return
+	}
+	if h.pool != nil {
+		cooldownState := h.pool.CooldownState(account.ID, time.Now())
+		if cooldownState.CoolingDown {
+			retryAfter := 0
+			reason := cooldownState.Reason
+			if latest := h.pool.GetByID(account.ID); latest != nil {
+				if reason == "" || reason == pool.FailureReasonUnknown {
+					reason = pool.FailureReason(latest.LastFailureReason)
+				}
+				if cooldownState.RetryAt.IsZero() && latest.CooldownUntil > 0 {
+					retryAfter = int(time.Until(time.Unix(latest.CooldownUntil, 0)).Seconds())
+					if retryAfter < 1 {
+						retryAfter = 1
+					}
+				}
+			}
+			if !cooldownState.RetryAt.IsZero() {
+				retryAfter = int(time.Until(cooldownState.RetryAt).Seconds())
+				if retryAfter < 1 {
+					retryAfter = 1
+				}
+			}
+			if reason == "" {
+				reason = pool.FailureReasonRateLimited
+			}
+			status := "cooling_down"
+			if reason == pool.FailureReasonTemporaryLimited {
+				status = "temporary_limited"
+				if retryAfter < int(pool.TemporaryLimitRetryAfterFloor().Seconds()) {
+					retryAfter = int(pool.TemporaryLimitRetryAfterFloor().Seconds())
+				}
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":             true,
+				"status":              status,
+				"reason":              string(reason),
+				"message":             "Account is cooling down; test skipped to avoid triggering upstream limits",
+				"retry_after_seconds": retryAfter,
+				"cooldown_source":     map[bool]string{true: "risk_group", false: "account"}[cooldownState.RiskGroup],
+			})
+			return
+		}
+	}
 
 	if err := h.ensureValidToken(account); err != nil {
 		w.WriteHeader(500)
@@ -5432,16 +5666,76 @@ func (h *Handler) apiTestAccount(w http.ResponseWriter, r *http.Request, id stri
 
 	err := CallKiroAPI(account, kiroPayload, callback)
 	if err != nil {
+		reason := h.recordAccountFailure(account.ID, err)
+		if reason == pool.FailureReasonModelCapacity {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"status":  "capacity_busy",
+				"reason":  string(reason),
+				"message": err.Error(),
+				"model":   req.Model,
+			})
+			return
+		}
+		if reason == pool.FailureReasonTemporaryLimited {
+			headers := claudeErrorHeadersForUpstreamError(err)
+			retryAfter := 0
+			if rawRetryAfter := strings.TrimSpace(headers.Get("Retry-After")); rawRetryAfter != "" {
+				if seconds, parseErr := strconv.Atoi(rawRetryAfter); parseErr == nil {
+					retryAfter = seconds
+				}
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":             true,
+				"status":              "temporary_limited",
+				"reason":              string(reason),
+				"message":             err.Error(),
+				"model":               req.Model,
+				"retry_after_seconds": retryAfter,
+			})
+			return
+		}
 		w.WriteHeader(500)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"status":  "failed",
+			"reason":  string(reason),
+			"error":   err.Error(),
+			"model":   req.Model,
+		})
 		return
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
+		"status":  "ok",
 		"reply":   content,
 		"model":   req.Model,
 	})
+}
+
+func (h *Handler) reserveAccountTest(accountID string) (int, bool) {
+	if adminAccountTestMinSpacing <= 0 {
+		return 0, false
+	}
+	h.accountTestMu.Lock()
+	defer h.accountTestMu.Unlock()
+	if h.accountTestLast == nil {
+		h.accountTestLast = make(map[string]time.Time)
+	}
+	now := time.Now()
+	if last := h.accountTestLast[accountID]; !last.IsZero() {
+		next := last.Add(adminAccountTestMinSpacing)
+		if now.Before(next) {
+			retryAfter := int(time.Until(next).Seconds())
+			if retryAfter < 1 {
+				retryAfter = 1
+			}
+			return retryAfter, true
+		}
+	}
+	h.accountTestLast[accountID] = now
+	return 0, false
 }
 
 // apiRefreshAccount 刷新账户信息（使用量、订阅等）

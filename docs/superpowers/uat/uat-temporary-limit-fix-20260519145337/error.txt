@@ -1,0 +1,5 @@
+locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-tab="logs"]')[22m
+
+    at main (/www/Kiro-Go/docs/superpowers/uat/temporary-limit-fix-uat.js:269:43)

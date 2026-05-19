@@ -25,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const defaultRateLimitFallbackSeconds = 5
+const defaultRateLimitFallbackSeconds = 3
 const defaultKiroRegion = "us-east-1"
 
 type rateLimitError struct {
@@ -1455,6 +1455,8 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		req.Header.Set("x-amzn-codewhisperer-optout", "true")
 		req.Header.Set("Amz-Sdk-Request", "attempt=1; max=3")
 		req.Header.Set("Amz-Sdk-Invocation-Id", uuid.New().String())
+		req.Header.Set("Connection", "close")
+		req.Close = true
 
 		resp, err := GetClientForProxy(ResolveAccountProxyURL(account)).Do(req)
 		if err != nil {
@@ -1468,7 +1470,9 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 			resetAt := rateLimitResetAt(resp.Header, errBody, time.Now())
 			resp.Body.Close()
 			if errBody != "" {
-				if opus47Payload {
+				if isKiroSuspiciousTemporaryLimitBody(errBody) {
+					logger.Warnf("[KiroAPI] Endpoint %s returned account temporary-limit 429: %s", ep.Name, errBody)
+				} else if opus47Payload {
 					logger.Warnf("[KiroAPI] Endpoint %s returned Opus 4.7 429: %s", ep.Name, errBody)
 				} else {
 					logger.Warnf("[KiroAPI] Endpoint %s returned 429: %s, trying next...", ep.Name, errBody)
@@ -1481,7 +1485,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 				}
 			}
 			lastErr = &rateLimitError{endpoint: ep.Name, body: errBody, resetAt: resetAt}
-			if opus47Payload {
+			if opus47Payload || isKiroSuspiciousTemporaryLimitBody(errBody) {
 				return lastErr
 			}
 			continue
@@ -1532,6 +1536,11 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 func isKiroMalformedRequestBody(body string) bool {
 	body = strings.ToLower(strings.TrimSpace(body))
 	return strings.Contains(body, "improperly formed request") || strings.Contains(body, "malformed")
+}
+
+func isKiroSuspiciousTemporaryLimitBody(body string) bool {
+	body = strings.ToLower(strings.TrimSpace(body))
+	return strings.Contains(body, "suspicious activity") && strings.Contains(body, "temporary limits")
 }
 
 func readResponseBody(resp *http.Response) string {

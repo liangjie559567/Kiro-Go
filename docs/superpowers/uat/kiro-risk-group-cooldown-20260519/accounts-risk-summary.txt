@@ -1,0 +1,5 @@
+accounts=21
+risk_groups=1
+largest_group=21
+cooling=0
+group profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK size=21

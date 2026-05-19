@@ -1,0 +1,53 @@
+{
+  "runId": "sub2api-layered-real-1779190526",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_real_key",
+  "startedAt": "2026-05-19T11:35:26.756Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 67,
+    "modelCount": 13
+  },
+  "countTokens": {
+    "status": 503,
+    "ok": false,
+    "durationMs": 20,
+    "body": {
+      "error": {
+        "message": "Service temporarily unavailable",
+        "type": "api_error"
+      },
+      "type": "error"
+    },
+    "positiveInputTokens": false,
+    "rawPreview": "{\"error\":{\"message\":\"Service temporarily unavailable\",\"type\":\"api_error\"},\"type\":\"error\"}"
+  },
+  "sync": {
+    "status": 503,
+    "ok": false,
+    "durationMs": 8,
+    "text": "",
+    "textTrimmed": "",
+    "correct": false,
+    "rawPreview": "{\"error\":{\"message\":\"No available accounts: no available accounts\",\"type\":\"api_error\"},\"type\":\"error\"}"
+  },
+  "stream": {
+    "status": 503,
+    "ok": false,
+    "durationMs": 5,
+    "text": "",
+    "textTrimmed": "",
+    "correct": false,
+    "hasMessageStart": false,
+    "hasMessageStop": false,
+    "eventCount": 0,
+    "events": [],
+    "parseErrors": [],
+    "parseErrorCount": 0,
+    "rawPreview": "{\"error\":{\"message\":\"No available accounts: no available accounts\",\"type\":\"api_error\"},\"type\":\"error\"}"
+  },
+  "passed": false,
+  "finishedAt": "2026-05-19T11:35:26.857Z"
+}

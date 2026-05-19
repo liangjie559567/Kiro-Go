@@ -1,0 +1,53 @@
+{
+  "runId": "sub2api-layered-1779190355",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-sonnet-4.5",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-19T11:32:35.917Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 44,
+    "modelCount": 17
+  },
+  "countTokens": {
+    "status": 404,
+    "ok": false,
+    "durationMs": 8,
+    "body": {
+      "error": {
+        "message": "Token counting is not supported for this platform",
+        "type": "not_found_error"
+      },
+      "type": "error"
+    },
+    "positiveInputTokens": false,
+    "rawPreview": "{\"error\":{\"message\":\"Token counting is not supported for this platform\",\"type\":\"not_found_error\"},\"type\":\"error\"}"
+  },
+  "sync": {
+    "status": 503,
+    "ok": false,
+    "durationMs": 5,
+    "text": "",
+    "textTrimmed": "",
+    "correct": false,
+    "rawPreview": "{\"error\":{\"message\":\"Service temporarily unavailable\",\"type\":\"api_error\"},\"type\":\"error\"}"
+  },
+  "stream": {
+    "status": 503,
+    "ok": false,
+    "durationMs": 10,
+    "text": "",
+    "textTrimmed": "",
+    "correct": false,
+    "hasMessageStart": false,
+    "hasMessageStop": false,
+    "eventCount": 0,
+    "events": [],
+    "parseErrors": [],
+    "parseErrorCount": 0,
+    "rawPreview": "{\"error\":{\"message\":\"Service temporarily unavailable\",\"type\":\"api_error\"},\"type\":\"error\"}"
+  },
+  "passed": false,
+  "finishedAt": "2026-05-19T11:32:35.985Z"
+}

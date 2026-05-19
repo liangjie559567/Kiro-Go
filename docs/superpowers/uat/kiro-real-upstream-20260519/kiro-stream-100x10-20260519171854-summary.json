@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-stream-100x10-20260519171854",
+  "base": "http://127.0.0.1:8080",
+  "mode": "stream",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1712,
+    "max": 26216,
+    "avg": 7195,
+    "p50": 3210,
+    "p90": 23358,
+    "p95": 24049,
+    "p99": 24756
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-stream-100x10-20260519171854.jsonl"
+}

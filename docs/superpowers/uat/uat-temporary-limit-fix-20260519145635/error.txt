@@ -1,0 +1,17 @@
+locator.scrollIntoViewIfNeeded: Timeout 29987.726000000002ms exceeded.
+Call log:
+[2m  - attempting scroll into view action[22m
+[2m    2 × waiting for element to be stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying scroll into view action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying scroll into view action[22m
+[2m      - waiting 100ms[22m
+[2m    58 × waiting for element to be stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying scroll into view action[22m
+[2m       - waiting 500ms[22m
+
+    at main (/www/Kiro-Go/docs/superpowers/uat/temporary-limit-fix-uat.js:269:42)

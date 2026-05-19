@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-sync-100x10-rerun-20260519171613",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1715,
+    "max": 37350,
+    "avg": 14160,
+    "p50": 13033,
+    "p90": 27986,
+    "p95": 32915,
+    "p99": 37285
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-sync-100x10-rerun-20260519171613.jsonl"
+}

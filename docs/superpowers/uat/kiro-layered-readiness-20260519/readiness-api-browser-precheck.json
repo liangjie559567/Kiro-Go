@@ -1,0 +1,183 @@
+{
+  "status": 200,
+  "ok": true,
+  "body": {
+    "capabilities": {
+      "assistantPrefill": {
+        "claudeCodeCompatibility": {
+          "mode": "emulated_text_prefill",
+          "proof": "text prefill conversion is implemented",
+          "status": "EMULATED_PASS"
+        },
+        "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+        "evidence": {
+          "mode": "emulated_text_prefill",
+          "proof": "no recent assistant text prefill request in readiness window"
+        },
+        "officialAnthropicParity": {
+          "mode": "emulated_text_prefill",
+          "proof": "native upstream prefill is not proven",
+          "status": "PARTIAL"
+        },
+        "status": "PARTIAL"
+      },
+      "countTokens": {
+        "claudeCodeCompatibility": {
+          "mode": "estimated",
+          "proof": "count_tokens endpoint returned input_tokens",
+          "status": "PASS"
+        },
+        "detail": "Claude Code compatible estimated token counting; official exact count is not proven",
+        "evidence": {
+          "lastRequestId": "27d4af15-3881-45c7-aa36-3a2a20c1acbb",
+          "lastSeenAt": "2026-05-19T11:36:08Z",
+          "mode": "estimated",
+          "model": "claude-opus-4-7",
+          "proof": "recent count_tokens request completed"
+        },
+        "officialAnthropicParity": {
+          "mode": "estimated",
+          "proof": "no upstream exact count_tokens evidence",
+          "status": "PARTIAL"
+        },
+        "status": "PARTIAL"
+      },
+      "fineGrainedToolStreaming": {
+        "claudeCodeCompatibility": {
+          "mode": "kiro_go_chunked_complete_input",
+          "proof": "Anthropic SSE input_json_delta writer is implemented",
+          "status": "PASS"
+        },
+        "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+        "evidence": {
+          "mode": "kiro_go_chunked_complete_input",
+          "proof": "no recent fine-grained tool stream in readiness window"
+        },
+        "officialAnthropicParity": {
+          "mode": "kiro_go_chunked_complete_input",
+          "proof": "upstream partial tool input deltas are not proven",
+          "status": "PARTIAL"
+        },
+        "status": "PARTIAL"
+      },
+      "maxTokensZero": {
+        "claudeCodeCompatibility": {
+          "mode": "local_zero_output",
+          "proof": "zero-output response shape completed",
+          "status": "PASS"
+        },
+        "detail": "Claude Code compatible zero-output response; official cache warmup is not proven",
+        "evidence": {
+          "lastRequestId": "layered-readiness-1779190333111-4jnoxupwbtk",
+          "lastSeenAt": "2026-05-19T11:32:13Z",
+          "mode": "local_zero_output",
+          "model": "claude-sonnet-4.5",
+          "proof": "recent max_tokens=0 request completed"
+        },
+        "officialAnthropicParity": {
+          "mode": "local_zero_output",
+          "proof": "no upstream cache warmup evidence",
+          "status": "BLOCKED_BY_UPSTREAM"
+        },
+        "status": "PARTIAL"
+      },
+      "messages": {
+        "detail": "/v1/messages is implemented",
+        "status": "PASS"
+      },
+      "toolReference": {
+        "detail": "tool_reference is accepted and materialized when relevant",
+        "status": "PASS"
+      },
+      "toolSchemaValidation": {
+        "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+        "status": "PASS"
+      }
+    },
+    "examples": [
+      {
+        "contextReminderKinds": null,
+        "currentMessageShape": "text",
+        "endpoint": "/v1/messages",
+        "fineGrainedToolStreamingMode": "",
+        "model": "claude-opus-4-7",
+        "parentAgentId": "",
+        "suppressedToolUseCount": 0,
+        "suppressedToolUseNames": null,
+        "timestamp": "2026-05-19T11:36:11.563120639Z",
+        "unsupportedContentBlocks": null
+      },
+      {
+        "contextReminderKinds": null,
+        "currentMessageShape": "text",
+        "endpoint": "/v1/messages",
+        "fineGrainedToolStreamingMode": "",
+        "model": "claude-opus-4-7",
+        "parentAgentId": "",
+        "suppressedToolUseCount": 0,
+        "suppressedToolUseNames": null,
+        "timestamp": "2026-05-19T11:36:08.199959514Z",
+        "unsupportedContentBlocks": null
+      },
+      {
+        "contextReminderKinds": null,
+        "currentMessageShape": "",
+        "endpoint": "/v1/messages/count_tokens",
+        "fineGrainedToolStreamingMode": "",
+        "model": "claude-opus-4-7",
+        "parentAgentId": "",
+        "suppressedToolUseCount": 0,
+        "suppressedToolUseNames": null,
+        "timestamp": "2026-05-19T11:36:08.190735811Z",
+        "unsupportedContentBlocks": null
+      },
+      {
+        "contextReminderKinds": [
+          "system",
+          "language"
+        ],
+        "currentMessageShape": "tool_result",
+        "endpoint": "/v1/messages",
+        "fineGrainedToolStreamingMode": "",
+        "model": "claude-opus-4-7",
+        "parentAgentId": "",
+        "suppressedToolUseCount": 0,
+        "suppressedToolUseNames": null,
+        "timestamp": "2026-05-19T11:35:51.199285128Z",
+        "unsupportedContentBlocks": null
+      },
+      {
+        "contextReminderKinds": [
+          "system",
+          "language"
+        ],
+        "currentMessageShape": "tool_result",
+        "endpoint": "/v1/messages",
+        "fineGrainedToolStreamingMode": "",
+        "model": "claude-opus-4-7",
+        "parentAgentId": "",
+        "suppressedToolUseCount": 0,
+        "suppressedToolUseNames": null,
+        "timestamp": "2026-05-19T11:33:17.999709305Z",
+        "unsupportedContentBlocks": null
+      }
+    ],
+    "lastSeen": "2026-05-19T11:36:11Z",
+    "recentClaudeCode": true,
+    "recentContextReminders": [
+      "language",
+      "system"
+    ],
+    "recentFineGrainedToolStreaming": false,
+    "recentMCPTools": false,
+    "recentOrphanedToolResults": false,
+    "recentParentAgents": false,
+    "recentResponsesRestore": false,
+    "recentSuppressedToolUses": false,
+    "recentToolReferences": false,
+    "recentToolResultImages": false,
+    "recentToolResultTurns": true,
+    "recentToolTrimming": true,
+    "recentUnsupportedBlocks": false
+  }
+}

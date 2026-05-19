@@ -1,0 +1,910 @@
+{
+  "runId": "uat-temporary-limit-fix-20260519150937",
+  "startedAt": "2026-05-19T07:09:45.147Z",
+  "outDir": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937",
+  "api": {
+    "kiroHealth": {
+      "ok": true,
+      "status": 200,
+      "headers": {
+        "access-control-allow-headers": "Content-Type, Authorization, X-Api-Key, anthropic-version, anthropic-beta, x-api-key, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch",
+        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-request-id, x-ratelimit-limit-requests, x-ratelimit-limit-tokens, x-ratelimit-remaining-requests, x-ratelimit-remaining-tokens, x-ratelimit-reset-requests, x-ratelimit-reset-tokens",
+        "content-length": "46",
+        "content-type": "application/json; charset=utf-8",
+        "date": "Tue, 19 May 2026 07:09:45 GMT"
+      },
+      "body": {
+        "status": "ok",
+        "uptime": 16,
+        "version": "1.0.8"
+      },
+      "text": "{\"status\":\"ok\",\"uptime\":16,\"version\":\"1.0.8\"}\n"
+    },
+    "sub2apiHealth": {
+      "ok": true,
+      "status": 200,
+      "headers": {
+        "content-length": "15",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'nonce-PSadDtLFDJ4nCiQF1hjQ4w==' https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://challenges.cloudflare.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        "content-type": "application/json; charset=utf-8",
+        "date": "Tue, 19 May 2026 07:09:45 GMT",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-request-id": "d414d522-0b1c-4740-b4ea-58be4acf439e"
+      },
+      "body": {
+        "status": "ok"
+      },
+      "text": "{\"status\":\"ok\"}"
+    },
+    "kiroAccountsBefore": {
+      "ok": true,
+      "status": 200,
+      "headers": {
+        "access-control-allow-headers": "Content-Type, Authorization, X-Api-Key, anthropic-version, anthropic-beta, x-api-key, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch",
+        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-request-id, x-ratelimit-limit-requests, x-ratelimit-limit-tokens, x-ratelimit-remaining-requests, x-ratelimit-remaining-tokens, x-ratelimit-reset-requests, x-ratelimit-reset-tokens",
+        "content-type": "application/json; charset=utf-8",
+        "date": "Tue, 19 May 2026 07:09:45 GMT",
+        "transfer-encoding": "chunked"
+      },
+      "body": [
+        {
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174631,
+          "failureCount": 1
+        },
+        {
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174633,
+          "failureCount": 1
+        },
+        {
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174634,
+          "failureCount": 1
+        },
+        {
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174635,
+          "failureCount": 1
+        },
+        {
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        }
+      ],
+      "text": "[{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":1779174631,\"daysRemaining\":0,\"email\":\"rosanaliliana297@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177414,\"failureCount\":1,\"hasToken\":true,\"id\":\"93fb7e70-3ccf-4330-9d8d-b25c89322ae4\",\"lastFailureAt\":1779174571,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779173814,\"lastUsed\":1779174516,\"machineId\":\"78b11362-86d5-4a36-8309-1d1d888a0033\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":996,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174571,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":255.85670876605292,\"totalTokens\":31818556,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":254,\"usageLimit\":1000,\"usagePercent\":0.254,\"userId\":\"d-9067c98495.c4a83498-b031-7004-5b9e-3e1382944f13\",\"weight\":3},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174633,\"daysRemaining\":0,\"email\":\"robyjoao97@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177859,\"failureCount\":1,\"hasToken\":true,\"id\":\"6d524028-56ee-41e9-aad9-eaba82d4d75b\",\"lastFailureAt\":1779174573,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174259,\"lastUsed\":1779174524,\"machineId\":\"270fe232-d0c7-4e36-af19-8d6752f479b7\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1031,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174573,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":215.00458569421306,\"totalTokens\":23772886,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":213,\"usageLimit\":1000,\"usagePercent\":0.213,\"userId\":\"d-9067c98495.f4c824a8-e061-7002-dd6e-1ffa95762572\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174634,\"daysRemaining\":0,\"email\":\"royeracosta379@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177860,\"failureCount\":1,\"hasToken\":true,\"id\":\"fef84be2-f929-4ea2-afa9-5f8702016868\",\"lastFailureAt\":1779174574,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174260,\"lastUsed\":1779174568,\"machineId\":\"cb4beda9-098d-4097-8b99-f6fd0c8e1af7\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1332,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174574,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":249.43732501056377,\"totalTokens\":27879484,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":248,\"usageLimit\":1000,\"usagePercent\":0.248,\"userId\":\"d-9067c98495.2468c448-9081-70fb-2073-4b87ddefbf7b\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":1779174635,\"daysRemaining\":0,\"email\":\"rubiahernandez412@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177861,\"failureCount\":1,\"hasToken\":true,\"id\":\"f4454cf1-1b38-4fed-ad1d-076795f4d8cd\",\"lastFailureAt\":1779174575,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174261,\"lastUsed\":1779174549,\"machineId\":\"150d55fd-0bb3-473a-b552-02bcb2d556ef\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1165,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174575,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":191.20709470756137,\"totalTokens\":19482413,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":190,\"usageLimit\":1000,\"usagePercent\":0.19,\"userId\":\"d-9067c98495.9458c4e8-f001-70ab-a16a-8ae4dbcd533d\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"royalbrewes39@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177862,\"failureCount\":0,\"hasToken\":true,\"id\":\"62c85da6-7eac-46eb-a8c9-7470695df3c7\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174262,\"lastUsed\":1779174583,\"machineId\":\"1e6e405f-262d-4de5-b7ae-139b34621a3f\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":873,\"runtimeHealth\":{\"activeConnections\":1,\"recentFailures\":0,\"recentSuccesses\":1,\"avgLatencyMs\":8475,\"lastUpdatedAt\":1779174584,\"score\":45},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":167.77096598388093,\"totalTokens\":17610242,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":166,\"usageLimit\":1000,\"usagePercent\":0.166,\"userId\":\"d-9067c98495.24f814f8-a0a1-70b2-792d-54ef5b8c65f1\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"chungweisogra@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177419,\"failureCount\":0,\"hasToken\":true,\"id\":\"95d9dcb5-f544-4bcb-9aee-ff1890938a82\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173819,\"lastUsed\":1779174538,\"machineId\":\"df0a7b71-9d39-4e13-a36c-17b2e1c9f69a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1014,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":119.18055475485893,\"totalTokens\":13394282,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":118,\"usageLimit\":1000,\"usagePercent\":0.118,\"userId\":\"d-9067c98495.a4583438-8001-7096-7d33-d52976f9ecce\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"leethaditi@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177420,\"failureCount\":0,\"hasToken\":true,\"id\":\"b96e50b4-e443-47ea-ac2b-568537eab945\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173820,\"lastUsed\":1779170584,\"machineId\":\"024b736f-17af-45a7-b48b-e8d9c129dd79\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":579,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":111.27286722718077,\"totalTokens\":13875482,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":111,\"usageLimit\":1000,\"usagePercent\":0.111,\"userId\":\"d-9067c98495.f40804f8-a041-70c8-68a0-639183235660\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"vilchespancho17@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177421,\"failureCount\":0,\"hasToken\":true,\"id\":\"125bd142-5218-45d9-8748-3e29a775050b\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173821,\"lastUsed\":1779171067,\"machineId\":\"81c8f2c4-93a0-4979-b217-7bfe559b7438\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1001,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":140.84956834257014,\"totalTokens\":17932767,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":141,\"usageLimit\":1000,\"usagePercent\":0.141,\"userId\":\"d-9067c98495.d48824a8-3061-70e3-9324-846270d35e24\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"wayanobbie88bet@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177865,\"failureCount\":0,\"hasToken\":true,\"id\":\"6f572596-acd3-4e06-947a-4dd11424d4df\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174265,\"lastUsed\":1779174320,\"machineId\":\"6971f63f-5031-4bb4-9a64-0c7298e426cd\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1029,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":117.44890781893882,\"totalTokens\":14649125,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":117,\"usageLimit\":1000,\"usagePercent\":0.117,\"userId\":\"d-9067c98495.e4687438-d051-70c3-3ae0-ebb557483e02\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"sfmsamfasfasfsafa@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177866,\"failureCount\":0,\"hasToken\":true,\"id\":\"1e7bad65-4a46-40d0-81bd-19fde0f14954\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174266,\"lastUsed\":1779174327,\"machineId\":\"bbffc112-a548-4d1f-ad5e-7695edbfd1c5\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":868,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":120.11494239703158,\"totalTokens\":14648002,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":119,\"usageLimit\":1000,\"usagePercent\":0.119,\"userId\":\"d-9067c98495.24c8b438-f061-70a7-2dbf-defbf42e4942\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"wayanbagiana74@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177867,\"failureCount\":0,\"hasToken\":true,\"id\":\"71cf722d-a7b0-49a1-9998-bef22a11cf45\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174267,\"lastUsed\":1779174324,\"machineId\":\"7b914cdb-c903-4bcb-a923-0a1af20f2b8a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":612,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":76.4956857009288,\"totalTokens\":8770987,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":76,\"usageLimit\":1000,\"usagePercent\":0.076,\"userId\":\"d-9067c98495.24b8b408-3091-709a-7b6c-47d431738bd4\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"madelineyasmincanas@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177868,\"failureCount\":0,\"hasToken\":true,\"id\":\"7170ccb6-30cc-40fe-9f79-4344389c034b\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174268,\"lastUsed\":1779174334,\"machineId\":\"904f408d-ae89-4584-90b6-40da5f56d578\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":778,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":111.1411261670644,\"totalTokens\":12249472,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":111,\"usageLimit\":1000,\"usagePercent\":0.111,\"userId\":\"d-9067c98495.24f8c428-7081-7051-e9d7-fb95cccc2aa3\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"roviraomar789@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177869,\"failureCount\":0,\"hasToken\":true,\"id\":\"54a00e6f-a582-4083-a197-ea2a1a0cb847\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174269,\"lastUsed\":1779167129,\"machineId\":\"fba2bed1-3ea9-4f3c-a08f-716a3403a326\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":668,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":31.866660952172456,\"totalTokens\":4431399,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":31,\"usageLimit\":1000,\"usagePercent\":0.031,\"userId\":\"d-9067c98495.14b80498-c041-709f-0a22-29eb308de73f\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rrahmanifyllii@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177870,\"failureCount\":0,\"hasToken\":true,\"id\":\"61a48fab-58c1-49b0-957a-b4caf88b51d0\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174270,\"lastUsed\":1779167148,\"machineId\":\"36b0475d-4365-41c2-81ff-e3bd2d40128a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":476,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":22.48605091044769,\"totalTokens\":3196781,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":22,\"usageLimit\":1000,\"usagePercent\":0.022,\"userId\":\"d-9067c98495.b4686408-c051-7067-b01d-a5193ab09ff8\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rubendanila460@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177429,\"failureCount\":0,\"hasToken\":true,\"id\":\"ae380baf-1725-4733-9ffe-cc227764b6c4\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173829,\"lastUsed\":1779174346,\"machineId\":\"f2e06228-7d8e-4af0-997a-f7c5fb174541\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":679,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":24.165972189701385,\"totalTokens\":4447137,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":23,\"usageLimit\":1000,\"usagePercent\":0.023,\"userId\":\"d-9067c98495.24b89468-b061-700d-4ef1-311f0d6ed199\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rosariobarnhill507@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177430,\"failureCount\":0,\"hasToken\":true,\"id\":\"2980ad67-e95f-498f-a774-9e420b3f6f2f\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173830,\"lastUsed\":1779174444,\"machineId\":\"95066130-cffb-4c38-af5c-931fe6841525\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":619,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":20.60093890124373,\"totalTokens\":3253540,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":20,\"usageLimit\":1000,\"usagePercent\":0.02,\"userId\":\"d-9067c98495.14689468-20b1-70ad-c889-99b1fbfea923\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rubengometty398@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177872,\"failureCount\":0,\"hasToken\":true,\"id\":\"2ba05a3b-74e2-4500-9d29-fb84fda5416e\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174272,\"lastUsed\":1779170781,\"machineId\":\"973b4fef-cf5c-4235-b71e-68d02e85e513\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":23,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.244433857777778,\"totalTokens\":761319,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":2,\"usageLimit\":1000,\"usagePercent\":0.002,\"userId\":\"d-9067c98495.6428f4d8-f001-7011-0e51-63c91cb8dcec\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"ruifont69@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177873,\"failureCount\":0,\"hasToken\":true,\"id\":\"fb3056fa-28f8-413b-9a53-52ab3c854daf\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174273,\"lastUsed\":1779174375,\"machineId\":\"f6d9a24f-74ef-49fc-a849-232c76987f0b\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":21,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.8466333001990054,\"totalTokens\":814433,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":2,\"usageLimit\":1000,\"usagePercent\":0.002,\"userId\":\"d-9067c98495.3408f438-0011-70b2-9edd-d08beed40e32\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rowdysvithekar859@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177874,\"failureCount\":0,\"hasToken\":true,\"id\":\"ed9239cb-65ef-4970-941c-1d716127c8cd\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174274,\"lastUsed\":1779167252,\"machineId\":\"b600ad79-3c48-45fa-b5e1-0e35edda4310\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":2,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":1.2214427355887232,\"totalTokens\":128262,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.24188498-c031-7008-1a2e-945a0767f460\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rubanarsenij211@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177875,\"failureCount\":0,\"hasToken\":true,\"id\":\"8a5910cb-c52e-498f-923c-93b174be628d\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174275,\"lastUsed\":1779167273,\"machineId\":\"84e8b208-2774-4033-bcdc-6562e30f6334\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":2,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":1.1515528929684908,\"totalTokens\":110165,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.04e854d8-4081-703f-3e4c-1e2183a11608\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"roxyyocom418@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177876,\"failureCount\":0,\"hasToken\":true,\"id\":\"efa39437-556e-43e7-84b7-f727ad7cb576\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174276,\"lastUsed\":1779174402,\"machineId\":\"f62a94b0-92ae-4631-ac1a-662d58eb47ed\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":6,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.438652751343284,\"totalTokens\":323667,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.c4f83428-b071-70a0-6fd6-432fd06b4697\",\"weight\":2}]\n"
+    },
+    "direct": {
+      "requestId": "uat-temporary-limit-fix-20260519150937-direct-opus",
+      "status": 200,
+      "retryAfter": "",
+      "text": "uat-temporary-limit-fix-20260519150937-direct-opus",
+      "bodyPreview": "{\"id\":\"msg_27afa6ca-ee09-4da8-b47e-c9f7a87c9373\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"uat-temporary-limit-fix-20260519150937-direct-opus\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5927,\"output_tokens\":18}}"
+    },
+    "sub2apiSonnetMessage": {
+      "requestId": "uat-temporary-limit-fix-20260519150937-sub2api-sonnet",
+      "model": "claude-sonnet-4-5-20250929",
+      "status": 200,
+      "retryAfter": "",
+      "text": "uat-temporary-limit-fix-20260519150937-sub2api-sonnet",
+      "bodyPreview": "{\"id\":\"msg_bf2943d5-7528-485e-89b3-681c69f538d2\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"uat-temporary-limit-fix-20260519150937-sub2api-sonnet\"}],\"model\":\"claude-sonnet-4.5\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":4144,\"output_tokens\":19}}"
+    },
+    "sub2apiOpusMessage": {
+      "requestId": "uat-temporary-limit-fix-20260519150937-sub2api-opus",
+      "model": "claude-opus-4-7",
+      "status": 200,
+      "retryAfter": "",
+      "text": "uat-temporary-limit-fix-20260519150937-sub2api-opus",
+      "bodyPreview": "{\"id\":\"msg_57e95652-d441-4750-ad85-1c718542ac60\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"uat-temporary-limit-fix-20260519150937-sub2api-opus\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5931,\"output_tokens\":19}}"
+    },
+    "kiroAccountsAfter": {
+      "ok": true,
+      "status": 200,
+      "headers": {
+        "access-control-allow-headers": "Content-Type, Authorization, X-Api-Key, anthropic-version, anthropic-beta, x-api-key, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch",
+        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-request-id, x-ratelimit-limit-requests, x-ratelimit-limit-tokens, x-ratelimit-remaining-requests, x-ratelimit-remaining-tokens, x-ratelimit-reset-requests, x-ratelimit-reset-tokens",
+        "content-type": "application/json; charset=utf-8",
+        "date": "Tue, 19 May 2026 07:10:25 GMT",
+        "transfer-encoding": "chunked"
+      },
+      "body": [
+        {
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174631,
+          "failureCount": 1
+        },
+        {
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174633,
+          "failureCount": 1
+        },
+        {
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174634,
+          "failureCount": 1
+        },
+        {
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174635,
+          "failureCount": 1
+        },
+        {
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174645,
+          "failureCount": 1
+        },
+        {
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174646,
+          "failureCount": 1
+        },
+        {
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "enabled": true,
+          "lastFailureReason": "temporary_limited",
+          "cooldownUntil": 1779174667,
+          "failureCount": 1
+        },
+        {
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "enabled": true,
+          "lastFailureReason": "rate_limited",
+          "cooldownUntil": 1779174630,
+          "failureCount": 1
+        },
+        {
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "enabled": true,
+          "lastFailureReason": "rate_limited",
+          "cooldownUntil": 1779174626,
+          "failureCount": 1
+        },
+        {
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "enabled": true,
+          "lastFailureReason": "rate_limited",
+          "cooldownUntil": 1779174626,
+          "failureCount": 1
+        },
+        {
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        },
+        {
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "enabled": true,
+          "lastFailureReason": "",
+          "cooldownUntil": 0,
+          "failureCount": 0
+        }
+      ],
+      "text": "[{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":1779174631,\"daysRemaining\":0,\"email\":\"rosanaliliana297@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177414,\"failureCount\":1,\"hasToken\":true,\"id\":\"93fb7e70-3ccf-4330-9d8d-b25c89322ae4\",\"lastFailureAt\":1779174571,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779173814,\"lastUsed\":1779174516,\"machineId\":\"78b11362-86d5-4a36-8309-1d1d888a0033\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":996,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174571,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":255.85670876605292,\"totalTokens\":31818556,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":254,\"usageLimit\":1000,\"usagePercent\":0.254,\"userId\":\"d-9067c98495.c4a83498-b031-7004-5b9e-3e1382944f13\",\"weight\":3},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174633,\"daysRemaining\":0,\"email\":\"robyjoao97@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177859,\"failureCount\":1,\"hasToken\":true,\"id\":\"6d524028-56ee-41e9-aad9-eaba82d4d75b\",\"lastFailureAt\":1779174573,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174259,\"lastUsed\":1779174524,\"machineId\":\"270fe232-d0c7-4e36-af19-8d6752f479b7\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1031,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174573,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":215.00458569421306,\"totalTokens\":23772886,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":213,\"usageLimit\":1000,\"usagePercent\":0.213,\"userId\":\"d-9067c98495.f4c824a8-e061-7002-dd6e-1ffa95762572\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174634,\"daysRemaining\":0,\"email\":\"royeracosta379@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177860,\"failureCount\":1,\"hasToken\":true,\"id\":\"fef84be2-f929-4ea2-afa9-5f8702016868\",\"lastFailureAt\":1779174574,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174260,\"lastUsed\":1779174568,\"machineId\":\"cb4beda9-098d-4097-8b99-f6fd0c8e1af7\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1332,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174574,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":249.43732501056377,\"totalTokens\":27879484,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":248,\"usageLimit\":1000,\"usagePercent\":0.248,\"userId\":\"d-9067c98495.2468c448-9081-70fb-2073-4b87ddefbf7b\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":1779174635,\"daysRemaining\":0,\"email\":\"rubiahernandez412@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177861,\"failureCount\":1,\"hasToken\":true,\"id\":\"f4454cf1-1b38-4fed-ad1d-076795f4d8cd\",\"lastFailureAt\":1779174575,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174261,\"lastUsed\":1779174549,\"machineId\":\"150d55fd-0bb3-473a-b552-02bcb2d556ef\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1165,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174575,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":191.20709470756137,\"totalTokens\":19482413,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":190,\"usageLimit\":1000,\"usagePercent\":0.19,\"userId\":\"d-9067c98495.9458c4e8-f001-70ab-a16a-8ae4dbcd533d\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174645,\"daysRemaining\":0,\"email\":\"royalbrewes39@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177862,\"failureCount\":1,\"hasToken\":true,\"id\":\"62c85da6-7eac-46eb-a8c9-7470695df3c7\",\"lastFailureAt\":1779174585,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174262,\"lastUsed\":1779174583,\"machineId\":\"1e6e405f-262d-4de5-b7ae-139b34621a3f\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":873,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":1,\"avgLatencyMs\":8475,\"lastUpdatedAt\":1779174585,\"score\":10},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":167.77096598388093,\"totalTokens\":17610242,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":166,\"usageLimit\":1000,\"usagePercent\":0.166,\"userId\":\"d-9067c98495.24f814f8-a0a1-70b2-792d-54ef5b8c65f1\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174646,\"daysRemaining\":0,\"email\":\"chungweisogra@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177419,\"failureCount\":1,\"hasToken\":true,\"id\":\"95d9dcb5-f544-4bcb-9aee-ff1890938a82\",\"lastFailureAt\":1779174586,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779173819,\"lastUsed\":1779174538,\"machineId\":\"df0a7b71-9d39-4e13-a36c-17b2e1c9f69a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1014,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174586,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":119.18055475485893,\"totalTokens\":13394282,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":118,\"usageLimit\":1000,\"usagePercent\":0.118,\"userId\":\"d-9067c98495.a4583438-8001-7096-7d33-d52976f9ecce\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"leethaditi@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177420,\"failureCount\":0,\"hasToken\":true,\"id\":\"b96e50b4-e443-47ea-ac2b-568537eab945\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173820,\"lastUsed\":1779170584,\"machineId\":\"024b736f-17af-45a7-b48b-e8d9c129dd79\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":579,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174587,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":111.27286722718077,\"totalTokens\":13875482,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":111,\"usageLimit\":1000,\"usagePercent\":0.111,\"userId\":\"d-9067c98495.f40804f8-a041-70c8-68a0-639183235660\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"vilchespancho17@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177421,\"failureCount\":0,\"hasToken\":true,\"id\":\"125bd142-5218-45d9-8748-3e29a775050b\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173821,\"lastUsed\":1779171067,\"machineId\":\"81c8f2c4-93a0-4979-b217-7bfe559b7438\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1001,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174589,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":140.84956834257014,\"totalTokens\":17932767,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":141,\"usageLimit\":1000,\"usagePercent\":0.141,\"userId\":\"d-9067c98495.d48824a8-3061-70e3-9324-846270d35e24\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174667,\"daysRemaining\":0,\"email\":\"wayanobbie88bet@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177865,\"failureCount\":1,\"hasToken\":true,\"id\":\"6f572596-acd3-4e06-947a-4dd11424d4df\",\"lastFailureAt\":1779174607,\"lastFailureReason\":\"temporary_limited\",\"lastRefresh\":1779174265,\"lastUsed\":1779174601,\"machineId\":\"6971f63f-5031-4bb4-9a64-0c7298e426cd\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":1030,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":1,\"avgLatencyMs\":12276,\"lastUpdatedAt\":1779174607,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":118.06423612208974,\"totalTokens\":14703653,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":117,\"usageLimit\":1000,\"usagePercent\":0.117,\"userId\":\"d-9067c98495.e4687438-d051-70c3-3ae0-ebb557483e02\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"ACTIVE\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"sfmsamfasfasfsafa@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177866,\"failureCount\":0,\"hasToken\":true,\"id\":\"1e7bad65-4a46-40d0-81bd-19fde0f14954\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174266,\"lastUsed\":1779174606,\"machineId\":\"bbffc112-a548-4d1f-ad5e-7695edbfd1c5\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":869,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":1,\"avgLatencyMs\":5033,\"lastUpdatedAt\":1779174606,\"score\":75},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":120.14461631663357,\"totalTokens\":14653947,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":119,\"usageLimit\":1000,\"usagePercent\":0.119,\"userId\":\"d-9067c98495.24c8b438-f061-70a7-2dbf-defbf42e4942\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"wayanbagiana74@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177867,\"failureCount\":0,\"hasToken\":true,\"id\":\"71cf722d-a7b0-49a1-9998-bef22a11cf45\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174267,\"lastUsed\":1779174609,\"machineId\":\"7b914cdb-c903-4bcb-a923-0a1af20f2b8a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":613,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":1,\"avgLatencyMs\":2770,\"lastUpdatedAt\":1779174609,\"score\":90},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":76.51601307180775,\"totalTokens\":8775150,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":76,\"usageLimit\":1000,\"usagePercent\":0.076,\"userId\":\"d-9067c98495.24b8b408-3091-709a-7b6c-47d431738bd4\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"madelineyasmincanas@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177868,\"failureCount\":0,\"hasToken\":true,\"id\":\"7170ccb6-30cc-40fe-9f79-4344389c034b\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174268,\"lastUsed\":1779174334,\"machineId\":\"904f408d-ae89-4584-90b6-40da5f56d578\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":778,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174608,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":111.1411261670644,\"totalTokens\":12249472,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":111,\"usageLimit\":1000,\"usagePercent\":0.111,\"userId\":\"d-9067c98495.24f8c428-7081-7051-e9d7-fb95cccc2aa3\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174630,\"daysRemaining\":0,\"email\":\"roviraomar789@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177869,\"failureCount\":1,\"hasToken\":true,\"id\":\"54a00e6f-a582-4083-a197-ea2a1a0cb847\",\"lastFailureAt\":1779174625,\"lastFailureReason\":\"rate_limited\",\"lastRefresh\":1779174269,\"lastUsed\":1779174620,\"machineId\":\"fba2bed1-3ea9-4f3c-a08f-716a3403a326\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":669,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":1,\"avgLatencyMs\":11919,\"lastUpdatedAt\":1779174625,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":32.4173379578441,\"totalTokens\":4488627,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":31,\"usageLimit\":1000,\"usagePercent\":0.031,\"userId\":\"d-9067c98495.14b80498-c041-709f-0a22-29eb308de73f\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174626,\"daysRemaining\":0,\"email\":\"rrahmanifyllii@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177870,\"failureCount\":1,\"hasToken\":true,\"id\":\"61a48fab-58c1-49b0-957a-b4caf88b51d0\",\"lastFailureAt\":1779174621,\"lastFailureReason\":\"rate_limited\",\"lastRefresh\":1779174270,\"lastUsed\":1779167148,\"machineId\":\"36b0475d-4365-41c2-81ff-e3bd2d40128a\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":476,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174621,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":22.48605091044769,\"totalTokens\":3196781,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":22,\"usageLimit\":1000,\"usagePercent\":0.022,\"userId\":\"d-9067c98495.b4686408-c051-7067-b01d-a5193ab09ff8\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":1779174626,\"daysRemaining\":0,\"email\":\"rubendanila460@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177429,\"failureCount\":1,\"hasToken\":true,\"id\":\"ae380baf-1725-4733-9ffe-cc227764b6c4\",\"lastFailureAt\":1779174621,\"lastFailureReason\":\"rate_limited\",\"lastRefresh\":1779173829,\"lastUsed\":1779174346,\"machineId\":\"f2e06228-7d8e-4af0-997a-f7c5fb174541\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":679,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":1,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":1779174621,\"score\":0},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":24.165972189701385,\"totalTokens\":4447137,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":23,\"usageLimit\":1000,\"usagePercent\":0.023,\"userId\":\"d-9067c98495.24b89468-b061-700d-4ef1-311f0d6ed199\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rosariobarnhill507@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177430,\"failureCount\":0,\"hasToken\":true,\"id\":\"2980ad67-e95f-498f-a774-9e420b3f6f2f\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779173830,\"lastUsed\":1779174624,\"machineId\":\"95066130-cffb-4c38-af5c-931fe6841525\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":620,\"runtimeHealth\":{\"activeConnections\":1,\"recentFailures\":0,\"recentSuccesses\":1,\"avgLatencyMs\":2107,\"lastUpdatedAt\":1779174625,\"score\":75},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":20.631171903233778,\"totalTokens\":3259490,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":20,\"usageLimit\":1000,\"usagePercent\":0.02,\"userId\":\"d-9067c98495.14689468-20b1-70ad-c889-99b1fbfea923\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rubengometty398@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177872,\"failureCount\":0,\"hasToken\":true,\"id\":\"2ba05a3b-74e2-4500-9d29-fb84fda5416e\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174272,\"lastUsed\":1779170781,\"machineId\":\"973b4fef-cf5c-4235-b71e-68d02e85e513\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":23,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.244433857777778,\"totalTokens\":761319,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":2,\"usageLimit\":1000,\"usagePercent\":0.002,\"userId\":\"d-9067c98495.6428f4d8-f001-7011-0e51-63c91cb8dcec\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"ruifont69@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177873,\"failureCount\":0,\"hasToken\":true,\"id\":\"fb3056fa-28f8-413b-9a53-52ab3c854daf\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174273,\"lastUsed\":1779174375,\"machineId\":\"f6d9a24f-74ef-49fc-a849-232c76987f0b\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":21,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.8466333001990054,\"totalTokens\":814433,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":2,\"usageLimit\":1000,\"usagePercent\":0.002,\"userId\":\"d-9067c98495.3408f438-0011-70b2-9edd-d08beed40e32\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rowdysvithekar859@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177874,\"failureCount\":0,\"hasToken\":true,\"id\":\"ed9239cb-65ef-4970-941c-1d716127c8cd\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174274,\"lastUsed\":1779167252,\"machineId\":\"b600ad79-3c48-45fa-b5e1-0e35edda4310\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":2,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":1.2214427355887232,\"totalTokens\":128262,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.24188498-c031-7008-1a2e-945a0767f460\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"rubanarsenij211@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177875,\"failureCount\":0,\"hasToken\":true,\"id\":\"8a5910cb-c52e-498f-923c-93b174be628d\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174275,\"lastUsed\":1779167273,\"machineId\":\"84e8b208-2774-4033-bcdc-6562e30f6334\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":2,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":1.1515528929684908,\"totalTokens\":110165,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.04e854d8-4081-703f-3e4c-1e2183a11608\",\"weight\":2},{\"allowOverage\":false,\"authMethod\":\"social\",\"banReason\":\"\",\"banStatus\":\"\",\"banTime\":0,\"cooldownUntil\":0,\"daysRemaining\":0,\"email\":\"roxyyocom418@gmail.com\",\"enabled\":true,\"errorCount\":0,\"expiresAt\":1779177876,\"failureCount\":0,\"hasToken\":true,\"id\":\"efa39437-556e-43e7-84b7-f727ad7cb576\",\"lastFailureAt\":0,\"lastFailureReason\":\"\",\"lastRefresh\":1779174276,\"lastUsed\":1779174402,\"machineId\":\"f62a94b0-92ae-4631-ac1a-662d58eb47ed\",\"nextResetDate\":\"2026-06-01\",\"nickname\":\"\",\"overageWeight\":0,\"provider\":\"Google\",\"proxyURL\":\"\",\"region\":\"us-east-1\",\"requestCount\":6,\"runtimeHealth\":{\"activeConnections\":0,\"recentFailures\":0,\"recentSuccesses\":0,\"avgLatencyMs\":0,\"lastUpdatedAt\":0,\"score\":100},\"subscriptionTitle\":\"KIRO PRO\",\"subscriptionType\":\"PRO\",\"totalCredits\":2.438652751343284,\"totalTokens\":323667,\"trialExpiresAt\":0,\"trialStatus\":\"\",\"trialUsageCurrent\":0,\"trialUsageLimit\":0,\"trialUsagePercent\":0,\"usageCurrent\":1,\"usageLimit\":1000,\"usagePercent\":0.001,\"userId\":\"d-9067c98495.c4f83428-b071-70a0-6fd6-432fd06b4697\",\"weight\":2}]\n"
+    },
+    "kiroLogs": {
+      "ok": true,
+      "status": 200,
+      "headers": {
+        "access-control-allow-headers": "Content-Type, Authorization, X-Api-Key, anthropic-version, anthropic-beta, x-api-key, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch",
+        "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-request-id, x-ratelimit-limit-requests, x-ratelimit-limit-tokens, x-ratelimit-remaining-requests, x-ratelimit-remaining-tokens, x-ratelimit-reset-requests, x-ratelimit-reset-tokens",
+        "content-type": "application/json; charset=utf-8",
+        "date": "Tue, 19 May 2026 07:10:25 GMT",
+        "transfer-encoding": "chunked"
+      },
+      "body": {
+        "logs": [
+          {
+            "timestamp": "2026-05-19T07:10:09.350869514Z",
+            "requestId": "ed1f9cc5-3603-4060-9857-50eeb7e2b78b",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-opus-4-7",
+            "accountId": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+            "region": "us-east-1",
+            "anthropicRequestId": "req_b66c8720-fba3-4687-94ad-d8c75118a13a",
+            "anthropicVersion": "2023-06-01",
+            "payloadOriginalBytes": 393,
+            "payloadFinalBytes": 474,
+            "payloadCurrentMessageShape": "text",
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=2980ad67-e95f-498f-a774-9e420b3f6f2f model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true",
+            "routingStrategy": "health",
+            "routingPressure": true,
+            "stream": false,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 14728,
+            "queueWaitMs": 11225,
+            "firstTokenMs": 1999,
+            "attempts": 3,
+            "inputTokens": 5931,
+            "outputTokens": 19
+          },
+          {
+            "timestamp": "2026-05-19T07:10:01.781817944Z",
+            "requestId": "25953e36-d996-4fc0-90a2-00ff89350975",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-opus-4-7",
+            "accountId": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+            "region": "us-east-1",
+            "claudeCodeSessionId": "60974a41-0bf3-4a3a-b28b-f386bd22d721",
+            "anthropicRequestId": "req_c10d17aa-5e9d-48b8-a01a-b8647816c060",
+            "anthropicVersion": "2023-06-01",
+            "anthropicBetas": [
+              "advisor-tool-2026-03-01",
+              "claude-code-20250219",
+              "context-1m-2025-08-07",
+              "context-management-2025-06-27",
+              "effort-2025-11-24",
+              "interleaved-thinking-2025-05-14",
+              "prompt-caching-scope-2026-01-05",
+              "redact-thinking-2026-02-12"
+            ],
+            "payloadOriginalBytes": 380322,
+            "payloadFinalBytes": 139586,
+            "payloadTrimmed": true,
+            "payloadTrimmedCount": 61,
+            "payloadCurrentTools": 16,
+            "payloadCurrentToolSchemaBytes": 13523,
+            "payloadKeptTools": [
+              "agent",
+              "taskGet",
+              "taskList",
+              "taskStop",
+              "taskCreate",
+              "taskOutput",
+              "taskUpdate",
+              "write",
+              "bash",
+              "edit",
+              "read",
+              "webFetch",
+              "webSearch",
+              "notebookEdit",
+              "cronDelete",
+              "askUserQuestion"
+            ],
+            "payloadTrimmedTools": [
+              "cronCreate",
+              "enterPlanMode",
+              "enterWorktree",
+              "exitPlanMode",
+              "exitWorktree",
+              "monitor",
+              "pushNotification",
+              "scheduleWakeup",
+              "skill",
+              "cronList"
+            ],
+            "payloadCompactedPairs": 13,
+            "payloadCompactedToolResults": 46,
+            "payloadRelocatedToolDescriptions": 19,
+            "payloadCurrentMessageShape": "tool_result",
+            "payloadContextReminderKinds": [
+              "system",
+              "language"
+            ],
+            "payloadUnknownOfficialFields": [
+              "context_management",
+              "metadata"
+            ],
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=54a00e6f-a582-4083-a197-ea2a1a0cb847 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true",
+            "routingStrategy": "health",
+            "routingPressure": true,
+            "stream": true,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 18793,
+            "queueWaitMs": 4696,
+            "firstTokenMs": 6116,
+            "attempts": 3,
+            "toolUseCount": 3,
+            "outputTokens": 373,
+            "cacheCreationInputTokens": 113582
+          },
+          {
+            "timestamp": "2026-05-19T07:10:06.537596147Z",
+            "requestId": "b58bba08-11b3-4cf7-acd9-183b0e9341f6",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-sonnet-4-5-20250929",
+            "accountId": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+            "region": "us-east-1",
+            "anthropicRequestId": "req_74fd0daf-2ac9-4a07-a0cf-b3cbce4c024e",
+            "anthropicVersion": "2023-06-01",
+            "payloadOriginalBytes": 397,
+            "payloadFinalBytes": 478,
+            "payloadCurrentMessageShape": "text",
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=71cf722d-a7b0-49a1-9998-bef22a11cf45 model=claude-sonnet-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false",
+            "routingStrategy": "health",
+            "stream": false,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 2771,
+            "firstTokenMs": 2016,
+            "attempts": 1,
+            "inputTokens": 4144,
+            "outputTokens": 19
+          },
+          {
+            "timestamp": "2026-05-19T07:09:45.428411879Z",
+            "requestId": "uat-temporary-limit-fix-20260519150937-direct-opus",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-opus-4.7",
+            "accountId": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+            "region": "us-east-1",
+            "claudeCodeSessionId": "uat-temporary-limit-fix-20260519150937",
+            "claudeCodeAgentId": "uat-direct",
+            "anthropicRequestId": "uat-temporary-limit-fix-20260519150937-direct-opus",
+            "anthropicVersion": "2023-06-01",
+            "anthropicBetas": [
+              "claude-code-20250219",
+              "fine-grained-tool-streaming-2025-05-14"
+            ],
+            "payloadOriginalBytes": 392,
+            "payloadFinalBytes": 473,
+            "payloadCurrentMessageShape": "text",
+            "fineGrainedToolStreamingRequested": true,
+            "fineGrainedToolStreamingMode": "requested_partial",
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=1e7bad65-4a46-40d0-81bd-19fde0f14954 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=true",
+            "routingStrategy": "health",
+            "routingPressure": true,
+            "stream": false,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 21078,
+            "queueWaitMs": 16040,
+            "firstTokenMs": 4851,
+            "attempts": 1,
+            "inputTokens": 5927,
+            "outputTokens": 18
+          },
+          {
+            "timestamp": "2026-05-19T07:09:44.041791941Z",
+            "requestId": "88cd63ae-8353-46c6-823e-afdab63f1b57",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-opus-4-7",
+            "accountId": "6f572596-acd3-4e06-947a-4dd11424d4df",
+            "region": "us-east-1",
+            "claudeCodeSessionId": "60974a41-0bf3-4a3a-b28b-f386bd22d721",
+            "anthropicRequestId": "req_9cff4e21-4741-4d21-8c4d-ff6399f7d46a",
+            "anthropicVersion": "2023-06-01",
+            "anthropicBetas": [
+              "advisor-tool-2026-03-01",
+              "claude-code-20250219",
+              "context-1m-2025-08-07",
+              "context-management-2025-06-27",
+              "effort-2025-11-24",
+              "interleaved-thinking-2025-05-14",
+              "prompt-caching-scope-2026-01-05",
+              "redact-thinking-2026-02-12"
+            ],
+            "payloadOriginalBytes": 362593,
+            "payloadFinalBytes": 131806,
+            "payloadTrimmed": true,
+            "payloadTrimmedCount": 58,
+            "payloadCurrentTools": 16,
+            "payloadCurrentToolSchemaBytes": 13523,
+            "payloadKeptTools": [
+              "agent",
+              "taskGet",
+              "taskList",
+              "taskStop",
+              "taskCreate",
+              "taskOutput",
+              "taskUpdate",
+              "write",
+              "bash",
+              "edit",
+              "read",
+              "webFetch",
+              "webSearch",
+              "notebookEdit",
+              "cronDelete",
+              "askUserQuestion"
+            ],
+            "payloadTrimmedTools": [
+              "cronCreate",
+              "enterPlanMode",
+              "enterWorktree",
+              "exitPlanMode",
+              "exitWorktree",
+              "monitor",
+              "pushNotification",
+              "scheduleWakeup",
+              "skill",
+              "cronList"
+            ],
+            "payloadCompactedPairs": 12,
+            "payloadCompactedToolResults": 42,
+            "payloadRelocatedToolDescriptions": 19,
+            "payloadCurrentMessageShape": "tool_result",
+            "payloadContextReminderKinds": [
+              "system",
+              "language"
+            ],
+            "payloadUnknownOfficialFields": [
+              "context_management",
+              "metadata"
+            ],
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=5 strategy=health active=1 score=85 pressure=true",
+            "routingStrategy": "health",
+            "routingPressure": true,
+            "stream": true,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 17427,
+            "firstTokenMs": 5254,
+            "attempts": 5,
+            "toolUseCount": 3,
+            "outputTokens": 507,
+            "cacheCreationInputTokens": 107293
+          },
+          {
+            "timestamp": "2026-05-19T07:09:30.57588403Z",
+            "requestId": "63db620b-1f17-48a1-ad40-a452498cdb69",
+            "method": "POST",
+            "endpoint": "/v1/messages",
+            "model": "claude-opus-4-7",
+            "accountId": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+            "region": "us-east-1",
+            "claudeCodeSessionId": "60974a41-0bf3-4a3a-b28b-f386bd22d721",
+            "anthropicRequestId": "req_e2423f6b-9ec8-4178-8de9-c8e6035c315b",
+            "anthropicVersion": "2023-06-01",
+            "anthropicBetas": [
+              "advisor-tool-2026-03-01",
+              "claude-code-20250219",
+              "context-1m-2025-08-07",
+              "context-management-2025-06-27",
+              "effort-2025-11-24",
+              "interleaved-thinking-2025-05-14",
+              "prompt-caching-scope-2026-01-05",
+              "redact-thinking-2026-02-12"
+            ],
+            "payloadOriginalBytes": 351605,
+            "payloadFinalBytes": 131172,
+            "payloadTrimmed": true,
+            "payloadTrimmedCount": 55,
+            "payloadCurrentTools": 16,
+            "payloadCurrentToolSchemaBytes": 13523,
+            "payloadKeptTools": [
+              "agent",
+              "taskGet",
+              "taskList",
+              "taskStop",
+              "taskCreate",
+              "taskOutput",
+              "taskUpdate",
+              "write",
+              "bash",
+              "edit",
+              "read",
+              "webFetch",
+              "webSearch",
+              "notebookEdit",
+              "cronDelete",
+              "askUserQuestion"
+            ],
+            "payloadTrimmedTools": [
+              "cronCreate",
+              "enterPlanMode",
+              "enterWorktree",
+              "exitPlanMode",
+              "exitWorktree",
+              "monitor",
+              "pushNotification",
+              "scheduleWakeup",
+              "skill",
+              "cronList"
+            ],
+            "payloadCompactedPairs": 11,
+            "payloadCompactedToolResults": 38,
+            "payloadRelocatedToolDescriptions": 19,
+            "payloadCurrentMessageShape": "tool_result",
+            "payloadContextReminderKinds": [
+              "system",
+              "language"
+            ],
+            "payloadUnknownOfficialFields": [
+              "context_management",
+              "metadata"
+            ],
+            "accountActiveConnections": 1,
+            "accountHealthScore": 85,
+            "routingDecision": "selected account=62c85da6-7eac-46eb-a8c9-7470695df3c7 model=claude-opus-4.7 region=us-east-1 attempt=5 strategy=health active=1 score=85 pressure=true",
+            "routingStrategy": "health",
+            "routingPressure": true,
+            "stream": true,
+            "statusCode": 200,
+            "outcome": "success",
+            "durationMs": 13366,
+            "firstTokenMs": 4690,
+            "attempts": 5,
+            "toolUseCount": 3,
+            "outputTokens": 382,
+            "cacheCreationInputTokens": 103491
+          }
+        ]
+      },
+      "text": "{\"logs\":[{\"timestamp\":\"2026-05-19T07:10:09.350869514Z\",\"requestId\":\"ed1f9cc5-3603-4060-9857-50eeb7e2b78b\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-opus-4-7\",\"accountId\":\"2980ad67-e95f-498f-a774-9e420b3f6f2f\",\"region\":\"us-east-1\",\"anthropicRequestId\":\"req_b66c8720-fba3-4687-94ad-d8c75118a13a\",\"anthropicVersion\":\"2023-06-01\",\"payloadOriginalBytes\":393,\"payloadFinalBytes\":474,\"payloadCurrentMessageShape\":\"text\",\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=2980ad67-e95f-498f-a774-9e420b3f6f2f model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true\",\"routingStrategy\":\"health\",\"routingPressure\":true,\"stream\":false,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":14728,\"queueWaitMs\":11225,\"firstTokenMs\":1999,\"attempts\":3,\"inputTokens\":5931,\"outputTokens\":19},{\"timestamp\":\"2026-05-19T07:10:01.781817944Z\",\"requestId\":\"25953e36-d996-4fc0-90a2-00ff89350975\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-opus-4-7\",\"accountId\":\"54a00e6f-a582-4083-a197-ea2a1a0cb847\",\"region\":\"us-east-1\",\"claudeCodeSessionId\":\"60974a41-0bf3-4a3a-b28b-f386bd22d721\",\"anthropicRequestId\":\"req_c10d17aa-5e9d-48b8-a01a-b8647816c060\",\"anthropicVersion\":\"2023-06-01\",\"anthropicBetas\":[\"advisor-tool-2026-03-01\",\"claude-code-20250219\",\"context-1m-2025-08-07\",\"context-management-2025-06-27\",\"effort-2025-11-24\",\"interleaved-thinking-2025-05-14\",\"prompt-caching-scope-2026-01-05\",\"redact-thinking-2026-02-12\"],\"payloadOriginalBytes\":380322,\"payloadFinalBytes\":139586,\"payloadTrimmed\":true,\"payloadTrimmedCount\":61,\"payloadCurrentTools\":16,\"payloadCurrentToolSchemaBytes\":13523,\"payloadKeptTools\":[\"agent\",\"taskGet\",\"taskList\",\"taskStop\",\"taskCreate\",\"taskOutput\",\"taskUpdate\",\"write\",\"bash\",\"edit\",\"read\",\"webFetch\",\"webSearch\",\"notebookEdit\",\"cronDelete\",\"askUserQuestion\"],\"payloadTrimmedTools\":[\"cronCreate\",\"enterPlanMode\",\"enterWorktree\",\"exitPlanMode\",\"exitWorktree\",\"monitor\",\"pushNotification\",\"scheduleWakeup\",\"skill\",\"cronList\"],\"payloadCompactedPairs\":13,\"payloadCompactedToolResults\":46,\"payloadRelocatedToolDescriptions\":19,\"payloadCurrentMessageShape\":\"tool_result\",\"payloadContextReminderKinds\":[\"system\",\"language\"],\"payloadUnknownOfficialFields\":[\"context_management\",\"metadata\"],\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=54a00e6f-a582-4083-a197-ea2a1a0cb847 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true\",\"routingStrategy\":\"health\",\"routingPressure\":true,\"stream\":true,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":18793,\"queueWaitMs\":4696,\"firstTokenMs\":6116,\"attempts\":3,\"toolUseCount\":3,\"outputTokens\":373,\"cacheCreationInputTokens\":113582},{\"timestamp\":\"2026-05-19T07:10:06.537596147Z\",\"requestId\":\"b58bba08-11b3-4cf7-acd9-183b0e9341f6\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-sonnet-4-5-20250929\",\"accountId\":\"71cf722d-a7b0-49a1-9998-bef22a11cf45\",\"region\":\"us-east-1\",\"anthropicRequestId\":\"req_74fd0daf-2ac9-4a07-a0cf-b3cbce4c024e\",\"anthropicVersion\":\"2023-06-01\",\"payloadOriginalBytes\":397,\"payloadFinalBytes\":478,\"payloadCurrentMessageShape\":\"text\",\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=71cf722d-a7b0-49a1-9998-bef22a11cf45 model=claude-sonnet-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false\",\"routingStrategy\":\"health\",\"stream\":false,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":2771,\"firstTokenMs\":2016,\"attempts\":1,\"inputTokens\":4144,\"outputTokens\":19},{\"timestamp\":\"2026-05-19T07:09:45.428411879Z\",\"requestId\":\"uat-temporary-limit-fix-20260519150937-direct-opus\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-opus-4.7\",\"accountId\":\"1e7bad65-4a46-40d0-81bd-19fde0f14954\",\"region\":\"us-east-1\",\"claudeCodeSessionId\":\"uat-temporary-limit-fix-20260519150937\",\"claudeCodeAgentId\":\"uat-direct\",\"anthropicRequestId\":\"uat-temporary-limit-fix-20260519150937-direct-opus\",\"anthropicVersion\":\"2023-06-01\",\"anthropicBetas\":[\"claude-code-20250219\",\"fine-grained-tool-streaming-2025-05-14\"],\"payloadOriginalBytes\":392,\"payloadFinalBytes\":473,\"payloadCurrentMessageShape\":\"text\",\"fineGrainedToolStreamingRequested\":true,\"fineGrainedToolStreamingMode\":\"requested_partial\",\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=1e7bad65-4a46-40d0-81bd-19fde0f14954 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=true\",\"routingStrategy\":\"health\",\"routingPressure\":true,\"stream\":false,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":21078,\"queueWaitMs\":16040,\"firstTokenMs\":4851,\"attempts\":1,\"inputTokens\":5927,\"outputTokens\":18},{\"timestamp\":\"2026-05-19T07:09:44.041791941Z\",\"requestId\":\"88cd63ae-8353-46c6-823e-afdab63f1b57\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-opus-4-7\",\"accountId\":\"6f572596-acd3-4e06-947a-4dd11424d4df\",\"region\":\"us-east-1\",\"claudeCodeSessionId\":\"60974a41-0bf3-4a3a-b28b-f386bd22d721\",\"anthropicRequestId\":\"req_9cff4e21-4741-4d21-8c4d-ff6399f7d46a\",\"anthropicVersion\":\"2023-06-01\",\"anthropicBetas\":[\"advisor-tool-2026-03-01\",\"claude-code-20250219\",\"context-1m-2025-08-07\",\"context-management-2025-06-27\",\"effort-2025-11-24\",\"interleaved-thinking-2025-05-14\",\"prompt-caching-scope-2026-01-05\",\"redact-thinking-2026-02-12\"],\"payloadOriginalBytes\":362593,\"payloadFinalBytes\":131806,\"payloadTrimmed\":true,\"payloadTrimmedCount\":58,\"payloadCurrentTools\":16,\"payloadCurrentToolSchemaBytes\":13523,\"payloadKeptTools\":[\"agent\",\"taskGet\",\"taskList\",\"taskStop\",\"taskCreate\",\"taskOutput\",\"taskUpdate\",\"write\",\"bash\",\"edit\",\"read\",\"webFetch\",\"webSearch\",\"notebookEdit\",\"cronDelete\",\"askUserQuestion\"],\"payloadTrimmedTools\":[\"cronCreate\",\"enterPlanMode\",\"enterWorktree\",\"exitPlanMode\",\"exitWorktree\",\"monitor\",\"pushNotification\",\"scheduleWakeup\",\"skill\",\"cronList\"],\"payloadCompactedPairs\":12,\"payloadCompactedToolResults\":42,\"payloadRelocatedToolDescriptions\":19,\"payloadCurrentMessageShape\":\"tool_result\",\"payloadContextReminderKinds\":[\"system\",\"language\"],\"payloadUnknownOfficialFields\":[\"context_management\",\"metadata\"],\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=5 strategy=health active=1 score=85 pressure=true\",\"routingStrategy\":\"health\",\"routingPressure\":true,\"stream\":true,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":17427,\"firstTokenMs\":5254,\"attempts\":5,\"toolUseCount\":3,\"outputTokens\":507,\"cacheCreationInputTokens\":107293},{\"timestamp\":\"2026-05-19T07:09:30.57588403Z\",\"requestId\":\"63db620b-1f17-48a1-ad40-a452498cdb69\",\"method\":\"POST\",\"endpoint\":\"/v1/messages\",\"model\":\"claude-opus-4-7\",\"accountId\":\"62c85da6-7eac-46eb-a8c9-7470695df3c7\",\"region\":\"us-east-1\",\"claudeCodeSessionId\":\"60974a41-0bf3-4a3a-b28b-f386bd22d721\",\"anthropicRequestId\":\"req_e2423f6b-9ec8-4178-8de9-c8e6035c315b\",\"anthropicVersion\":\"2023-06-01\",\"anthropicBetas\":[\"advisor-tool-2026-03-01\",\"claude-code-20250219\",\"context-1m-2025-08-07\",\"context-management-2025-06-27\",\"effort-2025-11-24\",\"interleaved-thinking-2025-05-14\",\"prompt-caching-scope-2026-01-05\",\"redact-thinking-2026-02-12\"],\"payloadOriginalBytes\":351605,\"payloadFinalBytes\":131172,\"payloadTrimmed\":true,\"payloadTrimmedCount\":55,\"payloadCurrentTools\":16,\"payloadCurrentToolSchemaBytes\":13523,\"payloadKeptTools\":[\"agent\",\"taskGet\",\"taskList\",\"taskStop\",\"taskCreate\",\"taskOutput\",\"taskUpdate\",\"write\",\"bash\",\"edit\",\"read\",\"webFetch\",\"webSearch\",\"notebookEdit\",\"cronDelete\",\"askUserQuestion\"],\"payloadTrimmedTools\":[\"cronCreate\",\"enterPlanMode\",\"enterWorktree\",\"exitPlanMode\",\"exitWorktree\",\"monitor\",\"pushNotification\",\"scheduleWakeup\",\"skill\",\"cronList\"],\"payloadCompactedPairs\":11,\"payloadCompactedToolResults\":38,\"payloadRelocatedToolDescriptions\":19,\"payloadCurrentMessageShape\":\"tool_result\",\"payloadContextReminderKinds\":[\"system\",\"language\"],\"payloadUnknownOfficialFields\":[\"context_management\",\"metadata\"],\"accountActiveConnections\":1,\"accountHealthScore\":85,\"routingDecision\":\"selected account=62c85da6-7eac-46eb-a8c9-7470695df3c7 model=claude-opus-4.7 region=us-east-1 attempt=5 strategy=health active=1 score=85 pressure=true\",\"routingStrategy\":\"health\",\"routingPressure\":true,\"stream\":true,\"statusCode\":200,\"outcome\":\"success\",\"durationMs\":13366,\"firstTokenMs\":4690,\"attempts\":5,\"toolUseCount\":3,\"outputTokens\":382,\"cacheCreationInputTokens\":103491}]}\n"
+    }
+  },
+  "db": {
+    "before": {
+      "usageRows": 59662,
+      "lastUsage": "2026-05-19T15:09:44.902874+08:00"
+    },
+    "claudeKeyShape": {
+      "id": 2,
+      "name": "claude",
+      "status": "active",
+      "group_name": "claude",
+      "key_prefix": "sk-aa1c2..."
+    },
+    "after": {
+      "usageRows": 59668,
+      "lastUsage": "2026-05-19T15:10:24.081229+08:00"
+    },
+    "markerUsage": null,
+    "windowUsage": [
+      {
+        "id": 59702,
+        "request_id": "req_b66c8720-fba3-4687-94ad-d8c75118a13a",
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": false,
+        "input_tokens": 5931,
+        "output_tokens": 19,
+        "duration_ms": 14737,
+        "created_at": "2026-05-19T15:10:24.081229+08:00",
+        "account_name": "kiro_claude_01",
+        "group_name": "claude",
+        "api_key_name": "claude"
+      },
+      {
+        "id": 59701,
+        "request_id": "req_c10d17aa-5e9d-48b8-a01a-b8647816c060",
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": true,
+        "input_tokens": 0,
+        "output_tokens": 373,
+        "duration_ms": 18795,
+        "created_at": "2026-05-19T15:10:20.577814+08:00",
+        "account_name": "kiro_claude_01",
+        "group_name": "claude",
+        "api_key_name": "claude"
+      },
+      {
+        "id": 59700,
+        "request_id": "req_74fd0daf-2ac9-4a07-a0cf-b3cbce4c024e",
+        "model": "claude-sonnet-4-5-20250929",
+        "requested_model": "claude-sonnet-4-5-20250929",
+        "upstream_model": null,
+        "stream": false,
+        "input_tokens": 4144,
+        "output_tokens": 19,
+        "duration_ms": 2773,
+        "created_at": "2026-05-19T15:10:09.310139+08:00",
+        "account_name": "kiro_claude_01",
+        "group_name": "claude",
+        "api_key_name": "claude"
+      },
+      {
+        "id": 59698,
+        "request_id": "req_9cff4e21-4741-4d21-8c4d-ff6399f7d46a",
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": true,
+        "input_tokens": 0,
+        "output_tokens": 507,
+        "duration_ms": 17428,
+        "created_at": "2026-05-19T15:10:01.470594+08:00",
+        "account_name": "kiro_claude_01",
+        "group_name": "claude",
+        "api_key_name": "claude"
+      }
+    ]
+  },
+  "browser": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "requestFailures": [],
+    "textChecks": {
+      "kiroApiHasClaudeCode": true,
+      "kiroLogsHasRequestUI": true,
+      "subDashboardVisible": true,
+      "subAccountsVisible": true,
+      "subGroupsVisible": true,
+      "subUsageVisible": true
+    }
+  },
+  "screenshots": {
+    "kiroDashboard": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/kiro-admin-dashboard.png",
+    "kiroApi": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/kiro-admin-api-readiness.png",
+    "kiroLogs": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/kiro-admin-request-logs.png",
+    "subDashboard": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/sub2api-dashboard.png",
+    "subAccounts": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/sub2api-accounts.png",
+    "subGroups": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/sub2api-groups.png",
+    "subUsage": "docs/superpowers/uat/uat-temporary-limit-fix-20260519150937/sub2api-usage.png"
+  },
+  "checks": {
+    "kiroHealth": true,
+    "sub2apiHealth": true,
+    "claudeGroupKeySelected": true,
+    "directMessageOk": true,
+    "sub2apiSonnetMessageOk": true,
+    "sub2apiOpusMessageOk": true,
+    "sub2apiDbUsageRows": true,
+    "noWrongGroupKey": true,
+    "browserScreenshotsExist": true,
+    "browserTextLooksCorrect": true,
+    "browserNoPageErrors": true,
+    "browserNoApiRequestFailures": true
+  },
+  "notes": [],
+  "evidence": {
+    "directLog": {
+      "timestamp": "2026-05-19T07:09:45.428411879Z",
+      "requestId": "uat-temporary-limit-fix-20260519150937-direct-opus",
+      "method": "POST",
+      "endpoint": "/v1/messages",
+      "model": "claude-opus-4.7",
+      "accountId": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+      "region": "us-east-1",
+      "claudeCodeSessionId": "uat-temporary-limit-fix-20260519150937",
+      "claudeCodeAgentId": "uat-direct",
+      "anthropicRequestId": "uat-temporary-limit-fix-20260519150937-direct-opus",
+      "anthropicVersion": "2023-06-01",
+      "anthropicBetas": [
+        "claude-code-20250219",
+        "fine-grained-tool-streaming-2025-05-14"
+      ],
+      "payloadOriginalBytes": 392,
+      "payloadFinalBytes": 473,
+      "payloadCurrentMessageShape": "text",
+      "fineGrainedToolStreamingRequested": true,
+      "fineGrainedToolStreamingMode": "requested_partial",
+      "accountActiveConnections": 1,
+      "accountHealthScore": 85,
+      "routingDecision": "selected account=1e7bad65-4a46-40d0-81bd-19fde0f14954 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=true",
+      "routingStrategy": "health",
+      "routingPressure": true,
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 21078,
+      "queueWaitMs": 16040,
+      "firstTokenMs": 4851,
+      "attempts": 1,
+      "inputTokens": 5927,
+      "outputTokens": 18
+    }
+  },
+  "pass": true
+}

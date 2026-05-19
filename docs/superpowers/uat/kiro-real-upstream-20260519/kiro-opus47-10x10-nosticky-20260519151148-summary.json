@@ -1,0 +1,34 @@
+{
+  "runId": "kiro-opus47-10x10-nosticky-20260519151148",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync-no-sticky",
+  "model": "claude-opus-4.7",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 99,
+  "exactCorrect": 99,
+  "containsMarker": 99,
+  "failed": 1,
+  "statusCounts": {
+    "200": 99,
+    "503": 1
+  },
+  "latencyMs": {
+    "min": 1574,
+    "max": 102695,
+    "avg": 42088,
+    "p50": 41704,
+    "p90": 77629,
+    "p95": 85885,
+    "p99": 93391
+  },
+  "failures": [
+    {
+      "index": 39,
+      "status": 503,
+      "durationMs": 90004,
+      "rawPreview": "{\"error\":{\"message\":\"claude-opus-4.7 concurrency queue timeout\",\"type\":\"api_error\"},\"type\":\"error\"}\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-opus47-10x10-nosticky-20260519151148.jsonl"
+}

@@ -144,10 +144,14 @@ func TestCallKiroAPIUsesAccountRegionForStreamingEndpoint(t *testing.T) {
 
 	var requestedHost string
 	var requestedRequestHost string
+	var requestedConnection string
+	var requestedClose bool
 	kiroHttpStore.Store(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			requestedHost = req.URL.Host
 			requestedRequestHost = req.Host
+			requestedConnection = req.Header.Get("Connection")
+			requestedClose = req.Close
 			return &http.Response{
 				StatusCode: http.StatusTooManyRequests,
 				Body:       io.NopCloser(strings.NewReader(`{"message":"rate limited"}`)),
@@ -176,6 +180,9 @@ func TestCallKiroAPIUsesAccountRegionForStreamingEndpoint(t *testing.T) {
 	}
 	if requestedRequestHost != "q.eu-central-1.amazonaws.com" {
 		t.Fatalf("expected request Host header to match regional q host, got %q", requestedRequestHost)
+	}
+	if requestedConnection != "close" || !requestedClose {
+		t.Fatalf("expected streaming request to disable connection reuse, header=%q close=%v", requestedConnection, requestedClose)
 	}
 }
 
@@ -298,6 +305,49 @@ func TestCallKiroAPIDoesNotFallbackEndpointsForOpus47RateLimit(t *testing.T) {
 	}
 	if attempts != 1 {
 		t.Fatalf("expected opus 4.7 429 to stop endpoint fallback after one attempt, got %d", attempts)
+	}
+}
+
+func TestCallKiroAPIDoesNotFallbackEndpointsForSuspiciousTemporaryLimit(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("auto"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(true); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	attempts := 0
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected suspicious temporary limit error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected suspicious temporary limit to stop endpoint fallback after one attempt, got %d", attempts)
+	}
+	if !strings.Contains(err.Error(), "suspicious activity") || !strings.Contains(err.Error(), "temporary limits") {
+		t.Fatalf("expected upstream temporary limit body to be preserved, got %q", err.Error())
 	}
 }
 
@@ -437,6 +487,14 @@ func TestCallKiroAPIReturnsRateLimitResetFromRetryAfter(t *testing.T) {
 	resetAt := rlErr.RateLimitResetAt()
 	if resetAt.Before(start.Add(1500*time.Millisecond)) || resetAt.After(start.Add(3*time.Second)) {
 		t.Fatalf("expected reset near 2s from start, got %s", resetAt.Sub(start))
+	}
+}
+
+func TestCallKiroAPIRateLimitFallbackResetIsThreeSeconds(t *testing.T) {
+	now := time.Now()
+	resetAt := rateLimitResetAt(nil, "", now)
+	if resetAt.Before(now.Add(2500*time.Millisecond)) || resetAt.After(now.Add(3500*time.Millisecond)) {
+		t.Fatalf("expected default reset near 3s from now, got %s", resetAt.Sub(now))
 	}
 }
 

@@ -1,0 +1,1 @@
+{"go_test_all":"PASS","docker_health":"PASS","admin_test_throttle":"PASS","suspicious_temporary_limit_endpoint_fallback":"stopped","notes":"Claude Code/sub2api API paths remain unthrottled; admin account generation tests are rate-limited to avoid burning accounts."}

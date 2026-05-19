@@ -1317,6 +1317,7 @@
                 'accounts.banned': '已封禁',
                 'accounts.suspended': '已暂停',
                 'accounts.coolingDown': '冷却中',
+                'accounts.riskGroup': '风险组',
                 'accounts.refreshFailed': '刷新失败',
                 'accounts.confirmDelete': '确定删除？',
                 'accounts.mainQuota': '主配额',
@@ -1626,6 +1627,8 @@
                 'accounts.testLog.globalProxy': '全局代理',
                 'accounts.testLog.start': '开始测试 {0} | 模型: {1} | 代理: {2}',
                 'accounts.testLog.success': '✓ {0} 成功 ({1}s) 回复: {2}',
+                'accounts.testLog.capacityBusy': '⚠ {0} 模型繁忙 ({1}s)，账号未判定失败: {2}',
+                'accounts.testLog.temporaryLimited': '⚠ {0} 生成接口临时限频，已进入冷却 {1}s: {2}',
                 'accounts.testLog.failed': '✗ {0} 失败 ({1}s): {2}',
                 'accounts.testLog.error': '✗ {0} 异常: {1}',
                 'promptFilter.noRules': '暂无自定义规则',
@@ -1673,6 +1676,7 @@
                 'accounts.banned': 'Banned',
                 'accounts.suspended': 'Suspended',
                 'accounts.coolingDown': 'Cooling',
+                'accounts.riskGroup': 'Risk group',
                 'accounts.refreshFailed': 'Refresh failed',
                 'accounts.confirmDelete': 'Confirm delete?',
                 'accounts.copyJSON': 'Copy JSON',
@@ -1972,6 +1976,8 @@
                 'accounts.testLog.globalProxy': 'Global Proxy',
                 'accounts.testLog.start': 'Testing {0} | Model: {1} | Proxy: {2}',
                 'accounts.testLog.success': '✓ {0} OK ({1}s) Reply: {2}',
+                'accounts.testLog.capacityBusy': '⚠ {0} model busy ({1}s), account not marked failed: {2}',
+                'accounts.testLog.temporaryLimited': '⚠ {0} generation temporarily limited, cooling down for {1}s: {2}',
                 'accounts.testLog.failed': '✗ {0} Failed ({1}s): {2}',
                 'accounts.testLog.error': '✗ {0} Error: {1}',
                 'promptFilter.noRules': 'No custom rules yet',
@@ -2302,6 +2308,7 @@
                 const weightBadge = weightVal >= 2 ? '<span class="badge" style="background:#f59e0b;color:#fff">W:' + weightVal + '</span>' : '';
                 const overageBadge = a.allowOverage ? '<span class="badge badge-warning">' + t('accounts.overage') + ':' + (a.overageWeight || 1) + '</span>' : '';
                 const cooldownBadge = getCooldownBadge(a);
+                const riskGroupBadge = getRiskGroupBadge(a);
                 return '<div class="account-card" style="' + (isSelected ? 'border-color:#7c3aed;background:#faf5ff' : '') + '">' +
                     '<div class="account-header">' +
                     '<div class="account-info" style="display:flex;align-items:center;gap:8px">' +
@@ -2314,6 +2321,7 @@
                     weightBadge +
                     overageBadge +
                     cooldownBadge +
+                    riskGroupBadge +
                     '<span class="badge badge-info">' + formatAuthMethod(a.provider || a.authMethod) + '</span>' +
                     getStatusBadge(a) +
                     '</div>' +
@@ -2359,7 +2367,7 @@
         }
 
         function isCoolingDown(account) {
-            return account && account.cooldownUntil && account.cooldownUntil > Date.now() / 1000;
+            return account && ((account.coolingDown === true) || (account.cooldownUntil && account.cooldownUntil > Date.now() / 1000));
         }
 
         function formatCooldownRemaining(cooldownUntil) {
@@ -2375,6 +2383,12 @@
         function getCooldownBadge(account) {
             if (!isCoolingDown(account)) return '';
             return '<span class="badge badge-warning">' + t('accounts.coolingDown') + ' ' + formatCooldownRemaining(account.cooldownUntil) + '</span>';
+        }
+
+        function getRiskGroupBadge(account) {
+            const size = Number(account && account.riskGroupSize || 0);
+            if (size <= 1) return '';
+            return '<span class="badge badge-warning" title="' + escapeHtml(account.riskGroupKey || '') + '">' + t('accounts.riskGroup') + ':' + size + '</span>';
         }
 
         function formatTrialExpiry(timestamp) {
@@ -2761,9 +2775,30 @@
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 const d = await res.json();
                 if (d.success) {
-                    addTestLog(t('accounts.testLog.success', email, elapsed, d.reply), 'ok');
-                    btn.textContent = '✓';
-                    btn.style.background = '#059669';
+                    if (d.status === 'capacity_busy') {
+                        addTestLog(t('accounts.testLog.capacityBusy', email, elapsed, d.message || d.error || 'model capacity busy'), 'info');
+                        btn.textContent = '!';
+                        btn.style.background = '#d97706';
+                    } else if (d.status === 'temporary_limited') {
+                        const retryAfter = Number(d.retry_after_seconds || 0);
+                        addTestLog(t('accounts.testLog.temporaryLimited', email, retryAfter || '-', d.message || d.error || 'temporary limited'), 'info');
+                        if (acc) {
+                            const seconds = retryAfter > 0 ? retryAfter : 60;
+                            acc.lastFailureReason = d.reason || 'temporary_limited';
+                            acc.failureCount = Math.max(Number(acc.failureCount || 0), 1);
+                            acc.coolingDown = true;
+                            acc.cooldownUntil = Math.ceil(Date.now() / 1000) + seconds;
+                            acc.cooldownRemainingSeconds = seconds;
+                            renderAccounts();
+                            refreshOpenAccountDetail();
+                        }
+                        btn.textContent = '!';
+                        btn.style.background = '#d97706';
+                    } else {
+                        addTestLog(t('accounts.testLog.success', email, elapsed, d.reply), 'ok');
+                        btn.textContent = '✓';
+                        btn.style.background = '#059669';
+                    }
                 } else {
                     addTestLog(t('accounts.testLog.failed', email, elapsed, d.error || 'unknown'), 'err');
                     btn.textContent = '✗';
@@ -3008,6 +3043,7 @@
                 if (!el) return;
                 const accounts = Array.isArray(data.accounts) ? data.accounts : [];
                 const rows = accounts.map(function(account) {
+                    const cooldown = account.coolingDown ? ((account.cooldownSource || 'account') + ' ' + (account.cooldownRemainingSeconds || 0) + 's') : '-';
                     return '<tr>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.id || '-') + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.email || '-') + '</td>' +
@@ -3015,6 +3051,7 @@
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.healthy ? 'yes' : 'no') + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.listsModel ? 'yes' : 'no') + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.schedulable ? 'yes' : 'no') + '</td>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(cooldown) + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(account.reason || '-') + '</td>' +
                         '</tr>';
                 }).join('');
@@ -3033,9 +3070,10 @@
                     '<th style="text-align:left;padding:6px">Healthy</th>' +
                     '<th style="text-align:left;padding:6px">Lists model</th>' +
                     '<th style="text-align:left;padding:6px">Schedulable</th>' +
+                    '<th style="text-align:left;padding:6px">Cooldown</th>' +
                     '<th style="text-align:left;padding:6px">Reason</th>' +
                     '</tr></thead>' +
-                    '<tbody>' + (rows || '<tr><td colspan="7" style="padding:6px;border-top:1px solid #e2e8f0;color:#64748b">No accounts</td></tr>') + '</tbody>' +
+                    '<tbody>' + (rows || '<tr><td colspan="8" style="padding:6px;border-top:1px solid #e2e8f0;color:#64748b">No accounts</td></tr>') + '</tbody>' +
                     '</table>';
             } catch (e) { }
         }

@@ -1,0 +1,6 @@
+INFO  2026/05/19 12:00:53 [ModelAdmission] default=16/300 models=2 legacyOpus47=10/300
+INFO  2026/05/19 12:00:53 Kiro-Go starting on http://0.0.0.0:8080 (log level: info)
+INFO  2026/05/19 12:00:53 Admin panel: http://0.0.0.0:8080/admin
+INFO  2026/05/19 12:00:53 Claude API: http://0.0.0.0:8080/v1/messages
+INFO  2026/05/19 12:00:53 OpenAI API: http://0.0.0.0:8080/v1/chat/completions
+INFO  2026/05/19 12:01:00 [ModelsCache] Cached 13 models

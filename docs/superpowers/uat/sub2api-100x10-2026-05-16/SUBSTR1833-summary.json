@@ -1,0 +1,28 @@
+{
+  "runId": "SUBSTR1833",
+  "base": "http://127.0.0.1:18080",
+  "mode": "stream",
+  "taskMode": "marker",
+  "model": "claude-opus-4-7",
+  "total": 100,
+  "concurrency": 10,
+  "success": 100,
+  "correct": 100,
+  "containsMarker": 100,
+  "warnings": 0,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 947,
+    "max": 19842,
+    "avg": 1877,
+    "p50": 1339,
+    "p90": 2514,
+    "p95": 3368,
+    "p99": 10427
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/SUBSTR1833.jsonl"
+}

@@ -1200,18 +1200,20 @@ func TestHandleOpenAIResponsesPayloadGuardRejectsAfterProfileArnFinalization(t *
 
 	p := &pool.AccountPool{}
 	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	inputSize := maxKiroCurrentContentBytes - 128*1024
+	profileArnPadding := defaultPayloadGuardOptions().HardLimitBytes - inputSize + 128*1024
 	if err := config.AddAccount(config.Account{
 		ID:          "acct-profile-guard",
 		Enabled:     true,
 		AccessToken: "token",
-		ProfileArn:  "arn:aws:codewhisperer:profile/" + strings.Repeat("p", 250*1024),
+		ProfileArn:  "arn:aws:codewhisperer:profile/" + strings.Repeat("p", profileArnPadding),
 		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
 	}); err != nil {
 		t.Fatalf("add account: %v", err)
 	}
 	p.Reload()
 
-	input := strings.Repeat("x", defaultPayloadGuardOptions().HardLimitBytes-200*1024)
+	input := strings.Repeat("x", inputSize)
 	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"` + input + `","max_output_tokens":16}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
 	w := httptest.NewRecorder()
@@ -1246,19 +1248,21 @@ func TestHandleOpenAIResponsesPayloadGuardRunsBeforeTokenRefreshFailure(t *testi
 
 	p := &pool.AccountPool{}
 	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	inputSize := maxKiroCurrentContentBytes - 128*1024
+	profileArnPadding := defaultPayloadGuardOptions().HardLimitBytes - inputSize + 128*1024
 	if err := config.AddAccount(config.Account{
 		ID:           "acct-profile-before-refresh",
 		Enabled:      true,
 		AccessToken:  "expired-token",
 		RefreshToken: "bad-refresh-token",
-		ProfileArn:   "arn:aws:codewhisperer:profile/" + strings.Repeat("p", 250*1024),
-		ExpiresAt:    time.Now().Add(time.Duration(tokenRefreshSkewSeconds/2) * time.Second).Unix(),
+		ProfileArn:   "arn:aws:codewhisperer:profile/" + strings.Repeat("p", profileArnPadding),
+		ExpiresAt:    time.Now().Add(time.Hour).Unix(),
 	}); err != nil {
 		t.Fatalf("add account: %v", err)
 	}
 	p.Reload()
 
-	input := strings.Repeat("x", defaultPayloadGuardOptions().HardLimitBytes-200*1024)
+	input := strings.Repeat("x", inputSize)
 	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"` + input + `","max_output_tokens":16}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
 	w := httptest.NewRecorder()
@@ -2311,6 +2315,63 @@ func TestHandleClaudeOpus47RateLimitTriesNextAccountBeforeWaiting(t *testing.T) 
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeRateLimitKeepsTryingUnusedAccounts(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	for i := 1; i <= 3; i++ {
+		if err := config.AddAccount(config.Account{ID: fmt.Sprintf("acct-%d", i), Enabled: true, AccessToken: fmt.Sprintf("token-%d", i), ProfileArn: fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i), ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			status := http.StatusOK
+			body := ""
+			if len(tokens) <= 2 {
+				status = http.StatusTooManyRequests
+				body = `{"message":"Too many requests, please wait before trying again.","reason":null}`
+			}
+			return &http.Response{
+				StatusCode: status,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected third account to recover after two 429s, got status %d body %s tokens %#v", w.Code, w.Body.String(), tokens)
+	}
+	if len(tokens) != 3 {
+		t.Fatalf("expected three account attempts, got %d: %#v", len(tokens), tokens)
+	}
+	if tokens[0] != "Bearer token-1" || tokens[1] != "Bearer token-2" || tokens[2] != "Bearer token-3" {
+		t.Fatalf("expected attempts to advance across unused accounts, got %#v", tokens)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleClaudeOpus47AdmissionGateLimitsUpstreamConcurrency(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -2920,6 +2981,64 @@ func TestClaudeCodeModelReadinessReportsAccountsEvaluatedWhenEnabledButBlocked(t
 	}
 }
 
+func TestClaudeCodeModelReadinessBlocksSharedRiskGroupCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	accounts := []config.Account{
+		{
+			ID:          "limited-account",
+			Email:       "limited@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "shared-account",
+			Email:       "shared@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil("limited-account", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p, startTime: time.Now().Unix()}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4.5", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeModelReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["routingReason"] != "accounts evaluated" {
+		t.Fatalf("expected accounts evaluated while shared group cools down, got %#v", resp)
+	}
+	rows := resp["accounts"].([]interface{})
+	for _, raw := range rows {
+		row := raw.(map[string]interface{})
+		if row["schedulable"] != false {
+			t.Fatalf("expected cooled account to be non-schedulable, got %#v", row)
+		}
+		if row["id"] == "limited-account" && (row["reason"] != "temporary limited account cooling down" || row["cooldownSource"] != "account") {
+			t.Fatalf("expected limited account to report account cooldown source, got %#v", row)
+		}
+		if row["id"] == "shared-account" && (row["reason"] != "temporary limited risk group cooling down" || row["cooldownSource"] != "risk_group") {
+			t.Fatalf("expected shared account to report risk-group cooldown source, got %#v", row)
+		}
+	}
+}
+
 func TestClaudeCodeModelReadinessBlocksUsageLimitWithoutOverage(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -3434,6 +3553,12 @@ func TestClaudeUpstreamErrorsMapToAnthropicErrorTypes(t *testing.T) {
 			wantType:   "rate_limit_error",
 		},
 		{
+			name:       "temporary account limit",
+			err:        errors.New(`HTTP 429 from AmazonQ: {"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`),
+			wantStatus: http.StatusTooManyRequests,
+			wantType:   "rate_limit_error",
+		},
+		{
 			name:       "upstream unavailable",
 			err:        errors.New("HTTP 503 from Kiro IDE"),
 			wantStatus: http.StatusServiceUnavailable,
@@ -3523,6 +3648,12 @@ func TestOpenAIUpstreamErrorsPreserveRetryableStatusAndType(t *testing.T) {
 			wantType:   "rate_limit_error",
 		},
 		{
+			name:       "temporary account limit",
+			err:        &rateLimitError{endpoint: "AmazonQ", body: `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`, resetAt: time.Now().Add(time.Second)},
+			wantStatus: http.StatusTooManyRequests,
+			wantType:   "rate_limit_error",
+		},
+		{
 			name:       "upstream unavailable",
 			err:        errors.New("HTTP 503 from Kiro IDE"),
 			wantStatus: http.StatusServiceUnavailable,
@@ -3562,6 +3693,26 @@ func TestClaudeRateLimitErrorBuildsRetryAfterHeader(t *testing.T) {
 
 	if got := headers.Get("Retry-After"); got != "2" && got != "3" {
 		t.Fatalf("expected Retry-After around reset time, got %q", got)
+	}
+}
+
+func TestClaudeRealUpstreamRateLimitStillReturns429(t *testing.T) {
+	err := &rateLimitError{
+		endpoint: "Kiro IDE",
+		body:     `{"message":"rate limited"}`,
+		resetAt:  time.Now().Add(2500 * time.Millisecond),
+	}
+
+	status, errType := claudeUpstreamErrorStatusAndType(err)
+	if status != http.StatusTooManyRequests || errType != "rate_limit_error" {
+		t.Fatalf("expected real upstream rate limit to remain 429/rate_limit_error, got %d/%s", status, errType)
+	}
+	headers := claudeErrorHeadersForUpstreamError(err)
+	if got := headers.Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After for real upstream 429")
+	}
+	if got := headers.Get("X-Kiro-Go-Error-Reason"); got != "" {
+		t.Fatalf("expected no pool-only error reason for real upstream 429, got %q", got)
 	}
 }
 
@@ -3918,6 +4069,97 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeNonStreamInvalidToolUseIsSuppressedAndLogged(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-invalid-tool-nonstream",
+		Enabled:     true,
+		AccessToken: "token-invalid-tool-nonstream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":false,"max_tokens":64,"tools":[{"name":"request_user_input","description":"Ask user","input_schema":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}],"messages":[{"role":"user","content":"Ask the user to choose."}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	for _, block := range resp.Content {
+		if block.Type == "tool_use" {
+			t.Fatalf("expected invalid tool_use to be suppressed, got %#v", resp.Content)
+		}
+	}
+	if resp.StopReason == "tool_use" {
+		t.Fatalf("expected non-tool stop when invalid tool_use is suppressed, got %#v", resp)
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	entry := entries[0]
+	if entry.SuppressedToolUseCount != 1 {
+		t.Fatalf("expected one suppressed tool use, got %#v", entry)
+	}
+	if strings.Join(entry.SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed tool name, got %#v", entry)
+	}
+	if !strings.Contains(strings.Join(entry.SuppressedToolUseReasons, ","), "schema") {
+		t.Fatalf("expected suppressed tool reason, got %#v", entry)
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleOpenAIChatStreamLogsSuppressedToolUse(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -3993,6 +4235,81 @@ func TestHandleOpenAIChatStreamLogsSuppressedToolUse(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleOpenAIChatNonStreamLogsSuppressedToolUse(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-openai-chat-nonstream-suppressed-tool",
+		Enabled:     true,
+		AccessToken: "token-openai-chat-nonstream-suppressed-tool",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":false,"max_tokens":64,"tools":[{"type":"function","function":{"name":"request_user_input","description":"Ask user","parameters":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}}],"messages":[{"role":"user","content":"Ask the user to choose."}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"tool_calls"`) {
+		t.Fatalf("expected invalid tool call to be suppressed, got %q", w.Body.String())
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	if entries[0].SuppressedToolUseCount != 1 || strings.Join(entries[0].SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed request_user_input metadata, got %#v", entries[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleOpenAIResponsesStreamLogsSuppressedToolUse(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -4047,6 +4364,81 @@ func TestHandleOpenAIResponsesStreamLogsSuppressedToolUse(t *testing.T) {
 	t.Cleanup(func() { InitKiroHttpClient("") })
 
 	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_output_tokens":64,"tools":[{"type":"function","name":"request_user_input","description":"Ask user","parameters":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}],"input":"Ask the user to choose."}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"function_call"`) {
+		t.Fatalf("expected invalid function call to be suppressed, got %q", w.Body.String())
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	if entries[0].SuppressedToolUseCount != 1 || strings.Join(entries[0].SuppressedToolUseNames, ",") != "request_user_input" {
+		t.Fatalf("expected suppressed request_user_input metadata, got %#v", entries[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleOpenAIResponsesNonStreamLogsSuppressedToolUse(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-openai-responses-nonstream-suppressed-tool",
+		Enabled:     true,
+		AccessToken: "token-openai-responses-nonstream-suppressed-tool",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_input",
+							"name":      "request_user_input",
+							"input": map[string]interface{}{
+								"questions": []interface{}{
+									map[string]interface{}{"header": "A"},
+									map[string]interface{}{"header": "B"},
+									map[string]interface{}{"header": "C"},
+									map[string]interface{}{"header": "D"},
+								},
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":false,"max_output_tokens":64,"tools":[{"type":"function","name":"request_user_input","description":"Ask user","parameters":{"type":"object","properties":{"questions":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"header":{"type":"string"}}}}},"required":["questions"]}}],"input":"Ask the user to choose."}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
 	w := httptest.NewRecorder()
 
@@ -4342,6 +4734,72 @@ func TestAdminAccountFullExposesHealthCooldownFields(t *testing.T) {
 	}
 }
 
+func TestAdminAccountsExposeRiskGroupAndCooldownState(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	now := time.Now()
+	accounts := []config.Account{
+		{
+			ID:                "acct-1",
+			Email:             "one@example.com",
+			Enabled:           true,
+			UserId:            "d-shared.user-one",
+			ProfileArn:        "arn:aws:codewhisperer:us-east-1:123:profile/shared",
+			LastFailureReason: "temporary_limited",
+			CooldownUntil:     now.Add(time.Minute).Unix(),
+			FailureCount:      1,
+		},
+		{
+			ID:         "acct-2",
+			Email:      "two@example.com",
+			Enabled:    true,
+			UserId:     "d-shared.user-two",
+			ProfileArn: "arn:aws:codewhisperer:us-east-1:123:profile/shared",
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/accounts", nil)
+
+	h.apiGetAccounts(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	var rows []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
+		t.Fatalf("decode accounts: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("expected two accounts, got %#v", rows)
+	}
+	for _, row := range rows {
+		if row["riskGroupKey"] != "profile:arn:aws:codewhisperer:us-east-1:123:profile/shared" {
+			t.Fatalf("expected profile risk group key, got %#v", row)
+		}
+		if row["riskGroupSize"] != float64(2) {
+			t.Fatalf("expected shared risk group size 2, got %#v", row)
+		}
+	}
+	if rows[0]["coolingDown"] != true {
+		t.Fatalf("expected first account coolingDown=true, got %#v", rows[0])
+	}
+	if rows[1]["coolingDown"] != true || rows[1]["cooldownSource"] != "risk_group" {
+		t.Fatalf("expected second account to inherit risk-group cooldown, got %#v", rows[1])
+	}
+	if remaining, ok := rows[0]["cooldownRemainingSeconds"].(float64); !ok || remaining < 50 || remaining > 65 {
+		t.Fatalf("expected cooldown remaining around 60s, got %#v", rows[0])
+	}
+}
+
 func TestRecordAccountFailureUsesRateLimitResetTime(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -4366,6 +4824,482 @@ func TestRecordAccountFailureUsesRateLimitResetTime(t *testing.T) {
 	}
 	if got.CooldownUntil-time.Now().Unix() > 5 {
 		t.Fatalf("expected short precise cooldown, got until %d", got.CooldownUntil)
+	}
+}
+
+func TestRecordAccountFailureModelCapacityDoesNotMarkAccountFailed(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{ID: "acct-capacity", Email: "capacity@example.com", Enabled: true}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+
+	reason := h.recordAccountFailure(account.ID, &rateLimitError{
+		endpoint: "Kiro IDE",
+		body:     `{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}`,
+		resetAt:  time.Now().Add(5 * time.Second),
+	})
+
+	if reason != pool.FailureReasonModelCapacity {
+		t.Fatalf("expected model_capacity reason, got %q", reason)
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "" || got.FailureCount != 0 || got.CooldownUntil != 0 {
+		t.Fatalf("expected account health to remain clean for model capacity, got %#v", got)
+	}
+	health := p.GetRuntimeHealth(account.ID)
+	if health.RecentFailures != 0 || health.Score != 100 {
+		t.Fatalf("expected runtime health to remain clean for model capacity, got %#v", health)
+	}
+}
+
+func TestShouldWaitAndRetryOpus47DoesNotRetrySuspiciousTemporaryLimit(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	err := &rateLimitError{
+		endpoint: "Kiro IDE",
+		body:     `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`,
+		resetAt:  time.Now().Add(5 * time.Second),
+	}
+
+	if shouldWaitAndRetryOpus47(err, "claude-opus-4.7") {
+		t.Fatalf("expected suspicious temporary limit to stop Opus 4.7 retry loop")
+	}
+}
+
+func TestAPITestAccountTreatsModelCapacityAsBusyNotFailed(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	account := config.Account{
+		ID:          "acct-test-capacity",
+		Email:       "capacity@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-test-capacity/test", strings.NewReader(`{"model":"claude-opus-4.7"}`))
+	w := httptest.NewRecorder()
+
+	h.apiTestAccount(w, req, account.ID)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected capacity busy to use HTTP 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["success"] != true || resp["status"] != "capacity_busy" || resp["reason"] != string(pool.FailureReasonModelCapacity) {
+		t.Fatalf("expected capacity_busy success response, got %#v", resp)
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "" || got.FailureCount != 0 || got.CooldownUntil != 0 {
+		t.Fatalf("expected account health to remain clean for model capacity, got %#v", got)
+	}
+}
+
+func TestAPITestAccountRecordsSuspiciousTemporaryLimitCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	account := config.Account{
+		ID:          "acct-test-temp-limit",
+		Email:       "temp-limit@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-test-temp-limit/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	w := httptest.NewRecorder()
+
+	h.apiTestAccount(w, req, account.ID)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected temporary limit test to use HTTP 200 UI response, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["success"] != true || resp["status"] != "temporary_limited" || resp["reason"] != string(pool.FailureReasonTemporaryLimited) {
+		t.Fatalf("expected temporary_limited success response for UI, got %#v", resp)
+	}
+	if _, ok := resp["retry_after_seconds"].(float64); !ok {
+		t.Fatalf("expected retry_after_seconds in response, got %#v", resp)
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "temporary_limited" || got.CooldownUntil <= time.Now().Unix() {
+		t.Fatalf("expected account cooldown to be persisted, got %#v", got)
+	}
+}
+
+func TestAPITestAccountSkipsUpstreamWhenTemporaryLimitCoolingDown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:          "acct-test-temp-cooling",
+		Email:       "temp-cooling@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil(account.ID, pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p}
+	upstreamCalled := false
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalled = true
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-test-temp-cooling/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	w := httptest.NewRecorder()
+
+	h.apiTestAccount(w, req, account.ID)
+
+	if upstreamCalled {
+		t.Fatalf("expected test endpoint to skip upstream while account is cooling down")
+	}
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected cooldown UI response to use HTTP 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["success"] != true || resp["status"] != "temporary_limited" {
+		t.Fatalf("expected temporary_limited cooldown response, got %#v", resp)
+	}
+	retryAfter, ok := resp["retry_after_seconds"].(float64)
+	if !ok || retryAfter < 25 || retryAfter > 65 {
+		t.Fatalf("expected retry_after_seconds from existing cooldown, got %#v", resp)
+	}
+}
+
+func TestAPITestAccountSkipsUpstreamWhenSharedRiskGroupCoolingDown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	accounts := []config.Account{
+		{
+			ID:          "acct-limited",
+			Email:       "limited@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "acct-shared",
+			Email:       "shared@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil("acct-limited", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p}
+	upstreamCalled := false
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalled = true
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-shared/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	w := httptest.NewRecorder()
+
+	h.apiTestAccount(w, req, "acct-shared")
+
+	if upstreamCalled {
+		t.Fatalf("expected shared-risk-group test to skip upstream")
+	}
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected cooldown UI response to use HTTP 200, got %d body %s", w.Code, w.Body.String())
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["success"] != true || resp["status"] != "temporary_limited" || resp["cooldown_source"] != "risk_group" {
+		t.Fatalf("expected temporary_limited risk-group cooldown response, got %#v", resp)
+	}
+}
+
+func TestAPITestAccountThrottlesBackToBackGenerationTests(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:          "acct-test-throttle",
+		Email:       "test-throttle@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	originalSpacing := adminAccountTestMinSpacing
+	adminAccountTestMinSpacing = 3 * time.Second
+	t.Cleanup(func() { adminAccountTestMinSpacing = originalSpacing })
+
+	upstreamCalls := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalls++
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	firstReq := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-test-throttle/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	firstW := httptest.NewRecorder()
+	h.apiTestAccount(firstW, firstReq, account.ID)
+
+	secondReq := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-test-throttle/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	secondW := httptest.NewRecorder()
+	h.apiTestAccount(secondW, secondReq, account.ID)
+
+	if upstreamCalls != 1 {
+		t.Fatalf("expected second back-to-back admin test to skip upstream, got %d upstream calls", upstreamCalls)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(secondW.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode second response: %v", err)
+	}
+	if resp["success"] != true || resp["status"] != "test_throttled" {
+		t.Fatalf("expected test_throttled response, got %#v", resp)
+	}
+	if retryAfter, ok := resp["retry_after_seconds"].(float64); !ok || retryAfter < 1 {
+		t.Fatalf("expected retry_after_seconds, got %#v", resp)
+	}
+}
+
+func TestRecordAccountFailureSuspiciousTemporaryLimitUsesAdaptiveCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{ID: "acct-1", Email: "acct1@example.com", Enabled: true}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+
+	reason := h.recordAccountFailure(account.ID, &rateLimitError{endpoint: "AmazonQ", body: errBody, resetAt: time.Now().Add(5 * time.Second)})
+
+	if reason != pool.FailureReasonTemporaryLimited {
+		t.Fatalf("expected temporary_limited reason, got %q", reason)
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "temporary_limited" {
+		t.Fatalf("expected temporary_limited persisted reason, got %q", got.LastFailureReason)
+	}
+	remaining := got.CooldownUntil - time.Now().Unix()
+	if remaining < 2 || remaining > 5 {
+		t.Fatalf("expected single-account adaptive cooldown around 3s, got %ds", remaining)
+	}
+	if shouldRetryAccount(reason, 0) {
+		t.Fatalf("expected temporary_limited to stop the current request without burning more accounts")
+	}
+	status, errType := claudeUpstreamErrorStatusAndType(&rateLimitError{endpoint: "AmazonQ", body: errBody, resetAt: time.Now().Add(5 * time.Second)})
+	if status != http.StatusTooManyRequests || errType != "rate_limit_error" {
+		t.Fatalf("expected Claude 429 rate_limit_error, got %d %s", status, errType)
+	}
+	headers := claudeErrorHeadersForUpstreamError(&rateLimitError{endpoint: "AmazonQ", body: errBody, resetAt: time.Now().Add(5 * time.Second)})
+	retryAfter, err := strconv.Atoi(headers.Get("Retry-After"))
+	if err != nil {
+		t.Fatalf("expected Retry-After header, got %q", headers.Get("Retry-After"))
+	}
+	if got := headers.Get("X-Kiro-Go-Error-Reason"); got != "TEMPORARY_LIMITED" {
+		t.Fatalf("expected TEMPORARY_LIMITED reason header, got %q", got)
+	}
+	if retryAfter < 55 || retryAfter > 65 {
+		t.Fatalf("expected public Retry-After around 60s for upstream suspicious temporary limit, got %d", retryAfter)
+	}
+}
+
+func TestSendNoAvailableAccountsMapsTemporaryLimitedPoolToClaudeRetryableRateLimit(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:          "acct-temp-limited",
+		Email:       "acct@example.com",
+		Enabled:     true,
+		AccessToken: "token",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetModelList(account.ID, []string{"claude-opus-4.7"})
+	p.RecordFailureUntil(account.ID, pool.FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+	h := &Handler{pool: p}
+	w := httptest.NewRecorder()
+
+	h.sendNoAvailableAccountsError(w, "claude-opus-4.7", nil, true)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected retryable rate limit status, got %d body %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	var resp struct {
+		Type  string            `json:"type"`
+		Error map[string]string `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Error["type"] != "rate_limit_error" {
+		t.Fatalf("expected rate_limit_error for downstream retry/failover, got %#v", resp)
+	}
+	if !strings.Contains(resp.Error["message"], "TEMPORARY_LIMITED") {
+		t.Fatalf("expected temporary limit reason in message, got %#v", resp)
+	}
+}
+
+func TestSendNoAvailableAccountsDoesNotReportTemporaryLimitWhileAccountsRemainSchedulable(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	accounts := []config.Account{
+		{
+			ID:          "acct-temp-limited",
+			Email:       "limited@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/test",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "acct-healthy",
+			Email:       "healthy@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/other",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetModelList("acct-temp-limited", []string{"claude-opus-4.7"})
+	p.SetModelList("acct-healthy", []string{"claude-opus-4.7"})
+	p.RecordFailureUntil("acct-temp-limited", pool.FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+	h := &Handler{pool: p}
+	w := httptest.NewRecorder()
+
+	h.sendNoAvailableAccountsError(w, "claude-opus-4.7", nil, true)
+
+	if w.Header().Get("X-Kiro-Go-Error-Reason") == "TEMPORARY_LIMITED" {
+		t.Fatalf("did not expect pool temporary limit while a matching account remains schedulable")
+	}
+	if strings.Contains(w.Body.String(), "TEMPORARY_LIMITED") {
+		t.Fatalf("did not expect temporary limit message while a matching account remains schedulable: %s", w.Body.String())
 	}
 }
 

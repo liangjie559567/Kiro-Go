@@ -1,0 +1,1 @@
+{"model":"claude-sonnet-4.5","max_tokens":80,"stream":true,"messages":[{"role":"user","content":"Return exactly this marker and nothing else: uat-playwright-mcp-20260519142251-sub2api"}]}

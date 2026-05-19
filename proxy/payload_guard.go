@@ -20,6 +20,7 @@ type payloadGuardOptions struct {
 	MaxSchemaDescription int
 	MaxSchemaDepth       int
 	MaxSchemaProperties  int
+	MaxCurrentContent    int
 	MaxHistoryToolBytes  int
 	MaxHistoryBlockBytes int
 }
@@ -45,11 +46,12 @@ type payloadGuardResult struct {
 
 const minCurrentToolResultTextBytes = 256
 const maxCurrentToolResultTextBytes = 64 * 1024
-const maxHistoryToolResultTextBytes = 128 * 1024
+const maxKiroCurrentContentBytes = 768 * 1024
+const maxHistoryToolResultTextBytes = 1024 * 1024
 const maxHistoryToolResultBlockBytes = 8 * 1024
 const kiroMalformedRiskPayloadBytes = 400 * 1024
-const maxKiroHistoryMessages = 48
-const maxKiroHistoryToolUses = 16
+const maxKiroHistoryMessages = 256
+const maxKiroHistoryToolUses = 128
 const maxKiroTools = 16
 const maxKiroToolSchemaBytes = 60 * 1024
 const maxKiroToolDescriptionBytes = 1024
@@ -155,6 +157,10 @@ func guardKiroPayload(payload *KiroPayload, opts payloadGuardOptions) (payloadGu
 		if currentToolResultsSize(payload) > opts.HardLimitBytes/2 {
 			return result, fmt.Errorf("current tool_result content is too large for Kiro payload")
 		}
+	}
+
+	if currentContentSize(payload) > opts.MaxCurrentContent {
+		return result, fmt.Errorf("Kiro payload remains too large after trimming: current content is %d bytes", currentContentSize(payload))
 	}
 
 	if shouldTrimHistoryToolResults(payload, opts) {
@@ -388,6 +394,9 @@ func normalizePayloadGuardOptions(opts payloadGuardOptions) payloadGuardOptions 
 	if opts.MaxSchemaProperties <= 0 {
 		opts.MaxSchemaProperties = maxKiroSchemaProperties
 	}
+	if opts.MaxCurrentContent <= 0 {
+		opts.MaxCurrentContent = maxKiroCurrentContentBytes
+	}
 	if opts.MaxHistoryToolBytes <= 0 {
 		opts.MaxHistoryToolBytes = maxHistoryToolResultTextBytes
 	}
@@ -463,6 +472,13 @@ func currentToolResultsSize(payload *KiroPayload) int {
 		}
 	}
 	return total
+}
+
+func currentContentSize(payload *KiroPayload) int {
+	if payload == nil {
+		return 0
+	}
+	return len(payload.ConversationState.CurrentMessage.UserInputMessage.Content)
 }
 
 func currentToolsJSONSize(payload *KiroPayload) int {

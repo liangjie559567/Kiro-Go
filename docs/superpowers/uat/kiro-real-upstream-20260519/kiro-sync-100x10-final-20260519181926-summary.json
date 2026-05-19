@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-sync-100x10-final-20260519181926",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync",
+  "model": "claude-opus-4.7",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1187,
+    "max": 46835,
+    "avg": 15972,
+    "p50": 9654,
+    "p90": 36744,
+    "p95": 37746,
+    "p99": 45317
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-sync-100x10-final-20260519181926.jsonl"
+}

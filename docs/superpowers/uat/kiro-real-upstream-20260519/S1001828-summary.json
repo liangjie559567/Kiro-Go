@@ -1,0 +1,26 @@
+{
+  "runId": "S1001828",
+  "base": "http://127.0.0.1:8080",
+  "mode": "stream",
+  "model": "claude-opus-4.7",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1337,
+    "max": 51435,
+    "avg": 21169,
+    "p50": 19715,
+    "p90": 47018,
+    "p95": 48457,
+    "p99": 51207
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/S1001828.jsonl"
+}

@@ -1,0 +1,20 @@
+kiro-go-kiro-go-1	Up 13 seconds	0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+waoowaoo-test-redis	Up 29 seconds (healthy)	0.0.0.0:6380->6379/tcp, [::]:6380->6379/tcp
+waoowaoo-test-mysql	Up 29 seconds (healthy)	33060/tcp, 0.0.0.0:3307->3306/tcp, [::]:3307->3306/tcp
+waoowaoo-app	Up 20 hours (healthy)	0.0.0.0:13000->3000/tcp, [::]:13000->3000/tcp, 0.0.0.0:13010->3010/tcp, [::]:13010->3010/tcp
+sub2api	Up 21 hours (healthy)	0.0.0.0:18080->8080/tcp
+sub2api-postgres	Up 36 hours (healthy)	5432/tcp
+sub2api-redis	Up 36 hours (healthy)	6379/tcp
+waoowaoo-redis	Up 2 days (healthy)	0.0.0.0:16379->6379/tcp, [::]:16379->6379/tcp
+waoowaoo-mysql	Up 2 days (healthy)	33060/tcp, 0.0.0.0:13306->3306/tcp, [::]:13306->3306/tcp
+waoowaoo-minio	Up 2 days (healthy)	0.0.0.0:19000->9000/tcp, [::]:19000->9000/tcp, 0.0.0.0:19001->9001/tcp, [::]:19001->9001/tcp
+xboard-web-1	Up 2 days	127.0.0.1:7001->7001/tcp
+xboard-horizon-1	Up 2 days	7001/tcp
+xboard-ws-server-1	Up 2 days	7001/tcp, 127.0.0.1:8076->8076/tcp
+xboard-redis-1	Up 2 days	6379/tcp
+memos	Up 2 days	0.0.0.0:8023->5230/tcp, [::]:8023->5230/tcp
+php	Up 2 days	9000/tcp
+php74	Up 2 days	9000/tcp
+nginx	Up 2 days	
+redis	Up 2 days	6379/tcp
+mysql	Up 2 days (healthy)	3306/tcp, 33060/tcp

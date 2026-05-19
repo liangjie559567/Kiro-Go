@@ -4,20 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 type claudeSSEWriter struct {
-	w              http.ResponseWriter
-	flusher        http.Flusher
-	messageID      string
-	model          string
-	startUsage     map[string]interface{}
-	toolChunkBytes int
-	started        bool
-	stopped        bool
-	nextIndex      int
-	activeIndex    int
-	activeType     string
+	w               http.ResponseWriter
+	flusher         http.Flusher
+	messageID       string
+	model           string
+	startUsage      map[string]interface{}
+	toolChunkBytes  int
+	started         bool
+	stopped         bool
+	nextIndex       int
+	activeIndex     int
+	activeType      string
+	activeSignature string
 }
 
 func newClaudeSSEWriter(w http.ResponseWriter, messageID, model string, startUsage map[string]interface{}, toolChunkBytes int) *claudeSSEWriter {
@@ -75,7 +78,11 @@ func (s *claudeSSEWriter) ThinkingDelta(text string) {
 	if text == "" || s.stopped {
 		return
 	}
-	s.startBlock("thinking", map[string]string{"type": "thinking", "thinking": ""})
+	signature := generateClaudeThinkingSignature()
+	s.startBlock("thinking", map[string]string{"type": "thinking", "thinking": "", "signature": signature})
+	if s.activeSignature == "" {
+		s.activeSignature = signature
+	}
 	s.write("content_block_delta", map[string]interface{}{
 		"type":  "content_block_delta",
 		"index": s.activeIndex,
@@ -149,7 +156,7 @@ func (s *claudeSSEWriter) Stop(stopReason string, usage map[string]interface{}) 
 	s.Start()
 	s.write("message_delta", map[string]interface{}{
 		"type":  "message_delta",
-		"delta": map[string]interface{}{"stop_reason": stopReason},
+		"delta": map[string]interface{}{"stop_reason": stopReason, "stop_sequence": nil},
 		"usage": usage,
 	})
 	s.write("message_stop", map[string]string{"type": "message_stop"})
@@ -177,9 +184,21 @@ func (s *claudeSSEWriter) closeBlock() {
 	if s.activeIndex < 0 {
 		return
 	}
+	if s.activeType == "thinking" {
+		signature := s.activeSignature
+		if signature == "" {
+			signature = generateClaudeThinkingSignature()
+		}
+		s.write("content_block_delta", map[string]interface{}{
+			"type":  "content_block_delta",
+			"index": s.activeIndex,
+			"delta": map[string]string{"type": "signature_delta", "signature": signature},
+		})
+	}
 	s.write("content_block_stop", map[string]interface{}{"type": "content_block_stop", "index": s.activeIndex})
 	s.activeIndex = -1
 	s.activeType = ""
+	s.activeSignature = ""
 }
 
 func (s *claudeSSEWriter) write(event string, data interface{}) {
@@ -188,6 +207,10 @@ func (s *claudeSSEWriter) write(event string, data interface{}) {
 	if s.flusher != nil {
 		s.flusher.Flush()
 	}
+}
+
+func generateClaudeThinkingSignature() string {
+	return "sig_" + uuid.New().String()
 }
 
 func chunkStringForSSE(value string, maxBytes int) []string {

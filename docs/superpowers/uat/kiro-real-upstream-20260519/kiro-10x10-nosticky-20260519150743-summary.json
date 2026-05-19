@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-10x10-nosticky-20260519150743",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync-no-sticky",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 100,
+  "exactCorrect": 100,
+  "containsMarker": 100,
+  "failed": 0,
+  "statusCounts": {
+    "200": 100
+  },
+  "latencyMs": {
+    "min": 1641,
+    "max": 16856,
+    "avg": 3169,
+    "p50": 2776,
+    "p90": 4175,
+    "p95": 4427,
+    "p99": 10415
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-10x10-nosticky-20260519150743.jsonl"
+}

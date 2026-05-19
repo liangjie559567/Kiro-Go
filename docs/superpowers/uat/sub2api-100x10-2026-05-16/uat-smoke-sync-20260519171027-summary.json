@@ -1,0 +1,41 @@
+{
+  "runId": "uat-smoke-sync-20260519171027",
+  "base": "http://127.0.0.1:18080",
+  "mode": "sync",
+  "taskMode": "marker",
+  "model": "claude-sonnet-4.5",
+  "total": 1,
+  "concurrency": 1,
+  "success": 0,
+  "correct": 0,
+  "containsMarker": 0,
+  "warnings": 0,
+  "failed": 1,
+  "statusCounts": {
+    "503": 1
+  },
+  "latencyMs": {
+    "min": 65,
+    "max": 65,
+    "avg": 65,
+    "p50": 65,
+    "p90": 65,
+    "p95": 65,
+    "p99": 65
+  },
+  "failures": [
+    {
+      "index": 1,
+      "marker": "uat-smoke-sync-20260519171027-001",
+      "expected": "uat-smoke-sync-20260519171027-001",
+      "status": 503,
+      "durationMs": 65,
+      "correct": false,
+      "containsMarker": false,
+      "warning": false,
+      "textPreview": "",
+      "rawPreview": "{\"error\":{\"message\":\"No available accounts: no available accounts\",\"type\":\"api_error\"},\"type\":\"error\"}"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/sub2api-100x10-2026-05-16/uat-smoke-sync-20260519171027.jsonl"
+}

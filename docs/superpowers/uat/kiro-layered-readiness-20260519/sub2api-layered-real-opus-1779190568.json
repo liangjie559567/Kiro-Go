@@ -1,0 +1,58 @@
+{
+  "runId": "sub2api-layered-real-opus-1779190568",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-opus-4-7",
+  "keyPath": "/tmp/sub2api_claude_real_key",
+  "startedAt": "2026-05-19T11:36:08.121Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 55,
+    "modelCount": 13
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 16,
+    "body": {
+      "input_tokens": 28
+    },
+    "positiveInputTokens": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 3363,
+    "text": "sub2api-layered-real-opus-1779190568-marker",
+    "textTrimmed": "sub2api-layered-real-opus-1779190568-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 5925,
+      "output_tokens": 15
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1782,
+    "text": "sub2api-layered-real-opus-1779190568-marker",
+    "textTrimmed": "sub2api-layered-real-opus-1779190568-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": true,
+  "finishedAt": "2026-05-19T11:36:13.339Z"
+}

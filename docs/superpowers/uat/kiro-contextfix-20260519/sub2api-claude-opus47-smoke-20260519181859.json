@@ -1,0 +1,82 @@
+{
+  "runId": "sub2api-claude-opus47-smoke-20260519181859",
+  "base": "http://127.0.0.1:18080",
+  "model": "claude-opus-4-7",
+  "keyPath": "/tmp/sub2api_claude_key",
+  "startedAt": "2026-05-19T10:18:59.875Z",
+  "models": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 44,
+    "modelCount": 17
+  },
+  "countTokens": {
+    "status": 404,
+    "ok": false,
+    "durationMs": 6,
+    "body": {
+      "error": {
+        "message": "Token counting is not supported for this platform",
+        "type": "not_found_error"
+      },
+      "type": "error"
+    },
+    "positiveInputTokens": false,
+    "rawPreview": "{\"error\":{\"message\":\"Token counting is not supported for this platform\",\"type\":\"not_found_error\"},\"type\":\"error\"}"
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2584,
+    "text": "sub2api-claude-opus47-smoke-20260519181859-marker",
+    "textTrimmed": "sub2api-claude-opus47-smoke-20260519181859-marker",
+    "correct": true,
+    "stopReason": "end_turn",
+    "usage": {
+      "input_tokens": 139,
+      "output_tokens": 22,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0
+    }
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 1225,
+    "text": "sub2api-claude-opus47-smoke-20260519181859-marker",
+    "textTrimmed": "sub2api-claude-opus47-smoke-20260519181859-marker",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 23,
+    "events": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "parseErrors": [],
+    "parseErrorCount": 0
+  },
+  "passed": false,
+  "finishedAt": "2026-05-19T10:19:03.737Z"
+}

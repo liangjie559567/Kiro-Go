@@ -1,0 +1,1 @@
+{"model":"claude-opus-4-7","max_tokens":32,"stream":false,"messages":[{"role":"user","content":"Reply with exactly this marker and nothing else: UAT_KIRO_OPT_20260519204516"}]}

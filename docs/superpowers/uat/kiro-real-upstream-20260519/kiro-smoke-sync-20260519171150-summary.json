@@ -1,0 +1,26 @@
+{
+  "runId": "kiro-smoke-sync-20260519171150",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync",
+  "model": "claude-sonnet-4.5",
+  "total": 1,
+  "concurrency": 1,
+  "httpSuccess": 1,
+  "exactCorrect": 1,
+  "containsMarker": 1,
+  "failed": 0,
+  "statusCounts": {
+    "200": 1
+  },
+  "latencyMs": {
+    "min": 2617,
+    "max": 2617,
+    "avg": 2617,
+    "p50": 2617,
+    "p90": 2617,
+    "p95": 2617,
+    "p99": 2617
+  },
+  "failures": [],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-smoke-sync-20260519171150.jsonl"
+}

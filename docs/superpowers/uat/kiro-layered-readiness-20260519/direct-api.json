@@ -1,0 +1,458 @@
+{
+  "runId": "layered-readiness-1779190333111",
+  "base": "http://127.0.0.1:8080",
+  "model": "claude-sonnet-4.5",
+  "marker": "layered-readiness-1779190333111-OK",
+  "startedAt": "2026-05-19T11:32:13.111Z",
+  "health": {
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"uptime\":54,\"version\":\"1.0.8\"}\n"
+  },
+  "readinessBefore": {
+    "status": 200,
+    "ok": true,
+    "body": {
+      "capabilities": {
+        "assistantPrefill": {
+          "claudeCodeCompatibility": {
+            "mode": "emulated_text_prefill",
+            "proof": "text prefill conversion is implemented",
+            "status": "EMULATED_PASS"
+          },
+          "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+          "evidence": {
+            "mode": "emulated_text_prefill",
+            "proof": "no recent assistant text prefill request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "emulated_text_prefill",
+            "proof": "native upstream prefill is not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "countTokens": {
+          "claudeCodeCompatibility": {
+            "mode": "estimated",
+            "proof": "count_tokens endpoint is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible estimated token counting; official exact count is not proven",
+          "evidence": {
+            "mode": "estimated",
+            "proof": "no recent count_tokens request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "estimated",
+            "proof": "no upstream exact count_tokens evidence",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "fineGrainedToolStreaming": {
+          "claudeCodeCompatibility": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "Anthropic SSE input_json_delta writer is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+          "evidence": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "no recent fine-grained tool stream in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "upstream partial tool input deltas are not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "maxTokensZero": {
+          "claudeCodeCompatibility": {
+            "mode": "local_zero_output",
+            "proof": "local zero-output response shape is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible zero-output response; official cache warmup is not proven",
+          "evidence": {
+            "mode": "local_zero_output",
+            "proof": "no recent max_tokens=0 request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "local_zero_output",
+            "proof": "no upstream cache warmup evidence",
+            "status": "BLOCKED_BY_UPSTREAM"
+          },
+          "status": "PARTIAL"
+        },
+        "messages": {
+          "detail": "/v1/messages is implemented",
+          "status": "PASS"
+        },
+        "toolReference": {
+          "detail": "tool_reference is accepted and materialized when relevant",
+          "status": "PASS"
+        },
+        "toolSchemaValidation": {
+          "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+          "status": "PASS"
+        }
+      },
+      "examples": [],
+      "lastSeen": "",
+      "recentClaudeCode": false,
+      "recentContextReminders": [],
+      "recentFineGrainedToolStreaming": false,
+      "recentMCPTools": false,
+      "recentOrphanedToolResults": false,
+      "recentParentAgents": false,
+      "recentResponsesRestore": false,
+      "recentSuppressedToolUses": false,
+      "recentToolReferences": false,
+      "recentToolResultImages": false,
+      "recentToolResultTurns": false,
+      "recentToolTrimming": false,
+      "recentUnsupportedBlocks": false
+    }
+  },
+  "countTokens": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 3,
+    "body": {
+      "input_tokens": 25
+    },
+    "rawPreview": "{\"input_tokens\":25}\n",
+    "positiveInputTokens": true
+  },
+  "maxTokensZero": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2,
+    "body": {
+      "id": "msg_62b37b17-6008-429e-a962-e8605ad89e17",
+      "type": "message",
+      "role": "assistant",
+      "content": [],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "max_tokens",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 9,
+        "output_tokens": 0
+      }
+    },
+    "rawPreview": "{\"id\":\"msg_62b37b17-6008-429e-a962-e8605ad89e17\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"claude-sonnet-4.5\",\"stop_reason\":\"max_tokens\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":9,\"output_tokens\":0}}\n",
+    "validShape": true
+  },
+  "sync": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 3664,
+    "body": {
+      "id": "msg_56249c7b-9147-4822-bb2b-039975a3be73",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "layered-readiness-1779190333111-OK"
+        }
+      ],
+      "model": "claude-sonnet-4.5",
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4134,
+        "output_tokens": 13
+      }
+    },
+    "rawPreview": "{\"id\":\"msg_56249c7b-9147-4822-bb2b-039975a3be73\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"layered-readiness-1779190333111-OK\"}],\"model\":\"claude-sonnet-4.5\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":4134,\"output_tokens\":13}}\n",
+    "text": "layered-readiness-1779190333111-OK",
+    "correct": true
+  },
+  "stream": {
+    "status": 200,
+    "ok": true,
+    "durationMs": 2361,
+    "text": "layered-readiness-1779190333111-OK",
+    "correct": true,
+    "hasMessageStart": true,
+    "hasMessageStop": true,
+    "eventCount": 6,
+    "errors": [],
+    "rawPreview": "event: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_0e5732b3-0ac3-4951-9f8d-cd9e1ff8ea50\",\"model\":\"claude-sonnet-4.5\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":25,\"output_tokens\":0}},\"type\":\"message_start\"}\n\nevent: content_block_start\ndata: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"layered-readiness-1779190333111-OK\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":4134,\"output_tokens\":13}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+  },
+  "readinessAfter": {
+    "status": 200,
+    "ok": true,
+    "body": {
+      "capabilities": {
+        "assistantPrefill": {
+          "claudeCodeCompatibility": {
+            "mode": "emulated_text_prefill",
+            "proof": "text prefill conversion is implemented",
+            "status": "EMULATED_PASS"
+          },
+          "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+          "evidence": {
+            "mode": "emulated_text_prefill",
+            "proof": "no recent assistant text prefill request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "emulated_text_prefill",
+            "proof": "native upstream prefill is not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "countTokens": {
+          "claudeCodeCompatibility": {
+            "mode": "estimated",
+            "proof": "count_tokens endpoint returned input_tokens",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible estimated token counting; official exact count is not proven",
+          "evidence": {
+            "lastRequestId": "layered-readiness-1779190333111-e0xt1ueigpk",
+            "lastSeenAt": "2026-05-19T11:32:13Z",
+            "mode": "estimated",
+            "model": "claude-sonnet-4.5",
+            "proof": "recent count_tokens request completed"
+          },
+          "officialAnthropicParity": {
+            "mode": "estimated",
+            "proof": "no upstream exact count_tokens evidence",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "fineGrainedToolStreaming": {
+          "claudeCodeCompatibility": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "Anthropic SSE input_json_delta writer is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+          "evidence": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "no recent fine-grained tool stream in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "upstream partial tool input deltas are not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "maxTokensZero": {
+          "claudeCodeCompatibility": {
+            "mode": "local_zero_output",
+            "proof": "zero-output response shape completed",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible zero-output response; official cache warmup is not proven",
+          "evidence": {
+            "lastRequestId": "layered-readiness-1779190333111-4jnoxupwbtk",
+            "lastSeenAt": "2026-05-19T11:32:13Z",
+            "mode": "local_zero_output",
+            "model": "claude-sonnet-4.5",
+            "proof": "recent max_tokens=0 request completed"
+          },
+          "officialAnthropicParity": {
+            "mode": "local_zero_output",
+            "proof": "no upstream cache warmup evidence",
+            "status": "BLOCKED_BY_UPSTREAM"
+          },
+          "status": "PARTIAL"
+        },
+        "messages": {
+          "detail": "/v1/messages is implemented",
+          "status": "PASS"
+        },
+        "toolReference": {
+          "detail": "tool_reference is accepted and materialized when relevant",
+          "status": "PASS"
+        },
+        "toolSchemaValidation": {
+          "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+          "status": "PASS"
+        }
+      },
+      "examples": [
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-sonnet-4.5",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-19T11:32:19.187671473Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-sonnet-4.5",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-19T11:32:16.826484201Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-sonnet-4.5",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-19T11:32:13.161897525Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-sonnet-4.5",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-19T11:32:13.160533057Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "",
+          "endpoint": "/v1/messages/count_tokens",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-sonnet-4.5",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-19T11:32:13.157828536Z",
+          "unsupportedContentBlocks": null
+        }
+      ],
+      "lastSeen": "2026-05-19T11:32:19Z",
+      "recentClaudeCode": true,
+      "recentContextReminders": [],
+      "recentFineGrainedToolStreaming": false,
+      "recentMCPTools": false,
+      "recentOrphanedToolResults": false,
+      "recentParentAgents": false,
+      "recentResponsesRestore": false,
+      "recentSuppressedToolUses": false,
+      "recentToolReferences": false,
+      "recentToolResultImages": false,
+      "recentToolResultTurns": false,
+      "recentToolTrimming": false,
+      "recentUnsupportedBlocks": false
+    }
+  },
+  "layeredChecks": {
+    "countTokens": {
+      "hasStatus": true,
+      "hasDetail": true,
+      "hasCompat": true,
+      "hasOfficial": true,
+      "hasEvidence": true,
+      "status": "PARTIAL",
+      "compat": {
+        "mode": "estimated",
+        "proof": "count_tokens endpoint returned input_tokens",
+        "status": "PASS"
+      },
+      "official": {
+        "mode": "estimated",
+        "proof": "no upstream exact count_tokens evidence",
+        "status": "PARTIAL"
+      },
+      "evidence": {
+        "lastRequestId": "layered-readiness-1779190333111-e0xt1ueigpk",
+        "lastSeenAt": "2026-05-19T11:32:13Z",
+        "mode": "estimated",
+        "model": "claude-sonnet-4.5",
+        "proof": "recent count_tokens request completed"
+      }
+    },
+    "maxTokensZero": {
+      "hasStatus": true,
+      "hasDetail": true,
+      "hasCompat": true,
+      "hasOfficial": true,
+      "hasEvidence": true,
+      "status": "PARTIAL",
+      "compat": {
+        "mode": "local_zero_output",
+        "proof": "zero-output response shape completed",
+        "status": "PASS"
+      },
+      "official": {
+        "mode": "local_zero_output",
+        "proof": "no upstream cache warmup evidence",
+        "status": "BLOCKED_BY_UPSTREAM"
+      },
+      "evidence": {
+        "lastRequestId": "layered-readiness-1779190333111-4jnoxupwbtk",
+        "lastSeenAt": "2026-05-19T11:32:13Z",
+        "mode": "local_zero_output",
+        "model": "claude-sonnet-4.5",
+        "proof": "recent max_tokens=0 request completed"
+      }
+    },
+    "assistantPrefill": {
+      "hasStatus": true,
+      "hasDetail": true,
+      "hasCompat": true,
+      "hasOfficial": true,
+      "hasEvidence": true,
+      "status": "PARTIAL",
+      "compat": {
+        "mode": "emulated_text_prefill",
+        "proof": "text prefill conversion is implemented",
+        "status": "EMULATED_PASS"
+      },
+      "official": {
+        "mode": "emulated_text_prefill",
+        "proof": "native upstream prefill is not proven",
+        "status": "PARTIAL"
+      },
+      "evidence": {
+        "mode": "emulated_text_prefill",
+        "proof": "no recent assistant text prefill request in readiness window"
+      }
+    },
+    "fineGrainedToolStreaming": {
+      "hasStatus": true,
+      "hasDetail": true,
+      "hasCompat": true,
+      "hasOfficial": true,
+      "hasEvidence": true,
+      "status": "PARTIAL",
+      "compat": {
+        "mode": "kiro_go_chunked_complete_input",
+        "proof": "Anthropic SSE input_json_delta writer is implemented",
+        "status": "PASS"
+      },
+      "official": {
+        "mode": "kiro_go_chunked_complete_input",
+        "proof": "upstream partial tool input deltas are not proven",
+        "status": "PARTIAL"
+      },
+      "evidence": {
+        "mode": "kiro_go_chunked_complete_input",
+        "proof": "no recent fine-grained tool stream in readiness window"
+      }
+    }
+  },
+  "passed": true,
+  "finishedAt": "2026-05-19T11:32:21.864Z"
+}

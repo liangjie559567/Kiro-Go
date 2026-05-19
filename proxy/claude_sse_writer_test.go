@@ -65,35 +65,45 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 	assertFrameEvent(t, frames, 1, "content_block_start")
 	assertFrameIndex(t, frames[1], 0)
 	assertNestedString(t, frames[1], "content_block", "type", "thinking")
+	if got := requireNestedString(t, frames[1], "content_block", "signature"); !strings.HasPrefix(got, "sig_") {
+		t.Fatalf("thinking signature = %q, want sig_ prefix", got)
+	}
 
 	assertFrameEvent(t, frames, 2, "content_block_delta")
 	assertFrameIndex(t, frames[2], 0)
 	assertNestedString(t, frames[2], "delta", "type", "thinking_delta")
 	assertNestedString(t, frames[2], "delta", "thinking", "reason")
 
-	assertFrameEvent(t, frames, 3, "content_block_stop")
+	assertFrameEvent(t, frames, 3, "content_block_delta")
 	assertFrameIndex(t, frames[3], 0)
+	assertNestedString(t, frames[3], "delta", "type", "signature_delta")
+	if got := requireNestedString(t, frames[3], "delta", "signature"); !strings.HasPrefix(got, "sig_") {
+		t.Fatalf("signature_delta = %q, want sig_ prefix", got)
+	}
 
-	assertFrameEvent(t, frames, 4, "content_block_start")
-	assertFrameIndex(t, frames[4], 1)
-	assertNestedString(t, frames[4], "content_block", "type", "text")
+	assertFrameEvent(t, frames, 4, "content_block_stop")
+	assertFrameIndex(t, frames[4], 0)
 
-	assertFrameEvent(t, frames, 5, "content_block_delta")
+	assertFrameEvent(t, frames, 5, "content_block_start")
 	assertFrameIndex(t, frames[5], 1)
-	assertNestedString(t, frames[5], "delta", "type", "text_delta")
-	assertNestedString(t, frames[5], "delta", "text", "answer")
+	assertNestedString(t, frames[5], "content_block", "type", "text")
 
-	assertFrameEvent(t, frames, 6, "content_block_stop")
+	assertFrameEvent(t, frames, 6, "content_block_delta")
 	assertFrameIndex(t, frames[6], 1)
+	assertNestedString(t, frames[6], "delta", "type", "text_delta")
+	assertNestedString(t, frames[6], "delta", "text", "answer")
 
-	assertFrameEvent(t, frames, 7, "content_block_start")
-	assertFrameIndex(t, frames[7], 2)
-	assertNestedString(t, frames[7], "content_block", "type", "tool_use")
-	assertNestedString(t, frames[7], "content_block", "id", "toolu_1")
-	assertNestedString(t, frames[7], "content_block", "name", "readFile")
+	assertFrameEvent(t, frames, 7, "content_block_stop")
+	assertFrameIndex(t, frames[7], 1)
+
+	assertFrameEvent(t, frames, 8, "content_block_start")
+	assertFrameIndex(t, frames[8], 2)
+	assertNestedString(t, frames[8], "content_block", "type", "tool_use")
+	assertNestedString(t, frames[8], "content_block", "id", "toolu_1")
+	assertNestedString(t, frames[8], "content_block", "name", "readFile")
 
 	var toolInputJSON strings.Builder
-	next := 8
+	next := 9
 	for ; next < len(frames); next++ {
 		if frames[next].event == "content_block_stop" {
 			break
@@ -122,6 +132,7 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 
 	assertFrameEvent(t, frames, next, "message_delta")
 	assertNestedString(t, frames[next], "delta", "stop_reason", "tool_use")
+	assertNestedNull(t, frames[next], "delta", "stop_sequence")
 	next++
 
 	assertFrameEvent(t, frames, next, "message_stop")
@@ -129,6 +140,19 @@ func TestClaudeSSEWriterMixedThinkingTextToolOrder(t *testing.T) {
 	if next != len(frames) {
 		t.Fatalf("unexpected frames after message_stop: events=%v", frameEvents(frames[next:]))
 	}
+}
+
+func TestClaudeSSEWriterMessageDeltaIncludesStopSequence(t *testing.T) {
+	w := httptest.NewRecorder()
+	writer := newClaudeSSEWriter(w, "msg_test", "claude-sonnet-4.5", buildClaudeUsageMap(10, 0, promptCacheUsage{}, false), 4096)
+	writer.TextDelta("hello")
+	writer.Stop("end_turn", buildClaudeUsageMap(10, 1, promptCacheUsage{}, false))
+
+	frames := parseSSEFrames(t, w.Body.String())
+	messageDelta := frames[len(frames)-2]
+	assertFrameEvent(t, frames, len(frames)-2, "message_delta")
+	assertNestedString(t, messageDelta, "delta", "stop_reason", "end_turn")
+	assertNestedNull(t, messageDelta, "delta", "stop_sequence")
 }
 
 func TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop(t *testing.T) {
@@ -286,6 +310,17 @@ func requireNestedString(t *testing.T, frame sseFrame, objectKey, fieldKey strin
 		t.Fatalf("frame %q %s.%s missing or non-string: %#v", frame.event, objectKey, fieldKey, obj[fieldKey])
 	}
 	return got
+}
+
+func assertNestedNull(t *testing.T, frame sseFrame, objectKey, fieldKey string) {
+	t.Helper()
+	obj, ok := frame.data[objectKey].(map[string]interface{})
+	if !ok {
+		t.Fatalf("frame %q %s missing or non-object: %#v", frame.event, objectKey, frame.data[objectKey])
+	}
+	if value, ok := obj[fieldKey]; !ok || value != nil {
+		t.Fatalf("frame %q %s.%s = %#v, want null", frame.event, objectKey, fieldKey, value)
+	}
 }
 
 func (f sseFrame) String() string {

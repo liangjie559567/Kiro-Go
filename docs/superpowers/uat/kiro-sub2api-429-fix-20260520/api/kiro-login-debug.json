@@ -1,0 +1,20 @@
+{
+  "logs": [
+    {
+      "url": "http://127.0.0.1:8080/admin/api/status",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8080/admin/api/status",
+      "status": 200
+    }
+  ],
+  "state": {
+    "pwdLen": 32,
+    "loginHidden": "login-wrapper hidden",
+    "mainHidden": "container",
+    "error": "",
+    "body": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n21\n账号\n8722\n请求\n4943\n成功\n3779\n失败\n101.2M\nTokens\n790.1\nCredits\n账号\n设置\nAPI\n账号列表\n隐私模式\n导出\n刷新模型缓存\n添加账号\n全选\n全部\n已启用\n已禁用\n已封禁\nro***@gm***.com\nPRO\nW:3\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n264.0 / 1000\n26.4%\n1081\n请求\n32.8M\nTokens\n263.8\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n222.0 / 1000\n22.2%\n1079\n请求\n24.7M\nTokens\n222.4\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n258.0 / 1000\n25.8%\n1429\n请求\n29.1M\nTokens\n258.1\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nru***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n197.0 / 1000\n19.7%\n1267\n请求\n20.7M\nTokens\n199.9\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nro***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n173.0 / 1000\n17.3%\n921\n请求\n18.3M\nTokens\n173.1\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nch***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n125.0 / 1000\n12.5%\n1092\n请求\n14.2M\nTokens\n125.0\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nle***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n118.0 / 1000\n11.8%\n606\n请求\n14.7M\nTokens\n118.7\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nvi***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n149.0 / 1000\n14.9%\n1087\n请求\n19.0M\nTokens\n148.9\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nwa***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n124.0 / 1000\n12.4%\n1064\n请求\n15.4M\nTokens\n124.5\nCredits\n57分钟\n到期\n0\n1\n2\n3\n4\n5\n权重\nsf***@gm***.com\nPRO\nW:2\n冷却中 49s\n风险组:21\nGoogle\n正常\n已启用\n禁用\n测试\n删除\n主配额\n127.0 / ",
+    "localLen": 32
+  }
+}

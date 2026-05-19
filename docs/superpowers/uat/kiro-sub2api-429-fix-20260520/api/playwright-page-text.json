@@ -1,0 +1,10 @@
+{
+  "kiroTitle": "Kiro-Go",
+  "kiroText": "中文\nEN\nKiro-Go\n\n请输入管理密码登录\n\n管理密码\n登录",
+  "subTitle": "Home - CGTall-AI",
+  "subText": "🇺🇸\nEN\nLogin\nCGTall-AI\n\nSubscription to API Conversion Platform\n\nGet Started\nterminal\n$\ncurl\n-X POST\n/v1/messages\n# Routing to upstream...\n200 OK\n{ \"content\": \"Hello!\" }\n$\nSubscription to API\nSession Persistence\nPay As You Go\nOne-Click Access\n\nGet a single API key to call all connected AI models. No separate applications needed.\n\nAlways Reliable\n\nSmart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.\n\nPay What You Use\n\nUsage-based billing with quota limits. Full visibility into team consumption.\n\nSupported AI Models\n\nOne API, Multiple Choices\n\nC\nClaude\nSupported\nG\nGPT\nSupported\nG\nGemini\nSupported\nA\nAntigravity\nSupported\n+\nMore\nSoon\n\n© 2026 CGTall-AI. All rights reserved.\n\nGitHub",
+  "assertions": {
+    "kiroLoaded": true,
+    "sub2apiLoaded": true
+  }
+}

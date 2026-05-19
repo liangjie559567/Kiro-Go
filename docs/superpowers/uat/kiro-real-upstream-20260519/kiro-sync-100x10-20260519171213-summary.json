@@ -1,0 +1,48 @@
+{
+  "runId": "kiro-sync-100x10-20260519171213",
+  "base": "http://127.0.0.1:8080",
+  "mode": "sync",
+  "model": "claude-sonnet-4.5",
+  "total": 100,
+  "concurrency": 10,
+  "httpSuccess": 98,
+  "exactCorrect": 98,
+  "containsMarker": 98,
+  "failed": 2,
+  "statusCounts": {
+    "200": 98,
+    "429": 2
+  },
+  "latencyMs": {
+    "min": 1473,
+    "max": 26490,
+    "avg": 8554,
+    "p50": 3517,
+    "p90": 23360,
+    "p95": 24667,
+    "p99": 26445
+  },
+  "failures": [
+    {
+      "index": 33,
+      "marker": "kiro-sync-100x10-20260519171213-033",
+      "status": 429,
+      "durationMs": 4805,
+      "correct": false,
+      "containsMarker": false,
+      "textPreview": "",
+      "rawPreview": "{\"error\":{\"message\":\"HTTP 429 from AmazonQ: {\\\"message\\\":\\\"Too many requests, please wait before trying again.\\\",\\\"reason\\\":null}\",\"type\":\"rate_limit_error\"},\"type\":\"error\"}\n"
+    },
+    {
+      "index": 34,
+      "marker": "kiro-sync-100x10-20260519171213-034",
+      "status": 429,
+      "durationMs": 4205,
+      "correct": false,
+      "containsMarker": false,
+      "textPreview": "",
+      "rawPreview": "{\"error\":{\"message\":\"HTTP 429 from AmazonQ: {\\\"message\\\":\\\"Too many requests, please wait before trying again.\\\",\\\"reason\\\":null}\",\"type\":\"rate_limit_error\"},\"type\":\"error\"}\n"
+    }
+  ],
+  "jsonl": "/www/Kiro-Go/docs/superpowers/uat/kiro-real-upstream-20260519/kiro-sync-100x10-20260519171213.jsonl"
+}

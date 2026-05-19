@@ -64,6 +64,8 @@ func TestClassifyFailureReason(t *testing.T) {
 		{name: "quota", err: errors.New("quota exhausted on Kiro IDE"), want: FailureReasonQuotaExhausted},
 		{name: "auth", err: errors.New("HTTP 401 from Kiro IDE"), want: FailureReasonAuthExpired},
 		{name: "suspended", err: errors.New("TEMPORARILY_SUSPENDED"), want: FailureReasonSuspended},
+		{name: "suspicious temporary limit", err: errors.New(`HTTP 429 from AmazonQ: {"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`), want: FailureReasonTemporaryLimited},
+		{name: "model capacity", err: errors.New(`HTTP 429 from Kiro IDE: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}`), want: FailureReasonModelCapacity},
 		{name: "rate limited", err: errors.New("HTTP 429 from Kiro IDE"), want: FailureReasonRateLimited},
 		{name: "model rate limit body", err: errors.New(`HTTP 429 from Kiro IDE: {"message":"model claude-opus-4.7 is throttled","reason":"MODEL_RATE_LIMIT"}`), want: FailureReasonRateLimited},
 		{name: "network", err: errors.New("dial tcp timeout"), want: FailureReasonTransientNetwork},
@@ -117,6 +119,171 @@ func TestRecordFailureUntilUsesExplicitRateLimitReset(t *testing.T) {
 	}
 	if !p.IsCoolingDown("acct-1", time.Now()) {
 		t.Fatalf("expected account to be cooling down")
+	}
+}
+
+func TestRecordModelFailureModelCapacityUsesThreeSecondBaseCooldown(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+	}
+	p.SetModelList("acct-1", []string{"claude-opus-4.7"})
+	start := time.Now()
+
+	p.RecordModelFailure("acct-1", "claude-opus-4.7", FailureReasonModelCapacity, time.Time{})
+
+	state := p.ModelBlockState("claude-opus-4.7", start)
+	remaining := time.Until(state.RetryAt)
+	if state.LastReason != FailureReasonModelCapacity {
+		t.Fatalf("expected model capacity reason, got %q", state.LastReason)
+	}
+	if remaining < 2*time.Second || remaining > 4*time.Second {
+		t.Fatalf("expected model capacity cooldown around 3s, got %s", remaining)
+	}
+}
+
+func TestRecordFailureUntilSuspiciousTemporaryLimitUsesAdaptiveFloor(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+	}
+	shortRetryAfter := time.Now().Add(5 * time.Second)
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, shortRetryAfter)
+
+	got := p.GetAllAccounts()[0]
+	if got.LastFailureReason != string(FailureReasonTemporaryLimited) {
+		t.Fatalf("expected temporary_limited reason, got %q", got.LastFailureReason)
+	}
+	remaining := got.CooldownUntil - time.Now().Unix()
+	if remaining < 2 || remaining > 5 {
+		t.Fatalf("expected first single-account suspicious temporary limit cooldown around 3s, got %ds", remaining)
+	}
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, shortRetryAfter)
+
+	got = p.GetAllAccounts()[0]
+	remaining = got.CooldownUntil - time.Now().Unix()
+	if remaining < 5 || remaining > 8 {
+		t.Fatalf("expected second single-account suspicious temporary limit cooldown around 6s, got %ds", remaining)
+	}
+}
+
+func TestRecordFailureUntilSuspiciousTemporaryLimitKeepsMultiAccountFloor(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:   make(map[string]time.Time),
+		errorCounts: make(map[string]int),
+		failures:    make(map[string]FailureReason),
+		accounts: []config.Account{
+			{ID: "acct-1"},
+			{ID: "acct-2"},
+		},
+		totalAccounts: 2,
+	}
+	shortRetryAfter := time.Now().Add(5 * time.Second)
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, shortRetryAfter)
+
+	got := p.GetAllAccounts()[0]
+	remaining := got.CooldownUntil - time.Now().Unix()
+	if remaining < 55 || remaining > 65 {
+		t.Fatalf("expected multi-account suspicious temporary limit cooldown around 60s, got %ds", remaining)
+	}
+}
+
+func TestTemporaryLimitCoolsSharedProfileRiskGroup(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "acct-1", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-2", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-3", Enabled: true, ProfileArn: "arn:other"},
+		},
+		totalAccounts: 3,
+	}
+	for _, id := range []string{"acct-1", "acct-2", "acct-3"} {
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+	}
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+
+	if !p.IsCoolingDown("acct-2", time.Now()) {
+		t.Fatalf("expected shared-profile account to be cooling down")
+	}
+	if p.IsCoolingDown("acct-3", time.Now()) {
+		t.Fatalf("did not expect different-profile account to be cooling down")
+	}
+	next := p.GetNextForModelExcept("claude-opus-4.7", map[string]bool{"acct-1": true})
+	if next == nil || next.ID != "acct-3" {
+		t.Fatalf("expected routing to skip shared profile and choose acct-3, got %#v", next)
+	}
+}
+
+func TestModelBlockStateReportsTemporaryLimitedModelCooldown(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts:      []config.Account{{ID: "acct-1"}},
+		totalAccounts: 1,
+	}
+	p.SetModelList("acct-1", []string{"claude-opus-4.7"})
+	resetAt := time.Now().Add(time.Minute)
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, resetAt)
+
+	state := p.ModelBlockState("claude-opus-4.7", time.Now())
+
+	if state.AccountsEvaluated != 1 || state.Blocked != 1 {
+		t.Fatalf("expected one blocked account, got %#v", state)
+	}
+	if state.LastReason != FailureReasonTemporaryLimited {
+		t.Fatalf("expected temporary_limited state, got %#v", state)
+	}
+	if state.RetryAt.IsZero() {
+		t.Fatalf("expected retry time, got %#v", state)
+	}
+}
+
+func TestModelBlockStateOnlyTreatsAllEvaluatedAccountsAsBlocked(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "limited"},
+			{ID: "healthy"},
+		},
+		totalAccounts: 2,
+	}
+	p.SetModelList("limited", []string{"claude-opus-4.7"})
+	p.SetModelList("healthy", []string{"claude-opus-4.7"})
+	p.RecordFailureUntil("limited", FailureReasonTemporaryLimited, time.Now().Add(time.Minute))
+
+	state := p.ModelBlockState("claude-opus-4.7", time.Now())
+
+	if state.AccountsEvaluated != 2 || state.Blocked != 1 {
+		t.Fatalf("expected one blocked account and one available account, got %#v", state)
+	}
+	if state.AllBlocked {
+		t.Fatalf("expected allBlocked=false while at least one account is still unblocked")
 	}
 }
 
@@ -300,6 +467,37 @@ func TestGetNextForModelLeastConnectionsStrategyPrefersLessBusyAccount(t *testin
 	}
 	if got.ID != "idle" {
 		t.Fatalf("expected idle account, got %q", got.ID)
+	}
+}
+
+func TestBeginNextForModelExceptSkipsRecentlyReservedAccount(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts:      []config.Account{{ID: "acct-1", Enabled: true}, {ID: "acct-2", Enabled: true}},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetModelList("acct-1", []string{"claude-opus-4.7"})
+	p.SetModelList("acct-2", []string{"claude-opus-4.7"})
+
+	first, releaseFirst := p.BeginNextForModelExcept("claude-opus-4.7", nil)
+	if first == nil {
+		t.Fatalf("expected first account")
+	}
+	defer releaseFirst()
+
+	second, releaseSecond := p.BeginNextForModelExcept("claude-opus-4.7", nil)
+	if second == nil {
+		t.Fatalf("expected second account")
+	}
+	defer releaseSecond()
+	if second.ID == first.ID {
+		t.Fatalf("expected recently reserved account to be skipped, got %s twice", first.ID)
 	}
 }
 

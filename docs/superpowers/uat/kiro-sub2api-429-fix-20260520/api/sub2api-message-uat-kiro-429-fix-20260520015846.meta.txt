@@ -1,0 +1,4 @@
+request_id=uat-kiro-429-fix-20260520015846
+status=429
+body=docs/superpowers/uat/kiro-sub2api-429-fix-20260520/api/sub2api-message-uat-kiro-429-fix-20260520015846.body.json
+headers=docs/superpowers/uat/kiro-sub2api-429-fix-20260520/api/sub2api-message-uat-kiro-429-fix-20260520015846.headers.txt
