@@ -270,3 +270,74 @@ PASS for the Kiro-Go tool-loop fix, with one external limitation recorded:
 - Browser screenshots, API responses, and database rows agree.
 - Direct post-fix task lifecycle tool calls now pass for `TaskUpdate` and `TaskOutput` with no suppressed tool uses.
 - The latest sub2api stream retry is blocked by upstream Kiro account HTTP 429. This is not marked as a fresh stream PASS, and it remains an account/quota state to recheck when upstream limits clear.
+
+## Playwright-MCP Style Full-Stack Re-Verification: 2026-05-19 13:04-13:09 CST
+
+Status: PASS for browser/API/database evidence; the run used real Chromium Playwright because this Codex environment does not expose a separate `Playwright-MCP` tool namespace.
+
+### Service and Topology
+
+PASS
+
+- Kiro-Go health: `curl http://127.0.0.1:8080/health` returned `{"status":"ok","uptime":748,"version":"1.0.8"}`.
+- sub2api health: `curl http://127.0.0.1:18080/health` returned `{"status":"ok"}`.
+- Docker: `kiro-go-kiro-go-1` is running on `8080`; `sub2api`, `sub2api-postgres`, and `sub2api-redis` are healthy.
+- Database topology: `db-browser-mcp-account-20260519130456.txt` shows account `24 / kiro_claude_01 / anthropic / apikey / active / schedulable / base_url=http://kiro-go:8080`.
+
+### API Evidence
+
+PASS
+
+- Direct Kiro-Go tool UAT:
+  - `uat-browser-mcp-taskupdate-20260519130455.json`
+  - HTTP 200, `model=claude-sonnet-4.5`, `stop_reason=tool_use`.
+  - Tool call delivered to client: `TaskUpdate` with input `{"taskId":"browser-mcp-1","status":"in_progress","activeForm":"Browser MCP UAT"}`.
+  - `request-logs-browser-mcp-20260519130456.json` shows `statusCode=200`, `outcome=success`, `toolUseCount=1`, and no suppressed tool-use names.
+- sub2api downstream UAT:
+  - `uat-browser-mcp-sub2api-20260519130456.json`
+  - HTTP 200 through `http://127.0.0.1:18080/v1/messages`.
+  - Response marker matched exactly: `BROWSER_MCP_SUB2API_OK`.
+
+### Database Evidence
+
+PASS
+
+- `db-browser-mcp-usage-20260519130456.txt` confirms the fresh sub2api request was written to Postgres.
+- Row `58560`: `api_key_id=2`, `account_id=24`, request id `req_c6b4e302-a303-49ea-b11e-c106911ce1de`, `model=requested_model=claude-sonnet-4-5-20250929`, `stream=false`, `input_tokens=4143`, `output_tokens=7`, `inbound_endpoint=/v1/messages`, `upstream_endpoint=/v1/messages`, created `2026-05-19 13:04:58+08`.
+- `db-browser-mcp-api-key-20260519130456.txt` confirms API key `2 / claude / active` was updated with `last_used_at=2026-05-19 13:05:34+08`.
+
+### Browser Flow Evidence
+
+PASS
+
+- `browser-mcp-20260519130456/final-browser-summary.json`: Kiro-Go dashboard/API page plus sub2api accounts/groups/usage pages loaded in real Chromium. `fatal=null`, `console=[]`, `pageErrors=[]`, and `requestFailures=[]`.
+- `browser-mcp-20260519130456/kiro-admin-api-readiness-final.png`: Kiro-Go API tab loaded; shows Claude Code readiness, `toolSchemaValidation PASS`, `messages PASS`, `toolReference PASS`, and schedulable model routing rows.
+- `browser-mcp-20260519130456/sub2api-admin-accounts-final.png`: sub2api admin accounts page loaded.
+- `browser-mcp-20260519130456/sub2api-admin-groups-final.png`: sub2api admin groups page loaded.
+- `browser-mcp-20260519130456/sub2api-admin-usage-final.png`: sub2api admin usage page loaded and rendered usage tables.
+
+### Targeted Screenshot Analysis
+
+PASS
+
+- `browser-mcp-20260519130456/kiro-readiness-targeted.png`:
+  - Shows `Claude Code`, `toolSchemaValidation PASS`, and `Last seen: 5/19/2026, 1:07:32 PM`.
+  - Shows context reminder badges and `tool suppressed` badge surface for diagnostics.
+- `browser-mcp-20260519130456/sub2api-accounts-kiro-filtered.png`:
+  - Filtered Accounts page shows exactly `kiro_claude_01`.
+  - Row shows `Anthropic`, `Key`, `Active`, schedulable toggle enabled, and group `claude`.
+- `browser-mcp-20260519130456/sub2api-usage-kiro-filtered.png`:
+  - Account filter is set to `kiro_claude_01 #24`.
+  - Table rows show `claude / kiro_claude_01 / claude-opus-4-7` with `Inbound:/v1/messages` and `Upstream:/v1/messages`.
+  - The same page also includes aggregate `/v1/messages` endpoint distribution and `claude` group usage.
+- `targeted-browser-summary.json` initially flagged `hasMessagesEndpoint=false` because the scripted string check expected spaces after colons. Manual screenshot/text analysis found the actual UI text is `Inbound:/v1/messages` and `Upstream:/v1/messages`, so the screenshot result is correct and this subcheck is treated as PASS after manual review.
+- Non-product console messages in `targeted-browser-summary.json` are only blocked external inspector/Stripe resources from the test route policy; the main `final-browser-summary.json` filters these known external noises and has no console, page, or local request failures.
+
+### Verdict For This Re-Verification
+
+PASS
+
+- Frontend pages render correctly in real Chromium.
+- API evidence proves Kiro-Go tool repair and sub2api downstream call both work.
+- Database evidence proves sub2api persisted the downstream request against account `24 / kiro_claude_01`.
+- Screenshot analysis agrees with API and database evidence.

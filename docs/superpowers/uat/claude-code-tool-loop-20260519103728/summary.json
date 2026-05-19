@@ -49,7 +49,11 @@
     "sub2apiStream": "BLOCKED_EXTERNAL_429",
     "postgresUsageRows": "PASS_NONSTREAM",
     "playwrightAdminRoutes": "PASS",
-    "screenshotAnalysis": "PASS"
+    "screenshotAnalysis": "PASS",
+    "playwrightMcpStyleFullStack": "PASS",
+    "browserScreenshotAnalysis": "PASS",
+    "apiDatabaseCorrelation": "PASS",
+    "sub2apiDownstreamFresh": "PASS"
   },
   "rootCause": {
     "status": "FIXED_AND_LIVE_VERIFIED",
@@ -96,7 +100,29 @@
       "sub2api-admin-accounts-final.png",
       "sub2api-admin-groups-final.png",
       "sub2api-admin-usage-final.png"
-    ]
+    ],
+    "browserMcpStyleRun": {
+      "directory": "browser-mcp-20260519130456",
+      "summary": "browser-mcp-20260519130456/final-browser-summary.json",
+      "targetedSummary": "browser-mcp-20260519130456/targeted-browser-summary.json",
+      "screenshots": [
+        "browser-mcp-20260519130456/kiro-readiness-targeted.png",
+        "browser-mcp-20260519130456/sub2api-accounts-kiro-filtered.png",
+        "browser-mcp-20260519130456/sub2api-usage-kiro-filtered.png"
+      ],
+      "api": [
+        "uat-browser-mcp-taskupdate-20260519130455.json",
+        "uat-browser-mcp-sub2api-20260519130456.json",
+        "request-logs-browser-mcp-20260519130456.json"
+      ],
+      "database": [
+        "db-browser-mcp-usage-20260519130456.txt",
+        "db-browser-mcp-account-20260519130456.txt",
+        "db-browser-mcp-api-key-20260519130456.txt"
+      ],
+      "verdict": "PASS",
+      "note": "Real Chromium Playwright was used because no separate Playwright-MCP namespace is exposed in this Codex environment."
+    }
   },
   "invalidOrSupersededEvidence": [
     "sub2api-accounts.png",
@@ -104,5 +130,14 @@
     "sub2api-simple-accounts.png",
     "sub2api-simple-groups.png",
     "sub2api-simple-usage.png"
-  ]
+  ],
+  "latestReverification": {
+    "timestamp": "2026-05-19T13:09:15+08:00",
+    "verdict": "PASS",
+    "browser": "real Chromium Playwright",
+    "api": "PASS",
+    "database": "PASS",
+    "screenshots": "PASS_AFTER_MANUAL_ANALYSIS",
+    "details": "REPORT.md section Playwright-MCP Style Full-Stack Re-Verification: 2026-05-19 13:04-13:09 CST"
+  }
 }

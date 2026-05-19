@@ -1,0 +1,5 @@
+ id |      name      | platform  |  type  | status | schedulable |      base_url       
+----+----------------+-----------+--------+--------+-------------+---------------------
+ 24 | kiro_claude_01 | anthropic | apikey | active | t           | http://kiro-go:8080
+(1 row)
+

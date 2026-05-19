@@ -1,0 +1,114 @@
+{
+  "screenshots": [
+    {
+      "name": "kiro-readiness-targeted.png",
+      "bytes": 327692,
+      "url": "http://127.0.0.1:8080/admin",
+      "title": "Kiro-Go",
+      "text": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n21\n账号\n3838\n请求\n3602\n成功\n236\n失败\n75.0M\nTokens\n591.0\nCredits\n账号\n设置\nAPI\nClaude Code\n刷新\nUse ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.\nclient\ntool_reference\nmcp tools\ntool trimming\ntool_result turns\ncontext reminder\nresponses restore\nparent-agent\nunsupported blocks\ntool-result images\norphan tool_result\nfine-grained requested\ntool suppressed\nContext reminders: language, system\nLast seen: 5/19/2026, 1:07:32 PM\nassistantPrefill\nPARTIAL\nText prefill is converted into continuation instruction; tool-use prefill is rejected\ncountTokens\nPARTIAL\nToken counts are estimated by Kiro-Go\nfineGrainedToolStreaming\nPARTIAL\nAnthropic SSE input_json_delta is emitted from complete Kiro tool input; true upstream partial JSON parity depends on Kiro stream shape\nmaxTokensZero\nPARTIAL\nReturns local zero-output compatibility response; not a proven upstream cache warmup\nmessages\nPASS\n/v1/messages is implemented\ntoolReference\nPASS\ntool_reference is accepted and materialized when relevant\ntoolSchemaValidation\nPASS\nInvalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them\nexport ANTHROPIC_BASE_URL=http://127.0.0.1:8080\nexport ANTHROPIC_AUTH_TOKEN=any\nexport ENABLE_TOOL_SEARCH=true\nmodel: claude-sonnet-4.5 -> claude-sonnet-4.5 · model listed by Kiro-Go model cache · routing: schedulable accounts available\nID\tEmail\tEnabled\tHealthy\tLists model\tSchedulable\tReason\n93fb7e70-3ccf-4330-9d8d-b25c89322ae4\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n6d524028-56ee-41e9-aad9-eaba82d4d75b\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nfef84be2-f929-4ea2-afa9-5f8702016868\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nf4454cf1-1b38-4fed-ad1d-076795f4d8cd\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n62c85da6-7eac-46eb-a8c9-7470695df3c7\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n95d9dcb5-f544-4bcb-9aee-ff1890938a82\tc***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nb96e50b4-e443-47ea-ac2b-568537eab945\tl***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n125bd142-5218-45d9-8748-3e29a775050b\tv***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n6f572596-acd3-4e06-947a-4dd11424d4df\tw***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n1e7bad65-4a46-40d0-81bd-19fde0f14954\ts***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n71cf722d-a7b0-49a1-9998-bef22a11cf45\tw***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n7170ccb6-30cc-40fe-9f79-4344389c034b\tm***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n54a00e6f-a582-4083-a197-ea2a1a0cb847\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n61a48fab-58c1-49b0-957a-b4caf88b51d0\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nae380baf-1725-4733-9ffe-cc227764b6c4\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n2980ad67-e95f-498f-a774-9e420b3f6f2f\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n2ba05a3b-74e2-4500-9d29-fb84fda5416e\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nfb3056fa-28f8-413b-9a53-52ab3c854daf\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\ned9239cb-65ef-4970-941c-1d716127c8cd\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\n8a5910cb-c52e-498f-923c-93b174be628d\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nefa39437-556e-43e7-84b7-f727ad7cb576\tr***@gmail.com\tyes\tyes\tyes\tyes\tschedulable\nAPI 端点\n\nClaude API\n\nhttp://127.0.0.1:8080/v1/messages\n复制\n\nOpenAI API\n\nhttp://127.0.0.1:8080/v1/chat/completions\n复制\n\n模型列表\n\nhttp://127.0.0.1:8080/v1/models\n复制\n\n统计数据\n\nhttp://127.0.0.1:8080/v1/stats\n复制\n\n需要在请求头中携带 API Key 鉴权（Authorization: Bearer sk-xxx），未启用 API Key 验证时无需鉴权"
+    },
+    {
+      "name": "sub2api-usage-kiro-filtered.png",
+      "bytes": 705915,
+      "url": "http://127.0.0.1:18080/admin/usage",
+      "title": "Usage Records - CGTall-AI",
+      "text": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nUsage Records\n\nView and manage all user usage records\n\n🇺🇸\nEN\n$9995735.45\nAD\nadmin\nAdmin\n\nTotal Requests\n\n9,182\n\nin selected range\n\nTotal Tokens\n\n764.66M\n\nIn: 37.41M / Out: 2.50M\n\nTotal Cost\n\n$656.7073\n\nCost $656.7073 · Standard $656.7073\n\nAvg Duration\n\n8.14s\n\nTime Range:\nLast 24 Hours\nGranularity:\nHour\nModel Distribution\nRequested\nUpstream\nMapping\nBy Tokens\nBy Actual Cost\nModel\tRequests\tTokens\tActual\tCost\tStandard\n\ngpt-5.5\t7,671\t663.34M\t$541.33\t$541.33\t$541.33\n\nclaude-opus-4-7\t1,267\t80.49M\t$112.21\t$112.21\t$112.21\n\nclaude-haiku-4-5-20251001\t226\t20.80M\t$3.09\t$3.09\t$3.09\n\ngpt-5.4-mini\t9\t13.86K\t$0.032\t$0.032\t$0.032\n\nclaude-sonnet-4.5\t4\t8.59K\t$0.026\t$0.026\t$0.026\n\nclaude-sonnet-4-5-20250929\t2\t8.31K\t$0.025\t$0.025\t$0.025\n\ngpt-image-2\t1\t2.26K\t$0.0000\t$0.0000\t$0.0000\n\ngpt-5.4\t2\t248\t$0.0008\t$0.0008\t$0.0008\nGroup Usage Distribution\nBy Tokens\nBy Actual Cost\nGroup\tRequests\tTokens\tActual\tCost\tStandard\n\nopenai\t8,040\t663.42M\t$541.74\t$541.74\t$541.74\n\nclaude\t1,142\t101.24M\t$114.96\t$114.96\t$114.96\nEndpoint Distribution\nInbound\nUpstream\nPath\nBy Tokens\nBy Actual Cost\nEndpoint\tRequests\tTokens\tActual\tStandard\n\n/responses\t5,783\t663.17M\t$539.73\t$539.73\n\n/v1/messages\t1,499\t101.31M\t$115.35\t$115.35\n\n/v1/chat/completions\t1,888\t164.55K\t$1.59\t$1.59\n\n/v1/responses\t11\t14.11K\t$0.033\t$0.033\n\n/v1/images/generations\t1\t2.26K\t$0.0000\t$0.0000\nToken Usage Trend\nUser\nAPI Key\nModel\nSelect an option\nAccount\nkiro_claude_01#24\nType\nSelect an option\nBilling Type\nAll Billing Types\nBilling Mode\nSelect an option\nGroup\nSelect an option\nRefresh\nReset\nColumn Settings\nCleanup\nExport Excel\nUSER\n\t\nAPI KEY\n\t\nACCOUNT\n\t\nMODEL\n\t\nENDPOINT\n\t\nGROUP\n\t\nTYPE\n\t\nBILLING MODE\n\t\nTOKENS\n\t\nCOST\n\t\nFIRST TOKEN\n\t\nDURATION\n\t\nTIME\n\t\nIP\n\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n3,408\n246\n91.4K\n\t\n$0.068872\nA $0.068872\n\t2.85s\t4.01s\t05/19/2026, 13:07:53\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\topenai002\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n3,625\n1,716\n183.7K\n\t\n$0.161445\nA $0.161445\n\t4.91s\t37.21s\t05/19/2026, 13:07:50\t166.88.98.134\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n0\n650\n106.6K\n\t\n$0.682756\nA $0.682756\n\t4.83s\t16.12s\t05/19/2026, 13:07:49\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\tahot1\tgpt-5.5\t\nInbound:/v1/chat/completions\nUpstream:/v1/responses\n\topenai\tSync\tToken\t\n67\n20\n\t\n$0.000935\nA $0.000935\n\t-\t4.02s\t05/19/2026, 13:07:37\t172.24.0.4\n\nadmin@sub2api.local#1\n\topenai\tdt1\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n11,298\n87\n105.3K\n\t\n$0.111772\nA $0.111772\n\t2.68s\t4.61s\t05/19/2026, 13:07:36\t166.88.98.134\n\nadmin@sub2api.local#1\n\topenai\tahot1\t\nclaude-opus-4-7\n↳gpt-5.5\n\t\nInbound:/v1/messages\nUpstream:/v1/responses\n\topenai\tSync\tToken\t\n180\n5\n\t\n$0.001050\nA $0.001050\n\t-\t1.18s\t05/19/2026, 13:07:35\t172.24.0.4\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n3,677\n461\n86.0K\n\t\n$0.072905\nA $0.072905\n\t4.85s\t9.58s\t05/19/2026, 13:07:32\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n0\n445\n95.8K\n\t\n$0.610088\nA $0.610088\n\t4.64s\t8.01s\t05/19/2026, 13:07:23\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n4,331\n247\n79.2K\n\t\n$0.067435\nA $0.067435\n\t11.52s\t13.46s\t05/19/2026, 13:07:15\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\topenai002\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n12,591\n755\n174.5K\n\t\n$0.172837\nA $0.172837\n\t5.38s\t21.17s\t05/19/2026, 13:07:13\t166.88.98.134\n\nadmin@sub2api.local#1\n\topenai\tdt1\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n9,234\n81\n96.1K\n\t\n$0.096664\nA $0.096664\n\t1.98s\t3.60s\t05/19/2026, 13:07:01\t166.88.98.134\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n0\n275\n92.0K\n\t\n$0.582000\nA $0.582000\n\t4.65s\t5.98s\t05/19/2026, 13:07:01\t166.88.99.147\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n1,686\n323\n74.4K\n3.1K\n\t\n$0.158655\nA $0.158655\n\t5.25s\t6.08s\t05/19/2026, 13:06:55\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\topenai002\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n4,184\n240\n171.9K\n\t\n$0.114072\nA $0.114072\n\t3.08s\t8.32s\t05/19/2026, 13:06:52\t166.88.98.134\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n0\n353\n74.4K\n\t\n$0.474062\nA $0.474062\n\t7.34s\t10.95s\t05/19/2026, 13:06:49\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\topenai002\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n1,975\n262\n171.9K\n\t\n$0.103687\nA $0.103687\n\t9.94s\t10.35s\t05/19/2026, 13:06:43\t166.88.98.134\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n32,058\n157\n57.4K\n\t\n$0.192924\nA $0.192924\n\t4.53s\t5.79s\t05/19/2026, 13:06:38\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\tdx10\tgpt-5.5\t\nInbound:/v1/chat/completions\nUpstream:/v1/responses\n\topenai\tSync\tToken\t\n67\n23\n\t\n$0.001025\nA $0.001025\n\t-\t1.46s\t05/19/2026, 13:06:35\t172.24.0.4\n\nadmin@sub2api.local#1\n\tclaude\tkiro_claude_01\tclaude-opus-4-7\t\nInbound:/v1/messages\nUpstream:/v1/messages\n\tclaude\tStream\tToken\t\n23,559\n322\n66.9K\n\t\n$0.543676\nA $0.543676\n\t7.59s\t9.38s\t05/19/2026, 13:06:32\t166.88.99.147\n\nadmin@sub2api.local#1\n\topenai\topenai002\tgpt-5.5\t\nInbound:/responses\nUpstream:/v1/responses\n\topenai\tStream\tToken\t\n1,892\n37\n171.9K\n\t\n$0.096522\nA $0.096522\n\t12.08s\t16.78s\t05/19/2026, 13:06:29\t166.88.98.134\n\nShowing 1 to 20 of 21 results\n\nPer page:\n20\n1\n2"
+    },
+    {
+      "name": "sub2api-accounts-kiro-filtered.png",
+      "bytes": 222379,
+      "url": "http://127.0.0.1:18080/admin/accounts",
+      "title": "Account Management - CGTall-AI",
+      "text": "CGTall-AI\nv0.1.126\nDashboard\nOps\nUsers\nGroups\nChannels\nSubscriptions\nAccounts\nAnnouncements\nProxies\nRedeem Codes\nPromo Codes\nUsage\nSettings\nMY ACCOUNT\nAPI Keys\nUsage\nAvailable Channels\nChannel Status\nMy Subscriptions\nRedeem\nProfile\nDark Mode\nCollapse\nAccount Management\n\nManage AI platform accounts and credentials\n\n🇺🇸\nEN\n$9995735.33\nAD\nadmin\nAdmin\nAll Platforms\nAll Types\nAll Status\nAll Privacy States\nAll Groups\nAuto Refresh\nMore Actions\nCreate Account\nBulk Edit Accounts\nUpdate Accounts\n\t\nNAME\n\t\nPLATFORM/TYPE\n\t\nCAPACITY\n\t\nSTATUS\n\t\nSCHEDULABLE\n\t\nGROUPS\n\t\nUSAGE WINDOWS\n\t\nLAST USED\n\t\nEXPIRES AT\n\t\nACTIONS\n\n\t\nkiro_claude_01\n\t\nAnthropic\nKey\n\t\n1\n/\n12\n\t\nActive\n\t\n\t\nclaude\n\t\n94 req\n6.0M\nA $20.77\nU $20.77\n\tJust now\t\n-\n\t\nEdit\nDelete\nMore\n\nShowing 1 to 1 of 1 results\n\nPer page:\n20\n1"
+    }
+  ],
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:8080/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/login"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/login"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/login"
+    },
+    {
+      "type": "warning",
+      "text": "Error: Failed to load Stripe.js\n    at HTMLScriptElement.<anonymous> (http://127.0.0.1:18080/assets/vendor-misc-CdI0Ak46.js:89:44064)",
+      "url": "http://127.0.0.1:18080/login"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/usage"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/usage"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/usage"
+    },
+    {
+      "type": "warning",
+      "text": "Error: Failed to load Stripe.js\n    at HTMLScriptElement.<anonymous> (http://127.0.0.1:18080/assets/vendor-misc-CdI0Ak46.js:89:44064)",
+      "url": "http://127.0.0.1:18080/admin/usage"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/accounts"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/accounts"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "url": "http://127.0.0.1:18080/admin/accounts"
+    },
+    {
+      "type": "warning",
+      "text": "Error: Failed to load Stripe.js\n    at HTMLScriptElement.<anonymous> (http://127.0.0.1:18080/assets/vendor-misc-CdI0Ak46.js:89:44064)",
+      "url": "http://127.0.0.1:18080/admin/accounts"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "kiroReadiness": {
+      "hasClaudeCode": true,
+      "hasToolSchemaPass": true,
+      "hasRecentTime": true,
+      "hasSuppressedBadge": true
+    },
+    "sub2apiUsage": {
+      "hasUsagePage": true,
+      "hasClaudeKey": true,
+      "hasKiroAccount": true,
+      "hasMessagesEndpoint": false,
+      "hasSonnetOrOpus": true
+    },
+    "sub2apiAccounts": {
+      "hasAccountPage": true,
+      "hasKiroAccount": true,
+      "hasAnthropicOrActive": true
+    }
+  }
+}
