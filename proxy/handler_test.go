@@ -4267,6 +4267,30 @@ func TestResolveClaudeThinkingModeHonorsRequestThinking(t *testing.T) {
 	}
 }
 
+func TestNormalizeOpus47ClaudeRequestUsesAdaptiveThinkingAndDropsSampling(t *testing.T) {
+	req := ClaudeRequest{
+		Model:       "claude-opus-4-7",
+		MaxTokens:   64,
+		Temperature: 0.7,
+		TopP:        0.9,
+		Thinking:    &ClaudeThinkingConfig{Type: "enabled", BudgetTokens: 2048, Display: "summarized"},
+		Messages:    []ClaudeMessage{{Role: "user", Content: "hello"}},
+	}
+	meta := normalizeOpus47ClaudeRequest(&req, true)
+	if req.Model != "claude-opus-4.7" {
+		t.Fatalf("model = %q, want claude-opus-4.7", req.Model)
+	}
+	if req.Temperature != 0 || req.TopP != 0 {
+		t.Fatalf("expected sampling params dropped, got temperature=%v top_p=%v", req.Temperature, req.TopP)
+	}
+	if req.Thinking == nil || req.Thinking.Type != "adaptive" || req.Thinking.BudgetTokens != 0 {
+		t.Fatalf("expected adaptive thinking without budget, got %#v", req.Thinking)
+	}
+	if !meta.Opus47 || !meta.ThinkingNormalized || !meta.SamplingDropped {
+		t.Fatalf("expected metadata flags, got %#v", meta)
+	}
+}
+
 func TestCloneClaudeRequestForThinkingInjectsPromptWithoutMutatingOriginal(t *testing.T) {
 	req := &ClaudeRequest{
 		Model:  "claude-sonnet-4.6",

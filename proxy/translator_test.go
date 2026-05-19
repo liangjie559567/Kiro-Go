@@ -8,6 +8,44 @@ import (
 	"testing"
 )
 
+func TestParseModelAndThinkingNormalizesOfficialOpus47Names(t *testing.T) {
+	tests := []struct {
+		name         string
+		model        string
+		wantModel    string
+		wantThinking bool
+	}{
+		{name: "official dashed", model: "claude-opus-4-7", wantModel: "claude-opus-4.7"},
+		{name: "official dashed thinking", model: "claude-opus-4-7-thinking", wantModel: "claude-opus-4.7", wantThinking: true},
+		{name: "kiro dotted", model: "claude-opus-4.7", wantModel: "claude-opus-4.7"},
+		{name: "date suffix", model: "claude-opus-4-7-20260514", wantModel: "claude-opus-4.7"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotModel, gotThinking := ParseModelAndThinking(tt.model, "-thinking")
+			if gotModel != tt.wantModel || gotThinking != tt.wantThinking {
+				t.Fatalf("ParseModelAndThinking(%q) = %q/%v, want %q/%v", tt.model, gotModel, gotThinking, tt.wantModel, tt.wantThinking)
+			}
+		})
+	}
+}
+
+func TestIsOpus47RequestModelRecognizesOfficialAndKiroNames(t *testing.T) {
+	for _, model := range []string{
+		"claude-opus-4-7",
+		"claude-opus-4.7",
+		"claude-opus-4-7-thinking",
+		"claude-opus-4.7-thinking",
+	} {
+		if !isOpus47RequestModel(model) {
+			t.Fatalf("expected %q to be recognized as opus 4.7", model)
+		}
+	}
+	if isOpus47RequestModel("claude-opus-4.6") {
+		t.Fatalf("did not expect opus 4.6 to be recognized as opus 4.7")
+	}
+}
+
 func TestExtractOpenAIMessageTextStructured(t *testing.T) {
 	content := []interface{}{
 		map[string]interface{}{"type": "text", "text": "alpha"},

@@ -43,6 +43,8 @@ var modelMapOrdered = []modelMapping{
 	{"gpt-3.5-turbo", "claude-sonnet-4.5"},
 }
 
+var claudeDateSuffixRE = regexp.MustCompile(`^(claude-(?:haiku|sonnet|opus)-\d+(?:[.-]\d+)?)-\d{8}$`)
+
 // Thinking 模式提示
 const ThinkingModePrompt = `<thinking_mode>enabled</thinking_mode>
 <max_thinking_length>200000</max_thinking_length>`
@@ -59,7 +61,7 @@ func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
 
 	// 使用配置的后缀检查
 	suffixLower := strings.ToLower(thinkingSuffix)
-	if strings.HasSuffix(lower, suffixLower) {
+	if suffixLower != "" && strings.HasSuffix(lower, suffixLower) {
 		thinking = true
 		model = model[:len(model)-len(thinkingSuffix)]
 		lower = strings.ToLower(model)
@@ -67,6 +69,11 @@ func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
 
 	if mapped := config.ResolveModelMapping(model); mapped != model {
 		model = mapped
+		lower = strings.ToLower(model)
+	}
+
+	if normalized := normalizeClaudeModelName(model); normalized != model {
+		model = normalized
 		lower = strings.ToLower(model)
 	}
 
@@ -83,6 +90,43 @@ func ParseModelAndThinking(model string, thinkingSuffix string) (string, bool) {
 	}
 
 	return model, thinking
+}
+
+func normalizeClaudeModelName(model string) string {
+	trimmed := strings.TrimSpace(model)
+	if trimmed == "" {
+		return trimmed
+	}
+	lower := strings.ToLower(trimmed)
+	lower = strings.TrimSuffix(lower, "-latest")
+	if m := claudeDateSuffixRE.FindStringSubmatch(lower); len(m) == 2 {
+		lower = m[1]
+	}
+	for _, mapping := range modelMapOrdered {
+		if lower == mapping.key {
+			return mapping.value
+		}
+	}
+	if strings.HasPrefix(lower, "claude-") && strings.Contains(lower, "opus") {
+		parts := strings.Split(lower, "-")
+		for i := 0; i < len(parts)-1; i++ {
+			if parts[i] == "4" && parts[i+1] == "7" {
+				return "claude-opus-4.7"
+			}
+		}
+	}
+	if lower != strings.ToLower(model) {
+		return lower
+	}
+	return model
+}
+
+func isOpus47RequestModel(model string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	normalized = strings.TrimSuffix(normalized, "-thinking")
+	normalized = normalizeClaudeModelName(normalized)
+	normalized = strings.ReplaceAll(normalized, ".", "-")
+	return normalized == "claude-opus-4-7"
 }
 
 func resolveClaudeThinkingMode(model string, thinkingCfg *ClaudeThinkingConfig, thinkingSuffix string) (string, bool) {

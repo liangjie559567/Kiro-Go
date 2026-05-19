@@ -361,6 +361,54 @@ func TestRequestLogCapturesClaudeCodeCompatibilityMetadata(t *testing.T) {
 	}
 }
 
+func TestUpdateRequestLogAnthropicRedactsOfficialMetadata(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	body := `{
+		"model":"claude-opus-4-7",
+		"max_tokens":64,
+		"messages":[{"role":"user","content":"hello"}],
+		"container":{"id":"secret-container"},
+		"mcp_servers":[{"name":"repo","url":"https://secret.example"},{"name":"browser"}],
+		"service_tier":"standard_only",
+		"metadata":{"user_id":"secret-user","note":"secret"}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+	req.Header.Set("anthropic-beta", "fine-grained-tool-streaming-2025-05-14")
+	req.Header.Set("x-claude-code-session-id", "session_1")
+	req.Header.Set("x-claude-code-agent-id", "agent_1")
+	req.Header.Set("x-claude-code-parent-agent-id", "parent_1")
+	req.Header.Set("x-claude-code-project-dir", "/secret/project")
+	req.Header.Set("x-claude-code-version", "2.1.143")
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+	env, err := parseAnthropicEnvelope(loggedReq, []byte(body))
+	if err != nil {
+		t.Fatalf("parseAnthropicEnvelope: %v", err)
+	}
+
+	updateRequestLogAnthropic(loggedReq, env)
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.HasContainer || entry.MCPServerCount != 2 || !entry.HasServiceTier || !entry.AnthropicBetaPresent || !entry.ClaudeCodeProjectDirPresent {
+		t.Fatalf("expected redacted official metadata flags, got %#v", entry)
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal entry: %v", err)
+	}
+	marshaled := string(data)
+	for _, secret := range []string{"secret-user", "/secret/project", "secret\""} {
+		if strings.Contains(marshaled, secret) {
+			t.Fatalf("request log leaked %q in %s", secret, marshaled)
+		}
+	}
+}
+
 func TestRequestLogMetadataCapturesPayloadGuardResult(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

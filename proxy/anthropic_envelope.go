@@ -21,6 +21,8 @@ type anthropicEnvelope struct {
 	SessionID          string
 	AgentID            string
 	ParentAgentID      string
+	ProjectDirPresent  bool
+	Version            string
 	OfficialExtraKeys  []string
 }
 
@@ -67,6 +69,8 @@ func parseAnthropicEnvelope(r *http.Request, body []byte) (*anthropicEnvelope, e
 		SessionID:          firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id"),
 		AgentID:            firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-agent-id"),
 		ParentAgentID:      firstNonEmptyHeader(r, "x-claude-code-parent-agent-id", "x-claude-parent-agent-id"),
+		ProjectDirPresent:  firstNonEmptyHeader(r, "x-claude-code-project-dir", "claude-code-project-dir") != "",
+		Version:            firstNonEmptyHeader(r, "x-claude-code-version", "claude-code-version"),
 		OfficialExtraKeys:  officialExtraKeys,
 	}, nil
 }

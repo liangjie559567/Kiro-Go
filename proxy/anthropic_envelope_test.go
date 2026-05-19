@@ -84,6 +84,49 @@ func TestParseAnthropicEnvelopeCapturesParentAgentAndOfficialExtras(t *testing.T
 	}
 }
 
+func TestParseAnthropicEnvelopeCapturesOfficialFieldsAndClaudeCodeHeaders(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-opus-4-7",
+		"max_tokens":64,
+		"messages":[{"role":"user","content":"hello"}],
+		"container":{"id":"container_1"},
+		"context_management":{"clear_function_results":true},
+		"mcp_servers":[{"name":"repo"},{"name":"browser"}],
+		"metadata":{"user_id":"secret-user"},
+		"service_tier":"standard_only",
+		"stop_sequences":["END"],
+		"tool_choice":{"type":"auto"}
+	}`)
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
+	r.Header.Set("x-claude-code-session-id", "session_1")
+	r.Header.Set("x-claude-code-agent-id", "agent_1")
+	r.Header.Set("x-claude-code-parent-agent-id", "parent_1")
+	r.Header.Set("x-claude-code-project-dir", "/secret/project")
+	r.Header.Set("x-claude-code-version", "2.1.143")
+	r.Header.Set("anthropic-beta", "fine-grained-tool-streaming-2025-05-14")
+
+	env, err := parseAnthropicEnvelope(r, body)
+	if err != nil {
+		t.Fatalf("parseAnthropicEnvelope returned error: %v", err)
+	}
+	want := []string{"container", "context_management", "mcp_servers", "metadata", "service_tier", "stop_sequences"}
+	if got := strings.Join(env.OfficialExtraKeys, ","); got != strings.Join(want, ",") {
+		t.Fatalf("official extra keys = %#v, want %#v", env.OfficialExtraKeys, want)
+	}
+	if env.SessionID != "session_1" || env.AgentID != "agent_1" || env.ParentAgentID != "parent_1" {
+		t.Fatalf("expected Claude Code agent headers, got session=%q agent=%q parent=%q", env.SessionID, env.AgentID, env.ParentAgentID)
+	}
+	if !env.ProjectDirPresent {
+		t.Fatalf("expected project dir presence")
+	}
+	if env.Version != "2.1.143" {
+		t.Fatalf("expected version, got %q", env.Version)
+	}
+	if !env.HasBetaPrefix("fine-grained-tool-streaming") {
+		t.Fatalf("expected fine-grained-tool-streaming beta prefix")
+	}
+}
+
 func TestWriteAnthropicRequestIDHeadersSetsBothNames(t *testing.T) {
 	w := httptest.NewRecorder()
 	env := &anthropicEnvelope{AnthropicRequestID: "req_test_123"}

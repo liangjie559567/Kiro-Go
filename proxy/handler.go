@@ -236,6 +236,56 @@ func resolveClaudeThinkingResponseOptions(thinking *ClaudeThinkingConfig, defaul
 	return opts
 }
 
+type opus47NormalizationMetadata struct {
+	Opus47             bool
+	ThinkingNormalized bool
+	SamplingDropped    bool
+}
+
+func normalizeOpus47ClaudeRequest(req *ClaudeRequest, claudeCodeCompatible bool) opus47NormalizationMetadata {
+	meta := opus47NormalizationMetadata{}
+	if req == nil {
+		return meta
+	}
+	mapped, suffixThinking := ParseModelAndThinking(req.Model, configuredThinkingSuffix())
+	req.Model = mapped
+	if !isOpus47RequestModel(req.Model) {
+		return meta
+	}
+	meta.Opus47 = true
+	if req.Temperature != 0 {
+		req.Temperature = 0
+		meta.SamplingDropped = true
+	}
+	if req.TopP != 0 {
+		req.TopP = 0
+		meta.SamplingDropped = true
+	}
+	if claudeCodeCompatible || suffixThinking || isClaudeThinkingRequested(req.Thinking) {
+		display := ""
+		if req.Thinking != nil {
+			display = req.Thinking.Display
+		}
+		if req.Thinking == nil ||
+			strings.ToLower(strings.TrimSpace(req.Thinking.Type)) != "adaptive" ||
+			req.Thinking.BudgetTokens != 0 {
+			req.Thinking = &ClaudeThinkingConfig{Type: "adaptive", Display: display}
+			meta.ThinkingNormalized = true
+		}
+	}
+	return meta
+}
+
+func configuredThinkingSuffix() (suffix string) {
+	suffix = "-thinking"
+	defer func() {
+		if recover() != nil || strings.TrimSpace(suffix) == "" {
+			suffix = "-thinking"
+		}
+	}()
+	return config.GetThinkingConfig().Suffix
+}
+
 func validateOpenAIRequestShape(req *OpenAIRequest) string {
 	if len(req.Messages) == 0 {
 		return "messages must not be empty"
@@ -372,10 +422,11 @@ func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
 }
 
 func isOpus47Model(model string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(model))
-	normalized = strings.TrimSuffix(normalized, config.GetThinkingConfig().Suffix)
-	normalized = strings.ReplaceAll(normalized, ".", "-")
-	return normalized == "claude-opus-4-7" || normalized == "claude-opus-4.7"
+	normalized := strings.TrimSpace(model)
+	if suffix := strings.TrimSpace(configuredThinkingSuffix()); suffix != "" {
+		normalized = strings.TrimSuffix(normalized, suffix)
+	}
+	return isOpus47RequestModel(normalized)
 }
 
 func requestStickyKey(r *http.Request, req *ClaudeRequest) string {
@@ -1195,6 +1246,9 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	writeAnthropicRequestIDHeaders(w, env)
 	req := env.Request
 	updateRequestLogAnthropic(r, env)
+	updateRequestLogMetadata(r, req.Model, req.Stream)
+	opusMeta := normalizeOpus47ClaudeRequest(&req, env.HasBetaPrefix("claude-code") || env.SessionID != "" || env.AgentID != "" || env.ProjectDirPresent || env.Version != "")
+	updateRequestLogOpus47Normalization(r, opusMeta)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
 	maxTokensPresent := claudeRequestHasMaxTokens(body)
 	if msg := validateClaudeRequestShapeWithOptions(&req, maxTokensPresent); msg != "" {

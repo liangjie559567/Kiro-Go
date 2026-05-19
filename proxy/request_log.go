@@ -34,6 +34,21 @@ type RequestLogEntry struct {
 	AnthropicVersion                    string                    `json:"anthropicVersion,omitempty"`
 	AnthropicBetas                      []string                  `json:"anthropicBetas,omitempty"`
 	ToolReferenceCount                  int                       `json:"toolReferenceCount,omitempty"`
+	HasContainer                        bool                      `json:"hasContainer,omitempty"`
+	HasContextManagement                bool                      `json:"hasContextManagement,omitempty"`
+	MCPServerCount                      int                       `json:"mcpServerCount,omitempty"`
+	HasServiceTier                      bool                      `json:"hasServiceTier,omitempty"`
+	HasMetadata                         bool                      `json:"hasMetadata,omitempty"`
+	HasStopSequences                    bool                      `json:"hasStopSequences,omitempty"`
+	ToolChoiceMode                      string                    `json:"toolChoiceMode,omitempty"`
+	AnthropicBetaPresent                bool                      `json:"anthropicBetaPresent,omitempty"`
+	ClaudeCodeSessionPresent            bool                      `json:"claudeCodeSessionPresent,omitempty"`
+	ClaudeCodeAgentPresent              bool                      `json:"claudeCodeAgentPresent,omitempty"`
+	ClaudeCodeParentAgentPresent        bool                      `json:"claudeCodeParentAgentPresent,omitempty"`
+	ClaudeCodeProjectDirPresent         bool                      `json:"claudeCodeProjectDirPresent,omitempty"`
+	ClaudeCodeVersionPresent            bool                      `json:"claudeCodeVersionPresent,omitempty"`
+	Opus47ThinkingNormalized            bool                      `json:"opus47ThinkingNormalized,omitempty"`
+	Opus47SamplingDropped               bool                      `json:"opus47SamplingDropped,omitempty"`
 	PayloadOriginalBytes                int                       `json:"payloadOriginalBytes,omitempty"`
 	PayloadFinalBytes                   int                       `json:"payloadFinalBytes,omitempty"`
 	PayloadTrimmed                      bool                      `json:"payloadTrimmed,omitempty"`
@@ -306,10 +321,70 @@ func updateRequestLogAnthropic(r *http.Request, env *anthropicEnvelope) {
 	ctx.entry.ToolReferenceCount = len(env.Request.ToolReferences)
 	ctx.entry.ClaudeCodeParentAgentID = env.ParentAgentID
 	ctx.entry.PayloadUnknownOfficialFields = append([]string(nil), env.OfficialExtraKeys...)
+	ctx.entry.HasContainer = rawHasKey(env.Extra, "container")
+	ctx.entry.HasContextManagement = rawHasKey(env.Extra, "context_management")
+	ctx.entry.MCPServerCount = rawArrayLen(env.Extra, "mcp_servers")
+	ctx.entry.HasServiceTier = rawHasKey(env.Extra, "service_tier")
+	ctx.entry.HasMetadata = rawHasKey(env.Extra, "metadata")
+	ctx.entry.HasStopSequences = rawHasKey(env.Extra, "stop_sequences")
+	ctx.entry.ToolChoiceMode = toolChoiceMode(env.Request.ToolChoice)
+	ctx.entry.AnthropicBetaPresent = strings.TrimSpace(env.BetaHeader) != ""
+	ctx.entry.ClaudeCodeSessionPresent = strings.TrimSpace(env.SessionID) != ""
+	ctx.entry.ClaudeCodeAgentPresent = strings.TrimSpace(env.AgentID) != ""
+	ctx.entry.ClaudeCodeParentAgentPresent = strings.TrimSpace(env.ParentAgentID) != ""
+	ctx.entry.ClaudeCodeProjectDirPresent = env.ProjectDirPresent
+	ctx.entry.ClaudeCodeVersionPresent = strings.TrimSpace(env.Version) != ""
 	if env.HasBeta("fine-grained-tool-streaming-2025-05-14") {
 		ctx.entry.FineGrainedToolStreamingRequested = true
 		ctx.entry.FineGrainedToolStreamingMode = "requested_partial"
 	}
+}
+
+func updateRequestLogOpus47Normalization(r *http.Request, meta opus47NormalizationMetadata) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.Opus47ThinkingNormalized = meta.ThinkingNormalized
+	ctx.entry.Opus47SamplingDropped = meta.SamplingDropped
+}
+
+func rawHasKey(raw map[string]json.RawMessage, key string) bool {
+	if raw == nil {
+		return false
+	}
+	_, ok := raw[key]
+	return ok
+}
+
+func rawArrayLen(raw map[string]json.RawMessage, key string) int {
+	value, ok := raw[key]
+	if !ok {
+		return 0
+	}
+	var arr []json.RawMessage
+	if err := json.Unmarshal(value, &arr); err != nil {
+		return 0
+	}
+	return len(arr)
+}
+
+func toolChoiceMode(toolChoice interface{}) string {
+	switch choice := toolChoice.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(choice)
+	case map[string]interface{}:
+		if raw, ok := choice["type"].(string); ok {
+			return strings.TrimSpace(raw)
+		}
+	case map[string]string:
+		return strings.TrimSpace(choice["type"])
+	}
+	return "present"
 }
 
 func updateRequestLogPayload(r *http.Request, result payloadGuardResult) {
