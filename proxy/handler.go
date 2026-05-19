@@ -286,6 +286,34 @@ func configuredThinkingSuffix() (suffix string) {
 	return config.GetThinkingConfig().Suffix
 }
 
+func safeThinkingConfig() (cfg config.ThinkingConfig) {
+	cfg = config.ThinkingConfig{
+		Suffix:       "-thinking",
+		OpenAIFormat: "reasoning_content",
+		ClaudeFormat: "thinking",
+	}
+	defer func() {
+		if recover() != nil {
+			cfg = config.ThinkingConfig{
+				Suffix:       "-thinking",
+				OpenAIFormat: "reasoning_content",
+				ClaudeFormat: "thinking",
+			}
+			return
+		}
+		if strings.TrimSpace(cfg.Suffix) == "" {
+			cfg.Suffix = "-thinking"
+		}
+		if strings.TrimSpace(cfg.OpenAIFormat) == "" {
+			cfg.OpenAIFormat = "reasoning_content"
+		}
+		if strings.TrimSpace(cfg.ClaudeFormat) == "" {
+			cfg.ClaudeFormat = "thinking"
+		}
+	}()
+	return config.GetThinkingConfig()
+}
+
 func validateOpenAIRequestShape(req *OpenAIRequest) string {
 	if len(req.Messages) == 0 {
 		return "messages must not be empty"
@@ -919,7 +947,7 @@ func (h *Handler) handleModels(w http.ResponseWriter, r *http.Request) {
 		h.modelsCacheMu.RUnlock()
 	}
 
-	thinkingSuffix := config.GetThinkingConfig().Suffix
+	thinkingSuffix := safeThinkingConfig().Suffix
 
 	models := buildAnthropicModelsResponse(cached, thinkingSuffix)
 	if len(models) == 0 {
@@ -952,14 +980,16 @@ func buildAnthropicModelsResponse(cached []ModelInfo, thinkingSuffix string) []m
 			supportsImage := modelSupportsImage(m.InputTypes)
 			models = append(models, buildModelInfo(m.ModelId, "anthropic", supportsImage))
 			// 自动生成 thinking 变体
-			models = append(models, buildModelInfo(m.ModelId+thinkingSuffix, "anthropic", supportsImage))
+			if thinkingSuffix != "" {
+				models = append(models, buildModelInfo(m.ModelId+thinkingSuffix, "anthropic", supportsImage))
+			}
 		}
 	}
-	return models
+	return appendOfficialModelAliases(models, thinkingSuffix)
 }
 
 func fallbackAnthropicModels(thinkingSuffix string) []map[string]interface{} {
-	return []map[string]interface{}{
+	models := []map[string]interface{}{
 		buildModelInfo("claude-sonnet-4.6", "anthropic", true),
 		buildModelInfo("claude-sonnet-4.6"+thinkingSuffix, "anthropic", true),
 		buildModelInfo("claude-opus-4.6", "anthropic", true),
@@ -975,6 +1005,31 @@ func fallbackAnthropicModels(thinkingSuffix string) []map[string]interface{} {
 		buildModelInfo("claude-opus-4.5", "anthropic", true),
 		buildModelInfo("claude-opus-4.5"+thinkingSuffix, "anthropic", true),
 	}
+	return appendOfficialModelAliases(models, thinkingSuffix)
+}
+
+func appendOfficialModelAliases(models []map[string]interface{}, thinkingSuffix string) []map[string]interface{} {
+	ids := make(map[string]bool, len(models)+2)
+	for _, model := range models {
+		id, _ := model["id"].(string)
+		if id != "" {
+			ids[id] = true
+		}
+	}
+
+	appendAlias := func(sourceID, aliasID string) {
+		if !ids[sourceID] || ids[aliasID] {
+			return
+		}
+		models = append(models, buildModelInfo(aliasID, "anthropic", true))
+		ids[aliasID] = true
+	}
+
+	appendAlias("claude-opus-4.7", "claude-opus-4-7")
+	if thinkingSuffix != "" {
+		appendAlias("claude-opus-4.7"+thinkingSuffix, "claude-opus-4-7"+thinkingSuffix)
+	}
+	return models
 }
 
 func modelSupportsImage(inputTypes []string) bool {
@@ -1261,7 +1316,7 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	}
 
 	// 解析模型和 thinking 模式
-	thinkingCfg := config.GetThinkingConfig()
+	thinkingCfg := safeThinkingConfig()
 	actualModel, thinking := resolveClaudeThinkingMode(req.Model, req.Thinking, thinkingCfg.Suffix)
 	req.Model = actualModel
 	effectiveReq := cloneClaudeRequestForThinking(&req, thinking)
@@ -1278,8 +1333,14 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	}
 
 	if req.MaxTokens == 0 && maxTokensPresent {
-		updateRequestLogMaxTokensZeroMode(r, "local_zero_output")
-		updateRequestLogUsage(r, estimatedInputTokens, 0, 0, 0)
+		mode := "local_zero_output"
+		cacheCreationInputTokens := 0
+		if claudeRequestHasCacheControl(effectiveReq) {
+			mode = "cache_prewarm"
+			cacheCreationInputTokens = estimatedInputTokens
+		}
+		updateRequestLogMaxTokensZeroMode(r, mode)
+		updateRequestLogUsage(r, estimatedInputTokens, 0, 0, cacheCreationInputTokens)
 		h.recordSuccess(estimatedInputTokens, 0, 0)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(ClaudeResponse{
@@ -1291,8 +1352,9 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 			StopReason:   "max_tokens",
 			StopSequence: nil,
 			Usage: ClaudeUsage{
-				InputTokens:  estimatedInputTokens,
-				OutputTokens: 0,
+				InputTokens:              estimatedInputTokens,
+				OutputTokens:             0,
+				CacheCreationInputTokens: cacheCreationInputTokens,
 			},
 		})
 		return
@@ -1312,6 +1374,62 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 		return
 	}
 	h.handleClaudeWithAccountRetry(w, r, req.Stream, kiroPayload, req.Model, thinking, thinkingResponseOpts, effectiveReq, estimatedInputTokens)
+}
+
+func claudeRequestHasCacheControl(req *ClaudeRequest) bool {
+	if req == nil {
+		return false
+	}
+	if valueHasCacheControl(req.System) {
+		return true
+	}
+	for _, tool := range req.Tools {
+		if len(tool.CacheControl) > 0 {
+			return true
+		}
+	}
+	for _, msg := range req.Messages {
+		if valueHasCacheControl(msg.Content) {
+			return true
+		}
+	}
+	return false
+}
+
+func valueHasCacheControl(value interface{}) bool {
+	if value == nil {
+		return false
+	}
+	var decoded interface{}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return false
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return false
+	}
+	return decodedValueHasCacheControl(decoded)
+}
+
+func decodedValueHasCacheControl(value interface{}) bool {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		if _, ok := v["cache_control"]; ok {
+			return true
+		}
+		for _, child := range v {
+			if decodedValueHasCacheControl(child) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, child := range v {
+			if decodedValueHasCacheControl(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func claudeRequestHasMaxTokens(body []byte) bool {

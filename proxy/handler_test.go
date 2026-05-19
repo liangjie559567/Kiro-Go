@@ -1632,6 +1632,35 @@ func TestHandleClaudeMessagesMaxTokensZeroReturnsCompatibleNoOutputResponse(t *t
 	}
 }
 
+func TestClaudeMaxTokensZeroRecordsCachePrewarmModeForCacheControl(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(10), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	body := strings.NewReader(`{
+		"model":"claude-opus-4-7",
+		"max_tokens":0,
+		"system":[{"type":"text","text":"System prefix","cache_control":{"type":"ephemeral","ttl":"1h"}}],
+		"messages":[{"role":"user","content":"warm cache"}],
+		"tools":[{"name":"read_file","description":"read","input_schema":{"type":"object"},"cache_control":{"type":"ephemeral"}}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(w, req)
+	h.handleClaudeMessages(loggedWriter, loggedReq)
+	h.finishRequestLog(ctx, recorder)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one log")
+	}
+	if logs[0].MaxTokensZeroMode != "cache_prewarm" {
+		t.Fatalf("max_tokens zero mode = %q, want cache_prewarm", logs[0].MaxTokensZeroMode)
+	}
+	if logs[0].CacheCreationInputTokens <= 0 {
+		t.Fatalf("expected cache creation estimate, got %#v", logs[0])
+	}
+}
+
 func TestHandleClaudeMessagesOmittedMaxTokensStillRoutesUpstream(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -4823,6 +4852,26 @@ func TestAnthropicModelsResponseIncludesAliasesWithoutExtraFields(t *testing.T) 
 	}
 	if !seenAuto {
 		t.Fatalf("expected alias model auto in response: %#v", models)
+	}
+}
+
+func TestAnthropicModelsIncludesOfficialAndKiroOpus47NamesWithoutDuplicateIDs(t *testing.T) {
+	models := buildAnthropicModelsResponse([]ModelInfo{{ModelId: "claude-opus-4.7", ModelName: "Claude Opus", InputTypes: []string{"text"}}}, "-thinking")
+	ids := map[string]int{}
+	for _, model := range models {
+		id, _ := model["id"].(string)
+		ids[id]++
+	}
+	if ids["claude-opus-4.7"] != 1 {
+		t.Fatalf("expected one kiro opus id, got ids=%#v", ids)
+	}
+	if ids["claude-opus-4-7"] != 1 {
+		t.Fatalf("expected one official opus id, got ids=%#v", ids)
+	}
+	for id, count := range ids {
+		if count != 1 {
+			t.Fatalf("duplicate model id %q count=%d", id, count)
+		}
 	}
 }
 
