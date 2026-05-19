@@ -1,0 +1,141 @@
+Kiro-Go
+中文
+EN
+运行中
+v1.0.8
+退出登录
+21
+账号
+8609
+请求
+4937
+成功
+3672
+失败
+100.8M
+Tokens
+786.3
+Credits
+账号
+设置
+API
+Claude Code
+刷新
+Use ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.
+client
+tool_reference
+mcp tools
+tool trimming
+tool_result turns
+context reminder
+responses restore
+parent-agent
+unsupported blocks
+tool-result images
+orphan tool_result
+fine-grained requested
+tool suppressed
+Context reminders: language, system
+Last seen: 5/20/2026, 1:35:00 AM
+assistantPrefill
+PARTIAL
+Text prefill is emulated as a continuation instruction; tool-use prefill is rejected
+Claude Code · emulated_text_prefill
+text prefill conversion is implemented
+EMULATED_PASS
+Official API · emulated_text_prefill
+native upstream prefill is not proven
+PARTIAL
+Evidence: emulated_text_prefill
+countTokens
+PARTIAL
+Claude Code compatible estimated token counting; official exact count is not proven
+Claude Code · estimated
+count_tokens endpoint returned input_tokens
+PASS
+Official API · estimated
+no upstream exact count_tokens evidence
+PARTIAL
+Evidence: 03f618f5-8a9f-496e-ae1f-c6620be7d5e7 · claude-opus-4-7 · estimated
+fineGrainedToolStreaming
+PARTIAL
+Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape
+Claude Code · requested_partial
+recent request asked for fine-grained tool streaming
+PASS
+Official API · requested_partial
+upstream partial tool input deltas are not proven
+PARTIAL
+Evidence: 332a06d3-4f8e-4df8-a088-1431a298c74f · claude-opus-4.7 · requested_partial
+maxTokensZero
+PARTIAL
+Claude Code compatible zero-output response; official cache warmup is not proven
+Claude Code · cache_prewarm
+zero-output response shape completed
+PASS
+Official API · cache_prewarm
+upstream cache usage tokens were observed
+PASS
+Evidence: 0aa3ad2c-d0ba-46cc-9762-03cfdbc406a8 · claude-opus-4.7 · cache_prewarm
+messages
+PASS
+/v1/messages is implemented
+opus47AdaptiveAdmission
+PASS
+Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency
+toolReference
+PASS
+tool_reference is accepted and materialized when relevant
+toolSchemaValidation
+PASS
+Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
+export ANTHROPIC_AUTH_TOKEN=any
+export ENABLE_TOOL_SEARCH=true
+model: claude-sonnet-4.5 -> claude-sonnet-4.5 · model listed by Kiro-Go model cache · routing: schedulable accounts available
+Admission pressure: inactive
+ID	Email	Enabled	Healthy	Lists model	Schedulable	Cooldown	Reason
+93fb7e70-3ccf-4330-9d8d-b25c89322ae4	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+6d524028-56ee-41e9-aad9-eaba82d4d75b	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+fef84be2-f929-4ea2-afa9-5f8702016868	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+f4454cf1-1b38-4fed-ad1d-076795f4d8cd	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+62c85da6-7eac-46eb-a8c9-7470695df3c7	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+95d9dcb5-f544-4bcb-9aee-ff1890938a82	c***@gmail.com	yes	yes	yes	yes	-	schedulable
+b96e50b4-e443-47ea-ac2b-568537eab945	l***@gmail.com	yes	yes	yes	yes	-	schedulable
+125bd142-5218-45d9-8748-3e29a775050b	v***@gmail.com	yes	yes	yes	yes	-	schedulable
+6f572596-acd3-4e06-947a-4dd11424d4df	w***@gmail.com	yes	yes	yes	yes	-	schedulable
+1e7bad65-4a46-40d0-81bd-19fde0f14954	s***@gmail.com	yes	yes	yes	yes	-	schedulable
+71cf722d-a7b0-49a1-9998-bef22a11cf45	w***@gmail.com	yes	yes	yes	yes	-	schedulable
+7170ccb6-30cc-40fe-9f79-4344389c034b	m***@gmail.com	yes	yes	yes	yes	-	schedulable
+54a00e6f-a582-4083-a197-ea2a1a0cb847	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+61a48fab-58c1-49b0-957a-b4caf88b51d0	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+ae380baf-1725-4733-9ffe-cc227764b6c4	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+2980ad67-e95f-498f-a774-9e420b3f6f2f	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+2ba05a3b-74e2-4500-9d29-fb84fda5416e	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+fb3056fa-28f8-413b-9a53-52ab3c854daf	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+ed9239cb-65ef-4970-941c-1d716127c8cd	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+8a5910cb-c52e-498f-923c-93b174be628d	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+efa39437-556e-43e7-84b7-f727ad7cb576	r***@gmail.com	yes	yes	yes	yes	-	schedulable
+API 端点
+
+Claude API
+
+http://127.0.0.1:8080/v1/messages
+复制
+
+OpenAI API
+
+http://127.0.0.1:8080/v1/chat/completions
+复制
+
+模型列表
+
+http://127.0.0.1:8080/v1/models
+复制
+
+统计数据
+
+http://127.0.0.1:8080/v1/stats
+复制
+
+需要在请求头中携带 API Key 鉴权（Authorization: Bearer sk-xxx），未启用 API Key 验证时无需鉴权

@@ -1,0 +1,1 @@
+{"id":"resp_0271ab57ee0049ff016a0c9eba167481918cfba1512a37a8a4","type":"message","role":"assistant","content":[{"type":"text","text":"sub2api to Kiro-Go opus47 ok"}],"model":"claude-opus-4-7","stop_reason":"end_turn","usage":{"input_tokens":126,"output_tokens":14,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}

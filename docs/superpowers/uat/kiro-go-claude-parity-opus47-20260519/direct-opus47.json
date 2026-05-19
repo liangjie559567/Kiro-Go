@@ -1,0 +1,1 @@
+{"id":"msg_05901800-c3b0-4266-9861-a79ff0d60f59","type":"message","role":"assistant","content":[{"type":"text","text":"KIro-Go opus47 parity ok"}],"model":"claude-opus-4.7","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":5987,"output_tokens":7}}
