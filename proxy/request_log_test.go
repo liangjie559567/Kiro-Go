@@ -120,6 +120,7 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	updateRequestLogUsage(loggedReq, 100, 25, 40, 5)
 	updateRequestLogRouting(loggedReq, "selected acct-1 for claude-opus-4.7 attempt=1", "health", true)
 	updateRequestLogReliability(loggedReq, 120, 2, 80, 3)
+	updateRequestLogAdmission(loggedReq, 75*time.Millisecond, 2, 4)
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
 
@@ -145,6 +146,9 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 	if entry.QueueWaitMs != 120 || entry.Attempts != 2 || entry.FirstTokenMs != 80 || entry.ToolUseCount != 3 {
 		t.Fatalf("expected reliability metadata, got %#v", entry)
+	}
+	if entry.AdmissionWaitMs != 75 || entry.EffectiveConcurrentLimit != 2 || entry.AdmissionPressureScore != 4 {
+		t.Fatalf("expected admission metadata, got %#v", entry)
 	}
 }
 

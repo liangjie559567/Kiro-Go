@@ -83,6 +83,10 @@ type RequestLogEntry struct {
 	Outcome                             string                    `json:"outcome"`
 	DurationMs                          int64                     `json:"durationMs"`
 	QueueWaitMs                         int64                     `json:"queueWaitMs,omitempty"`
+	AdmissionWaitMs                     int64                     `json:"admissionWaitMs,omitempty"`
+	EffectiveConcurrentLimit            int                       `json:"effectiveConcurrentLimit,omitempty"`
+	AdmissionPressureScore              int                       `json:"admissionPressureScore,omitempty"`
+	CapacityRetryCount                  int                       `json:"capacityRetryCount,omitempty"`
 	FirstTokenMs                        int64                     `json:"firstTokenMs,omitempty"`
 	Attempts                            int                       `json:"attempts,omitempty"`
 	ToolUseCount                        int                       `json:"toolUseCount,omitempty"`
@@ -586,6 +590,18 @@ func updateRequestLogReliability(r *http.Request, queueWaitMs int64, attempts in
 	if toolUseCount >= 0 {
 		ctx.entry.ToolUseCount = toolUseCount
 	}
+}
+
+func updateRequestLogAdmission(r *http.Request, wait time.Duration, effectiveLimit int, pressureScore int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.AdmissionWaitMs = wait.Milliseconds()
+	ctx.entry.EffectiveConcurrentLimit = effectiveLimit
+	ctx.entry.AdmissionPressureScore = pressureScore
 }
 
 func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter) {

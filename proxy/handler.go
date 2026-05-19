@@ -1997,8 +1997,11 @@ func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, st
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
 	startedAt := time.Now()
 	release, ok := h.acquireOpus47Admission(w, model, stream, claudeFormat, deadline)
+	wait := time.Since(startedAt)
+	effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
+	updateRequestLogAdmission(r, wait, effectiveLimit, pressureScore)
 	if ok {
-		updateRequestLogReliability(r, time.Since(startedAt).Milliseconds(), 0, 0, -1)
+		updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
 	}
 	return release, ok
 }
@@ -2379,7 +2382,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		sse.Error(errType, err.Error())
 		return true, err
 	}
-	modelAdmissionGate.recordPressure(model, http.StatusOK, latency)
+	modelAdmissionGate.recordSuccess(model, latency)
 
 	// 刷新剩余缓冲区
 	processClaudeText("", false, true)
@@ -2573,7 +2576,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 		return true, err
 	}
-	modelAdmissionGate.recordPressure(model, http.StatusOK, latency)
+	modelAdmissionGate.recordSuccess(model, latency)
 
 	// 合并 thinking 内容（如果有 reasoningContentEvent 的内容）
 	thinkingFormat := thinkingOpts.Format
