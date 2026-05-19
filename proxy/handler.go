@@ -1380,7 +1380,7 @@ func claudeRequestHasCacheControl(req *ClaudeRequest) bool {
 	if req == nil {
 		return false
 	}
-	if valueHasCacheControl(req.System) {
+	if contentBlocksHaveCacheControl(req.System) {
 		return true
 	}
 	for _, tool := range req.Tools {
@@ -1389,14 +1389,14 @@ func claudeRequestHasCacheControl(req *ClaudeRequest) bool {
 		}
 	}
 	for _, msg := range req.Messages {
-		if valueHasCacheControl(msg.Content) {
+		if contentBlocksHaveCacheControl(msg.Content) {
 			return true
 		}
 	}
 	return false
 }
 
-func valueHasCacheControl(value interface{}) bool {
+func contentBlocksHaveCacheControl(value interface{}) bool {
 	if value == nil {
 		return false
 	}
@@ -1408,28 +1408,26 @@ func valueHasCacheControl(value interface{}) bool {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return false
 	}
-	return decodedValueHasCacheControl(decoded)
-}
-
-func decodedValueHasCacheControl(value interface{}) bool {
-	switch v := value.(type) {
+	switch v := decoded.(type) {
 	case map[string]interface{}:
-		if _, ok := v["cache_control"]; ok {
-			return true
-		}
-		for _, child := range v {
-			if decodedValueHasCacheControl(child) {
-				return true
-			}
-		}
+		return blockHasCacheControl(v)
 	case []interface{}:
-		for _, child := range v {
-			if decodedValueHasCacheControl(child) {
+		for _, item := range v {
+			block, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if blockHasCacheControl(block) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func blockHasCacheControl(block map[string]interface{}) bool {
+	_, ok := block["cache_control"]
+	return ok
 }
 
 func claudeRequestHasMaxTokens(body []byte) bool {

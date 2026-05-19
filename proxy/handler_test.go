@@ -1661,6 +1661,92 @@ func TestClaudeMaxTokensZeroRecordsCachePrewarmModeForCacheControl(t *testing.T)
 	}
 }
 
+func TestClaudeMaxTokensZeroCachePrewarmByCacheControlLocation(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "system block",
+			body: `{
+				"model":"claude-opus-4-7",
+				"max_tokens":0,
+				"system":[{"type":"text","text":"System prefix","cache_control":{"type":"ephemeral","ttl":"1h"}}],
+				"messages":[{"role":"user","content":"warm cache"}]
+			}`,
+		},
+		{
+			name: "tool definition",
+			body: `{
+				"model":"claude-opus-4-7",
+				"max_tokens":0,
+				"messages":[{"role":"user","content":"warm cache"}],
+				"tools":[{"name":"read_file","description":"read","input_schema":{"type":"object"},"cache_control":{"type":"ephemeral"}}]
+			}`,
+		},
+		{
+			name: "message content block",
+			body: `{
+				"model":"claude-opus-4-7",
+				"max_tokens":0,
+				"messages":[{"role":"user","content":[{"type":"text","text":"warm cache","cache_control":{"type":"ephemeral"}}]}]
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry, resp := runClaudeMaxTokensZeroRequest(t, tt.body)
+			if entry.MaxTokensZeroMode != "cache_prewarm" {
+				t.Fatalf("max_tokens zero mode = %q, want cache_prewarm", entry.MaxTokensZeroMode)
+			}
+			if entry.CacheCreationInputTokens <= 0 || resp.Usage.CacheCreationInputTokens <= 0 {
+				t.Fatalf("expected cache creation estimate, entry=%#v resp=%#v", entry, resp.Usage)
+			}
+		})
+	}
+}
+
+func TestClaudeMaxTokensZeroIgnoresNestedCacheControlPayload(t *testing.T) {
+	entry, resp := runClaudeMaxTokensZeroRequest(t, `{
+		"model":"claude-opus-4-7",
+		"max_tokens":0,
+		"messages":[{"role":"user","content":[{
+			"type":"tool_result",
+			"tool_use_id":"toolu_nested",
+			"content":{"text":"payload only","cache_control":{"type":"ephemeral"}}
+		}]}]
+	}`)
+	if entry.MaxTokensZeroMode != "local_zero_output" {
+		t.Fatalf("max_tokens zero mode = %q, want local_zero_output", entry.MaxTokensZeroMode)
+	}
+	if entry.CacheCreationInputTokens != 0 || resp.Usage.CacheCreationInputTokens != 0 {
+		t.Fatalf("expected no cache creation estimate, entry=%#v resp=%#v", entry, resp.Usage)
+	}
+}
+
+func runClaudeMaxTokensZeroRequest(t *testing.T, body string) (RequestLogEntry, ClaudeResponse) {
+	t.Helper()
+	h := &Handler{requestLogs: newRequestLogStore(10), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(w, req)
+	h.handleClaudeMessages(loggedWriter, loggedReq)
+	h.finishRequestLog(ctx, recorder)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one log, got %#v", logs)
+	}
+	return logs[0], resp
+}
+
 func TestHandleClaudeMessagesOmittedMaxTokensStillRoutesUpstream(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
