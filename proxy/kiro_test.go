@@ -901,6 +901,85 @@ func TestWrapToolUseRepairsClaudeCodeTaskUpdateNestedTaskAndStatusAliases(t *tes
 	}
 }
 
+func TestWrapToolUseRepairsClaudeCodeTaskUpdateStatusObject(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"TaskUpdate": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"taskId":     map[string]interface{}{"type": "string"},
+					"status":     map[string]interface{}{"type": "string", "enum": []interface{}{"pending", "in_progress", "completed", "deleted"}},
+					"activeForm": map[string]interface{}{"type": "string"},
+				},
+				"required":             []interface{}{"taskId"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_task_update",
+		Name:      "TaskUpdate",
+		Input: map[string]interface{}{
+			"taskId":     "1",
+			"activeForm": "执行 Phase 46 - discuss 阶段",
+			"status":     map[string]interface{}{"status": "in_progress"},
+		},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected repaired TaskUpdate status object to pass, got %#v", got)
+	}
+	if got[0].Input["status"] != "in_progress" {
+		t.Fatalf("expected status object flattened, got %#v", got[0].Input)
+	}
+}
+
+func TestWrapToolUseRepairsClaudeCodeTaskOutputAliases(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"TaskOutput": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"taskId":  map[string]interface{}{"type": "string"},
+					"block":   map[string]interface{}{"type": "boolean"},
+					"timeout": map[string]interface{}{"type": "integer"},
+				},
+				"required":             []interface{}{"taskId"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_task_output",
+		Name:      "TaskOutput",
+		Input:     map[string]interface{}{"task_id": "aeea39766749e6cbe", "block": "false", "timeout": "0"},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected repaired TaskOutput aliases to pass, got %#v", got)
+	}
+	if got[0].Input["taskId"] != "aeea39766749e6cbe" || got[0].Input["block"] != false || got[0].Input["timeout"] != 0 {
+		t.Fatalf("expected TaskOutput aliases coerced, got %#v", got[0].Input)
+	}
+	if _, ok := got[0].Input["task_id"]; ok {
+		t.Fatalf("expected task_id alias removed after repair, got %#v", got[0].Input)
+	}
+}
+
 func TestWrapToolUseRepairsClaudeCodeTaskCreateAliases(t *testing.T) {
 	payload := &KiroPayload{
 		ToolSchemas: map[string]toolSchemaSummary{

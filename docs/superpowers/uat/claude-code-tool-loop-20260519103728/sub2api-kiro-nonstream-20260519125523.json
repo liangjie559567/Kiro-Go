@@ -1,0 +1,1 @@
+{"id":"msg_33a95b2f-bb6c-4060-8def-b7a7307beb46","type":"message","role":"assistant","content":[{"type":"text","text":"SUB2API_KIRO_NONSTREAM_OK"}],"model":"claude-sonnet-4.5","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":4149,"output_tokens":8}}

@@ -1,7 +1,20 @@
 {
   "date": "2026-05-19",
-  "overallVerdict": "PASS",
-  "externalBlockers": [],
+  "overallVerdict": "PASS_WITH_EXTERNAL_STREAM_429",
+  "externalBlockers": [
+    {
+      "name": "latest_sub2api_stream_retry",
+      "status": "BLOCKED_EXTERNAL_429",
+      "evidence": [
+        "sub2api-kiro-stream-20260519125523.headers",
+        "sub2api-kiro-stream-20260519125523.sse",
+        "request-logs-after-sub2api-smoke.json",
+        "docker logs --since 5m sub2api",
+        "docker logs --since 5m kiro-go-kiro-go-1"
+      ],
+      "reason": "The fresh stream retry reached sub2api and Kiro-Go, then upstream Kiro returned HTTP 429 temporary suspicious-activity limits for the selected account. This is external account state, not the TaskUpdate/TaskOutput tool-schema bug."
+    }
+  ],
   "supersededBlockers": [
     {
       "name": "direct_postfix_tool_loop_retest",
@@ -30,41 +43,52 @@
     "dockerBuildAndRun": "PASS",
     "kiroHealth": "PASS",
     "sub2apiHealth": "PASS",
-    "directTaskCreate": "PASS",
+    "directTaskUpdate": "PASS",
+    "directTaskOutput": "PASS",
     "sub2apiNonstream": "PASS",
-    "sub2apiStream": "PASS",
-    "postgresUsageRows": "PASS",
+    "sub2apiStream": "BLOCKED_EXTERNAL_429",
+    "postgresUsageRows": "PASS_NONSTREAM",
     "playwrightAdminRoutes": "PASS",
-    "directToolLoop": "PASS"
+    "screenshotAnalysis": "PASS"
   },
   "rootCause": {
     "status": "FIXED_AND_LIVE_VERIFIED",
-    "symptom": "Claude Code sessions could pause/interruption around tool loops after Kiro-Go suppressed TaskCreate and parallel Bash cancellation surfaced.",
-    "cause": "Kiro-Go suppressed model-emitted TaskCreate inputs shaped as tasks[] because Claude Code TaskCreate expects a single-task object; payload trimming also deprioritized taskCreate/taskUpdate/taskOutput.",
-    "correction": "For streamed tool_use, content_block_start.input is only a placeholder; final tool input must be reconstructed from input_json_delta.",
-    "fix": "Promote TaskCreate tasks[0] to subject/description/activeForm, synthesize missing description, repair common Claude Code filesystem/shell aliases, and prioritize task lifecycle tools during trimming.",
+    "symptom": "Claude Code sessions could pause/interruption around tool loops after Kiro-Go suppressed task lifecycle tool calls.",
+    "cause": "After TaskCreate was fixed, real Claude Code logs showed TaskUpdate suppressed because status was emitted as an object, and TaskOutput suppressed because task_id/block/timeout used alias/string forms incompatible with Claude Code's schema.",
+    "previousCauses": [
+      "TaskCreate tasks[] shape did not match Claude Code's single-task TaskCreate schema.",
+      "For streamed tool_use, content_block_start.input is only a placeholder; final tool input must be reconstructed from input_json_delta."
+    ],
+    "fix": "Flatten TaskUpdate status objects, normalize TaskOutput taskId aliases, coerce TaskOutput block/timeout scalars, keep task lifecycle tools prioritized during trimming, and preserve request-log suppression diagnostics.",
     "liveEvidence": [
-      "direct-taskcreate.summary.json",
-      "kiro-request-logs-taskcreate-20260519123309.json",
-      "direct-tool-auth-final.summary.json"
+      "direct-taskupdate-repair-auth-20260519125421.json",
+      "direct-taskoutput-repair-auth-20260519125421.json",
+      "request-logs-after-task-fix-auth.json",
+      "kiro-readiness-after-task-fix-auth.json"
     ]
+  },
+  "researchReferences": {
+    "anthropicToolUse": "Official Messages tool-use contract uses assistant tool_use blocks followed by user tool_result blocks; stop_reason can be tool_use.",
+    "anthropicStreaming": "Official streaming contract emits tool input through input_json_delta partial_json deltas; the initial content_block_start input can be empty.",
+    "anthropicParallelTools": "Anthropic tools can be parallel by default; disable_parallel_tool_use is an explicit tool_choice control.",
+    "kiroGatewayComparison": "jwadow/kiro-gateway keeps explicit Anthropic tool_use/tool_result models and streaming input_json_delta support, reinforcing repair-and-preserve semantics over silent tool-loop loss."
   },
   "keyEvidence": {
     "report": "REPORT.md",
     "health": [
-      "kiro-health-taskcreate-20260519123309.json",
-      "sub2api-health-taskcreate-20260519123309.json",
-      "docker-ps-taskcreate-20260519123309.txt"
+      "curl http://127.0.0.1:8080/health -> ok version 1.0.8",
+      "curl http://127.0.0.1:18080/health -> ok",
+      "docker ps shows kiro-go and sub2api containers running"
     ],
     "api": [
-      "sub2api-taskcreate-message.json",
-      "sub2api-taskcreate-stream.sse",
-      "direct-taskcreate.summary.json",
-      "kiro-request-logs-taskcreate-20260519123309.json"
+      "direct-taskupdate-repair-auth-20260519125421.json",
+      "direct-taskoutput-repair-auth-20260519125421.json",
+      "request-logs-after-task-fix-auth.json",
+      "sub2api-kiro-nonstream-20260519125523.json",
+      "request-logs-after-sub2api-smoke.json"
     ],
     "database": [
-      "db-after-taskcreate-sub2api-claude-20260519123309.txt",
-      "db-usage-logs-schema.txt"
+      "usage row 58484: api_key_id=2 account_id=24 /v1/messages -> /v1/messages stream=false"
     ],
     "screenshots": [
       "kiro-admin-dashboard-final.png",
@@ -72,12 +96,6 @@
       "sub2api-admin-accounts-final.png",
       "sub2api-admin-groups-final.png",
       "sub2api-admin-usage-final.png"
-    ],
-    "directToolLoop": [
-      "direct-tool-auth-final.sse",
-      "direct-tool-auth-final.summary.json",
-      "direct-tool-result-final-request.json",
-      "direct-tool-result-final.json"
     ]
   },
   "invalidOrSupersededEvidence": [

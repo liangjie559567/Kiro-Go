@@ -364,6 +364,8 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 		repairTaskCreateInput(repaired)
 	case "taskupdate":
 		repairTaskUpdateInput(repaired)
+	case "taskoutput":
+		repairTaskOutputInput(repaired)
 	case "todowrite":
 		repairTodoWriteInput(repaired)
 	}
@@ -558,6 +560,23 @@ func repairTaskUpdateInput(input map[string]interface{}) {
 	delete(input, "task")
 }
 
+func repairTaskOutputInput(input map[string]interface{}) {
+	if _, ok := input["taskId"]; !ok {
+		if task, ok := input["task"].(map[string]interface{}); ok {
+			if value, exists := firstPresent(task, "taskId", "task_id", "id"); exists {
+				input["taskId"] = value
+			}
+		}
+	}
+	aliasToCanonical(input, "task_id", "taskId")
+	aliasToCanonical(input, "taskID", "taskId")
+	aliasToCanonical(input, "id", "taskId")
+	coerceStringField(input, "taskId")
+	coerceBoolField(input, "block")
+	coerceIntegerField(input, "timeout")
+	delete(input, "task")
+}
+
 func repairTodoWriteInput(input map[string]interface{}) {
 	if _, ok := input["todos"]; !ok {
 		aliasToCanonical(input, "tasks", "todos")
@@ -592,6 +611,12 @@ func repairTodoWriteInput(input map[string]interface{}) {
 }
 
 func normalizeTaskStatus(input map[string]interface{}) {
+	if status, ok := input["status"].(map[string]interface{}); ok {
+		if value, exists := firstPresent(status, "status", "state", "value", "name"); exists {
+			input["status"] = value
+		}
+	}
+	coerceStringField(input, "status")
 	if status, ok := input["status"].(string); ok {
 		switch strings.ToLower(strings.TrimSpace(status)) {
 		case "done", "complete", "completed":

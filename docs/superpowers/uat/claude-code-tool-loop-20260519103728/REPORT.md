@@ -22,6 +22,9 @@ Official/reference inputs used during the work:
 
 ## Code Changes Verified
 
+- Added Claude Code task lifecycle repair for the latest real `/gsd-autonomous` failure shape:
+  - `TaskUpdate.status` emitted as an object such as `{"status":"in_progress"}` is flattened to the string enum expected by Claude Code.
+  - `TaskOutput` aliases and scalar coercions are normalized: `task_id`/`taskID`/`id` -> `taskId`, string booleans for `block`, and string integers for `timeout`.
 - Added Claude Code client-tool input repair for `Bash`, `Edit`, `MultiEdit`, `Glob`, `Grep`, `LS`, and `Write`.
 - Added `LS {}` repair to `{"path":"."}`. This addresses the observed root cause where Kiro emitted a valid-looking `LS` tool call with empty input, but Claude Code's `LS` schema requires `path`.
 - Added `TaskCreate tasks[]` repair. Kiro-Go now promotes the first task candidate into Claude Code's single-task `subject`, `description`, and `activeForm` fields, removes wrapper fields, and synthesizes a missing `description` from `content`, `activeForm`, or `subject`.
@@ -67,6 +70,8 @@ Regression coverage:
 - `TestWrapToolUseRepairsClaudeCodeFilesystemAndShellAliases`
 - `TestWrapToolUseRepairsClaudeCodeTaskCreateTasksArray`
 - `TestWrapToolUseRepairsClaudeCodeTaskCreateTasksArrayWithoutDescription`
+- `TestWrapToolUseRepairsClaudeCodeTaskUpdateStatusObject`
+- `TestWrapToolUseRepairsClaudeCodeTaskOutputAliases`
 - `TestGuardKiroPayloadPrioritizesTaskLifecycleToolsFromClaudeCodeLogShape`
 - `TestRequestLogCapturesSuppressedToolUses`
 
@@ -86,6 +91,10 @@ Health evidence:
 - `sub2api-health-final2.json`: `{"status":"ok"}`
 - `docker-ps-final2.txt`: `kiro-go-kiro-go-1` running, `sub2api` healthy, `sub2api-postgres` healthy, `sub2api-redis` healthy.
 - Fresh follow-up evidence after the TaskCreate fix: `kiro-health-taskcreate-20260519123309.json`, `sub2api-health-taskcreate-20260519123309.json`, and `docker-ps-taskcreate-20260519123309.txt`.
+- Latest follow-up after the TaskUpdate/TaskOutput fix:
+  - `curl http://127.0.0.1:8080/health`: `{"status":"ok","version":"1.0.8"}`.
+  - `curl http://127.0.0.1:18080/health`: `{"status":"ok"}`.
+  - `docker ps`: `kiro-go-kiro-go-1` running, `sub2api` healthy, `sub2api-postgres` healthy, `sub2api-redis` healthy.
 
 ### Real sub2api -> Kiro-Go API Calls
 
@@ -115,6 +124,14 @@ Kiro-Go request logs:
   - `sub2api-taskcreate-message.json`: returned exact marker `uat-taskcreate-20260519123309`, model `claude-opus-4.7`, `stop_reason=end_turn`.
   - `sub2api-taskcreate-stream.sse`: returned exact marker `uat-taskcreate-20260519123309-stream` with `message_start`, `content_block_delta`, `message_delta`, and `message_stop`.
   - `kiro-request-logs-taskcreate-20260519123309.json`: latest sub2api non-stream and stream requests both show `status=200`, `outcome=success`.
+- Latest direct post-fix task lifecycle requests:
+  - `direct-taskupdate-repair-auth-20260519125421.json`: HTTP 200, `stop_reason=tool_use`, `TaskUpdate` input delivered as `{"taskId":"1","status":"in_progress","activeForm":"执行 Phase 46 - discuss 阶段"}`.
+  - `direct-taskoutput-repair-auth-20260519125421.json`: HTTP 200, `stop_reason=tool_use`, `TaskOutput` input delivered as `{"taskId":"aeea39766749e6cbe","block":false,"timeout":0}`.
+  - `request-logs-after-task-fix-auth.json`: both direct task requests show `statusCode=200`, `outcome=success`, `toolUseCount=1`, and no suppressed tool names.
+- Latest sub2api downstream check:
+  - `sub2api-kiro-nonstream-20260519125523.json`: HTTP 200 through `/www/sub2api`, returned exact marker `SUB2API_KIRO_NONSTREAM_OK`.
+  - `request-logs-after-sub2api-smoke.json`: Kiro-Go received the downstream non-stream `/v1/messages` request from sub2api and recorded `statusCode=200`, `outcome=success`.
+  - `sub2api-kiro-stream-20260519125523.sse`: current fresh stream attempt returned HTTP 429 because the upstream Kiro account was temporarily rate-limited for suspicious activity. This is treated as an external account-state blocker for this single fresh stream retry, not as a tool-schema regression.
 
 ### Database Evidence
 
@@ -128,6 +145,9 @@ Fresh Postgres evidence:
 - Fresh follow-up evidence: `db-after-taskcreate-sub2api-claude-20260519123309.txt`
   - Usage row `58334`: `api_key_id=2`, `account_id=24`, `/v1/messages -> /v1/messages`, `stream=false`, `request_type=1`, created `2026-05-19 12:33:59+08`.
   - Usage row `58336`: `api_key_id=2`, `account_id=24`, `/v1/messages -> /v1/messages`, `stream=true`, `request_type=2`, created `2026-05-19 12:34:17+08`.
+- Latest non-stream downstream usage evidence:
+  - Usage row `58484`: `api_key_id=2`, `account_id=24`, `model=requested_model=claude-sonnet-4-5-20250929`, `inbound_endpoint=/v1/messages`, `upstream_endpoint=/v1/messages`, `stream=false`, created `2026-05-19 12:55:26+08`.
+  - The current stream retry was rejected by upstream before successful completion, so no successful stream usage row is expected for that retry.
 
 This confirms `/www/sub2api` continues to perform real downstream calls through Kiro-Go and records billing/usage rows.
 
@@ -142,6 +162,9 @@ Fresh screenshots:
 - `sub2api-admin-usage-final.png`: real admin `Usage Records` page; includes endpoint distribution and fresh usage rows.
 - `final-browser-summary.json`: all five final screenshots matched expected page text; console, page errors, and local request failures are empty.
 - Screenshot analysis follow-up: the initial fresh sub2api screenshot had a welcome modal overlay; `final-browser-uat.js` now closes that modal before capture. The final `sub2api-admin-usage-final.png` is clean and visibly shows latest `claude-opus-4-7` `/v1/messages` sync and stream rows.
+- Latest screenshot analysis:
+  - `kiro-admin-api-readiness-final.png` shows `toolSchemaValidation PASS`, `Last seen: 5/19/2026, 12:54:21 PM`, `recentSuppressedToolUses=false`, and schedulable accounts for `claude-sonnet-4.5`.
+  - `sub2api-admin-usage-final.png` shows the fresh `claude / kiro_claude_01 / claude-sonnet-4-5-20250929` usage row with `Inbound: /v1/messages` and `Upstream: /v1/messages`.
 
 Existing Kiro-Go screenshots remain valid:
 
@@ -207,20 +230,43 @@ Fix evidence:
 - `direct-taskcreate.summary.json`: direct stream returned `stopReason="tool_use"`, `toolUseCount=1`, `name="TaskCreate"`, and reconstructed input `{"activeForm":"Running Phase 46 discuss","description":"Running Phase 46 discuss","subject":"Phase 46 discuss"}`.
 - `kiro-request-logs-taskcreate-20260519123309.json`: direct request `direct-taskcreate-20260519123309` returned `status=200`, `outcome=success`, `toolUseCount=1`, `payloadKeptTools=["taskCreate"]`, with no suppressed tool names.
 
+### Latest Follow-up Root Cause Evidence: TaskUpdate and TaskOutput Suppression
+
+PASS for Kiro-Go fix; external blocker for one fresh sub2api stream retry
+
+Observed real Claude Code request logs after the earlier TaskCreate fix:
+
+- `request-logs-post-autonomous-debug.json`
+- Request `40bc01ef-bce0-418d-88d0-eba6f5f5d5bd` suppressed `TaskUpdate` because the model emitted `status` as an object: `{"status":"in_progress"}`.
+- Request `ce0936bc-b972-4b49-a482-a04e1e97996a` suppressed `TaskOutput` because the model emitted `{"task_id":"aeea39766749e6cbe","block":"false","timeout":"0"}` while Claude Code expected `taskId`, boolean `block`, and integer `timeout`.
+
+Fix evidence:
+
+- `TestWrapToolUseRepairsClaudeCodeTaskUpdateStatusObject` and `TestWrapToolUseRepairsClaudeCodeTaskOutputAliases` pass.
+- `direct-taskupdate-repair-auth-20260519125421.json` and `direct-taskoutput-repair-auth-20260519125421.json` prove the live Docker service now delivers both task tools as valid `tool_use` blocks.
+- `request-logs-after-task-fix-auth.json` shows both live requests succeeded with `toolUseCount=1` and no suppressed tool names.
+
+Reference comparison:
+
+- Anthropic's official Messages/tool-use contract requires `tool_use` blocks to be returned to the client and then continued with matching `tool_result` blocks; dropping invalid tool calls breaks that loop.
+- Anthropic streaming can expose partial tool input through `input_json_delta`; gateways must reconstruct and validate the completed input, not treat the initial empty input placeholder as final.
+- The latest `jwadow/kiro-gateway` codebase similarly keeps explicit Anthropic `tool_use`/`tool_result` models and a streaming adapter with `input_json_delta` events, plus parser tests for Kiro tool-call parsing/deduplication. That supports Kiro-Go's current direction: repair compatible client-schema drift when deterministic, suppress only genuinely unrecoverable tool input, and record suppression details for diagnosis.
+
 ## Five-Area Verdict
 
 1. Context continuity: PASS for current message-shape logging and preserved request flow in live calls; broader preference/generalized compaction improvements remain future work.
-2. Tool calling: PASS. Direct streamed `LS` reconstructs to `{"path":"."}`, the follow-up `tool_result` turn reaches final `end_turn`, `TaskCreate tasks[]` is repaired to Claude Code's single-task schema, and task lifecycle tools are prioritized during trimming.
+2. Tool calling: PASS. Direct streamed `LS` reconstructs to `{"path":"."}`, the follow-up `tool_result` turn reaches final `end_turn`, `TaskCreate tasks[]` is repaired to Claude Code's single-task schema, `TaskUpdate.status` object output is flattened, `TaskOutput` aliases/types are normalized, and task lifecycle tools are prioritized during trimming.
 3. MCP/tool-reference: PASS for existing readiness surfacing and Claude Code environment guidance; no new MCP screenshot-image payload UAT was added in this slice.
 4. Model calling/readiness: PASS for `claude-opus-4-7` readiness and schedulable account evidence in `kiro-model-readiness-fresh.json`.
-5. Streaming/downstream sub2api: PASS. Real non-stream and stream calls through sub2api succeeded, with Kiro logs and Postgres usage rows.
+5. Streaming/downstream sub2api: PASS for the implemented Kiro-Go fix and current non-stream downstream call. Previous stream evidence remains valid, but the latest fresh stream retry is `BLOCKED_EXTERNAL_429` because upstream Kiro temporarily rate-limited the selected account.
 
 ## Final UAT Decision
 
-PASS:
+PASS for the Kiro-Go tool-loop fix, with one external limitation recorded:
 
 - The implemented optimization is correct for the identified Claude Code tool auto-pause root cause.
 - The latest Docker service is running and healthy.
-- `/www/sub2api` still performs real downstream calls to Kiro-Go.
+- `/www/sub2api` still performs real downstream non-stream calls to Kiro-Go and records Postgres usage rows.
 - Browser screenshots, API responses, and database rows agree.
-- Direct post-fix live tool-loop replay now passes; the earlier upstream Kiro HTTP 429 is superseded by fresh evidence.
+- Direct post-fix task lifecycle tool calls now pass for `TaskUpdate` and `TaskOutput` with no suppressed tool uses.
+- The latest sub2api stream retry is blocked by upstream Kiro account HTTP 429. This is not marked as a fresh stream PASS, and it remains an account/quota state to recheck when upstream limits clear.
