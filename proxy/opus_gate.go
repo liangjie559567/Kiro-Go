@@ -277,14 +277,21 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 	if g.now != nil {
 		now = g.now()
 	}
-	state := g.pressureStateForUpdateLocked(model, gate, now, false)
+	state := g.pressure[model]
+	if state == nil {
+		return
+	}
 	state.recentSuccesses++
 	state.lastSuccessAt = now
+	effectiveBefore := state.effectiveMaxConcurrent
 	if latency < 5*time.Second && now.After(state.expiresAt) && state.effectiveMaxConcurrent < gate.maxConcurrent {
 		state.effectiveMaxConcurrent++
 	}
 	if state.score > 0 && latency < 5*time.Second {
 		state.score--
+	}
+	if state.effectiveMaxConcurrent > effectiveBefore && gate.gate != nil {
+		gate.gate.broadcast()
 	}
 }
 
@@ -313,15 +320,8 @@ func (g *modelAdmissionGateSet) admissionMetrics(model string) (effectiveMaxConc
 		return 0, 0
 	}
 	state := g.pressure[model]
-	now := time.Now()
-	if g.now != nil {
-		now = g.now()
-	}
 	if state == nil || state.effectiveMaxConcurrent <= 0 {
 		return gate.maxConcurrent, 0
-	}
-	if now.After(state.expiresAt) && !state.lastSuccessAt.After(state.expiresAt) {
-		return gate.maxConcurrent, state.score
 	}
 	return state.effectiveMaxConcurrent, state.score
 }
@@ -341,18 +341,11 @@ func (g *modelAdmissionGateSet) pressureStateForUpdateLocked(model string, gate 
 	return state
 }
 
-func gateMaxConcurrent(gate *adaptiveAdmissionGate) int {
-	if gate == nil {
-		return 0
-	}
-	return gate.maxConcurrent
-}
-
 func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 	if g == nil {
 		return nil
 	}
-	g.mu.Lock()
+	g.mu.RLock()
 	now := time.Now()
 	if g.now != nil {
 		now = g.now()
@@ -372,7 +365,7 @@ func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 			maxConcurrent = gate.maxConcurrent
 		}
 		effective := maxConcurrent
-		if state.effectiveMaxConcurrent > 0 && (active || state.lastSuccessAt.After(state.expiresAt) || state.effectiveMaxConcurrent == maxConcurrent) {
+		if state.effectiveMaxConcurrent > 0 {
 			effective = state.effectiveMaxConcurrent
 		}
 		var activeRequests, queueDepth int
@@ -399,7 +392,7 @@ func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 			RecentSuccesses:        state.recentSuccesses,
 		})
 	}
-	g.mu.Unlock()
+	g.mu.RUnlock()
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Model < out[j].Model
 	})
@@ -496,6 +489,15 @@ func (g *opus47Gate) acquireWithLimit(timeout time.Duration, limit func() int) (
 func (g *opus47Gate) broadcastLocked() {
 	close(g.notify)
 	g.notify = make(chan struct{})
+}
+
+func (g *opus47Gate) broadcast() {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.broadcastLocked()
+	g.mu.Unlock()
 }
 
 func (g *opus47Gate) snapshot() (active int, queueDepth int) {
