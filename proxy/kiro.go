@@ -368,6 +368,8 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 		repairTaskOutputInput(repaired)
 	case "todowrite":
 		repairTodoWriteInput(repaired)
+	case "askuserquestion", "request_user_input":
+		repairAskUserQuestionInput(repaired)
 	}
 	removeUnknownFieldsWhenDisallowed(repaired, summary.Schema)
 	return repaired
@@ -607,6 +609,63 @@ func repairTodoWriteInput(input map[string]interface{}) {
 		coerceStringField(todo, "content")
 		coerceStringField(todo, "activeForm")
 		normalizeTaskStatus(todo)
+	}
+}
+
+func repairAskUserQuestionInput(input map[string]interface{}) {
+	if _, ok := input["questions"]; !ok {
+		aliasToCanonical(input, "question", "questions")
+	}
+	if raw, ok := input["questions"].(string); ok {
+		if parsed, ok := parseJSONArrayOrObjectString(raw); ok {
+			input["questions"] = parsed
+		}
+	}
+	questions, ok := input["questions"].([]interface{})
+	if !ok {
+		if question, ok := input["questions"].(map[string]interface{}); ok {
+			questions = []interface{}{question}
+			input["questions"] = questions
+		} else {
+			return
+		}
+	}
+	for _, rawQuestion := range questions {
+		question, ok := rawQuestion.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		coerceStringField(question, "header")
+		coerceBoolField(question, "multiSelect")
+		if options, ok := question["options"].([]interface{}); ok {
+			for _, rawOption := range options {
+				option, ok := rawOption.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				coerceStringField(option, "label")
+				coerceStringField(option, "description")
+			}
+		}
+	}
+}
+
+func parseJSONArrayOrObjectString(raw string) (interface{}, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, false
+	}
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+		return nil, false
+	}
+	switch value := parsed.(type) {
+	case []interface{}:
+		return value, true
+	case map[string]interface{}:
+		return []interface{}{value}, true
+	default:
+		return nil, false
 	}
 }
 

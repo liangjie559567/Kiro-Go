@@ -769,6 +769,72 @@ func TestWrapToolUseDropsArrayAboveMaxItems(t *testing.T) {
 	}
 }
 
+func TestWrapToolUseRepairsAskUserQuestionJSONEncodedQuestions(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"AskUserQuestion": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"questions": map[string]interface{}{
+						"type":     "array",
+						"maxItems": float64(3),
+						"items": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"header":      map[string]interface{}{"type": "string"},
+								"multiSelect": map[string]interface{}{"type": "boolean"},
+								"options": map[string]interface{}{
+									"type": "array",
+									"items": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"label":       map[string]interface{}{"type": "string"},
+											"description": map[string]interface{}{"type": "string"},
+										},
+										"required": []interface{}{"label", "description"},
+									},
+								},
+							},
+							"required": []interface{}{"header", "multiSelect", "options"},
+						},
+					},
+				},
+				"required":             []interface{}{"questions"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_question",
+		Name:      "AskUserQuestion",
+		Input: map[string]interface{}{
+			"questions": `[{"header":"UI 安全门","multiSelect":false,"options":[{"label":"先跑 /gsd-ui-phase 46（推荐）","description":"项目默认链路，产出 UI-SPEC.md 后继续 plan-phase。"}]}]`,
+		},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected JSON-encoded questions to be repaired and pass, got %#v", got)
+	}
+	questions, ok := got[0].Input["questions"].([]interface{})
+	if !ok || len(questions) != 1 {
+		t.Fatalf("expected questions repaired to one-element array, got %#v", got[0].Input)
+	}
+	question, ok := questions[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected question object, got %#v", questions[0])
+	}
+	if question["header"] != "UI 安全门" || question["multiSelect"] != false {
+		t.Fatalf("expected question fields preserved, got %#v", question)
+	}
+}
+
 func TestWrapToolUseRepairsClaudeCodeReadAliases(t *testing.T) {
 	payload := &KiroPayload{
 		ToolSchemas: map[string]toolSchemaSummary{

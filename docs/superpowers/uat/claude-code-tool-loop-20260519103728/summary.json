@@ -12,7 +12,17 @@
         "docker logs --since 5m sub2api",
         "docker logs --since 5m kiro-go-kiro-go-1"
       ],
-      "reason": "The fresh stream retry reached sub2api and Kiro-Go, then upstream Kiro returned HTTP 429 temporary suspicious-activity limits for the selected account. This is external account state, not the TaskUpdate/TaskOutput tool-schema bug."
+      "reason": "The fresh stream retry reached sub2api and Kiro-Go, then upstream Kiro returned HTTP 429 temporary suspicious-activity limits for the selected account. This is external account state, not a tool-schema regression."
+    },
+    {
+      "name": "forced_askuserquestion_live_retry",
+      "status": "BLOCKED_EXTERNAL_429",
+      "evidence": [
+        "askuserquestion-202605191322/askuserquestion.headers",
+        "askuserquestion-202605191322/askuserquestion.sse",
+        "askuserquestion-202605191322/kiro-request-logs-after-askuserquestion-429.json"
+      ],
+      "reason": "The forced AskUserQuestion request was no longer suppressed by Claude Code client-schema validation and reached upstream Kiro, which returned temporary suspicious-activity 429 limits."
     }
   ],
   "supersededBlockers": [
@@ -36,6 +46,17 @@
         "kiro-request-logs-taskcreate-20260519123309.json"
       ],
       "reason": "TaskCreate tasks[] is repaired to a single Claude Code TaskCreate input and is no longer suppressed in direct validation."
+    },
+    {
+      "name": "askuserquestion_schema_suppression_root_cause",
+      "previousStatus": "REPRODUCED_FROM_REAL_LOGS",
+      "oldEvidence": "2026-05-19T05:15:24Z request log with AskUserQuestion questions as JSON string",
+      "supersededBy": [
+        "TestWrapToolUseRepairsAskUserQuestionJSONEncodedQuestions",
+        "askuserquestion-202605191322/kiro-request-logs-after-askuserquestion-429.json",
+        "askuserquestion-202605191322/browser-summary.json"
+      ],
+      "reason": "AskUserQuestion questions JSON strings are parsed to arrays before schema validation. Forced live retry now reaches upstream instead of being locally suppressed."
     }
   ],
   "freshVerification": {
@@ -45,6 +66,7 @@
     "sub2apiHealth": "PASS",
     "directTaskUpdate": "PASS",
     "directTaskOutput": "PASS",
+    "directAskUserQuestion": "PASS_SCHEMA_REPAIR_THEN_BLOCKED_EXTERNAL_429",
     "sub2apiNonstream": "PASS",
     "sub2apiStream": "BLOCKED_EXTERNAL_429",
     "postgresUsageRows": "PASS_NONSTREAM",
@@ -53,26 +75,31 @@
     "playwrightMcpStyleFullStack": "PASS",
     "browserScreenshotAnalysis": "PASS",
     "apiDatabaseCorrelation": "PASS",
-    "sub2apiDownstreamFresh": "PASS"
+    "sub2apiDownstreamFresh": "PASS",
+    "askUserQuestionBrowserUAT": "PASS"
   },
   "rootCause": {
     "status": "FIXED_AND_LIVE_VERIFIED",
-    "symptom": "Claude Code sessions could pause/interruption around tool loops after Kiro-Go suppressed task lifecycle tool calls.",
-    "cause": "After TaskCreate was fixed, real Claude Code logs showed TaskUpdate suppressed because status was emitted as an object, and TaskOutput suppressed because task_id/block/timeout used alias/string forms incompatible with Claude Code's schema.",
+    "symptom": "Claude Code sessions could pause/interruption around tool loops after Kiro-Go suppressed recoverable client tool calls.",
+    "cause": "Real Claude Code logs showed a latest AskUserQuestion suppression because questions was emitted as a JSON-encoded string while Claude Code's client tool schema expects questions as an array.",
     "previousCauses": [
       "TaskCreate tasks[] shape did not match Claude Code's single-task TaskCreate schema.",
+      "TaskUpdate status was emitted as an object instead of the expected string enum.",
+      "TaskOutput used task_id/block/timeout alias and string forms incompatible with Claude Code's schema.",
       "For streamed tool_use, content_block_start.input is only a placeholder; final tool input must be reconstructed from input_json_delta."
     ],
-    "fix": "Flatten TaskUpdate status objects, normalize TaskOutput taskId aliases, coerce TaskOutput block/timeout scalars, keep task lifecycle tools prioritized during trimming, and preserve request-log suppression diagnostics.",
+    "fix": "Parse AskUserQuestion/request_user_input questions JSON strings into arrays, wrap single question objects as one-element arrays, then keep normal schema validation. Existing lifecycle repairs and suppression diagnostics remain in place.",
     "liveEvidence": [
-      "direct-taskupdate-repair-auth-20260519125421.json",
-      "direct-taskoutput-repair-auth-20260519125421.json",
-      "request-logs-after-task-fix-auth.json",
-      "kiro-readiness-after-task-fix-auth.json"
+      "askuserquestion-202605191322/kiro-request-logs-after-askuserquestion-429.json",
+      "askuserquestion-202605191322/sub2api-kiro-message.json",
+      "askuserquestion-202605191322/kiro-request-logs-after-sub2api-success.json",
+      "askuserquestion-202605191322/sub2api-db-claude-usage-after.txt",
+      "askuserquestion-202605191322/browser-summary.json"
     ]
   },
   "researchReferences": {
-    "anthropicToolUse": "Official Messages tool-use contract uses assistant tool_use blocks followed by user tool_result blocks; stop_reason can be tool_use.",
+    "claudeCodeGateway": "Claude Code LLM gateway is configured through ANTHROPIC_BASE_URL/auth headers and depends on compatible Anthropic Messages semantics.",
+    "anthropicToolUse": "Official Messages tool-use contract uses assistant tool_use blocks followed by user tool_result blocks; stop_reason can be tool_use and tool input must match input_schema.",
     "anthropicStreaming": "Official streaming contract emits tool input through input_json_delta partial_json deltas; the initial content_block_start input can be empty.",
     "anthropicParallelTools": "Anthropic tools can be parallel by default; disable_parallel_tool_use is an explicit tool_choice control.",
     "kiroGatewayComparison": "jwadow/kiro-gateway keeps explicit Anthropic tool_use/tool_result models and streaming input_json_delta support, reinforcing repair-and-preserve semantics over silent tool-loop loss."
@@ -88,18 +115,22 @@
       "direct-taskupdate-repair-auth-20260519125421.json",
       "direct-taskoutput-repair-auth-20260519125421.json",
       "request-logs-after-task-fix-auth.json",
-      "sub2api-kiro-nonstream-20260519125523.json",
-      "request-logs-after-sub2api-smoke.json"
+      "askuserquestion-202605191322/sub2api-kiro-message.json",
+      "askuserquestion-202605191322/kiro-request-logs-after-sub2api-success.json",
+      "askuserquestion-202605191322/sub2api-fresh-after-rebuild.json",
+      "askuserquestion-202605191322/kiro-request-logs-after-rebuild-sub2api.json"
     ],
     "database": [
-      "usage row 58484: api_key_id=2 account_id=24 /v1/messages -> /v1/messages stream=false"
+      "usage row 58768: api_key_id=2 account_id=24 claude-opus-4-7 /v1/messages -> /v1/messages stream=false",
+      "account row 24: kiro_claude_01 anthropic active schedulable group_id=1",
+      "usage row 58973: api_key_id=2 account_id=24 claude-opus-4-7 /v1/messages -> /v1/messages stream=false after Docker rebuild"
     ],
     "screenshots": [
-      "kiro-admin-dashboard-final.png",
-      "kiro-admin-api-readiness-final.png",
-      "sub2api-admin-accounts-final.png",
-      "sub2api-admin-groups-final.png",
-      "sub2api-admin-usage-final.png"
+      "askuserquestion-202605191322/kiro-admin-dashboard.png",
+      "askuserquestion-202605191322/kiro-readiness-json.png",
+      "askuserquestion-202605191322/sub2api-admin-accounts.png",
+      "askuserquestion-202605191322/sub2api-admin-usage.png",
+      "askuserquestion-202605191322/sub2api-health-json.png"
     ],
     "browserMcpStyleRun": {
       "directory": "browser-mcp-20260519130456",
@@ -122,6 +153,19 @@
       ],
       "verdict": "PASS",
       "note": "Real Chromium Playwright was used because no separate Playwright-MCP namespace is exposed in this Codex environment."
+    },
+    "askUserQuestionRun": {
+      "directory": "askuserquestion-202605191322",
+      "summary": "askuserquestion-202605191322/browser-summary.json",
+      "verdict": "PASS",
+      "api": [
+        "askuserquestion-202605191322/sub2api-kiro-message.json",
+        "askuserquestion-202605191322/kiro-request-logs-after-sub2api-success.json"
+      ],
+      "database": [
+        "askuserquestion-202605191322/sub2api-db-claude-usage-after.txt",
+        "askuserquestion-202605191322/sub2api-db-kiro-accounts.txt"
+      ]
     }
   },
   "invalidOrSupersededEvidence": [
@@ -132,12 +176,12 @@
     "sub2api-simple-usage.png"
   ],
   "latestReverification": {
-    "timestamp": "2026-05-19T13:09:15+08:00",
+    "timestamp": "2026-05-19T13:43:00+08:00",
     "verdict": "PASS",
-    "browser": "real Chromium Playwright",
+    "browser": "real Chromium Playwright using /usr/bin/google-chrome",
     "api": "PASS",
     "database": "PASS",
-    "screenshots": "PASS_AFTER_MANUAL_ANALYSIS",
-    "details": "REPORT.md section Playwright-MCP Style Full-Stack Re-Verification: 2026-05-19 13:04-13:09 CST"
+    "screenshots": "PASS_AFTER_ANALYSIS",
+    "details": "REPORT.md section Latest Follow-up Root Cause Evidence: AskUserQuestion Suppression, including fresh post-rebuild sub2api/API/DB evidence"
   }
 }

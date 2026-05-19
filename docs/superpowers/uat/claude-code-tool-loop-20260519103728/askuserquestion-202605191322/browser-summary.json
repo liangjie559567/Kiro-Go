@@ -1,0 +1,28 @@
+{
+  "checks": [
+    {
+      "name": "kiro dashboard",
+      "pass": true
+    },
+    {
+      "name": "kiro readiness api",
+      "pass": true
+    },
+    {
+      "name": "sub2api accounts",
+      "pass": true
+    },
+    {
+      "name": "sub2api usage",
+      "pass": true
+    },
+    {
+      "name": "sub2api health page",
+      "pass": true
+    }
+  ],
+  "pass": true,
+  "consoleMessages": [],
+  "pageErrors": [],
+  "failedRequests": []
+}

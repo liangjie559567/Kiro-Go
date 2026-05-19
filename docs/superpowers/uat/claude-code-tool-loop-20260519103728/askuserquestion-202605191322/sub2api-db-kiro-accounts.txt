@@ -1,0 +1,5 @@
+ id |      name      | platform  | status | schedulable | group_id 
+----+----------------+-----------+--------+-------------+----------
+ 24 | kiro_claude_01 | anthropic | active | t           |        1
+(1 row)
+

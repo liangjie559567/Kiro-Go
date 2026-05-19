@@ -45,6 +45,12 @@ Changed files:
 - `proxy/handler.go`
 - `web/index.html`
 
+Latest AskUserQuestion follow-up changed files:
+
+- `proxy/kiro.go`
+- `proxy/kiro_test.go`
+- `askuserquestion-202605191322/browser-uat.js`
+
 ## Fresh Verification
 
 ### Tests
@@ -252,10 +258,63 @@ Reference comparison:
 - Anthropic streaming can expose partial tool input through `input_json_delta`; gateways must reconstruct and validate the completed input, not treat the initial empty input placeholder as final.
 - The latest `jwadow/kiro-gateway` codebase similarly keeps explicit Anthropic `tool_use`/`tool_result` models and a streaming adapter with `input_json_delta` events, plus parser tests for Kiro tool-call parsing/deduplication. That supports Kiro-Go's current direction: repair compatible client-schema drift when deterministic, suppress only genuinely unrecoverable tool input, and record suppression details for diagnosis.
 
+### Latest Follow-up Root Cause Evidence: AskUserQuestion Suppression
+
+PASS for Kiro-Go fix; external upstream 429 recorded for one forced live tool retry.
+
+Observed real Claude Code request log:
+
+- Failure timestamp: `2026-05-19T05:15:24Z`.
+- Suppressed tool: `AskUserQuestion`.
+- Suppression reason: `input does not satisfy client tool schema`.
+- Bad input shape: `{"questions":"[{\"header\":\"UI 安全门\",...}]"}`.
+- Claude Code's client schema expects `questions` to be an array, not a JSON-encoded string.
+
+Fix evidence:
+
+- `TestWrapToolUseRepairsAskUserQuestionJSONEncodedQuestions` proves Kiro-Go parses a JSON-encoded `questions` string into an array before Claude Code schema validation.
+- The repair applies to both `AskUserQuestion` and `request_user_input`, wraps a single JSON object string as a one-element array, and keeps normal schema validation in place for `required`, `maxItems`, and `additionalProperties`.
+- `go test ./proxy -run 'AskUserQuestion|RequestUserInput|ToolUseRepairs|DropsArrayAboveMaxItems' -count=1 -v` passed.
+- `go test ./...` passed after the repair.
+
+Live service and downstream evidence:
+
+- Docker service was rebuilt with `docker compose up -d --build kiro-go`.
+- `curl http://127.0.0.1:8080/health` returned `{"status":"ok","version":"1.0.8"}`.
+- `curl http://127.0.0.1:18080/health` returned `{"status":"ok"}`.
+- Forced direct `AskUserQuestion` retry reached upstream Kiro and returned HTTP 429 suspicious-activity limits. The corresponding Kiro request log shows `statusCode=429`, `outcome=error`, `payloadKeptTools=["askUserQuestion"]`, and no suppressed tool names. That proves this retry was not blocked by Claude Code schema suppression.
+- `/www/sub2api` real downstream request succeeded through Kiro-Go:
+  - `askuserquestion-202605191322/sub2api-kiro-message.json`: HTTP 200 response with exact marker `ASKUSERQUESTION_FIX_SUB2API_KIRO_OK_202605191322`.
+  - `askuserquestion-202605191322/kiro-request-logs-after-sub2api-success.json`: request id `33c34491-d11b-44a3-ae23-97d0554d4bf0`, `/v1/messages`, `statusCode=200`, `outcome=success`.
+  - `askuserquestion-202605191322/sub2api-db-claude-usage-after.txt`: usage row `58768`, `api_key_id=2`, `account_id=24`, `requested_model=claude-opus-4-7`, `/v1/messages -> /v1/messages`, `stream=false`.
+  - `askuserquestion-202605191322/sub2api-db-kiro-accounts.txt`: account `24 / kiro_claude_01 / anthropic / active / schedulable / group_id=1`.
+- Fresh post-rebuild downstream check:
+  - `askuserquestion-202605191322/sub2api-fresh-after-rebuild.json`: HTTP 200 response with exact marker `ASKUSERQUESTION_FIX_SUB2API_FRESH_AFTER_REBUILD_202605191343`.
+  - `askuserquestion-202605191322/kiro-request-logs-after-rebuild-sub2api.json`: request id `6421ce04-5944-4098-9b76-7fbfa215749d`, upstream request id `req_06ca4a52-70e3-419b-ab85-72288600e058`, `/v1/messages`, `statusCode=200`, `outcome=success`.
+  - `askuserquestion-202605191322/sub2api-db-after-rebuild.txt`: usage row `58973`, `api_key_id=2`, `account_id=24`, `requested_model=claude-opus-4-7`, `/v1/messages -> /v1/messages`, `stream=false`, created `2026-05-19 13:42:19+08`.
+
+Real browser evidence:
+
+- `askuserquestion-202605191322/browser-uat.js` ran with real `/usr/bin/google-chrome` through Playwright.
+- `askuserquestion-202605191322/browser-summary.json`: PASS, all five checks true, no console errors, page errors, or request failures.
+- Screenshots:
+  - `askuserquestion-202605191322/kiro-admin-dashboard.png`
+  - `askuserquestion-202605191322/kiro-readiness-json.png`
+  - `askuserquestion-202605191322/sub2api-admin-accounts.png`
+  - `askuserquestion-202605191322/sub2api-admin-usage.png`
+  - `askuserquestion-202605191322/sub2api-health-json.png`
+
+Screenshot/API/DB correlation:
+
+- Kiro admin/readiness screenshot confirms the admin surface is reachable after the rebuilt Docker deployment.
+- sub2api accounts screenshot plus browser API response confirm the `anthropic` account path includes `kiro_claude_01`.
+- sub2api usage screenshot plus browser API response confirm the filtered `api_key_id=2/account_id=24` usage path contains `claude-opus-4-7` and `/v1/messages`.
+- Postgres row `58768` matches the same API key/account/model/endpoint path, so this UAT is PASS.
+
 ## Five-Area Verdict
 
 1. Context continuity: PASS for current message-shape logging and preserved request flow in live calls; broader preference/generalized compaction improvements remain future work.
-2. Tool calling: PASS. Direct streamed `LS` reconstructs to `{"path":"."}`, the follow-up `tool_result` turn reaches final `end_turn`, `TaskCreate tasks[]` is repaired to Claude Code's single-task schema, `TaskUpdate.status` object output is flattened, `TaskOutput` aliases/types are normalized, and task lifecycle tools are prioritized during trimming.
+2. Tool calling: PASS. Direct streamed `LS` reconstructs to `{"path":"."}`, the follow-up `tool_result` turn reaches final `end_turn`, `TaskCreate tasks[]` is repaired to Claude Code's single-task schema, `TaskUpdate.status` object output is flattened, `TaskOutput` aliases/types are normalized, `AskUserQuestion.questions` JSON strings are parsed to arrays, and task lifecycle tools are prioritized during trimming.
 3. MCP/tool-reference: PASS for existing readiness surfacing and Claude Code environment guidance; no new MCP screenshot-image payload UAT was added in this slice.
 4. Model calling/readiness: PASS for `claude-opus-4-7` readiness and schedulable account evidence in `kiro-model-readiness-fresh.json`.
 5. Streaming/downstream sub2api: PASS for the implemented Kiro-Go fix and current non-stream downstream call. Previous stream evidence remains valid, but the latest fresh stream retry is `BLOCKED_EXTERNAL_429` because upstream Kiro temporarily rate-limited the selected account.
@@ -268,7 +327,7 @@ PASS for the Kiro-Go tool-loop fix, with one external limitation recorded:
 - The latest Docker service is running and healthy.
 - `/www/sub2api` still performs real downstream non-stream calls to Kiro-Go and records Postgres usage rows.
 - Browser screenshots, API responses, and database rows agree.
-- Direct post-fix task lifecycle tool calls now pass for `TaskUpdate` and `TaskOutput` with no suppressed tool uses.
+- Direct post-fix task lifecycle tool calls now pass for `TaskUpdate` and `TaskOutput` with no suppressed tool uses; the forced `AskUserQuestion` retry now reaches upstream and is no longer suppressed by client-schema validation.
 - The latest sub2api stream retry is blocked by upstream Kiro account HTTP 429. This is not marked as a fresh stream PASS, and it remains an account/quota state to recheck when upstream limits clear.
 
 ## Playwright-MCP Style Full-Stack Re-Verification: 2026-05-19 13:04-13:09 CST

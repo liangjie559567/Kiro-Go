@@ -1,0 +1,45 @@
+{
+  "model": "claude-sonnet-4.5",
+  "max_tokens": 256,
+  "stream": true,
+  "tools": [
+    {
+      "name": "AskUserQuestion",
+      "description": "Ask the user to choose a workflow branch.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "properties": {
+                "header": {"type": "string"},
+                "multiSelect": {"type": "boolean"},
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {"type": "string"},
+                      "description": {"type": "string"}
+                    },
+                    "required": ["label", "description"]
+                  }
+                }
+              },
+              "required": ["header", "multiSelect", "options"]
+            }
+          }
+        },
+        "required": ["questions"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "tool_choice": {"type":"tool","name":"AskUserQuestion"},
+  "messages": [
+    {"role":"user","content":"Use AskUserQuestion exactly once. Ask whether to run /gsd-ui-phase 46 first or continue plan-phase without UI-SPEC. Use header UI 安全门, multiSelect false, and two options with label and description."}
+  ]
+}

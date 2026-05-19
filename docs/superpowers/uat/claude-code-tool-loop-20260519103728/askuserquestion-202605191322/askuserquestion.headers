@@ -1,0 +1,12 @@
+HTTP/1.1 429 Too Many Requests
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Api-Key, anthropic-version, anthropic-beta, x-api-key, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: x-request-id, x-ratelimit-limit-requests, x-ratelimit-limit-tokens, x-ratelimit-remaining-requests, x-ratelimit-remaining-tokens, x-ratelimit-reset-requests, x-ratelimit-reset-tokens
+Content-Type: application/json; charset=utf-8
+Request-Id: req_741ccbf3-3296-469e-89cc-fd3a70b282f9
+Retry-After: 5
+X-Request-Id: req_741ccbf3-3296-469e-89cc-fd3a70b282f9
+Date: Tue, 19 May 2026 05:23:31 GMT
+Content-Length: 414
+
