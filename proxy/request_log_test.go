@@ -166,6 +166,28 @@ func TestRequestLogCapturesMaxTokensZeroMode(t *testing.T) {
 	}
 }
 
+func TestRequestLogCapturesClaudeParityModes(t *testing.T) {
+	store := newRequestLogStore(10)
+	loggedReq := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
+	ctx, loggedReq, recorder, _ := (&Handler{requestLogs: store}).beginRequestLog(httptest.NewRecorder(), loggedReq)
+
+	updateRequestLogCountTokensMode(loggedReq, "estimated")
+	updateRequestLogAssistantPrefillMode(loggedReq, "emulated_text_prefill")
+
+	recorder.WriteHeader(http.StatusOK)
+	(&Handler{requestLogs: store}).finishRequestLog(ctx, recorder)
+	entries := store.List(10)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %d", len(entries))
+	}
+	if entries[0].CountTokensMode != "estimated" {
+		t.Fatalf("expected count token mode, got %#v", entries[0])
+	}
+	if entries[0].AssistantPrefillMode != "emulated_text_prefill" {
+		t.Fatalf("expected assistant prefill mode, got %#v", entries[0])
+	}
+}
+
 func TestRequestLogMetadataCapturesAnthropicEnvelope(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))

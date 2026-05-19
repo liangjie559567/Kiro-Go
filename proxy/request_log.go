@@ -80,6 +80,8 @@ type RequestLogEntry struct {
 	CacheReadInputTokens                int                       `json:"cacheReadInputTokens,omitempty"`
 	CacheCreationInputTokens            int                       `json:"cacheCreationInputTokens,omitempty"`
 	MaxTokensZeroMode                   string                    `json:"maxTokensZeroMode,omitempty"`
+	CountTokensMode                     string                    `json:"countTokensMode,omitempty"`
+	AssistantPrefillMode                string                    `json:"assistantPrefillMode,omitempty"`
 	ErrorType                           string                    `json:"errorType,omitempty"`
 	Error                               string                    `json:"error,omitempty"`
 }
@@ -468,6 +470,26 @@ func updateRequestLogMaxTokensZeroMode(r *http.Request, mode string) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.MaxTokensZeroMode = strings.TrimSpace(mode)
+}
+
+func updateRequestLogCountTokensMode(r *http.Request, mode string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.CountTokensMode = strings.TrimSpace(mode)
+}
+
+func updateRequestLogAssistantPrefillMode(r *http.Request, mode string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.AssistantPrefillMode = strings.TrimSpace(mode)
 }
 
 func updateRequestLogReliability(r *http.Request, queueWaitMs int64, attempts int, firstTokenMs int64, toolUseCount int) {
