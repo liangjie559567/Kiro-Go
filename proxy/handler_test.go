@@ -1814,29 +1814,62 @@ func TestClaudeCountTokensRecordsEstimatedMode(t *testing.T) {
 }
 
 func TestClaudeAssistantTextPrefillRecordsEmulatedMode(t *testing.T) {
-	req := ClaudeRequest{
-		Model:     "claude-sonnet-4.5",
-		MaxTokens: 64,
-		Messages: []ClaudeMessage{
-			{Role: "user", Content: "Return JSON"},
-			{Role: "assistant", Content: "{\"ok\":"},
-		},
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
 	}
-	h := &Handler{pool: &pool.AccountPool{}, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5)}
-	httpReq := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
-	ctx, httpReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), httpReq)
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
 
-	normalized := normalizeAssistantPrefillForKiro(req.Messages)
-	if len(normalized) != 2 || normalized[1].Role != "user" {
-		t.Fatalf("expected text prefill to be converted to user instruction, got %#v", normalized)
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, startTime: time.Now().Unix(), requestLogs: newRequestLogStore(5), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-prefill-mode",
+		Enabled:     true,
+		AccessToken: "token-prefill-mode",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
 	}
-	updateRequestLogAssistantPrefillMode(httpReq, "emulated_text_prefill")
-	recorder.WriteHeader(http.StatusOK)
-	h.finishRequestLog(ctx, recorder)
-	entries := h.ensureRequestLogStore().List(5)
+	p.Reload()
+
+	var upstreamCalled bool
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalled = true
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": `{"ok":true}`}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","max_tokens":64,"messages":[{"role":"user","content":"Return JSON"},{"role":"assistant","content":"{\"ok\":"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !upstreamCalled {
+		t.Fatalf("expected assistant prefill request to route upstream")
+	}
+	entries := h.requestLogs.List(5)
 	if len(entries) != 1 || entries[0].AssistantPrefillMode != "emulated_text_prefill" {
 		t.Fatalf("expected assistant prefill mode, got %#v", entries)
 	}
+	waitForAccountRequestCount(t, 1)
 }
 
 func TestHandleClaudeNativeWebSearchUsesAccountRegionForMCP(t *testing.T) {
