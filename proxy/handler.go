@@ -4751,13 +4751,14 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 		routingReason = "schedulable accounts available"
 	}
 	resp := map[string]interface{}{
-		"requestedModel":  requested,
-		"mappedModel":     mapped,
-		"thinking":        thinking,
-		"thinkingVariant": thinking || strings.HasSuffix(strings.ToLower(requested), strings.ToLower(thinkingCfg.Suffix)),
-		"listedByGateway": listed,
-		"routingReason":   routingReason,
-		"accounts":        accountRows,
+		"requestedModel":    requested,
+		"mappedModel":       mapped,
+		"thinking":          thinking,
+		"thinkingVariant":   thinking || strings.HasSuffix(strings.ToLower(requested), strings.ToLower(thinkingCfg.Suffix)),
+		"listedByGateway":   listed,
+		"routingReason":     routingReason,
+		"accounts":          accountRows,
+		"admissionPressure": h.admissionPressureForModel(mapped),
 		"capabilities": map[string]interface{}{
 			"vision":    supportsImage,
 			"toolUse":   true,
@@ -4767,6 +4768,32 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 		"reason": modelReadinessReason(listed),
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handler) admissionPressureForModel(model string) map[string]interface{} {
+	if modelAdmissionGate == nil {
+		return map[string]interface{}{"active": false}
+	}
+	normalizedModel := normalizeAdmissionModel(model)
+	for _, snap := range modelAdmissionGate.snapshot() {
+		if normalizeAdmissionModel(snap.Model) == normalizedModel {
+			return map[string]interface{}{
+				"model":                  snap.Model,
+				"active":                 snap.Active,
+				"score":                  snap.Score,
+				"reducedConcurrency":     snap.ReducedConcurrency,
+				"maxConcurrent":          snap.MaxConcurrent,
+				"effectiveMaxConcurrent": snap.EffectiveMaxConcurrent,
+				"queueDepth":             snap.QueueDepth,
+				"activeRequests":         snap.ActiveRequests,
+				"recentCapacityErrors":   snap.RecentCapacityErrors,
+				"recentQueueTimeouts":    snap.RecentQueueTimeouts,
+				"recentSuccesses":        snap.RecentSuccesses,
+				"expiresInMs":            snap.ExpiresInMs,
+			}
+		}
+	}
+	return map[string]interface{}{"active": false, "model": normalizedModel}
 }
 
 func (h *Handler) claudeCodeModelReadinessAccountRows(model string) ([]map[string]interface{}, int, int) {
@@ -4955,6 +4982,10 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 			),
 			"toolSchemaValidation": basicCapability("PASS", "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them"),
 			"toolReference":        basicCapability("PASS", "tool_reference is accepted and materialized when relevant"),
+			"opus47AdaptiveAdmission": basicCapability(
+				"PASS",
+				"Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency",
+			),
 		},
 		"recentClaudeCode":               false,
 		"recentToolReferences":           false,
@@ -4968,6 +4999,7 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		"recentUnsupportedBlocks":        false,
 		"recentFineGrainedToolStreaming": false,
 		"recentSuppressedToolUses":       false,
+		"recentAdmissionPressure":        false,
 		"recentContextReminders":         []string{},
 		"lastSeen":                       "",
 		"examples":                       []map[string]interface{}{},
@@ -5015,6 +5047,9 @@ func (h *Handler) apiGetClaudeCodeReadiness(w http.ResponseWriter, r *http.Reque
 		}
 		if entry.SuppressedToolUseCount > 0 {
 			resp["recentSuppressedToolUses"] = true
+		}
+		if entry.AdmissionPressureScore > 0 || entry.EffectiveConcurrentLimit > 0 {
+			resp["recentAdmissionPressure"] = true
 		}
 		entryCopy := entry
 		if entry.CountTokensMode != "" && recentCountTokens == nil {

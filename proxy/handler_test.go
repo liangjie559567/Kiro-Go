@@ -2710,6 +2710,44 @@ func TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeModelReadinessIncludesAdmissionPressure(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	originalGate := modelAdmissionGate
+	t.Cleanup(func() { modelAdmissionGate = originalGate })
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 10},
+		},
+	})
+	h := &Handler{
+		pool:        &pool.AccountPool{},
+		startTime:   time.Now().Unix(),
+		requestLogs: newRequestLogStore(5),
+	}
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusTooManyRequests, time.Second)
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-opus-4-7", nil)
+	w := httptest.NewRecorder()
+
+	h.apiGetClaudeCodeModelReadiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	pressure, ok := body["admissionPressure"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected admissionPressure object, got %#v", body)
+	}
+	if pressure["active"] != true {
+		t.Fatalf("expected active pressure, got %#v", pressure)
+	}
+}
+
 func TestClaudeCodeModelReadinessIncludesAccountReasons(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
