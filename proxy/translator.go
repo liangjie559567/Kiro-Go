@@ -98,25 +98,22 @@ func normalizeClaudeModelName(model string) string {
 		return trimmed
 	}
 	lower := strings.ToLower(trimmed)
-	lower = strings.TrimSuffix(lower, "-latest")
-	if m := claudeDateSuffixRE.FindStringSubmatch(lower); len(m) == 2 {
-		lower = m[1]
+	probe := strings.TrimSuffix(lower, "-latest")
+	if m := claudeDateSuffixRE.FindStringSubmatch(probe); len(m) == 2 {
+		probe = m[1]
 	}
 	for _, mapping := range modelMapOrdered {
-		if lower == mapping.key {
+		if lower == mapping.key || probe == mapping.key {
 			return mapping.value
 		}
 	}
-	if strings.HasPrefix(lower, "claude-") && strings.Contains(lower, "opus") {
-		parts := strings.Split(lower, "-")
+	if strings.HasPrefix(probe, "claude-") && strings.Contains(probe, "opus") {
+		parts := strings.Split(probe, "-")
 		for i := 0; i < len(parts)-1; i++ {
 			if parts[i] == "4" && parts[i+1] == "7" {
 				return "claude-opus-4.7"
 			}
 		}
-	}
-	if lower != strings.ToLower(model) {
-		return lower
 	}
 	return model
 }

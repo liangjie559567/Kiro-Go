@@ -30,6 +30,18 @@ func TestParseModelAndThinkingNormalizesOfficialOpus47Names(t *testing.T) {
 	}
 }
 
+func TestParseModelAndThinkingPreservesUnknownNonOpusClaudeAliases(t *testing.T) {
+	for _, model := range []string{
+		"claude-sonnet-5-latest",
+		"claude-haiku-4-20260514",
+	} {
+		gotModel, gotThinking := ParseModelAndThinking(model, "-thinking")
+		if gotModel != model || gotThinking {
+			t.Fatalf("ParseModelAndThinking(%q) = %q/%v, want %q/false", model, gotModel, gotThinking, model)
+		}
+	}
+}
+
 func TestIsOpus47RequestModelRecognizesOfficialAndKiroNames(t *testing.T) {
 	for _, model := range []string{
 		"claude-opus-4-7",
