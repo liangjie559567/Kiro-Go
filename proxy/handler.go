@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,6 +43,7 @@ const (
 	defaultOpus47MaxAttempts       = 4
 	defaultOpus47RequestBudget     = 25 * time.Second
 	defaultOpus47ReadinessCacheTTL = 3 * time.Second
+	minStableClaudeCapacityWait    = time.Second
 	modelCachePressureFailureLimit = 2
 )
 
@@ -560,7 +562,12 @@ func stableFallbackText(reason string, err error) string {
 }
 
 func stableFallbackAssistantText(reason string, err error) string {
-	return ""
+	msg := "Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
+	if reason != "" {
+		msg += " Retry reason: " + reason + "."
+	}
+	msg += " Please retry this turn; Kiro-Go will continue routing to healthy upstream capacity when it becomes available."
+	return msg
 }
 
 func stableFallbackSuppressedStatus(err error) int {
@@ -623,6 +630,7 @@ func (h *Handler) sendStableClaudeStreamFallback(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusOK)
 	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
 	sse.Start()
+	sse.TextDelta(stableFallbackAssistantText(reason, err))
 	sse.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
@@ -667,19 +675,46 @@ func downstreamStatusForRetryExhaustion(r *http.Request, model string, claudeFor
 }
 
 func (h *Handler) waitForStableContentContinuity(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) bool {
+	result := h.waitForStableContentContinuityResult(r, model, deadline, stillBlocked)
+	return result.Waited && !result.TimedOut && !result.Canceled
+}
+
+func (h *Handler) waitForStableContentContinuityResult(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) contentContinuityWaitResult {
 	if !stableDownstreamForRequest(r, model, true) {
-		return false
+		return contentContinuityWaitResult{}
 	}
-	stableWait := contentContinuityWaitDuration(model, deadline)
+	stableWait := stableContentContinuityWaitDuration(model)
 	if stableWait <= 0 {
-		return false
+		return contentContinuityWaitResult{}
 	}
 	if stillBlocked == nil {
 		stillBlocked = func() bool { return true }
 	}
-	result := contentContinuityGateGlobal.wait(model, stableWait, stillBlocked)
+	ctx := context.Background()
+	if r != nil && r.Context() != nil {
+		ctx = r.Context()
+	}
+	result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, stillBlocked)
 	updateRequestLogCapacityQueue(r, result.Duration)
-	return !result.TimedOut
+	return result
+}
+
+func (h *Handler) waitForStableClaudeCapacity(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) bool {
+	if !stableDownstreamForRequest(r, model, true) {
+		return false
+	}
+	for {
+		result := h.waitForStableContentContinuityResult(r, model, deadline, stillBlocked)
+		if !result.Waited || result.Canceled {
+			return false
+		}
+		if !result.TimedOut {
+			return true
+		}
+		if r != nil && r.Context().Err() != nil {
+			return false
+		}
+	}
 }
 
 func (h *Handler) stableAttemptBudgetStillBlocked(model string) bool {
@@ -2330,22 +2365,20 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 
 	for {
 		if budget.attemptsExhausted(attempt, model) {
-			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
 				return h.stableAttemptBudgetStillBlocked(model)
 			}) {
 				used = make(map[string]bool)
 				attempt = 0
 				continue
 			}
-			h.recordFailure()
-			if stableDownstreamForRequest(r, model, true) {
-				if stream {
-					h.sendStableClaudeStreamFallback(w, r, model, "attempt_budget_exhausted", lastErr)
-				} else {
-					h.sendStableClaudeFallback(w, r, model, "attempt_budget_exhausted", lastErr)
-				}
+			if stableDownstreamForRequest(r, model, true) && r.Context().Err() != nil {
 				return
 			}
+			if stableDownstreamForRequest(r, model, true) {
+				continue
+			}
+			h.recordFailure()
 			h.sendClaudeOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
 			return
 		}
@@ -2368,15 +2401,32 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				}
 				h.recordFailure()
 				if stableDownstreamForRequest(r, model, true) {
-					if stream {
-						h.sendStableClaudeStreamFallback(w, r, model, "capacity_recovery_timeout", lastErr)
-					} else {
-						h.sendStableClaudeFallback(w, r, model, "capacity_recovery_timeout", lastErr)
+					if h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+						return h.stableAttemptBudgetStillBlocked(model)
+					}) {
+						used = make(map[string]bool)
+						attempt = 0
+						continue
+					}
+					if r.Context().Err() == nil {
+						continue
 					}
 					return
 				}
 				h.sendClaudeOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
+			}
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				continue
+			}
+			if stableDownstreamForRequest(r, model, true) && r.Context().Err() != nil {
+				return
+			}
+			if stableDownstreamForRequest(r, model, true) {
+				continue
 			}
 			h.recordFailure()
 			h.sendNoAvailableAccountsError(w, r, model, lastErr, true)
@@ -2429,7 +2479,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
 				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
-					h.sendStableClaudeStreamFallback(w, r, model, "upstream_retryable_exhausted", err)
+					if h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+						return h.stableAttemptBudgetStillBlocked(model)
+					}) {
+						used = make(map[string]bool)
+						attempt = 0
+						continue
+					}
 					return
 				}
 				status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
@@ -2501,6 +2557,12 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 				}
 				h.sendOpenAIOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
+			}
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				continue
 			}
 			h.recordFailure()
 			h.sendNoAvailableAccountsError(w, r, model, lastErr, false)
@@ -2639,14 +2701,21 @@ func (h *Handler) shouldFastRejectOpus47OpenCircuit(model string, snap Admission
 
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
 	if stableDownstreamForRequest(r, model, true) {
-		if snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap) {
-			if stableWait := contentContinuityWaitDuration(model, deadline); stableWait > 0 {
-				result := contentContinuityGateGlobal.wait(model, stableWait, func() bool {
+		for snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap); snap = opus47OpenCircuitSnapshot(model) {
+			if stableWait := stableContentContinuityWaitDuration(model); stableWait > 0 {
+				ctx := context.Background()
+				if r != nil && r.Context() != nil {
+					ctx = r.Context()
+				}
+				result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, func() bool {
 					return h.shouldFastRejectOpus47OpenCircuit(model, opus47OpenCircuitSnapshot(model))
 				})
 				updateRequestLogCapacityQueue(r, result.Duration)
 				effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
 				updateRequestLogAdmission(r, result.Duration, effectiveLimit, pressureScore)
+				if claudeFormat && result.Canceled {
+					return nil, false
+				}
 				if !result.TimedOut && !h.shouldFastRejectOpus47OpenCircuit(model, opus47OpenCircuitSnapshot(model)) {
 					retryTimeout := time.Until(deadline)
 					if retryTimeout <= 0 {
@@ -2660,6 +2729,9 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 						updateRequestLogReliability(r, result.Duration.Milliseconds(), 0, 0, -1)
 						return release, true
 					}
+				}
+				if claudeFormat {
+					continue
 				}
 			}
 			h.recordFailure()
@@ -2685,8 +2757,16 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 			updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
 			return release, true
 		}
-		if stableWait := contentContinuityWaitDuration(model, deadline); stableWait > 0 {
-			result := contentContinuityGateGlobal.wait(model, stableWait, func() bool {
+		for {
+			stableWait := stableContentContinuityWaitDuration(model)
+			if stableWait <= 0 {
+				break
+			}
+			ctx := context.Background()
+			if r != nil && r.Context() != nil {
+				ctx = r.Context()
+			}
+			result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, func() bool {
 				probeRelease, _, probeErr := modelAdmissionGate.acquire(model, time.Millisecond)
 				if probeErr == nil {
 					probeRelease()
@@ -2695,6 +2775,9 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 				return true
 			})
 			updateRequestLogCapacityQueue(r, result.Duration)
+			if claudeFormat && result.Canceled {
+				return nil, false
+			}
 			if !result.TimedOut {
 				retryTimeout := time.Until(deadline)
 				if retryTimeout <= 0 {
@@ -2713,8 +2796,14 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 				}
 				err = retryErr
 			}
+			if !claudeFormat {
+				break
+			}
 		}
 		h.recordFailure()
+		if claudeFormat {
+			return nil, false
+		}
 		h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, err)
 		return nil, false
 	}
@@ -3134,8 +3223,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		if !streamStarted {
 			status, errType := claudeUpstreamErrorStatusAndType(err)
 			if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
-				h.sendStableClaudeStreamFallback(w, r, model, "upstream_retryable_exhausted", err)
-				return true, err
+				return false, err
 			}
 			status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 			h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
@@ -3361,8 +3449,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		h.checkOverageError(err, account.ID)
 		status, errType := claudeUpstreamErrorStatusAndType(err)
 		if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
-			h.sendStableClaudeFallback(w, r, model, "upstream_retryable_exhausted", err)
-			return true, err
+			return false, err
 		}
 		status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 		h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
@@ -3661,6 +3748,12 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 				}
 				h.sendOpenAIOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
+			}
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				continue
 			}
 			if lastErr != nil {
 				h.recordFailure()

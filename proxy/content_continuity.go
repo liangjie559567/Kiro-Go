@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"kiro-go/config"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ type contentContinuityGate struct {
 type contentContinuityWaitResult struct {
 	Waited   bool
 	TimedOut bool
+	Canceled bool
 	Duration time.Duration
 }
 
@@ -51,6 +53,21 @@ func contentContinuityWaitDuration(model string, deadline time.Time) time.Durati
 		if remaining < wait {
 			wait = remaining
 		}
+	}
+	return wait
+}
+
+func stableContentContinuityWaitDuration(model string) time.Duration {
+	cfg := config.Get()
+	if cfg == nil || !cfg.ContentContinuity.SupportsModel(model) {
+		if isOpus47Model(model) {
+			return minStableClaudeCapacityWait
+		}
+		return 0
+	}
+	wait := time.Duration(cfg.ContentContinuity.MaxQueueWaitSeconds) * time.Second
+	if wait <= 0 {
+		return minStableClaudeCapacityWait
 	}
 	return wait
 }
@@ -97,6 +114,10 @@ func (g *contentContinuityGate) channelLocked(model string) chan struct{} {
 }
 
 func (g *contentContinuityGate) wait(model string, timeout time.Duration, stillBlocked func() bool) contentContinuityWaitResult {
+	return g.waitContext(context.Background(), model, timeout, stillBlocked)
+}
+
+func (g *contentContinuityGate) waitContext(ctx context.Context, model string, timeout time.Duration, stillBlocked func() bool) contentContinuityWaitResult {
 	start := time.Now()
 	result := contentContinuityWaitResult{Waited: true}
 	if g == nil || timeout <= 0 {
@@ -127,6 +148,10 @@ func (g *contentContinuityGate) wait(model string, timeout time.Duration, stillB
 		ch := g.channelLocked(model)
 		g.mu.Unlock()
 		select {
+		case <-ctx.Done():
+			result.Canceled = true
+			result.Duration = time.Since(start)
+			return result
 		case <-ch:
 		case <-timer.C:
 			result.TimedOut = true

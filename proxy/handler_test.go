@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -78,8 +79,11 @@ func TestStableDownstreamClaudeNoAccountsReturnsHTTP200(t *testing.T) {
 	if strings.Contains(w.Body.String(), `"type":"error"`) {
 		t.Fatalf("stable fallback must be a message response, not an HTTP error envelope: %s", w.Body.String())
 	}
-	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") || strings.Contains(w.Body.String(), "Opus 4.7 is temporarily waiting") {
+	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") {
 		t.Fatalf("stable fallback must not leak internal fallback text into assistant content: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "Opus 4.7") {
+		t.Fatalf("stable fallback must include non-empty assistant content for Claude Code: %s", w.Body.String())
 	}
 }
 
@@ -108,8 +112,11 @@ func TestStableDownstreamClaudeStreamFallbackStartsHTTP200SSE(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "message_stop") {
 		t.Fatalf("expected complete Anthropic SSE fallback, got: %s", w.Body.String())
 	}
-	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") || strings.Contains(w.Body.String(), "Opus 4.7 is temporarily waiting") {
+	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") {
 		t.Fatalf("stable SSE fallback must not leak internal fallback text into assistant content: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "content_block_delta") || !strings.Contains(w.Body.String(), "Opus 4.7") {
+		t.Fatalf("stable SSE fallback must include non-empty assistant text for Claude Code: %s", w.Body.String())
 	}
 }
 
@@ -2403,7 +2410,7 @@ func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
 	}
 }
 
-func TestStableAttemptBudgetExhaustionWaitsBeforeFallback(t *testing.T) {
+func TestStableAttemptBudgetExhaustionWaitsForClientInsteadOfFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2459,8 +2466,10 @@ func TestStableAttemptBudgetExhaustionWaitsBeforeFallback(t *testing.T) {
 		}),
 	})
 
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
 	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body).WithContext(ctx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
 	w := httptest.NewRecorder()
 
@@ -2468,25 +2477,215 @@ func TestStableAttemptBudgetExhaustionWaitsBeforeFallback(t *testing.T) {
 	h.ServeHTTP(w, req)
 	waited := time.Since(start)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("stable fallback status = %d, want 200; body=%s", w.Code, w.Body.String())
-	}
 	if waited < 900*time.Millisecond {
-		t.Fatalf("stable attempt-budget fallback waited %s, want content continuity wait", waited)
+		t.Fatalf("stable attempt-budget wait lasted %s, want content continuity wait", waited)
+	}
+	if w.Body.Len() != 0 {
+		t.Fatalf("Claude stable wait must not emit fallback assistant content: %s", w.Body.String())
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
 	entry := logs[0]
-	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "attempt_budget_exhausted" {
-		t.Fatalf("expected attempt-budget stable fallback, got %#v", entry)
+	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
+		t.Fatalf("did not expect attempt-budget stable fallback, got %#v", entry)
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
-		t.Fatalf("expected content continuity queue wait before fallback, got %#v", entry)
+		t.Fatalf("expected content continuity queue wait, got %#v", entry)
 	}
 	if attempts != defaultOpus47MaxAttempts {
 		t.Fatalf("attempts = %d, want %d", attempts, defaultOpus47MaxAttempts)
+	}
+}
+
+func TestStableClaudeAttemptBudgetDoesNotEmitFallbackWhenClientWaits(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	opusCapacityRetryBudget = time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if strings.Contains(w.Body.String(), "Opus 4.7 upstream capacity is temporarily unavailable") {
+		t.Fatalf("Claude stable request must not receive final assistant fallback text: %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.StableDownstreamFallback {
+		t.Fatalf("did not expect stable fallback to be emitted for Claude Code wait path: %#v", entry)
+	}
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected content continuity queue wait, got %#v", entry)
+	}
+}
+
+func TestStableClaudeNoAccountsWaitsForClientInsteadOfFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+
+	start := time.Now()
+	h.ServeHTTP(w, req)
+	waited := time.Since(start)
+
+	if waited < 900*time.Millisecond {
+		t.Fatalf("stable no-accounts wait lasted %s, want content continuity wait", waited)
+	}
+	if w.Body.Len() != 0 {
+		t.Fatalf("Claude no-accounts stable wait must not emit fallback assistant content: %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
+		t.Fatalf("did not expect no-accounts stable fallback, got %#v", entry)
+	}
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected content continuity queue wait, got %#v", entry)
+	}
+}
+
+func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"stream":true,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+
+	start := time.Now()
+	h.ServeHTTP(w, req)
+	waited := time.Since(start)
+
+	if waited < 900*time.Millisecond {
+		t.Fatalf("stable stream no-accounts wait lasted %s, want content continuity wait", waited)
+	}
+	if w.Body.Len() != 0 {
+		t.Fatalf("Claude stream no-accounts stable wait must not emit fallback SSE: %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
+		t.Fatalf("did not expect no-accounts stable fallback, got %#v", entry)
+	}
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected content continuity queue wait, got %#v", entry)
 	}
 }
 
@@ -3394,12 +3593,20 @@ func TestAcquireAdmissionGatesStreamByDefault(t *testing.T) {
 	}
 }
 
-func TestStableAdmissionPressureWaitsBeforeFallback(t *testing.T) {
+func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
 	h := NewHandler()
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
 	rr := httptest.NewRecorder()
 	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
@@ -3427,10 +3634,13 @@ func TestStableAdmissionPressureWaitsBeforeFallback(t *testing.T) {
 	releaseReq, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(30*time.Millisecond))
 	if ok {
 		releaseReq()
-		t.Fatalf("expected admission fallback after continuity wait timeout")
+		t.Fatalf("expected admission wait to stop only after client cancellation")
 	}
-	if time.Since(start) < 20*time.Millisecond {
-		t.Fatalf("expected continuity wait before fallback, waited %s", time.Since(start))
+	if time.Since(start) < 900*time.Millisecond {
+		t.Fatalf("expected stable continuity wait to ignore short request budget, waited %s", time.Since(start))
+	}
+	if rr.Body.Len() != 0 {
+		t.Fatalf("Claude admission pressure wait must not emit fallback assistant content: %s", rr.Body.String())
 	}
 	h.finishRequestLog(ctx, recorder)
 
@@ -3445,8 +3655,8 @@ func TestStableAdmissionPressureWaitsBeforeFallback(t *testing.T) {
 	if entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected positive CapacityQueueWaitMs")
 	}
-	if entry.StableFallbackReason != "admission_pressure" {
-		t.Fatalf("StableFallbackReason = %q, want admission_pressure", entry.StableFallbackReason)
+	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
+		t.Fatalf("did not expect stable admission fallback, got %#v", entry)
 	}
 }
 
@@ -3612,9 +3822,15 @@ func TestAcquireAdmissionFastRejectsOpenOpusCircuit(t *testing.T) {
 	}
 }
 
-func TestStableOpenCircuitWaitsBeforeFallback(t *testing.T) {
+func TestStableOpenCircuitWaitsForClientInsteadOfFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
 	}
 	oldGate := modelAdmissionGate
 	oldContinuity := contentContinuityGateGlobal
@@ -3649,7 +3865,9 @@ func TestStableOpenCircuitWaitsBeforeFallback(t *testing.T) {
 	}
 
 	h := &Handler{pool: p, requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
 	rr := httptest.NewRecorder()
 	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
@@ -3658,15 +3876,15 @@ func TestStableOpenCircuitWaitsBeforeFallback(t *testing.T) {
 	release, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(30*time.Millisecond))
 	if ok {
 		release()
-		t.Fatalf("expected stable fallback after open-circuit continuity wait")
+		t.Fatalf("expected open-circuit wait to stop only after client cancellation")
 	}
-	if time.Since(start) < 20*time.Millisecond {
-		t.Fatalf("expected continuity wait before stable fallback, waited %s", time.Since(start))
+	if time.Since(start) < 900*time.Millisecond {
+		t.Fatalf("expected stable continuity wait to ignore short request budget, waited %s", time.Since(start))
 	}
 	h.finishRequestLog(ctx, recorder)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("stable fallback status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	if rr.Body.Len() != 0 {
+		t.Fatalf("Claude open-circuit wait must not emit fallback assistant content: %s", rr.Body.String())
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -3676,8 +3894,8 @@ func TestStableOpenCircuitWaitsBeforeFallback(t *testing.T) {
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected queued capacity wait, got %#v", entry)
 	}
-	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "admission_pressure" {
-		t.Fatalf("expected stable admission fallback, got %#v", entry)
+	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
+		t.Fatalf("did not expect stable admission fallback, got %#v", entry)
 	}
 }
 

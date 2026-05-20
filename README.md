@@ -31,7 +31,7 @@ If this project helps you, a Star would mean a lot.
 - Per-account runtime health, model cache, quota/subscription metadata, temporary-limit cooldowns, and failure classification.
 - Model mapping rules: alias, replacement, and weighted load-balance targets.
 - Model admission control for high-pressure models, including Opus 4.7 concurrency limits, waiting queues, pressure scoring, and `Retry-After` hints.
-- Stable downstream mode for sub2api-compatible Opus 4.7 generation requests: suppresses downstream `429`, `502`, and `503` failures and records the suppressed internal reason in request logs.
+- Stable downstream mode for sub2api-compatible Opus 4.7 generation requests: suppresses downstream `429`, `502`, and `503` failures; Claude/Anthropic requests keep waiting for real upstream content instead of ending the turn with fallback text.
 - Automatic OAuth token refresh, optional scheduled account refresh, and optional scheduled health checks.
 - Prompt filtering for Claude Code system prompts, environment noise, boundary markers, and custom regex/line rules.
 - Thinking mode via model suffix or Claude `thinking` config, with configurable Claude/OpenAI output formats.
@@ -184,7 +184,8 @@ Kiro-Go includes specific handling for Opus 4.7 because it is more likely to hit
 - `GET /admin/api/fleet/readiness?model=claude-opus-4-7` reports `healthy`, `degraded`, or `blocked`, plus safe concurrency and retry timing.
 - Stable downstream mode protects sub2api-facing generation responses from gateway-level HTTP `429`, `502`, and `503`.
 - Content continuity is tracked separately: a response is only considered a content success when Kiro-Go receives real upstream assistant text, thinking, or tool calls.
-- Empty StableDownstream fallback responses are transport-only completions and are recorded with `contentSuccess=false`.
+- For Claude Code / Anthropic requests, retryable Opus 4.7 capacity pressure keeps the HTTP request queued until real upstream content arrives or the client disconnects. Kiro-Go does not send assistant fallback text for `attempt_budget_exhausted`, `admission_pressure`, or no-account pressure.
+- OpenAI-compatible stable fallbacks remain transport-only completions and are recorded with `contentSuccess=false`; they are not counted as correct model replies.
 
 Run the stable downstream UAT when Kiro-Go and sub2api are both available:
 

@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"kiro-go/config"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -61,5 +63,26 @@ func TestContentContinuityGateRejectsWhenQueueFull(t *testing.T) {
 	defer release()
 	if _, ok := gate.tryEnter("claude-opus-4.7"); ok {
 		t.Fatalf("expected second waiter to be rejected")
+	}
+}
+
+func TestStableContentContinuityIgnoresOpusRequestBudgetDeadline(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 2
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	got := stableContentContinuityWaitDuration("claude-opus-4.7")
+	if got != 2*time.Second {
+		t.Fatalf("stable wait = %s, want configured 2s", got)
+	}
+	deadlineLimited := contentContinuityWaitDuration("claude-opus-4.7", time.Now().Add(20*time.Millisecond))
+	if deadlineLimited >= got {
+		t.Fatalf("deadline-limited wait = %s, expected below stable wait %s", deadlineLimited, got)
 	}
 }
