@@ -335,8 +335,8 @@ async function main() {
   }
 
   summary.db.usage = pgJson(subContainer, `select json_build_object(
-    'recentOpus47', coalesce((select json_agg(row_to_json(t)) from (select status, count(*) n, max(duration_ms) max_ms from usage_logs where requested_model='claude-opus-4-7' and created_at > now() - interval '60 minutes' group by status order by status) t), '[]'::json),
-    'recentMarkers', coalesce((select json_agg(row_to_json(t)) from (select request_id, status, requested_model, duration_ms, created_at from usage_logs where request_id like 'OPUS47_GOVERNOR_UAT_${runId}%' order by created_at desc limit 20) t), '[]'::json)
+    'recentOpus47', coalesce((select json_agg(row_to_json(t)) from (select requested_model, count(*) n, max(duration_ms) max_ms, count(distinct account_id) accounts from usage_logs where requested_model='claude-opus-4-7' and created_at > now() - interval '60 minutes' group by requested_model) t), '[]'::json),
+    'recentMarkers', coalesce((select json_agg(row_to_json(t)) from (select request_id, requested_model, duration_ms, created_at from usage_logs where request_id like 'OPUS47_GOVERNOR_UAT_${runId}%' order by created_at desc limit 20) t), '[]'::json)
   );`, 'sub2api-usage');
 
   let subAuth = null;
