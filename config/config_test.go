@@ -350,8 +350,20 @@ func TestClaudeCodeGovernorConfigDefaultsDisabled(t *testing.T) {
 	if got.SubagentMaxConcurrentPerSession != 2 {
 		t.Fatalf("SubagentMaxConcurrentPerSession = %d, want 2", got.SubagentMaxConcurrentPerSession)
 	}
+	if got.BackgroundMaxConcurrent != 1 {
+		t.Fatalf("BackgroundMaxConcurrent = %d, want 1", got.BackgroundMaxConcurrent)
+	}
 	if got.QueueMaxDepth != 300 {
 		t.Fatalf("QueueMaxDepth = %d, want 300", got.QueueMaxDepth)
+	}
+	if got.InteractiveMaxWaitSeconds != 120 {
+		t.Fatalf("InteractiveMaxWaitSeconds = %d, want 120", got.InteractiveMaxWaitSeconds)
+	}
+	if got.SubagentMaxWaitSeconds != 90 {
+		t.Fatalf("SubagentMaxWaitSeconds = %d, want 90", got.SubagentMaxWaitSeconds)
+	}
+	if got.BackgroundMaxWaitSeconds != 15 {
+		t.Fatalf("BackgroundMaxWaitSeconds = %d, want 15", got.BackgroundMaxWaitSeconds)
 	}
 }
 
