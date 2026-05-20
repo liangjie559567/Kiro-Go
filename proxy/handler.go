@@ -496,7 +496,9 @@ func retryAfterSecondsFromReset(resetAt time.Time) int {
 
 type opus47RequestBudget struct {
 	deadline    time.Time
+	duration    time.Duration
 	maxAttempts int
+	applies     bool
 }
 
 func newOpus47RequestBudget(model string) opus47RequestBudget {
@@ -507,7 +509,7 @@ func newOpus47RequestBudget(model string) opus47RequestBudget {
 	if budget <= 0 || budget > defaultOpus47RequestBudget {
 		budget = defaultOpus47RequestBudget
 	}
-	return opus47RequestBudget{deadline: time.Now().Add(budget), maxAttempts: defaultOpus47MaxAttempts}
+	return opus47RequestBudget{deadline: time.Now().Add(budget), duration: budget, maxAttempts: defaultOpus47MaxAttempts, applies: true}
 }
 
 func (b opus47RequestBudget) attemptsExhausted(attempt int, model string) bool {
@@ -554,12 +556,11 @@ func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model stri
 }
 
 func (h *Handler) sendClaudeOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
-	h.applyOpusPressureHeaders(w, model, lastErr, reason)
 	message := "Opus 4.7 upstream pressure: " + reason
 	if lastErr != nil {
 		message += ": " + lastErr.Error()
 	}
-	h.sendClaudeUpstreamError(w, http.StatusTooManyRequests, "rate_limit_error", message, lastErr)
+	h.sendClaudeErrorWithHeaders(w, http.StatusTooManyRequests, "rate_limit_error", message, opusPressureHeaders(model, lastErr, reason))
 }
 
 func (h *Handler) sendOpenAIOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
@@ -575,17 +576,26 @@ func (h *Handler) applyOpusPressureHeaders(w http.ResponseWriter, model string, 
 	if w == nil {
 		return
 	}
-	w.Header().Set("X-Kiro-Go-Error-Reason", reason)
-	w.Header().Set("X-Kiro-Go-Retryable", "true")
+	for key, values := range opusPressureHeaders(model, err, reason) {
+		if len(values) > 0 {
+			w.Header().Set(key, values[0])
+		}
+	}
+}
+
+func opusPressureHeaders(model string, err error, reason string) http.Header {
+	headers := http.Header{}
+	headers.Set("X-Kiro-Go-Error-Reason", reason)
+	headers.Set("X-Kiro-Go-Retryable", "true")
 	snap := AdmissionPressureSnapshot{}
 	if modelAdmissionGate != nil {
 		snap = modelAdmissionGate.modelSnapshot(model)
 	}
 	if snap.CircuitState != "" {
-		w.Header().Set("X-Kiro-Go-Circuit-State", snap.CircuitState)
+		headers.Set("X-Kiro-Go-Circuit-State", snap.CircuitState)
 	}
 	if snap.EffectiveMaxConcurrent > 0 {
-		w.Header().Set("X-Kiro-Go-Safe-Concurrency", strconv.Itoa(snap.EffectiveMaxConcurrent))
+		headers.Set("X-Kiro-Go-Safe-Concurrency", strconv.Itoa(snap.EffectiveMaxConcurrent))
 	}
 	retryAfter := retryAfterSecondsFromReset(rateLimitResetFromError(err))
 	if retryAfter <= 0 {
@@ -594,7 +604,8 @@ func (h *Handler) applyOpusPressureHeaders(w http.ResponseWriter, model string, 
 	if retryAfter <= 0 {
 		retryAfter = defaultRateLimitFallbackSeconds
 	}
-	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	headers.Set("Retry-After", strconv.Itoa(retryAfter))
+	return headers
 }
 
 func (h *Handler) modelBlockedError(model string) error {
@@ -2025,7 +2036,6 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
@@ -2131,7 +2141,6 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
@@ -3088,7 +3097,6 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {

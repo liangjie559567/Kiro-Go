@@ -124,7 +124,9 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	updateRequestLogCapacityRetryCount(loggedReq, 3)
 	updateRequestLogOpusGovernor(loggedReq, "open", 60, opus47RequestBudget{
 		deadline:    time.Now().Add(25 * time.Second),
+		duration:    25 * time.Second,
 		maxAttempts: 4,
+		applies:     true,
 	})
 	appendRequestLogAttempt(loggedReq, RequestLogAttempt{
 		Attempt:           1,
@@ -169,7 +171,7 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	if entry.CapacityRetryCount != 3 {
 		t.Fatalf("expected capacity retry metadata, got %#v", entry)
 	}
-	if entry.OpusCircuitState != "open" || entry.OpusRetryAfterSeconds != 60 || entry.OpusAttemptBudget != 4 || entry.OpusRequestBudgetMs <= 0 {
+	if entry.OpusCircuitState != "open" || entry.OpusRetryAfterSeconds != 60 || entry.OpusAttemptBudget != 4 || entry.OpusRequestBudgetMs != 25000 {
 		t.Fatalf("expected opus governor metadata, got %#v", entry)
 	}
 	if len(entry.AttemptTrace) != 1 {
@@ -178,6 +180,25 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	attempt := entry.AttemptTrace[0]
 	if attempt.Attempt != 1 || attempt.AccountID != "acct-1" || attempt.Model != "claude-opus-4.7" || attempt.Region != "eu-west-1" || attempt.Event != "failure" || attempt.Reason != "temporary_limited" || attempt.CircuitState != "open" || attempt.RetryAfterSeconds != 60 || attempt.DurationMs != 42 {
 		t.Fatalf("unexpected attempt trace entry: %#v", attempt)
+	}
+}
+
+func TestRequestLogOpusGovernorSkipsBudgetFieldsForNonOpus(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogOpusGovernor(loggedReq, "closed", 0, newOpus47RequestBudget("claude-sonnet-4.5"))
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.OpusRequestBudgetMs != 0 || entry.OpusAttemptBudget != 0 {
+		t.Fatalf("expected non-opus budget fields to stay empty, got %#v", entry)
 	}
 }
 

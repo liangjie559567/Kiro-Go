@@ -2466,6 +2466,77 @@ func TestHandleClaudeOpus47StopsAtRequestAttemptBudget(t *testing.T) {
 	}
 }
 
+func TestHandleClaudeOpus47RequestAttemptBudgetIgnoresPoolRecoveryWaits(t *testing.T) {
+	h, upstreamHits := newOpus47RetryBudgetTestHandler(t, 1, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`))
+	})
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = 25 * time.Second
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		h.pool.RecordSuccess("acct-1")
+	}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d body=%s, want 429", w.Code, w.Body.String())
+	}
+	if *upstreamHits != 4 {
+		t.Fatalf("upstream hits = %d, want 4 real upstream attempts despite pool waits", *upstreamHits)
+	}
+}
+
+func TestHandleClaudeOpus47PressureHeadersSurviveRateLimitLastError(t *testing.T) {
+	h, upstreamHits := newOpus47RetryBudgetTestHandler(t, 8, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"message":"Too many requests, please wait before trying again.","retry_after_seconds":30}`))
+	})
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = 25 * time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d body=%s, want 429", w.Code, w.Body.String())
+	}
+	if *upstreamHits != 4 {
+		t.Fatalf("upstream hits = %d, want 4 attempt budget", *upstreamHits)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
+	}
+	if got := w.Header().Get("Retry-After"); got == "" || got == "0" {
+		t.Fatalf("Retry-After = %q, want positive value", got)
+	}
+}
+
 func TestHandleClaudeRateLimitKeepsTryingUnusedAccounts(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

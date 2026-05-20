@@ -641,9 +641,9 @@ func updateRequestLogOpusGovernor(r *http.Request, state string, retryAfterSecon
 	defer ctx.mu.Unlock()
 	ctx.entry.OpusCircuitState = strings.TrimSpace(state)
 	ctx.entry.OpusRetryAfterSeconds = retryAfterSeconds
-	ctx.entry.OpusAttemptBudget = budget.maxAttempts
-	if !budget.deadline.IsZero() {
-		ctx.entry.OpusRequestBudgetMs = time.Until(budget.deadline).Milliseconds()
+	if budget.applies {
+		ctx.entry.OpusAttemptBudget = budget.maxAttempts
+		ctx.entry.OpusRequestBudgetMs = budget.duration.Milliseconds()
 	}
 }
 
