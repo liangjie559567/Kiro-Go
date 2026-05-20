@@ -4271,6 +4271,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetClaudeCodeCompatibility(w, r)
 	case path == "/claude-code/model-readiness" && r.Method == "GET":
 		h.apiGetClaudeCodeModelReadiness(w, r)
+	case path == "/fleet/readiness" && r.Method == "GET":
+		h.apiGetFleetReadiness(w, r)
 	case path == "/auto-refresh" && r.Method == "GET":
 		h.apiGetAutoRefresh(w, r)
 	case path == "/auto-refresh" && r.Method == "POST":

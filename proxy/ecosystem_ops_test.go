@@ -140,6 +140,9 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
+	if err := config.UpdateSettings("admin-key", true, "secret"); err != nil {
+		t.Fatalf("update settings: %v", err)
+	}
 
 	oldGate := modelAdmissionGate
 	now := time.Unix(2000, 0)
@@ -215,6 +218,21 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	}
 	if _, ok := body["locallySchedulableAccounts"].(float64); !ok {
 		t.Fatalf("locallySchedulableAccounts missing: %#v", body)
+	}
+
+	routeReq := httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4-7", nil)
+	routeReq.Header.Set("X-Admin-Password", "secret")
+	routeW := httptest.NewRecorder()
+	h.handleAdminAPI(routeW, routeReq)
+	if routeW.Code != http.StatusOK {
+		t.Fatalf("route status = %d body=%s", routeW.Code, routeW.Body.String())
+	}
+	var routed map[string]interface{}
+	if err := json.Unmarshal(routeW.Body.Bytes(), &routed); err != nil {
+		t.Fatalf("decode routed readiness: %v", err)
+	}
+	if routed["status"] != "blocked" || routed["circuitState"] != "open" {
+		t.Fatalf("unexpected routed readiness: %#v", routed)
 	}
 }
 
