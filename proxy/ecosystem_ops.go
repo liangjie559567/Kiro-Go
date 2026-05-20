@@ -285,15 +285,16 @@ func (h *Handler) apiGetSchedulerPreview(w http.ResponseWriter, r *http.Request)
 func (h *Handler) schedulerPreviewRows(model string) []map[string]interface{} {
 	accounts := config.GetAccounts()
 	rows := make([]map[string]interface{}, 0, len(accounts))
-	now := time.Now().Unix()
+	now := time.Now()
+	nowUnix := now.Unix()
 	for _, account := range accounts {
 		reason := "eligible"
 		eligible := true
 		if !account.Enabled {
 			eligible, reason = false, "disabled"
-		} else if account.CooldownUntil > now {
+		} else if account.CooldownUntil > nowUnix {
 			eligible, reason = false, nonEmpty(account.LastFailureReason, "cooling_down")
-		} else if account.ExpiresAt > 0 && now >= account.ExpiresAt-tokenRefreshSkewSeconds && account.RefreshToken == "" {
+		} else if account.ExpiresAt > 0 && nowUnix > account.ExpiresAt-tokenRefreshSkewSeconds {
 			eligible, reason = false, "token_expired"
 		} else if readinessAccountUsageBlocked(account) {
 			eligible, reason = false, "usage_limit_reached"
@@ -371,41 +372,56 @@ func (h *Handler) apiGetFleetReadiness(w http.ResponseWriter, r *http.Request) {
 	if modelAdmissionGate != nil {
 		snap = modelAdmissionGate.modelSnapshot(mapped)
 	}
+	blockState := pool.ModelBlockState{}
+	if h != nil && h.pool != nil {
+		blockState = h.pool.ModelBlockState(mapped, time.Now())
+	}
+	locallySchedulable := summary["eligible"]
+	if blockState.AccountsEvaluated > 0 && blockState.Blocked > 0 {
+		if blockState.AllBlocked {
+			locallySchedulable = 0
+		} else if blockState.Blocked < locallySchedulable {
+			locallySchedulable -= blockState.Blocked
+		}
+	}
 	safeConcurrency := snap.EffectiveMaxConcurrent
 	if safeConcurrency <= 0 {
-		safeConcurrency = summary["eligible"]
+		safeConcurrency = locallySchedulable
+	}
+	if locallySchedulable >= 0 && safeConcurrency > locallySchedulable {
+		safeConcurrency = locallySchedulable
 	}
 	status := "healthy"
-	if snap.CircuitState == "open" || safeConcurrency <= 0 || summary["eligible"] == 0 {
+	if snap.CircuitState == "open" || safeConcurrency <= 0 || locallySchedulable == 0 {
 		status = "blocked"
 	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 || safeConcurrency < summary["eligible"] {
 		status = "degraded"
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"model":                       model,
-		"requestedModel":              model,
-		"mappedModel":                 mapped,
-		"status":                      status,
-		"circuitState":                firstNonEmpty(snap.CircuitState, "closed"),
-		"retryAfterSeconds":           snap.RetryAfterSeconds,
-		"safeConcurrency":             safeConcurrency,
-		"currentInFlight":             snap.ActiveRequests,
-		"enabledAccounts":             summary["enabled"],
-		"modelListedAccounts":         summary["total"] - summary["modelNotListed"],
-		"locallySchedulableAccounts":  summary["eligible"],
-		"coolingDownAccounts":         summary["coolingDown"],
-		"temporaryLimitedAccounts":    countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
-		"quotaBlockedAccounts":        summary["quotaBlocked"],
-		"authBlockedAccounts":         countFleetRowsByReason(rows, string(pool.FailureReasonAuthExpired)),
-		"admissionPressureScore":      snap.Score,
-		"lastPressureReason":          snap.LastPressureReason,
-		"lastPressureAt":              snap.LastPressureAt,
-		"notes":                       fleetReadinessNotes(status, snap, summary),
-		"strategy":                    config.GetLoadBalanceConfig().Strategy,
-		"summary":                     summary,
-		"accounts":                    rows,
-		"autoRefresh":                 h.getAutoRefreshStatus(),
-		"healthCheck":                 h.getHealthCheckStatus(),
+		"model":                      model,
+		"requestedModel":             model,
+		"mappedModel":                mapped,
+		"status":                     status,
+		"circuitState":               firstNonEmpty(snap.CircuitState, "closed"),
+		"retryAfterSeconds":          snap.RetryAfterSeconds,
+		"safeConcurrency":            safeConcurrency,
+		"currentInFlight":            snap.ActiveRequests,
+		"enabledAccounts":            summary["enabled"],
+		"modelListedAccounts":        summary["total"] - summary["modelNotListed"],
+		"locallySchedulableAccounts": locallySchedulable,
+		"coolingDownAccounts":        summary["coolingDown"],
+		"temporaryLimitedAccounts":   countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
+		"quotaBlockedAccounts":       summary["quotaBlocked"],
+		"authBlockedAccounts":        countFleetRowsByReason(rows, string(pool.FailureReasonAuthExpired)),
+		"admissionPressureScore":     snap.Score,
+		"lastPressureReason":         snap.LastPressureReason,
+		"lastPressureAt":             snap.LastPressureAt,
+		"notes":                      fleetReadinessNotes(status, snap, summary),
+		"strategy":                   config.GetLoadBalanceConfig().Strategy,
+		"summary":                    summary,
+		"accounts":                   rows,
+		"autoRefresh":                h.getAutoRefreshStatus(),
+		"healthCheck":                h.getHealthCheckStatus(),
 	})
 }
 
@@ -450,20 +466,14 @@ func (h *Handler) apiGetWebSearchDiagnostics(w http.ResponseWriter, r *http.Requ
 	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
 	recent := make([]map[string]interface{}, 0, 10)
 	for _, entry := range logs {
-		if entry.WebSearchQuery == "" && entry.MCPServerCount == 0 && !containsMCPToolName(entry.PayloadKeptTools) && !containsMCPToolName(entry.PayloadMaterializedToolRefs) {
+		if entry.MCPServerCount == 0 && !containsMCPToolName(entry.PayloadKeptTools) && !containsMCPToolName(entry.PayloadMaterializedToolRefs) {
 			continue
 		}
 		recent = append(recent, map[string]interface{}{
-			"requestId":            entry.RequestID,
-			"timestamp":            entry.Timestamp,
-			"query":                entry.WebSearchQuery,
-			"resultCount":          entry.WebSearchResultCount,
-			"mcpStatus":            entry.WebSearchMCPStatus,
-			"injectedPayloadBytes": entry.WebSearchInjectedPayloadBytes,
-			"failureReason":        entry.WebSearchFailureReason,
-			"latencyMs":            entry.WebSearchLatencyMs,
-			"accountId":            entry.AccountID,
-			"mcpServerCount":       entry.MCPServerCount,
+			"requestId":      entry.RequestID,
+			"timestamp":      entry.Timestamp,
+			"accountId":      entry.AccountID,
+			"mcpServerCount": entry.MCPServerCount,
 		})
 		if len(recent) == 10 {
 			break

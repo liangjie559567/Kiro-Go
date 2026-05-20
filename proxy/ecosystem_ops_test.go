@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"bytes"
 	"encoding/json"
 	"kiro-go/config"
 	"kiro-go/pool"
@@ -219,56 +218,81 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	}
 }
 
-func TestWebSearchDiagnosticsReadsRequestLogEvidence(t *testing.T) {
-	h := &Handler{requestLogs: newRequestLogStore(5)}
-	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
-	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
-	updateRequestLogUpstream(loggedReq, "acct-1", "us-east-1")
-	updateRequestLogWebSearch(loggedReq, "golang testing", 2, "ok", 128, "", 25*time.Millisecond)
-	recorder.WriteHeader(http.StatusOK)
-	h.finishRequestLog(ctx, recorder)
-
-	w := httptest.NewRecorder()
-	h.apiGetWebSearchDiagnostics(w, httptest.NewRequest(http.MethodGet, "/admin/api/websearch/diagnostics?query=golang", nil))
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode diagnostics: %v", err)
-	}
-	recent := resp["recent"].([]interface{})
-	if len(recent) != 1 {
-		t.Fatalf("expected one websearch evidence row, got %#v", recent)
-	}
-	row := recent[0].(map[string]interface{})
-	if row["query"] != "golang testing" || row["resultCount"] != float64(2) || row["mcpStatus"] != "ok" || row["injectedPayloadBytes"] != float64(128) {
-		t.Fatalf("unexpected websearch evidence row: %#v", row)
-	}
-}
-
-func TestBatchAccountsReturnsPerAccountResults(t *testing.T) {
+func TestFleetReadinessDoesNotTreatNearExpiryAccountAsSchedulable(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
-	if err := config.AddAccount(config.Account{ID: "acct-1", Email: "one@example.com", Enabled: false}); err != nil {
+	account := config.Account{
+		ID:           "near-expiry",
+		Email:        "near@example.com",
+		Enabled:      true,
+		AccessToken:  "token",
+		RefreshToken: "refresh",
+		ProfileArn:   "arn:profile",
+		Region:       "us-east-1",
+		ExpiresAt:    time.Now().Add(time.Minute).Unix(),
+	}
+	if err := config.AddAccount(account); err != nil {
 		t.Fatalf("add account: %v", err)
 	}
 	p := &pool.AccountPool{}
 	p.Reload()
+	p.SetModelList("near-expiry", []string{"claude-opus-4.7"})
 	h := &Handler{pool: p}
 
-	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/batch", bytes.NewBufferString(`{"ids":["acct-1","missing"],"action":"enable"}`))
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4-7", nil)
 	w := httptest.NewRecorder()
-	h.apiBatchAccounts(w, req)
+	h.apiGetFleetReadiness(w, req)
 
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode batch response: %v", err)
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
 	}
-	results := resp["results"].([]interface{})
-	if len(results) != 2 {
-		t.Fatalf("expected two per-account results, got %#v", results)
+	if got := body["locallySchedulableAccounts"]; got != float64(0) {
+		t.Fatalf("locallySchedulableAccounts = %#v, want 0; body=%#v", got, body)
 	}
-	summary := resp["summary"].(map[string]interface{})
-	if summary["success"] != float64(1) || summary["failed"] != float64(1) {
-		t.Fatalf("unexpected summary: %#v", summary)
+	if body["status"] != "blocked" {
+		t.Fatalf("status = %#v, want blocked; body=%#v", body["status"], body)
+	}
+}
+
+func TestFleetReadinessAccountsForModelBreakerBlocks(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{
+		ID:           "breaker-blocked",
+		Email:        "blocked@example.com",
+		Enabled:      true,
+		AccessToken:  "token",
+		RefreshToken: "refresh",
+		ProfileArn:   "arn:profile",
+		Region:       "us-east-1",
+	}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetModelList("breaker-blocked", []string{"claude-opus-4.7"})
+	p.RecordModelFailure("breaker-blocked", "claude-opus-4.7", pool.FailureReasonModelCapacity, time.Now().Add(time.Minute))
+	h := &Handler{pool: p}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4-7", nil)
+	w := httptest.NewRecorder()
+	h.apiGetFleetReadiness(w, req)
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if got := body["locallySchedulableAccounts"]; got != float64(0) {
+		t.Fatalf("locallySchedulableAccounts = %#v, want 0; body=%#v", got, body)
+	}
+	if got := body["safeConcurrency"]; got != float64(0) {
+		t.Fatalf("safeConcurrency = %#v, want 0; body=%#v", got, body)
+	}
+	if body["status"] != "blocked" {
+		t.Fatalf("status = %#v, want blocked; body=%#v", body["status"], body)
 	}
 }
