@@ -89,6 +89,9 @@ export ENABLE_TOOL_SEARCH=true
 - 使用非 Anthropic 官方 `ANTHROPIC_BASE_URL` 时，如果需要 MCP Tool Search，请设置 `ENABLE_TOOL_SEARCH=true`。
 - Kiro-Go 不启动也不管理本地 MCP server。MCP 仍按 Claude Code 的方式配置。
 - 可在管理面板请求日志中查看模型、账号、首 token 延迟、重试次数、payload 裁剪和 tool_reference 元数据。
+- 可用这些管理端 readiness API 排查 Opus 4.7 路由状态：`/admin/api/claude-code/model-readiness?model=claude-opus-4-7` 和 `/admin/api/fleet/readiness?model=claude-opus-4-7`。
+- Opus 4.7 下游网关（例如 sub2api）应轮询 `/admin/api/fleet/readiness?model=claude-opus-4-7`。只有 `status=healthy` 时正常转发，`status=degraded` 时按 `safeConcurrency` 限流，Kiro-Go 返回可重试 429 压力响应时必须遵守 `Retry-After`。
+- UAT 只有在 Docker 健康状态、Playwright 截图、readiness/request-log API、下游 usage/database 证据互相一致时才能标记 PASS。验证过程中不要删除 Docker volume 或账号数据。
 
 ## 思考模式
 

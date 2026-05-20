@@ -89,6 +89,9 @@ Notes:
 - Set `ENABLE_TOOL_SEARCH=true` when using MCP Tool Search with a non-Anthropic `ANTHROPIC_BASE_URL`.
 - Kiro-Go does not start or manage local MCP servers. Configure MCP in Claude Code as usual.
 - Use the admin request logs to inspect model, account, first-token latency, attempts, payload trimming, and tool-reference metadata.
+- Admin readiness endpoints help debug Opus 4.7 routing state: `/admin/api/claude-code/model-readiness?model=claude-opus-4-7` and `/admin/api/fleet/readiness?model=claude-opus-4-7`.
+- For Opus 4.7, downstream gateways such as sub2api should poll `/admin/api/fleet/readiness?model=claude-opus-4-7`. Route normally only when `status=healthy`, limit traffic to `safeConcurrency` when `status=degraded`, and honor `Retry-After` when Kiro-Go returns retryable 429 pressure responses.
+- Treat a UAT PASS as valid only when Docker health, Playwright screenshots, readiness/request-log APIs, and downstream usage/database evidence agree. Do not delete Docker volumes or account data during verification.
 
 ## Thinking Mode
 

@@ -10,9 +10,9 @@ This milestone follows the requested A -> B -> C path. Phase 1 locks down Claude
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions, if needed
 
-- [ ] **Phase 1: A - Claude Code Official Compatibility** - Make Kiro-Go behave like the official Anthropic API for Claude Code's real request shapes.
-- [ ] **Phase 2: B - High-Availability Account Pool and sub2api Routing** - Ensure one account's 429 does not poison the pool or downstream Claude Code calls.
-- [ ] **Phase 3: C - Kiro Ecosystem Operations** - Improve CLI/account onboarding, scheduler controls, WebSearch/MCP observability, and fleet admin workflows.
+- [x] **Phase 1: A - Claude Code Official Compatibility** - Make Kiro-Go behave like the official Anthropic API for Claude Code's real request shapes. Automated contract complete; live UAT remains human-needed.
+- [x] **Phase 2: B - High-Availability Account Pool and sub2api Routing** - Ensure one account's 429 does not poison the pool or downstream Claude Code calls. Automated HA contract complete; latest-code sub2api 10x10 rerun remains human-needed.
+- [x] **Phase 3: C - Kiro Ecosystem Operations** - Improve CLI/account onboarding, scheduler controls, WebSearch/MCP observability, and fleet admin workflows. Automated API/UI contract complete; live screenshots/WebSearch evidence remain human-needed.
 
 ## Phase Details
 
@@ -28,9 +28,9 @@ This milestone follows the requested A -> B -> C path. Phase 1 locks down Claude
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Build the Claude Code parity matrix and model resolver/readiness contract.
-- [ ] 01-02: Harden Anthropic SSE, tool-loop, thinking, prompt-cache, and large-context translation.
-- [ ] 01-03: Add real Claude Code UAT harness with screenshot/API/log evidence and PASS gating.
+- [x] 01-01: Build the Claude Code parity matrix and model resolver/readiness contract.
+- [x] 01-02: Harden Anthropic SSE, tool-loop, thinking, prompt-cache, and large-context translation.
+- [x] 01-03: Add real Claude Code UAT harness with screenshot/API/log evidence and PASS gating.
 
 ### Phase 2: B - High-Availability Account Pool and sub2api Routing
 **Goal**: Kiro-Go schedules accounts by real per-account availability and integrates with sub2api so high-concurrency Claude Code calls route correctly instead of amplifying 429s.
@@ -44,9 +44,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Refactor failure taxonomy, per-account cooldown, and attempt-trace observability.
-- [ ] 02-02: Implement account-aware admission, scheduler policies, and background probe throttling.
-- [ ] 02-03: Verify sub2api retry semantics with API, database, Playwright screenshot, and 10x10 concurrency evidence.
+- [x] 02-01: Refactor failure taxonomy, per-account cooldown, and attempt-trace observability.
+- [x] 02-02: Implement account-aware admission, scheduler policies, and background probe throttling.
+- [x] 02-03: Verify sub2api retry semantics with API, database, Playwright screenshot, and 10x10 concurrency evidence.
 
 ### Phase 3: C - Kiro Ecosystem Operations
 **Goal**: Operators managing many Kiro accounts can import, diagnose, route, and observe Kiro/CLI/WebSearch behavior without fragile manual debugging.
@@ -60,9 +60,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Add CLI credential import/validation and account onboarding diagnostics.
-- [ ] 03-02: Add scheduler policy controls and admin fleet operations.
-- [ ] 03-03: Improve WebSearch/MCP observability and ecosystem documentation.
+- [x] 03-01: Add CLI credential import/validation and account onboarding diagnostics.
+- [x] 03-02: Add scheduler policy controls and admin fleet operations.
+- [x] 03-03: Improve WebSearch/MCP observability and ecosystem documentation.
 
 ## Progress
 
@@ -71,6 +71,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. A - Claude Code Official Compatibility | 0/3 | Not started | - |
-| 2. B - High-Availability Account Pool and sub2api Routing | 0/3 | Not started | - |
-| 3. C - Kiro Ecosystem Operations | 0/3 | Not started | - |
+| 1. A - Claude Code Official Compatibility | 3/3 | Human validation needed | 2026-05-20 |
+| 2. B - High-Availability Account Pool and sub2api Routing | 3/3 | Human validation needed | 2026-05-20 |
+| 3. C - Kiro Ecosystem Operations | 3/3 | Human validation needed | 2026-05-20 |

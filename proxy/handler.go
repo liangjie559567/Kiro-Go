@@ -26,6 +26,7 @@ import (
 var (
 	ensureValidTokenForHealthCheck    = defaultEnsureValidTokenForHealthCheck
 	listAvailableModelsForHealthCheck = ListAvailableModels
+	listAvailableModelsForCache       = ListAvailableModels
 	opusCapacityRetryBudget           = 90 * time.Second
 	sleepForOpusCapacityRetry         = time.Sleep
 	adminAccountTestMinSpacing        = 3 * time.Second
@@ -35,6 +36,13 @@ var (
 			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 200},
 		},
 	})
+)
+
+const (
+	defaultOpus47MaxAttempts       = 4
+	defaultOpus47RequestBudget     = 25 * time.Second
+	defaultOpus47ReadinessCacheTTL = 3 * time.Second
+	modelCachePressureFailureLimit = 2
 )
 
 const tokenRefreshSkewSeconds int64 = 120
@@ -423,6 +431,10 @@ func (h *Handler) updateRequestLogRoutingDecision(r *http.Request, model string,
 	if h != nil && h.pool != nil {
 		health = h.pool.GetRuntimeHealth(account.ID)
 	}
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
 	decision := fmt.Sprintf("selected account=%s model=%s region=%s attempt=%d strategy=%s active=%d score=%d pressure=%t",
 		account.ID,
 		model,
@@ -434,6 +446,14 @@ func (h *Handler) updateRequestLogRoutingDecision(r *http.Request, model string,
 		pressure,
 	)
 	updateRequestLogRouting(r, decision, strategy, pressure)
+	appendRequestLogAttempt(r, RequestLogAttempt{
+		Attempt:      attempt + 1,
+		AccountID:    account.ID,
+		Model:        model,
+		Region:       resolveAccountKiroRegion(account),
+		Event:        "selected",
+		CircuitState: snap.CircuitState,
+	})
 }
 
 func rateLimitResetFromError(err error) time.Time {
@@ -465,6 +485,39 @@ func rateLimitRetryAfterHeaders(reason pool.FailureReason, resetAt time.Time) ht
 	return headers
 }
 
+func retryAfterSecondsFromReset(resetAt time.Time) int {
+	if resetAt.IsZero() || !resetAt.After(time.Now()) {
+		return 0
+	}
+	seconds := int((time.Until(resetAt) + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
+}
+
+type opus47RequestBudget struct {
+	deadline    time.Time
+	duration    time.Duration
+	maxAttempts int
+	applies     bool
+}
+
+func newOpus47RequestBudget(model string) opus47RequestBudget {
+	if !isOpus47Model(model) {
+		return opus47RequestBudget{deadline: time.Now().Add(opusCapacityRetryBudget)}
+	}
+	budget := opusCapacityRetryBudget
+	if budget <= 0 || budget > defaultOpus47RequestBudget {
+		budget = defaultOpus47RequestBudget
+	}
+	return opus47RequestBudget{deadline: time.Now().Add(budget), duration: budget, maxAttempts: defaultOpus47MaxAttempts, applies: true}
+}
+
+func (b opus47RequestBudget) attemptsExhausted(attempt int, model string) bool {
+	return isOpus47Model(model) && b.maxAttempts > 0 && attempt >= b.maxAttempts
+}
+
 type poolTemporaryLimitError struct {
 	model   string
 	resetAt time.Time
@@ -478,7 +531,121 @@ func (e *poolTemporaryLimitError) RateLimitResetAt() time.Time {
 	return e.resetAt
 }
 
-func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model string, lastErr error, claude bool) {
+func stableDownstreamForRequest(r *http.Request, model string, generation bool) bool {
+	if !generation || !isOpus47Model(model) {
+		return false
+	}
+	cfg := config.Get()
+	if cfg == nil || !cfg.StableDownstream.SupportsModel(model) || !cfg.StableDownstream.Sub2APICompatible {
+		return false
+	}
+	if r == nil {
+		return true
+	}
+	ua := strings.ToLower(r.Header.Get("User-Agent"))
+	return strings.Contains(ua, "sub2api") ||
+		strings.Contains(ua, "claude-cli") ||
+		strings.TrimSpace(r.Header.Get("X-Sub2API-Request")) != ""
+}
+
+func stableFallbackText(reason string, err error) string {
+	msg := "kiro_go_stable_fallback: Opus 4.7 is temporarily waiting for healthy upstream capacity."
+	if reason != "" {
+		msg += " reason=" + reason + "."
+	}
+	if err != nil {
+		msg += " upstream_status=internal_retryable."
+	}
+	return msg
+}
+
+func stableFallbackAssistantText(reason string, err error) string {
+	return ""
+}
+
+func stableFallbackSuppressedStatus(err error) int {
+	if err == nil {
+		return http.StatusServiceUnavailable
+	}
+	status, _ := openAIUpstreamErrorStatusAndType(err)
+	if status == http.StatusTooManyRequests {
+		return http.StatusTooManyRequests
+	}
+	return http.StatusServiceUnavailable
+}
+
+func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":            "msg_" + uuid.New().String(),
+		"type":          "message",
+		"role":          "assistant",
+		"model":         model,
+		"content":       []map[string]string{{"type": "text", "text": stableFallbackAssistantText(reason, err)}},
+		"stop_reason":   "end_turn",
+		"stop_sequence": nil,
+		"usage":         map[string]int{"input_tokens": 0, "output_tokens": 0},
+	})
+}
+
+func (h *Handler) sendStableClaudeStreamFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
+	sse.Start()
+	sse.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (h *Handler) sendStableOpenAIFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":      "chatcmpl-" + uuid.New().String(),
+		"object":  "chat.completion",
+		"created": time.Now().Unix(),
+		"model":   model,
+		"choices": []map[string]interface{}{{
+			"index":         0,
+			"message":       map[string]string{"role": "assistant", "content": stableFallbackAssistantText(reason, err)},
+			"finish_reason": "stop",
+		}},
+		"usage": map[string]int{"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+	})
+}
+
+func (h *Handler) sendStableOpenAIResponsesFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(buildOpenAIResponsesObject("resp_"+uuid.New().String(), model, stableFallbackAssistantText(reason, err), 0, 0, true))
+}
+
+func downstreamStatusForRetryExhaustion(r *http.Request, model string, claudeFormat bool, status int, errType string) (int, string, bool) {
+	if stableDownstreamForRequest(r, model, true) && (status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable) {
+		return http.StatusOK, "stable_fallback", true
+	}
+	status, errType = downstreamOpus47ErrorStatusAndType(model, claudeFormat, status, errType)
+	return status, errType, false
+}
+
+func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, r *http.Request, model string, lastErr error, claude bool) {
 	if lastErr == nil && h != nil && h.pool != nil {
 		if model != "" {
 			if err := h.modelBlockedError(model); err != nil {
@@ -486,9 +653,18 @@ func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model stri
 			}
 		}
 	}
+	if stableDownstreamForRequest(r, model, true) {
+		if claude {
+			h.sendStableClaudeFallback(w, r, model, "no_available_accounts", lastErr)
+		} else {
+			h.sendStableOpenAIFallback(w, r, model, "no_available_accounts", lastErr)
+		}
+		return
+	}
 	if claude {
 		if lastErr != nil {
 			status, errType := claudeUpstreamErrorStatusAndType(lastErr)
+			status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 			h.sendClaudeUpstreamError(w, status, errType, lastErr.Error(), lastErr)
 			return
 		}
@@ -498,10 +674,94 @@ func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model stri
 
 	if lastErr != nil {
 		status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+		status, errType = downstreamOpus47ErrorStatusAndType(model, false, status, errType)
+		if isOpus47Model(model) {
+			h.applyOpusPressureHeaders(w, model, lastErr, "no_available_accounts")
+		}
 		h.sendOpenAIError(w, status, errType, lastErr.Error())
 		return
 	}
 	h.sendOpenAIError(w, http.StatusServiceUnavailable, "server_error", "No available accounts")
+}
+
+func (h *Handler) sendClaudeOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
+	message := "Opus 4.7 upstream pressure: " + reason
+	if lastErr != nil {
+		message += ": " + lastErr.Error()
+	}
+	h.sendClaudeErrorWithHeaders(w, opusPressureStatus(model), "overloaded_error", message, opusPressureHeaders(model, lastErr, reason))
+}
+
+func (h *Handler) sendOpenAIOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
+	h.applyOpusPressureHeaders(w, model, lastErr, reason)
+	message := "Opus 4.7 upstream pressure: " + reason
+	if lastErr != nil {
+		message += ": " + lastErr.Error()
+	}
+	h.sendOpenAIError(w, opusPressureStatus(model), "server_error", message)
+}
+
+func opusPressureStatus(model string) int {
+	if isOpus47Model(model) {
+		return http.StatusServiceUnavailable
+	}
+	return http.StatusTooManyRequests
+}
+
+func opusPressureErrorTypes(model string, claudeFormat bool) (int, string) {
+	if isOpus47Model(model) {
+		if claudeFormat {
+			return http.StatusServiceUnavailable, "overloaded_error"
+		}
+		return http.StatusServiceUnavailable, "server_error"
+	}
+	return http.StatusTooManyRequests, "rate_limit_error"
+}
+
+func downstreamOpus47ErrorStatusAndType(model string, claudeFormat bool, status int, errType string) (int, string) {
+	if !isOpus47Model(model) || status != http.StatusTooManyRequests {
+		return status, errType
+	}
+	if claudeFormat {
+		return http.StatusServiceUnavailable, "overloaded_error"
+	}
+	return http.StatusServiceUnavailable, "server_error"
+}
+
+func (h *Handler) applyOpusPressureHeaders(w http.ResponseWriter, model string, err error, reason string) {
+	if w == nil {
+		return
+	}
+	for key, values := range opusPressureHeaders(model, err, reason) {
+		if len(values) > 0 {
+			w.Header().Set(key, values[0])
+		}
+	}
+}
+
+func opusPressureHeaders(model string, err error, reason string) http.Header {
+	headers := http.Header{}
+	headers.Set("X-Kiro-Go-Error-Reason", reason)
+	headers.Set("X-Kiro-Go-Retryable", "true")
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	if snap.CircuitState != "" {
+		headers.Set("X-Kiro-Go-Circuit-State", snap.CircuitState)
+	}
+	if snap.EffectiveMaxConcurrent > 0 {
+		headers.Set("X-Kiro-Go-Safe-Concurrency", strconv.Itoa(snap.EffectiveMaxConcurrent))
+	}
+	retryAfter := retryAfterSecondsFromReset(rateLimitResetFromError(err))
+	if retryAfter <= 0 {
+		retryAfter = snap.RetryAfterSeconds
+	}
+	if retryAfter <= 0 {
+		retryAfter = defaultRateLimitFallbackSeconds
+	}
+	headers.Set("Retry-After", strconv.Itoa(retryAfter))
+	return headers
 }
 
 func (h *Handler) modelBlockedError(model string) error {
@@ -602,6 +862,19 @@ func isOpus47CapacityLimit(err error, model string) bool {
 	return strings.Contains(msg, "insufficient_model_capacity") ||
 		strings.Contains(msg, "experiencing high traffic") ||
 		strings.Contains(msg, "model capacity")
+}
+
+func isModelCachePressureFailure(err error) bool {
+	switch classifyFailureReason(err) {
+	case pool.FailureReasonRateLimited, pool.FailureReasonTemporaryLimited, pool.FailureReasonModelCapacity, pool.FailureReasonUpstream5xx:
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldBlockInteractiveModelRefresh(account config.Account, now time.Time) bool {
+	return shouldSkipBackgroundProbeForOpusQuietMode() || shouldSkipMaintenanceAccount(account, now)
 }
 
 func shouldWaitAndRetryOpus47(err error, model string) bool {
@@ -778,8 +1051,15 @@ func (h *Handler) runAutoRefresh() {
 		h.scheduleNextAutoRefresh()
 		return
 	}
+	if shouldSkipBackgroundProbeForOpusQuietMode() {
+		finishedAt := time.Now()
+		nextSettings := config.GetAutoRefreshConfig()
+		h.finishAutoRefresh(refreshBatchResult{Skipped: len(config.GetAccounts()), QuietSkipped: len(config.GetAccounts())}, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
+		logger.Warnf("[AutoRefresh] Skipped expensive refresh while Opus 4.7 quiet mode is active")
+		return
+	}
 
-	accounts := selectAutoRefreshAccounts(config.GetAccounts(), settings.Scope)
+	accounts, skipped := selectAutoRefreshAccountsForTime(config.GetAccounts(), settings.Scope, now)
 	result := runRefreshBatch(accounts, func(account *config.Account) error {
 		_, err := refreshAccountData(account)
 		if err != nil {
@@ -787,12 +1067,13 @@ func (h *Handler) runAutoRefresh() {
 		}
 		return err
 	})
+	result.Skipped = skipped
 	h.pool.Reload()
 
 	finishedAt := time.Now()
 	nextSettings := config.GetAutoRefreshConfig()
 	h.finishAutoRefresh(result, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
-	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d", result.Success, result.Failed)
+	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d skipped=%d", result.Success, result.Failed, result.Skipped)
 }
 
 func (h *Handler) backgroundHealthCheck() {
@@ -861,8 +1142,15 @@ func (h *Handler) runHealthCheck() {
 		h.scheduleNextHealthCheck()
 		return
 	}
+	if shouldSkipBackgroundProbeForOpusQuietMode() {
+		finishedAt := time.Now()
+		nextSettings := config.GetHealthCheckConfig()
+		h.finishHealthCheck(healthCheckBatchResult{Skipped: len(config.GetAccounts()), QuietSkipped: len(config.GetAccounts())}, finishedAt.Unix(), computeNextHealthCheckRunAt(finishedAt, nextSettings))
+		logger.Warnf("[HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active")
+		return
+	}
 
-	accounts := selectHealthCheckAccounts(config.GetAccounts())
+	accounts, skipped := selectHealthCheckAccountsForTime(config.GetAccounts(), now)
 	result := runHealthCheckBatch(accounts, settings.AutoDisableUnhealthy, func(account *config.Account) error {
 		err := h.checkAccountHealth(account)
 		if err != nil {
@@ -870,6 +1158,7 @@ func (h *Handler) runHealthCheck() {
 		}
 		return err
 	}, disableUnhealthyAccount, now.Unix())
+	result.Skipped = skipped
 
 	if result.Disabled > 0 {
 		h.pool.Reload()
@@ -878,7 +1167,7 @@ func (h *Handler) runHealthCheck() {
 	finishedAt := time.Now()
 	nextSettings := config.GetHealthCheckConfig()
 	h.finishHealthCheck(result, finishedAt.Unix(), computeNextHealthCheckRunAt(finishedAt, nextSettings))
-	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d", result.Success, result.Failed, result.Disabled)
+	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d skipped=%d", result.Success, result.Failed, result.Disabled, result.Skipped)
 }
 
 func (h *Handler) checkAccountHealth(account *config.Account) error {
@@ -1174,20 +1463,47 @@ func (h *Handler) refreshModelsCache() {
 	if len(accounts) == 0 {
 		return
 	}
+	if shouldSkipBackgroundProbeForOpusQuietMode() {
+		logger.Warnf("[ModelsCache] Skipped refresh while Opus 4.7 quiet mode is active")
+		return
+	}
 
 	aggregated := make([]ModelInfo, 0)
+	pressureFailures := 0
+	now := time.Now()
 	for i := range accounts {
 		account := &accounts[i]
+		if shouldSkipMaintenanceAccount(*account, now) {
+			logger.Warnf("[ModelsCache] Skip %s while account is cooling down", account.Email)
+			continue
+		}
 		if err := h.ensureValidToken(account); err != nil {
 			logger.Warnf("[ModelsCache] Skip %s token refresh failed: %v", account.Email, err)
+			h.recordAccountFailure(account.ID, err)
+			if isModelCachePressureFailure(err) {
+				pressureFailures++
+				if pressureFailures >= modelCachePressureFailureLimit {
+					logger.Warnf("[ModelsCache] Stopped refresh after %d upstream pressure failures", pressureFailures)
+					break
+				}
+			}
 			continue
 		}
 
-		models, err := ListAvailableModels(account)
+		models, err := listAvailableModelsForCache(account)
 		if err != nil {
 			logger.Warnf("[ModelsCache] Failed to refresh for %s: %v", account.Email, err)
+			h.recordAccountFailure(account.ID, err)
+			if isModelCachePressureFailure(err) {
+				pressureFailures++
+				if pressureFailures >= modelCachePressureFailureLimit {
+					logger.Warnf("[ModelsCache] Stopped refresh after %d upstream pressure failures", pressureFailures)
+					break
+				}
+			}
 			continue
 		}
+		pressureFailures = 0
 		// 缓存每账号可用模型，用于路由时过滤
 		modelIDs := make([]string, 0, len(models))
 		for _, m := range models {
@@ -1209,11 +1525,16 @@ func (h *Handler) refreshModelsCache() {
 // fetchAndCacheAccountModels 为单个账号拉取并写入模型缓存。
 // 同时更新 pool 的路由缓存与全局聚合模型列表。
 func (h *Handler) fetchAndCacheAccountModels(account *config.Account) error {
+	if shouldBlockInteractiveModelRefresh(*account, time.Now()) {
+		return fmt.Errorf("account model refresh skipped while Opus 4.7 quiet mode is active")
+	}
 	if err := h.ensureValidToken(account); err != nil {
+		h.recordAccountFailure(account.ID, err)
 		return fmt.Errorf("token refresh failed: %w", err)
 	}
-	models, err := ListAvailableModels(account)
+	models, err := listAvailableModelsForCache(account)
 	if err != nil {
+		h.recordAccountFailure(account.ID, err)
 		return err
 	}
 	modelIDs := make([]string, 0, len(models))
@@ -1269,6 +1590,20 @@ func (h *Handler) apiRefreshAccountModels(w http.ResponseWriter, r *http.Request
 // apiRefreshAllAccountsModels POST /admin/api/accounts/models/refresh
 // 直接复用 refreshModelsCache，为所有已启用账号刷新模型路由缓存。
 func (h *Handler) apiRefreshAllAccountsModels(w http.ResponseWriter, r *http.Request) {
+	if shouldSkipBackgroundProbeForOpusQuietMode() {
+		h.modelsCacheMu.RLock()
+		cachedLen := len(h.cachedModels)
+		h.modelsCacheMu.RUnlock()
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":   false,
+			"refreshed": cachedLen,
+			"failed":    0,
+			"skipped":   len(config.GetEnabledAccounts()),
+			"reason":    "opus_4_7_quiet_mode",
+		})
+		return
+	}
 	h.refreshModelsCache()
 	h.modelsCacheMu.RLock()
 	cachedLen := len(h.cachedModels)
@@ -1566,15 +1901,18 @@ func hasNativeClaudeWebSearch(tools []ClaudeTool) bool {
 func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Request, req *ClaudeRequest, estimatedInputTokens int) {
 	query := extractClaudeWebSearchQuery(req.Messages)
 	if query == "" {
+		updateRequestLogWebSearch(r, "", 0, "not_started", 0, "query_extraction_failed", 0)
 		h.sendClaudeError(w, 400, "invalid_request_error", "Cannot extract search query from messages")
 		return
 	}
+	updateRequestLogWebSearch(r, query, 0, "pending", 0, "", 0)
 
 	used := make(map[string]bool)
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		account := h.pool.GetNextForModelExcept(req.Model, used)
 		if account == nil {
+			updateRequestLogWebSearch(r, query, 0, "not_started", 0, "no_account_available", 0)
 			if lastErr != nil {
 				h.recordFailure()
 				h.sendClaudeError(w, 503, "api_error", lastErr.Error())
@@ -1597,9 +1935,11 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Req
 		releaseRequest := h.pool.BeginRequest(account.ID)
 		startedAt := time.Now()
 		toolUseID, results, err := callKiroMCPWebSearch(account, query)
+		latency := time.Since(startedAt)
 		releaseRequest()
 		if err != nil {
 			lastErr = err
+			updateRequestLogWebSearch(r, query, 0, "error", 0, classifyWebSearchFailure(err), latency)
 			h.recordAccountFailure(account.ID, err)
 			if shouldRetryAccount(classifyFailureReason(err), attempt) {
 				continue
@@ -1610,9 +1950,11 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Req
 		}
 
 		outputTokens := estimateClaudeOutputTokens(summarizeKiroWebSearchResults(query, results), "", nil)
+		injectedPayloadBytes := len(summarizeKiroWebSearchResults(query, results))
+		updateRequestLogWebSearch(r, query, len(results.Results), "ok", injectedPayloadBytes, "", latency)
 		updateRequestLogUsage(r, estimatedInputTokens, outputTokens, 0, 0)
 		h.recordSuccess(estimatedInputTokens, outputTokens, 0)
-		h.pool.RecordSuccessWithLatency(account.ID, time.Since(startedAt))
+		h.pool.RecordSuccessWithLatency(account.ID, latency)
 		h.pool.UpdateStats(account.ID, estimatedInputTokens+outputTokens, 0)
 
 		if req.Stream {
@@ -1624,11 +1966,27 @@ func (h *Handler) handleClaudeNativeWebSearch(w http.ResponseWriter, r *http.Req
 	}
 
 	h.recordFailure()
+	updateRequestLogWebSearch(r, query, 0, "error", 0, "no_account_available", 0)
 	if lastErr != nil {
 		h.sendClaudeError(w, 503, "api_error", lastErr.Error())
 		return
 	}
 	h.sendClaudeError(w, 503, "api_error", "No available accounts")
+}
+
+func classifyWebSearchFailure(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "empty results"):
+		return "empty_results"
+	case strings.Contains(msg, "http") || strings.Contains(msg, "mcp"):
+		return "kiro_mcp_http_error"
+	default:
+		return "payload_injection_failed"
+	}
 }
 
 func extractClaudeWebSearchQuery(messages []ClaudeMessage) string {
@@ -1899,7 +2257,13 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 }
 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, true, deadline)
 	if !ok {
 		return
@@ -1914,6 +2278,19 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	sessionKey := requestStickyKey(r, effectiveReq)
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			if stableDownstreamForRequest(r, model, true) {
+				if stream {
+					h.sendStableClaudeStreamFallback(w, r, model, "attempt_budget_exhausted", lastErr)
+				} else {
+					h.sendStableClaudeFallback(w, r, model, "attempt_budget_exhausted", lastErr)
+				}
+				return
+			}
+			h.sendClaudeOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelSessionExcept(model, sessionKey, used)
 		if account == nil {
@@ -1921,7 +2298,6 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
@@ -1933,12 +2309,19 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 					continue
 				}
 				h.recordFailure()
-				status, errType := claudeUpstreamErrorStatusAndType(lastErr)
-				h.sendClaudeUpstreamError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error(), lastErr)
+				if stableDownstreamForRequest(r, model, true) {
+					if stream {
+						h.sendStableClaudeStreamFallback(w, r, model, "capacity_recovery_timeout", lastErr)
+					} else {
+						h.sendStableClaudeFallback(w, r, model, "capacity_recovery_timeout", lastErr)
+					}
+					return
+				}
+				h.sendClaudeOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
 			}
 			h.recordFailure()
-			h.sendNoAvailableAccountsError(w, model, lastErr, true)
+			h.sendNoAvailableAccountsError(w, r, model, lastErr, true)
 			return
 		}
 		used[account.ID] = true
@@ -1987,6 +2370,11 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
+				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
+					h.sendStableClaudeStreamFallback(w, r, model, "upstream_retryable_exhausted", err)
+					return
+				}
+				status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 				h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 			}
 			return
@@ -1996,7 +2384,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
@@ -2009,6 +2403,15 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 	capacityRetryCount := 0
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			if stableDownstreamForRequest(r, model, true) {
+				h.sendStableOpenAIResponsesFallback(w, r, model, "attempt_budget_exhausted", lastErr)
+				return
+			}
+			h.sendOpenAIOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
@@ -2016,7 +2419,6 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
@@ -2028,12 +2430,15 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 					continue
 				}
 				h.recordFailure()
-				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
-				h.sendOpenAIError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				if stableDownstreamForRequest(r, model, true) {
+					h.sendStableOpenAIResponsesFallback(w, r, model, "capacity_recovery_timeout", lastErr)
+					return
+				}
+				h.sendOpenAIOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
 			}
 			h.recordFailure()
-			h.sendNoAvailableAccountsError(w, model, lastErr, false)
+			h.sendNoAvailableAccountsError(w, r, model, lastErr, false)
 			return
 		}
 		used[account.ID] = true
@@ -2053,6 +2458,10 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 				continue
 			}
 			releaseRequest()
+			if stableDownstreamForRequest(r, model, true) {
+				h.sendStableOpenAIFallback(w, r, model, "token_refresh_failed", err)
+				return
+			}
 			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
 			return
 		}
@@ -2081,6 +2490,14 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				h.recordFailure()
 				status, errType := openAIUpstreamErrorStatusAndType(err)
+				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, false, status, errType); stable {
+					h.sendStableOpenAIFallback(w, r, model, "upstream_retryable_exhausted", err)
+					return
+				}
+				status, errType = downstreamOpus47ErrorStatusAndType(model, false, status, errType)
+				if isOpus47Model(model) {
+					h.applyOpusPressureHeaders(w, model, err, "stream_upstream_pressure")
+				}
 				h.sendOpenAIError(w, status, errType, err.Error())
 			}
 			return
@@ -2090,6 +2507,29 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
+	if snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap) {
+		h.recordFailure()
+		headers := http.Header{}
+		headers.Set("Retry-After", strconv.Itoa(snap.RetryAfterSeconds))
+		headers.Set("X-Kiro-Go-Circuit-State", snap.CircuitState)
+		message := strings.TrimSpace(model)
+		if message == "" {
+			message = "model"
+		}
+		message += " circuit is open; retry after " + strconv.Itoa(snap.RetryAfterSeconds) + "s"
+		status, errType := opusPressureErrorTypes(model, claudeFormat)
+		if claudeFormat {
+			h.sendClaudeErrorWithHeaders(w, status, errType, message, headers)
+		} else {
+			for key, values := range headers {
+				if len(values) > 0 {
+					w.Header().Set(key, values[0])
+				}
+			}
+			h.sendOpenAIError(w, status, errType, message)
+		}
+		return nil, false
+	}
 	if stream && modelAdmissionGate.shouldBypassStream(model) {
 		return func() {}, true
 	}
@@ -2117,7 +2557,51 @@ func (h *Handler) acquireOpus47Admission(w http.ResponseWriter, model string, st
 	return nil, false
 }
 
+func opus47OpenCircuitSnapshot(model string) AdmissionPressureSnapshot {
+	if modelAdmissionGate == nil || !isOpus47Model(model) {
+		return AdmissionPressureSnapshot{}
+	}
+	return modelAdmissionGate.modelSnapshot(model)
+}
+
+func (h *Handler) shouldFastRejectOpus47OpenCircuit(model string, snap AdmissionPressureSnapshot) bool {
+	if snap.CircuitState != "open" || snap.RetryAfterSeconds <= 0 || snap.Score < 6 || h == nil || h.pool == nil {
+		return false
+	}
+	state := h.pool.ModelBlockState(model, time.Now())
+	return state.Blocked >= defaultOpus47MaxAttempts
+}
+
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
+	if stableDownstreamForRequest(r, model, true) {
+		if snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap) {
+			h.recordFailure()
+			h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model))
+			return nil, false
+		}
+		if stream && modelAdmissionGate.shouldBypassStream(model) {
+			return func() {}, true
+		}
+		startedAt := time.Now()
+		timeout := time.Until(deadline)
+		if timeout <= 0 {
+			timeout = 0
+		}
+		release, gated, err := modelAdmissionGate.acquire(model, timeout)
+		wait := time.Since(startedAt)
+		effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
+		updateRequestLogAdmission(r, wait, effectiveLimit, pressureScore)
+		if !gated {
+			return func() {}, true
+		}
+		if err == nil {
+			updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
+			return release, true
+		}
+		h.recordFailure()
+		h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, err)
+		return nil, false
+	}
 	startedAt := time.Now()
 	release, ok := h.acquireOpus47Admission(w, model, stream, claudeFormat, deadline)
 	wait := time.Since(startedAt)
@@ -2127,6 +2611,18 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 		updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
 	}
 	return release, ok
+}
+
+func (h *Handler) sendStableAdmissionFallback(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, err error) {
+	if claudeFormat {
+		if stream {
+			h.sendStableClaudeStreamFallback(w, r, model, "admission_pressure", err)
+			return
+		}
+		h.sendStableClaudeFallback(w, r, model, "admission_pressure", err)
+		return
+	}
+	h.sendStableOpenAIFallback(w, r, model, "admission_pressure", err)
 }
 
 func claudeUpstreamErrorStatusAndType(err error) (int, string) {
@@ -2505,12 +3001,27 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		status, _ := claudeUpstreamErrorStatusAndType(err)
 		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountModelFailure(account.ID, model, err)
+		appendRequestLogAttempt(r, RequestLogAttempt{
+			Attempt:           attempt + 1,
+			AccountID:         account.ID,
+			Model:             model,
+			Region:            resolveAccountKiroRegion(account),
+			Event:             "failure",
+			Reason:            string(reason),
+			RetryAfterSeconds: retryAfterSecondsFromReset(rateLimitResetFromError(err)),
+			DurationMs:        latency.Milliseconds(),
+		})
 		h.checkOverageError(err, account.ID)
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
 			return false, err
 		}
 		if !streamStarted {
 			status, errType := claudeUpstreamErrorStatusAndType(err)
+			if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
+				h.sendStableClaudeStreamFallback(w, r, model, "upstream_retryable_exhausted", err)
+				return true, err
+			}
+			status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 			h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 			return true, err
 		}
@@ -2545,6 +3056,14 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	outputTokens = estimateClaudeOutputTokens(outputContent, thinkingOutput, toolUses)
 
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
+	appendRequestLogAttempt(r, RequestLogAttempt{
+		Attempt:    attempt + 1,
+		AccountID:  account.ID,
+		Model:      model,
+		Region:     resolveAccountKiroRegion(account),
+		Event:      "success",
+		DurationMs: latency.Milliseconds(),
+	})
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.RecordModelSuccess(account.ID, model)
@@ -2708,12 +3227,27 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 		status, _ := claudeUpstreamErrorStatusAndType(err)
 		modelAdmissionGate.recordPressureUntil(model, status, latency, rateLimitResetFromError(err))
 		h.recordAccountModelFailure(account.ID, model, err)
+		appendRequestLogAttempt(r, RequestLogAttempt{
+			Attempt:           attempt + 1,
+			AccountID:         account.ID,
+			Model:             model,
+			Region:            resolveAccountKiroRegion(account),
+			Event:             "failure",
+			Reason:            string(reason),
+			RetryAfterSeconds: retryAfterSecondsFromReset(rateLimitResetFromError(err)),
+			DurationMs:        latency.Milliseconds(),
+		})
 		if shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model) {
 			return false, err
 		}
 		h.recordFailure()
 		h.checkOverageError(err, account.ID)
 		status, errType := claudeUpstreamErrorStatusAndType(err)
+		if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
+			h.sendStableClaudeFallback(w, r, model, "upstream_retryable_exhausted", err)
+			return true, err
+		}
+		status, errType = downstreamOpus47ErrorStatusAndType(model, true, status, errType)
 		h.sendClaudeUpstreamError(w, status, errType, err.Error(), err)
 		return true, err
 	}
@@ -2738,6 +3272,14 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	outputTokens = estimateClaudeOutputTokens(finalContent, rawThinkingContent, toolUses)
 
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
+	appendRequestLogAttempt(r, RequestLogAttempt{
+		Attempt:    attempt + 1,
+		AccountID:  account.ID,
+		Model:      model,
+		Region:     resolveAccountKiroRegion(account),
+		Event:      "success",
+		DurationMs: latency.Milliseconds(),
+	})
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
 	h.pool.RecordModelSuccess(account.ID, model)
@@ -2942,7 +3484,13 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, req *OpenAIRequest, previousResponseID string) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
@@ -2955,6 +3503,15 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	capacityRetryCount := 0
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			if stableDownstreamForRequest(r, model, true) {
+				h.sendStableOpenAIFallback(w, r, model, "attempt_budget_exhausted", lastErr)
+				return
+			}
+			h.sendOpenAIOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
@@ -2962,7 +3519,6 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 				capacityRetryCount++
 				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
 				used = make(map[string]bool)
-				attempt++
 				continue
 			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
@@ -2974,16 +3530,31 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 					continue
 				}
 				h.recordFailure()
-				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
-				h.sendOpenAIError(w, status, errType, "Opus 4.7 upstream capacity did not recover within 90s: "+lastErr.Error())
+				if stableDownstreamForRequest(r, model, true) {
+					h.sendStableOpenAIFallback(w, r, model, "capacity_recovery_timeout", lastErr)
+					return
+				}
+				h.sendOpenAIOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
 			}
 			if lastErr != nil {
 				h.recordFailure()
 				status, errType := openAIUpstreamErrorStatusAndType(lastErr)
+				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, false, status, errType); stable {
+					h.sendStableOpenAIResponsesFallback(w, r, model, "no_available_accounts", lastErr)
+					return
+				}
+				status, errType = downstreamOpus47ErrorStatusAndType(model, false, status, errType)
+				if isOpus47Model(model) {
+					h.applyOpusPressureHeaders(w, model, lastErr, "no_available_accounts")
+				}
 				h.sendOpenAIError(w, status, errType, lastErr.Error())
 			} else {
 				h.recordFailure()
+				if stableDownstreamForRequest(r, model, true) {
+					h.sendStableOpenAIResponsesFallback(w, r, model, "no_available_accounts", nil)
+					return
+				}
 				h.sendOpenAIError(w, 503, "server_error", "No available accounts")
 			}
 			return
@@ -3005,6 +3576,10 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 				continue
 			}
 			releaseRequest()
+			if stableDownstreamForRequest(r, model, true) {
+				h.sendStableOpenAIResponsesFallback(w, r, model, "token_refresh_failed", err)
+				return
+			}
 			h.sendOpenAIError(w, 503, "server_error", "Token refresh failed")
 			return
 		}
@@ -3032,6 +3607,14 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		if err != nil {
 			h.recordFailure()
 			status, errType := openAIUpstreamErrorStatusAndType(err)
+			if _, _, stable := downstreamStatusForRetryExhaustion(r, model, false, status, errType); stable {
+				h.sendStableOpenAIResponsesFallback(w, r, model, "upstream_retryable_exhausted", err)
+				return
+			}
+			status, errType = downstreamOpus47ErrorStatusAndType(model, false, status, errType)
+			if isOpus47Model(model) {
+				h.applyOpusPressureHeaders(w, model, err, "responses_upstream_pressure")
+			}
 			h.sendOpenAIError(w, status, errType, err.Error())
 			return
 		}
@@ -3565,6 +4148,10 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 		if (shouldRetryAccount(reason, attempt) || shouldWaitAndRetryOpus47(err, model)) && !streamStarted {
 			return false, err
 		}
+		if !streamStarted && stableDownstreamForRequest(r, model, true) {
+			h.sendStableOpenAIFallback(w, r, model, "upstream_retryable_exhausted", err)
+			return true, err
+		}
 		if streamStarted {
 			chunk := map[string]interface{}{
 				"error": map[string]string{
@@ -3737,6 +4324,10 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 		}
 		h.recordFailure()
 		h.checkOverageError(err, account.ID)
+		if !streamStarted && stableDownstreamForRequest(r, model, true) {
+			h.sendStableOpenAIResponsesFallback(w, r, model, "upstream_retryable_exhausted", err)
+			return true, err
+		}
 		sendEvent("response.failed", map[string]interface{}{
 			"type":  "response.failed",
 			"error": map[string]string{"type": "server_error", "message": err.Error()},
@@ -3821,6 +4412,10 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 		}
 		h.recordFailure()
 		h.checkOverageError(err, account.ID)
+		if stableDownstreamForRequest(r, model, true) {
+			h.sendStableOpenAIResponsesFallback(w, r, model, "upstream_retryable_exhausted", err)
+			return true, err
+		}
 		h.sendOpenAIError(w, 500, "server_error", err.Error())
 		return true, err
 	}
@@ -4127,6 +4722,8 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiImportSsoToken(w, r)
 	case path == "/auth/credentials" && r.Method == "POST":
 		h.apiImportCredentials(w, r)
+	case path == "/auth/credentials/validate" && r.Method == "POST":
+		h.apiValidateCredentials(w, r)
 	case path == "/status" && r.Method == "GET":
 		h.apiGetStatus(w, r)
 	case path == "/settings" && r.Method == "GET":
@@ -4137,6 +4734,15 @@ func (h *Handler) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		h.apiGetClaudeCodeCompatibility(w, r)
 	case path == "/claude-code/model-readiness" && r.Method == "GET":
 		h.apiGetClaudeCodeModelReadiness(w, r)
+	case strings.HasPrefix(path, "/accounts/") && strings.HasSuffix(path, "/diagnostics") && r.Method == "GET":
+		id := strings.TrimSuffix(strings.TrimPrefix(path, "/accounts/"), "/diagnostics")
+		h.apiGetAccountDiagnostics(w, r, id)
+	case path == "/scheduler/preview" && r.Method == "GET":
+		h.apiGetSchedulerPreview(w, r)
+	case path == "/fleet/readiness" && r.Method == "GET":
+		h.apiGetFleetReadiness(w, r)
+	case path == "/websearch/diagnostics" && r.Method == "GET":
+		h.apiGetWebSearchDiagnostics(w, r)
 	case path == "/auto-refresh" && r.Method == "GET":
 		h.apiGetAutoRefresh(w, r)
 	case path == "/auto-refresh" && r.Method == "POST":
@@ -4420,8 +5026,11 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 			idSet[id] = true
 		}
 		var toRefreshModels []config.Account
+		results := make([]map[string]interface{}, 0, len(req.IDs))
+		seen := make(map[string]bool)
 		for _, a := range accounts {
 			if idSet[a.ID] {
+				seen[a.ID] = true
 				// 记录本次从禁用→启用、且有 token 的账号
 				if enabled && !a.Enabled && a.AccessToken != "" {
 					toRefreshModels = append(toRefreshModels, a)
@@ -4432,7 +5041,16 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 					a.BanReason = ""
 					a.BanTime = 0
 				}
-				config.UpdateAccount(a.ID, a)
+				if err := config.UpdateAccount(a.ID, a); err != nil {
+					results = append(results, map[string]interface{}{"id": a.ID, "status": "failed", "reason": "update_failed", "message": err.Error()})
+					continue
+				}
+				results = append(results, map[string]interface{}{"id": a.ID, "status": "success", "reason": req.Action, "message": "account updated"})
+			}
+		}
+		for _, id := range req.IDs {
+			if !seen[id] {
+				results = append(results, map[string]interface{}{"id": id, "status": "failed", "reason": "not_found", "message": "Account not found"})
 			}
 		}
 		h.pool.Reload()
@@ -4445,11 +5063,12 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 				}
 			}(acc)
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "count": len(req.IDs)})
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "count": len(req.IDs), "results": results, "summary": summarizeBatchResults(results)})
 
 	case "refresh":
 		successCount := 0
 		failCount := 0
+		results := make([]map[string]interface{}, 0, len(req.IDs))
 		for _, id := range req.IDs {
 			accounts := config.GetAccounts()
 			var account *config.Account
@@ -4461,20 +5080,25 @@ func (h *Handler) apiBatchAccounts(w http.ResponseWriter, r *http.Request) {
 			}
 			if account == nil {
 				failCount++
+				results = append(results, map[string]interface{}{"id": id, "status": "failed", "reason": "not_found", "message": "Account not found"})
 				continue
 			}
 			if _, err := refreshAccountData(account); err != nil {
 				logger.Warnf("[AdminAPI] Failed to refresh %s: %v", account.Email, err)
 				failCount++
+				results = append(results, map[string]interface{}{"id": id, "status": "failed", "reason": "refresh_failed", "message": err.Error()})
 				continue
 			}
 			successCount++
+			results = append(results, map[string]interface{}{"id": id, "status": "success", "reason": "refreshed", "message": "account refreshed"})
 		}
 		h.pool.Reload()
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":   true,
 			"refreshed": successCount,
 			"failed":    failCount,
+			"results":   results,
+			"summary":   summarizeBatchResults(results),
 		})
 
 	default:
@@ -5942,9 +6566,19 @@ func (h *Handler) apiGetAccountModels(w http.ResponseWriter, r *http.Request, id
 		json.NewEncoder(w).Encode(map[string]string{"error": "Account not found"})
 		return
 	}
+	if shouldBlockInteractiveModelRefresh(*account, time.Now()) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "account model probe skipped while Opus 4.7 quiet mode or account cooldown is active",
+			"models":  h.pool.GetModelList(id),
+		})
+		return
+	}
 
-	models, err := ListAvailableModels(account)
+	models, err := listAvailableModelsForCache(account)
 	if err != nil {
+		h.recordAccountFailure(account.ID, err)
 		w.WriteHeader(500)
 		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return

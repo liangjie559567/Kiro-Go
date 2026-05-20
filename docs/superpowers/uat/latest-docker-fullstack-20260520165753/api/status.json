@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 9,
+  "body": {
+    "accounts": 30,
+    "available": 14,
+    "failedRequests": 6916,
+    "successRequests": 5727,
+    "totalCredits": 1062.9215451617783,
+    "totalRequests": 12643,
+    "totalTokens": "[REDACTED]",
+    "uptime": 822
+  }
+}

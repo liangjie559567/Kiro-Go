@@ -247,6 +247,29 @@ func TestGetModelAdmissionConfigDefaultsFromOpus47AndPersistsValues(t *testing.T
 	}
 }
 
+func TestStableDownstreamDefaultsEnableSub2APIOpus47(t *testing.T) {
+	cfg := defaultConfig()
+	if !cfg.StableDownstream.Enabled {
+		t.Fatalf("StableDownstream.Enabled = false, want true")
+	}
+	if !cfg.StableDownstream.Sub2APICompatible {
+		t.Fatalf("StableDownstream.Sub2APICompatible = false, want true")
+	}
+	if len(cfg.StableDownstream.Models) != 1 || cfg.StableDownstream.Models[0] != "claude-opus-4.7" {
+		t.Fatalf("StableDownstream.Models = %#v, want claude-opus-4.7 only", cfg.StableDownstream.Models)
+	}
+}
+
+func TestStableDownstreamSupportsOpus47OnlyByDefault(t *testing.T) {
+	cfg := defaultConfig()
+	if !cfg.StableDownstream.SupportsModel("claude-opus-4.7") {
+		t.Fatalf("expected stable downstream to support claude-opus-4.7")
+	}
+	if cfg.StableDownstream.SupportsModel("claude-sonnet-4.5") {
+		t.Fatalf("did not expect stable downstream to support claude-sonnet-4.5 by default")
+	}
+}
+
 func TestValidateModelAdmissionConfig(t *testing.T) {
 	valid := ModelAdmissionConfig{
 		Default: ModelAdmissionRule{MaxConcurrent: 10, MaxWaiting: 100},

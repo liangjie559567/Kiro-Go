@@ -146,6 +146,25 @@ type ModelAdmissionConfig struct {
 	Models       map[string]ModelAdmissionRule `json:"models,omitempty"`
 }
 
+type StableDownstreamConfig struct {
+	Enabled           bool     `json:"enabled"`
+	Sub2APICompatible bool     `json:"sub2apiCompatible"`
+	Models            []string `json:"models"`
+}
+
+func (c StableDownstreamConfig) SupportsModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if !c.Enabled || model == "" {
+		return false
+	}
+	for _, candidate := range c.Models {
+		if strings.ToLower(strings.TrimSpace(candidate)) == model {
+			return true
+		}
+	}
+	return false
+}
+
 const (
 	LoadBalanceStrategyHealth           = "health"
 	LoadBalanceStrategyRoundRobin       = "round_robin"
@@ -305,23 +324,24 @@ type PromptFilterRule struct {
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
-	Password          string                `json:"password"`         // Admin panel password
-	Port              int                   `json:"port"`             // HTTP server port (default: 8080)
-	Host              string                `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
-	ApiKey            string                `json:"apiKey,omitempty"` // API key for client authentication
-	RequireApiKey     bool                  `json:"requireApiKey"`    // Whether to enforce API key validation
-	ClientApiKeys     []string              `json:"clientApiKeys,omitempty"`
-	ClientIPAllowlist []string              `json:"clientIPAllowlist,omitempty"`
-	ModelMappings     []ModelMappingRule    `json:"modelMappings,omitempty"`
-	KiroVersion       string                `json:"kiroVersion,omitempty"`
-	SystemVersion     string                `json:"systemVersion,omitempty"`
-	NodeVersion       string                `json:"nodeVersion,omitempty"`
-	Accounts          []Account             `json:"accounts"` // Registered Kiro accounts
-	AutoRefresh       AutoRefreshConfig     `json:"autoRefresh"`
-	HealthCheck       HealthCheckConfig     `json:"healthCheck"`
-	Opus47Admission   Opus47AdmissionConfig `json:"opus47Admission,omitempty"`
-	ModelAdmission    ModelAdmissionConfig  `json:"modelAdmission,omitempty"`
-	LoadBalance       LoadBalanceConfig     `json:"loadBalance,omitempty"`
+	Password          string                 `json:"password"`         // Admin panel password
+	Port              int                    `json:"port"`             // HTTP server port (default: 8080)
+	Host              string                 `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
+	ApiKey            string                 `json:"apiKey,omitempty"` // API key for client authentication
+	RequireApiKey     bool                   `json:"requireApiKey"`    // Whether to enforce API key validation
+	ClientApiKeys     []string               `json:"clientApiKeys,omitempty"`
+	ClientIPAllowlist []string               `json:"clientIPAllowlist,omitempty"`
+	ModelMappings     []ModelMappingRule     `json:"modelMappings,omitempty"`
+	KiroVersion       string                 `json:"kiroVersion,omitempty"`
+	SystemVersion     string                 `json:"systemVersion,omitempty"`
+	NodeVersion       string                 `json:"nodeVersion,omitempty"`
+	Accounts          []Account              `json:"accounts"` // Registered Kiro accounts
+	AutoRefresh       AutoRefreshConfig      `json:"autoRefresh"`
+	HealthCheck       HealthCheckConfig      `json:"healthCheck"`
+	Opus47Admission   Opus47AdmissionConfig  `json:"opus47Admission,omitempty"`
+	ModelAdmission    ModelAdmissionConfig   `json:"modelAdmission,omitempty"`
+	StableDownstream  StableDownstreamConfig `json:"stableDownstream"`
+	LoadBalance       LoadBalanceConfig      `json:"loadBalance,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -411,6 +431,62 @@ func defaultAutoRefreshConfig() AutoRefreshConfig {
 		Enabled:         true,
 		IntervalMinutes: AutoRefreshDefaultIntervalMinutes,
 		Scope:           AutoRefreshScopeEnabled,
+	}
+}
+
+func defaultStableDownstreamConfig() StableDownstreamConfig {
+	return StableDownstreamConfig{
+		Enabled:           true,
+		Sub2APICompatible: true,
+		Models:            []string{"claude-opus-4.7"},
+	}
+}
+
+type persistedStableDownstreamConfig struct {
+	Enabled           *bool    `json:"enabled"`
+	Sub2APICompatible *bool    `json:"sub2apiCompatible"`
+	Models            []string `json:"models"`
+}
+
+func normalizePersistedStableDownstreamConfig(data []byte, in StableDownstreamConfig) StableDownstreamConfig {
+	defaults := defaultStableDownstreamConfig()
+	var raw struct {
+		StableDownstream *persistedStableDownstreamConfig `json:"stableDownstream"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.StableDownstream == nil {
+		return defaults
+	}
+
+	normalized := in
+	if raw.StableDownstream.Enabled == nil {
+		normalized.Enabled = defaults.Enabled
+	} else {
+		normalized.Enabled = *raw.StableDownstream.Enabled
+	}
+	if raw.StableDownstream.Sub2APICompatible == nil {
+		normalized.Sub2APICompatible = defaults.Sub2APICompatible
+	} else {
+		normalized.Sub2APICompatible = *raw.StableDownstream.Sub2APICompatible
+	}
+	if raw.StableDownstream.Models == nil {
+		normalized.Models = defaults.Models
+	}
+	return normalized
+}
+
+func defaultConfig() Config {
+	return Config{
+		Password:         "changeme",
+		Port:             8080,
+		Host:             "0.0.0.0",
+		RequireApiKey:    false,
+		Accounts:         []Account{},
+		AutoRefresh:      defaultAutoRefreshConfig(),
+		HealthCheck:      defaultHealthCheckConfig(),
+		Opus47Admission:  defaultOpus47AdmissionConfig(),
+		ModelAdmission:   defaultModelAdmissionConfig(),
+		StableDownstream: defaultStableDownstreamConfig(),
+		LoadBalance:      defaultLoadBalanceConfig(),
 	}
 }
 
@@ -541,18 +617,8 @@ func Load() error {
 		if os.IsNotExist(err) {
 			// Create default configuration.
 			// Binds to 0.0.0.0 by default for Docker/container compatibility.
-			cfg = &Config{
-				Password:        "changeme",
-				Port:            8080,
-				Host:            "0.0.0.0",
-				RequireApiKey:   false,
-				Accounts:        []Account{},
-				AutoRefresh:     defaultAutoRefreshConfig(),
-				HealthCheck:     defaultHealthCheckConfig(),
-				Opus47Admission: defaultOpus47AdmissionConfig(),
-				ModelAdmission:  defaultModelAdmissionConfig(),
-				LoadBalance:     defaultLoadBalanceConfig(),
-			}
+			defaults := defaultConfig()
+			cfg = &defaults
 			return Save()
 		}
 		return err
@@ -566,6 +632,7 @@ func Load() error {
 	c.HealthCheck = normalizePersistedHealthCheckConfig(data, c.HealthCheck)
 	c.Opus47Admission = normalizeOpus47AdmissionConfig(c.Opus47Admission)
 	c.ModelAdmission = normalizeModelAdmissionConfig(c.ModelAdmission, c.Opus47Admission)
+	c.StableDownstream = normalizePersistedStableDownstreamConfig(data, c.StableDownstream)
 	c.LoadBalance = normalizeLoadBalanceConfig(c.LoadBalance)
 	cfg = &c
 	return nil

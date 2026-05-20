@@ -1,4 +1,5 @@
 .worktrees/
+.uat-backups/
 data/
 recovery/
 kiro-playwright-blocked-*.png

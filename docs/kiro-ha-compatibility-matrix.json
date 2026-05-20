@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "phase": "02",
+  "generated_on": "2026-05-20",
+  "project": "Kiro-Go Claude Code Compatibility and High Availability",
+  "status_values": ["PASS", "HISTORICAL_PASS", "HUMAN_NEEDED", "NOT_REQUIRED", "BLOCKED_BY_ENV", "BLOCKED_BY_UPSTREAM", "FAIL"],
+  "rows": [
+    {
+      "id": "HA-01",
+      "feature": "Temporary-limit isolation",
+      "surface": "account cooldown, pool scheduling, model readiness",
+      "automated": {"status": "PASS", "mode": "account_local_cooldown"},
+      "live_uat": {"status": "HISTORICAL_PASS", "mode": "pre_current_change_uat"},
+      "evidence": ["proxy/handler_test.go:TestHandleClaudeTemporaryLimitFallsThroughToNextAccount", "docs/superpowers/uat/kiro-riskgroup-removal-20260520134343/UAT-RESULT.md"],
+      "notes": "Temporary-limit 429 cools only the account that returned it; same apparent risk-group accounts remain schedulable."
+    },
+    {
+      "id": "HA-02",
+      "feature": "Failure taxonomy",
+      "surface": "pool.FailureReason and handler error mapping",
+      "automated": {"status": "PASS", "mode": "classified_failures"},
+      "live_uat": {"status": "NOT_REQUIRED", "mode": "unit_contract"},
+      "evidence": ["pool/account_test.go:TestClassifyFailureReason", "proxy/handler_test.go upstream error mapping tests"],
+      "notes": "Canonical internal names are quota_exhausted, auth_expired, transient_network, and upstream_5xx."
+    },
+    {
+      "id": "HA-03",
+      "feature": "Retry and attempt behavior",
+      "surface": "Claude request retry loop and request-log attemptTrace",
+      "automated": {"status": "PASS", "mode": "excluded_account_retry"},
+      "live_uat": {"status": "HISTORICAL_PASS", "mode": "pre_current_change_uat"},
+      "evidence": ["proxy/handler_test.go:TestHandleClaudeTemporaryLimitFallsThroughToNextAccount", "proxy/request_log_test.go:TestRequestLogMetadataCapturesAccountRegionAndTokenUsage"],
+      "notes": "Recoverable account-local failures exclude the failed account for the current request and append selection/failure/success entries to attemptTrace."
+    },
+    {
+      "id": "HA-04",
+      "feature": "Model admission and scheduler observability",
+      "surface": "model admission gate, readiness, request logs",
+      "automated": {"status": "PASS", "mode": "model_pressure_gate_and_pool_health"},
+      "live_uat": {"status": "HISTORICAL_PASS", "mode": "pre_current_change_uat"},
+      "evidence": ["proxy/opus_gate_test.go", "proxy/handler_test.go:TestClaudeCodeModelReadinessIncludesAdmissionPressure", "docs/superpowers/uat/sub2api-kiro-opus47-account-lb-20260520144855/UAT-RESULT.md"],
+      "notes": "Admission is model-level pressure control; account awareness is provided by pool reservation, health scoring, and readiness/request-log disclosure."
+    },
+    {
+      "id": "HA-05",
+      "feature": "Background traffic throttling",
+      "surface": "auto-refresh and health-check workers",
+      "automated": {"status": "PASS", "mode": "overlap_guard_and_cooldown_skip"},
+      "live_uat": {"status": "NOT_REQUIRED", "mode": "worker_unit_contract"},
+      "evidence": ["proxy/account_refresh_test.go:TestSelectAutoRefreshAccountsHonorsScope", "proxy/account_health_test.go:TestSelectHealthCheckAccountsOnlyEnabled"],
+      "notes": "Workers avoid overlap and skip cooling temporary_limited, rate_limited, and quota_exhausted accounts while exposing skipped counts."
+    },
+    {
+      "id": "HA-06",
+      "feature": "sub2api retryability and exhausted-pool semantics",
+      "surface": "Anthropic-compatible exhausted-pool response headers and body",
+      "automated": {"status": "PASS", "mode": "retryable_exhausted_pool_semantics"},
+      "live_uat": {"status": "HISTORICAL_PASS", "mode": "pre_current_change_uat"},
+      "evidence": ["proxy/handler_test.go:TestSendNoAvailableAccountsMapsTemporaryLimitedPoolToClaudeRetryableRateLimit", "proxy/handler_test.go:TestSendNoAvailableAccountsDoesNotReportTemporaryLimitWhileAccountsRemainSchedulable", "docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/UAT-RESULT.md"],
+      "notes": "Kiro-Go reports temporary-limited exhausted pools as retryable only when no viable account remains."
+    },
+    {
+      "id": "HA-07",
+      "feature": "Real sub2api Opus 4.7 10x10 UAT",
+      "surface": "/www/sub2api -> Kiro-Go /v1/messages",
+      "automated": {"status": "HUMAN_NEEDED", "mode": "latest_code_live_uat"},
+      "live_uat": {"status": "HISTORICAL_PASS", "mode": "pre_current_change_uat"},
+      "evidence": ["docs/superpowers/uat/sub2api-kiro-opus47-account-lb-20260520144855/UAT-RESULT.md", "docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/UAT-RESULT.md"],
+      "notes": "Historical runs passed 100/100 non-stream and 100/100 stream; latest code requires rerun before final PASS."
+    }
+  ]
+}

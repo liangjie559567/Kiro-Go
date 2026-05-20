@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 17,
+  "body": {
+    "status": "ok",
+    "uptime": 132,
+    "version": "1.0.8"
+  }
+}
