@@ -1832,6 +1832,13 @@ func (h *Handler) handleCountTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updateRequestLogMetadata(r, req.Model, false)
+	updateRequestLogClassification(r, classifyGenerationRequest(RequestClassificationInput{
+		Request:  r,
+		Endpoint: r.URL.Path,
+		Model:    req.Model,
+		Stream:   false,
+		Claude:   &req,
+	}))
 	if msg := validateClaudeThinkingConfigWithOptions(req.Thinking, req.MaxTokens, claudeRequestHasMaxTokens(body)); msg != "" {
 		h.sendClaudeError(w, 400, "invalid_request_error", msg)
 		return
@@ -1880,6 +1887,14 @@ func (h *Handler) handleClaudeMessagesInternal(w http.ResponseWriter, r *http.Re
 	req := env.Request
 	updateRequestLogAnthropic(r, env)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
+	updateRequestLogClassification(r, classifyGenerationRequest(RequestClassificationInput{
+		Request:   r,
+		Endpoint:  r.URL.Path,
+		Model:     req.Model,
+		Stream:    req.Stream,
+		Anthropic: env,
+		Claude:    &req,
+	}))
 	opusMeta := normalizeOpus47ClaudeRequest(&req, env.HasBetaPrefix("claude-code") || env.SessionID != "" || env.AgentID != "" || env.ProjectDirPresent || env.Version != "")
 	updateRequestLogOpus47Normalization(r, opusMeta)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
@@ -3780,6 +3795,13 @@ func (h *Handler) handleOpenAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updateRequestLogMetadata(r, req.Model, req.Stream)
+	updateRequestLogClassification(r, classifyGenerationRequest(RequestClassificationInput{
+		Request:  r,
+		Endpoint: r.URL.Path,
+		Model:    req.Model,
+		Stream:   req.Stream,
+		OpenAI:   &req,
+	}))
 	if msg := validateOpenAIRequestShape(&req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
 		return
@@ -3823,6 +3845,14 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 	previousResponseID, _ := payload["previous_response_id"].(string)
 	h.restoreOpenAIResponsesSession(payload, req)
 	updateRequestLogMetadata(r, req.Model, req.Stream)
+	updateRequestLogClassification(r, classifyGenerationRequest(RequestClassificationInput{
+		Request:            r,
+		Endpoint:           r.URL.Path,
+		Model:              req.Model,
+		Stream:             req.Stream,
+		OpenAI:             req,
+		RawOpenAIResponses: payload,
+	}))
 	if msg := validateOpenAIRequestShape(req); msg != "" {
 		h.sendOpenAIError(w, 400, "invalid_request_error", msg)
 		return

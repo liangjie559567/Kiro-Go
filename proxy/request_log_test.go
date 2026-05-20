@@ -102,6 +102,36 @@ func TestAdminRequestStatsEndpointAggregatesRecentEntries(t *testing.T) {
 	}
 }
 
+func TestClaudeHandlerRecordsSubagentPriorityLane(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{requestLogs: newRequestLogStore(5), promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{
+		"model":"claude-opus-4.7",
+		"max_tokens":0,
+		"stream":false,
+		"messages":[{"role":"user","content":"warm cache"}]
+	}`))
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-1")
+	req.Header.Set("X-Claude-Code-Parent-Agent-Id", "parent-1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].PriorityLane != "subagent" {
+		t.Fatalf("PriorityLane = %q, want subagent: %#v", logs[0].PriorityLane, logs[0])
+	}
+	if logs[0].ClaudeCodeSessionID != "session-1" || logs[0].ClaudeCodeAgentID != "agent-1" || logs[0].ClaudeCodeParentAgentID != "parent-1" {
+		t.Fatalf("Claude Code metadata missing: %#v", logs[0])
+	}
+}
+
 func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
