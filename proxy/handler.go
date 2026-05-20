@@ -2417,6 +2417,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, true, deadline)
 	if !ok {
+		h.sendClaudeCodeSessionGovernorRejected(w, r, model, stream, true)
 		return
 	}
 	defer releaseSession()
@@ -2591,6 +2592,7 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, false, deadline)
 	if !ok {
+		h.sendClaudeCodeSessionGovernorRejected(w, r, model, stream, false)
 		return
 	}
 	defer releaseSession()
@@ -2954,6 +2956,19 @@ func (h *Handler) sendStableAdmissionFallback(w http.ResponseWriter, r *http.Req
 		return
 	}
 	h.sendStableOpenAIFallback(w, r, model, "admission_pressure", err)
+}
+
+func (h *Handler) sendClaudeCodeSessionGovernorRejected(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool) {
+	err := errors.New("claude code session governor rejected")
+	if stableDownstreamForRequest(r, model, true) {
+		h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, err)
+		return
+	}
+	if claudeFormat {
+		h.sendClaudeOpusPressureError(w, model, err, "session_governor_rejected")
+		return
+	}
+	h.sendOpenAIOpusPressureError(w, model, err, "session_governor_rejected")
 }
 
 func claudeUpstreamErrorStatusAndType(err error) (int, string) {
@@ -3927,6 +3942,7 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, false, deadline)
 	if !ok {
+		h.sendClaudeCodeSessionGovernorRejected(w, r, model, stream, false)
 		return
 	}
 	defer releaseSession()
