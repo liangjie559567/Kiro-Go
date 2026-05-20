@@ -2673,8 +2673,15 @@ func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testi
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable stream no-accounts wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Body.Len() != 0 {
-		t.Fatalf("Claude stream no-accounts stable wait must not emit fallback SSE: %s", w.Body.String())
+	body := w.Body.String()
+	if !strings.Contains(body, "event: ping") {
+		t.Fatalf("Claude stream no-accounts stable wait must emit heartbeat ping: %s", body)
+	}
+	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
+		t.Fatalf("Claude stream no-accounts stable wait must not emit assistant message frames: %s", body)
+	}
+	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
+		t.Fatalf("Claude stream no-accounts stable wait must not emit fallback assistant text: %s", body)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -2686,6 +2693,59 @@ func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testi
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected content continuity queue wait, got %#v", entry)
+	}
+}
+
+func TestStableClaudeStreamCapacityWaitSendsPingBeforeMessageStart(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	cfg.ContentContinuity.StreamHeartbeatSeconds = 1
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	h := &Handler{pool: &pool.AccountPool{}, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"stream":true,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "event: ping") {
+		t.Fatalf("stable stream wait must send heartbeat ping before capacity recovers, body=%q", body)
+	}
+	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
+		t.Fatalf("stable stream wait must not start or finish assistant message without real upstream content, body=%q", body)
+	}
+	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
+		t.Fatalf("stable stream wait must not emit fallback assistant text, body=%q", body)
 	}
 }
 
@@ -3657,6 +3717,68 @@ func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
 	}
 	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
 		t.Fatalf("did not expect stable admission fallback, got %#v", entry)
+	}
+}
+
+func TestStableAdmissionPressureStreamWaitSendsPingInsteadOfFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	cfg.ContentContinuity.StreamHeartbeatSeconds = 1
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	h := NewHandler()
+	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	release, _, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
+	if err != nil {
+		t.Fatalf("pre-acquire model gate: %v", err)
+	}
+	defer release()
+
+	releaseReq, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", true, true, time.Now().Add(30*time.Millisecond))
+	if ok {
+		releaseReq()
+		t.Fatalf("expected stream admission wait to stop only after client cancellation")
+	}
+	h.finishRequestLog(ctx, recorder)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "event: ping") {
+		t.Fatalf("stable admission stream wait must send heartbeat ping: %s", body)
+	}
+	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
+		t.Fatalf("stable admission stream wait must not emit assistant frames: %s", body)
+	}
+	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
+		t.Fatalf("stable admission stream wait must not emit fallback assistant text: %s", body)
 	}
 }
 

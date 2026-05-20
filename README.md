@@ -184,7 +184,7 @@ Kiro-Go includes specific handling for Opus 4.7 because it is more likely to hit
 - `GET /admin/api/fleet/readiness?model=claude-opus-4-7` reports `healthy`, `degraded`, or `blocked`, plus safe concurrency and retry timing.
 - Stable downstream mode protects sub2api-facing generation responses from gateway-level HTTP `429`, `502`, and `503`.
 - Content continuity is tracked separately: a response is only considered a content success when Kiro-Go receives real upstream assistant text, thinking, or tool calls.
-- For Claude Code / Anthropic requests, retryable Opus 4.7 capacity pressure keeps the HTTP request queued until real upstream content arrives or the client disconnects. Kiro-Go does not send assistant fallback text for `attempt_budget_exhausted`, `admission_pressure`, or no-account pressure.
+- For Claude Code / Anthropic requests, retryable Opus 4.7 capacity pressure keeps the HTTP request queued until real upstream content arrives or the client disconnects. Stream requests send Anthropic `ping` heartbeats while waiting, but do not start an assistant message or send fallback text for `attempt_budget_exhausted`, `admission_pressure`, or no-account pressure.
 - OpenAI-compatible stable fallbacks remain transport-only completions and are recorded with `contentSuccess=false`; they are not counted as correct model replies.
 
 Run the stable downstream UAT when Kiro-Go and sub2api are both available:

@@ -118,6 +118,10 @@ func (g *contentContinuityGate) wait(model string, timeout time.Duration, stillB
 }
 
 func (g *contentContinuityGate) waitContext(ctx context.Context, model string, timeout time.Duration, stillBlocked func() bool) contentContinuityWaitResult {
+	return g.waitContextWithHeartbeat(ctx, model, timeout, stillBlocked, 0, nil)
+}
+
+func (g *contentContinuityGate) waitContextWithHeartbeat(ctx context.Context, model string, timeout time.Duration, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) contentContinuityWaitResult {
 	start := time.Now()
 	result := contentContinuityWaitResult{Waited: true}
 	if g == nil || timeout <= 0 {
@@ -135,6 +139,14 @@ func (g *contentContinuityGate) waitContext(ctx context.Context, model string, t
 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
+	var heartbeatTicker *time.Ticker
+	var heartbeatC <-chan time.Time
+	if heartbeatEvery > 0 && heartbeat != nil {
+		heartbeat()
+		heartbeatTicker = time.NewTicker(heartbeatEvery)
+		heartbeatC = heartbeatTicker.C
+		defer heartbeatTicker.Stop()
+	}
 	model = normalizeAdmissionModel(model)
 	if strings.TrimSpace(model) == "" {
 		model = "default"
@@ -153,6 +165,8 @@ func (g *contentContinuityGate) waitContext(ctx context.Context, model string, t
 			result.Duration = time.Since(start)
 			return result
 		case <-ch:
+		case <-heartbeatC:
+			heartbeat()
 		case <-timer.C:
 			result.TimedOut = true
 			result.Duration = time.Since(start)

@@ -680,6 +680,10 @@ func (h *Handler) waitForStableContentContinuity(r *http.Request, model string, 
 }
 
 func (h *Handler) waitForStableContentContinuityResult(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) contentContinuityWaitResult {
+	return h.waitForStableContentContinuityResultWithHeartbeat(r, model, deadline, stillBlocked, 0, nil)
+}
+
+func (h *Handler) waitForStableContentContinuityResultWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) contentContinuityWaitResult {
 	if !stableDownstreamForRequest(r, model, true) {
 		return contentContinuityWaitResult{}
 	}
@@ -694,17 +698,21 @@ func (h *Handler) waitForStableContentContinuityResult(r *http.Request, model st
 	if r != nil && r.Context() != nil {
 		ctx = r.Context()
 	}
-	result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, stillBlocked)
+	result := contentContinuityGateGlobal.waitContextWithHeartbeat(ctx, model, stableWait, stillBlocked, heartbeatEvery, heartbeat)
 	updateRequestLogCapacityQueue(r, result.Duration)
 	return result
 }
 
 func (h *Handler) waitForStableClaudeCapacity(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) bool {
+	return h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, stillBlocked, 0, nil)
+}
+
+func (h *Handler) waitForStableClaudeCapacityWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) bool {
 	if !stableDownstreamForRequest(r, model, true) {
 		return false
 	}
 	for {
-		result := h.waitForStableContentContinuityResult(r, model, deadline, stillBlocked)
+		result := h.waitForStableContentContinuityResultWithHeartbeat(r, model, deadline, stillBlocked, heartbeatEvery, heartbeat)
 		if !result.Waited || result.Canceled {
 			return false
 		}
@@ -713,6 +721,31 @@ func (h *Handler) waitForStableClaudeCapacity(r *http.Request, model string, dea
 		}
 		if r != nil && r.Context().Err() != nil {
 			return false
+		}
+	}
+}
+
+func stableClaudeStreamHeartbeatInterval() time.Duration {
+	cfg := config.Get()
+	if cfg == nil || cfg.ContentContinuity.StreamHeartbeatSeconds <= 0 {
+		return 10 * time.Second
+	}
+	return time.Duration(cfg.ContentContinuity.StreamHeartbeatSeconds) * time.Second
+}
+
+func newStableClaudeStreamHeartbeat(w http.ResponseWriter, model string) func() {
+	var once sync.Once
+	var sse *claudeSSEWriter
+	return func() {
+		once.Do(func() {
+			w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			w.WriteHeader(http.StatusOK)
+			sse = newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
+		})
+		if sse != nil {
+			sse.Ping()
 		}
 	}
 }
@@ -2345,6 +2378,12 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
 	budget := newOpus47RequestBudget(model)
 	deadline := budget.deadline
+	var stableStreamHeartbeat func()
+	var stableStreamHeartbeatEvery time.Duration
+	if stream && stableDownstreamForRequest(r, model, true) {
+		stableStreamHeartbeat = newStableClaudeStreamHeartbeat(w, model)
+		stableStreamHeartbeatEvery = stableClaudeStreamHeartbeatInterval()
+	}
 	snap := AdmissionPressureSnapshot{}
 	if modelAdmissionGate != nil {
 		snap = modelAdmissionGate.modelSnapshot(model)
@@ -2365,9 +2404,9 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 
 	for {
 		if budget.attemptsExhausted(attempt, model) {
-			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
 				return h.stableAttemptBudgetStillBlocked(model)
-			}) {
+			}, stableStreamHeartbeatEvery, stableStreamHeartbeat) {
 				used = make(map[string]bool)
 				attempt = 0
 				continue
@@ -2401,9 +2440,9 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				}
 				h.recordFailure()
 				if stableDownstreamForRequest(r, model, true) {
-					if h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+					if h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
 						return h.stableAttemptBudgetStillBlocked(model)
-					}) {
+					}, stableStreamHeartbeatEvery, stableStreamHeartbeat) {
 						used = make(map[string]bool)
 						attempt = 0
 						continue
@@ -2416,9 +2455,9 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				h.sendClaudeOpusPressureError(w, model, lastErr, "capacity_recovery_timeout")
 				return
 			}
-			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
 				return h.stableAttemptBudgetStillBlocked(model)
-			}) {
+			}, stableStreamHeartbeatEvery, stableStreamHeartbeat) {
 				used = make(map[string]bool)
 				continue
 			}
@@ -2479,9 +2518,9 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
 				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
-					if h.waitForStableClaudeCapacity(r, model, deadline, func() bool {
+					if h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
 						return h.stableAttemptBudgetStillBlocked(model)
-					}) {
+					}, stableStreamHeartbeatEvery, stableStreamHeartbeat) {
 						used = make(map[string]bool)
 						attempt = 0
 						continue
@@ -2701,15 +2740,21 @@ func (h *Handler) shouldFastRejectOpus47OpenCircuit(model string, snap Admission
 
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
 	if stableDownstreamForRequest(r, model, true) {
+		var stableStreamHeartbeat func()
+		var stableStreamHeartbeatEvery time.Duration
+		if stream && claudeFormat {
+			stableStreamHeartbeat = newStableClaudeStreamHeartbeat(w, model)
+			stableStreamHeartbeatEvery = stableClaudeStreamHeartbeatInterval()
+		}
 		for snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap); snap = opus47OpenCircuitSnapshot(model) {
 			if stableWait := stableContentContinuityWaitDuration(model); stableWait > 0 {
 				ctx := context.Background()
 				if r != nil && r.Context() != nil {
 					ctx = r.Context()
 				}
-				result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, func() bool {
+				result := contentContinuityGateGlobal.waitContextWithHeartbeat(ctx, model, stableWait, func() bool {
 					return h.shouldFastRejectOpus47OpenCircuit(model, opus47OpenCircuitSnapshot(model))
-				})
+				}, stableStreamHeartbeatEvery, stableStreamHeartbeat)
 				updateRequestLogCapacityQueue(r, result.Duration)
 				effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
 				updateRequestLogAdmission(r, result.Duration, effectiveLimit, pressureScore)
@@ -2766,14 +2811,14 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 			if r != nil && r.Context() != nil {
 				ctx = r.Context()
 			}
-			result := contentContinuityGateGlobal.waitContext(ctx, model, stableWait, func() bool {
+			result := contentContinuityGateGlobal.waitContextWithHeartbeat(ctx, model, stableWait, func() bool {
 				probeRelease, _, probeErr := modelAdmissionGate.acquire(model, time.Millisecond)
 				if probeErr == nil {
 					probeRelease()
 					return false
 				}
 				return true
-			})
+			}, stableStreamHeartbeatEvery, stableStreamHeartbeat)
 			updateRequestLogCapacityQueue(r, result.Duration)
 			if claudeFormat && result.Canceled {
 				return nil, false
