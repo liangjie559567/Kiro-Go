@@ -526,7 +526,9 @@ func defaultClaudeCodeGovernorConfig() ClaudeCodeGovernorConfig {
 func normalizeClaudeCodeGovernorConfig(in ClaudeCodeGovernorConfig) ClaudeCodeGovernorConfig {
 	defaults := defaultClaudeCodeGovernorConfig()
 	if len(in.Models) == 0 {
-		in.Models = defaults.Models
+		in.Models = append([]string(nil), defaults.Models...)
+	} else {
+		in.Models = append([]string(nil), in.Models...)
 	}
 	if in.InteractiveReservedPerSession == 0 {
 		in.InteractiveReservedPerSession = defaults.InteractiveReservedPerSession
@@ -553,26 +555,26 @@ func normalizeClaudeCodeGovernorConfig(in ClaudeCodeGovernorConfig) ClaudeCodeGo
 }
 
 func ValidateClaudeCodeGovernorConfig(in ClaudeCodeGovernorConfig) error {
-	if in.InteractiveReservedPerSession < 0 {
-		return fmt.Errorf("interactiveReservedPerSession must be greater than or equal to 0")
+	if in.InteractiveReservedPerSession <= 0 {
+		return fmt.Errorf("interactiveReservedPerSession must be greater than 0")
 	}
-	if in.SubagentMaxConcurrentPerSession < 0 {
-		return fmt.Errorf("subagentMaxConcurrentPerSession must be greater than or equal to 0")
+	if in.SubagentMaxConcurrentPerSession <= 0 {
+		return fmt.Errorf("subagentMaxConcurrentPerSession must be greater than 0")
 	}
-	if in.BackgroundMaxConcurrent < 0 {
-		return fmt.Errorf("backgroundMaxConcurrent must be greater than or equal to 0")
+	if in.BackgroundMaxConcurrent <= 0 {
+		return fmt.Errorf("backgroundMaxConcurrent must be greater than 0")
 	}
-	if in.QueueMaxDepth < 0 {
-		return fmt.Errorf("queueMaxDepth must be greater than or equal to 0")
+	if in.QueueMaxDepth <= 0 {
+		return fmt.Errorf("queueMaxDepth must be greater than 0")
 	}
-	if in.InteractiveMaxWaitSeconds < 0 {
-		return fmt.Errorf("interactiveMaxWaitSeconds must be greater than or equal to 0")
+	if in.InteractiveMaxWaitSeconds <= 0 {
+		return fmt.Errorf("interactiveMaxWaitSeconds must be greater than 0")
 	}
-	if in.SubagentMaxWaitSeconds < 0 {
-		return fmt.Errorf("subagentMaxWaitSeconds must be greater than or equal to 0")
+	if in.SubagentMaxWaitSeconds <= 0 {
+		return fmt.Errorf("subagentMaxWaitSeconds must be greater than 0")
 	}
-	if in.BackgroundMaxWaitSeconds < 0 {
-		return fmt.Errorf("backgroundMaxWaitSeconds must be greater than or equal to 0")
+	if in.BackgroundMaxWaitSeconds <= 0 {
+		return fmt.Errorf("backgroundMaxWaitSeconds must be greater than 0")
 	}
 	for _, model := range in.Models {
 		if strings.TrimSpace(model) == "" {

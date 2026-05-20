@@ -382,6 +382,25 @@ func TestValidateClaudeCodeGovernorConfig(t *testing.T) {
 	if err := ValidateClaudeCodeGovernorConfig(negativeQueueDepth); err == nil {
 		t.Fatalf("expected negative queue depth to fail")
 	}
+	zeroQueueDepth := valid
+	zeroQueueDepth.QueueMaxDepth = 0
+	if err := ValidateClaudeCodeGovernorConfig(zeroQueueDepth); err == nil {
+		t.Fatalf("expected zero queue depth to fail")
+	}
+}
+
+func TestGetClaudeCodeGovernorConfigCopiesModels(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+
+	got := GetClaudeCodeGovernorConfig()
+	got.Models[0] = "mutated-model"
+
+	next := GetClaudeCodeGovernorConfig()
+	if next.Models[0] == "mutated-model" {
+		t.Fatalf("GetClaudeCodeGovernorConfig returned aliased Models slice")
+	}
 }
 
 func TestValidateModelAdmissionConfig(t *testing.T) {
