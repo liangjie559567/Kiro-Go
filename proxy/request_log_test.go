@@ -122,6 +122,21 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	updateRequestLogReliability(loggedReq, 120, 2, 80, 3)
 	updateRequestLogAdmission(loggedReq, 75*time.Millisecond, 2, 4)
 	updateRequestLogCapacityRetryCount(loggedReq, 3)
+	updateRequestLogOpusGovernor(loggedReq, "open", 60, opus47RequestBudget{
+		deadline:    time.Now().Add(25 * time.Second),
+		maxAttempts: 4,
+	})
+	appendRequestLogAttempt(loggedReq, RequestLogAttempt{
+		Attempt:           1,
+		AccountID:         "acct-1",
+		Model:             "claude-opus-4.7",
+		Region:            "eu-west-1",
+		Event:             "failure",
+		Reason:            "temporary_limited",
+		CircuitState:      "open",
+		RetryAfterSeconds: 60,
+		DurationMs:        42,
+	})
 	recorder.WriteHeader(http.StatusOK)
 	h.finishRequestLog(ctx, recorder)
 
@@ -153,6 +168,16 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 	if entry.CapacityRetryCount != 3 {
 		t.Fatalf("expected capacity retry metadata, got %#v", entry)
+	}
+	if entry.OpusCircuitState != "open" || entry.OpusRetryAfterSeconds != 60 || entry.OpusAttemptBudget != 4 || entry.OpusRequestBudgetMs <= 0 {
+		t.Fatalf("expected opus governor metadata, got %#v", entry)
+	}
+	if len(entry.AttemptTrace) != 1 {
+		t.Fatalf("expected one attempt trace entry, got %#v", entry.AttemptTrace)
+	}
+	attempt := entry.AttemptTrace[0]
+	if attempt.Attempt != 1 || attempt.AccountID != "acct-1" || attempt.Model != "claude-opus-4.7" || attempt.Region != "eu-west-1" || attempt.Event != "failure" || attempt.Reason != "temporary_limited" || attempt.CircuitState != "open" || attempt.RetryAfterSeconds != 60 || attempt.DurationMs != 42 {
+		t.Fatalf("unexpected attempt trace entry: %#v", attempt)
 	}
 }
 

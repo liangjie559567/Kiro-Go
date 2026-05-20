@@ -37,6 +37,12 @@ var (
 	})
 )
 
+const (
+	defaultOpus47MaxAttempts       = 4
+	defaultOpus47RequestBudget     = 25 * time.Second
+	defaultOpus47ReadinessCacheTTL = 3 * time.Second
+)
+
 const tokenRefreshSkewSeconds int64 = 120
 
 const poolTemporaryLimitStatus = http.StatusTooManyRequests
@@ -423,6 +429,10 @@ func (h *Handler) updateRequestLogRoutingDecision(r *http.Request, model string,
 	if h != nil && h.pool != nil {
 		health = h.pool.GetRuntimeHealth(account.ID)
 	}
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
 	decision := fmt.Sprintf("selected account=%s model=%s region=%s attempt=%d strategy=%s active=%d score=%d pressure=%t",
 		account.ID,
 		model,
@@ -434,6 +444,14 @@ func (h *Handler) updateRequestLogRoutingDecision(r *http.Request, model string,
 		pressure,
 	)
 	updateRequestLogRouting(r, decision, strategy, pressure)
+	appendRequestLogAttempt(r, RequestLogAttempt{
+		Attempt:      attempt + 1,
+		AccountID:    account.ID,
+		Model:        model,
+		Region:       resolveAccountKiroRegion(account),
+		Event:        "selected",
+		CircuitState: snap.CircuitState,
+	})
 }
 
 func rateLimitResetFromError(err error) time.Time {
@@ -463,6 +481,37 @@ func rateLimitRetryAfterHeaders(reason pool.FailureReason, resetAt time.Time) ht
 	}
 	headers.Set("Retry-After", strconv.Itoa(seconds))
 	return headers
+}
+
+func retryAfterSecondsFromReset(resetAt time.Time) int {
+	if resetAt.IsZero() || !resetAt.After(time.Now()) {
+		return 0
+	}
+	seconds := int((time.Until(resetAt) + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
+}
+
+type opus47RequestBudget struct {
+	deadline    time.Time
+	maxAttempts int
+}
+
+func newOpus47RequestBudget(model string) opus47RequestBudget {
+	if !isOpus47Model(model) {
+		return opus47RequestBudget{deadline: time.Now().Add(opusCapacityRetryBudget)}
+	}
+	budget := opusCapacityRetryBudget
+	if budget <= 0 || budget > defaultOpus47RequestBudget {
+		budget = defaultOpus47RequestBudget
+	}
+	return opus47RequestBudget{deadline: time.Now().Add(budget), maxAttempts: defaultOpus47MaxAttempts}
+}
+
+func (b opus47RequestBudget) attemptsExhausted(attempt int, model string) bool {
+	return isOpus47Model(model) && b.maxAttempts > 0 && attempt >= b.maxAttempts
 }
 
 type poolTemporaryLimitError struct {
@@ -502,6 +551,50 @@ func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, model stri
 		return
 	}
 	h.sendOpenAIError(w, http.StatusServiceUnavailable, "server_error", "No available accounts")
+}
+
+func (h *Handler) sendClaudeOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
+	h.applyOpusPressureHeaders(w, model, lastErr, reason)
+	message := "Opus 4.7 upstream pressure: " + reason
+	if lastErr != nil {
+		message += ": " + lastErr.Error()
+	}
+	h.sendClaudeUpstreamError(w, http.StatusTooManyRequests, "rate_limit_error", message, lastErr)
+}
+
+func (h *Handler) sendOpenAIOpusPressureError(w http.ResponseWriter, model string, lastErr error, reason string) {
+	h.applyOpusPressureHeaders(w, model, lastErr, reason)
+	message := "Opus 4.7 upstream pressure: " + reason
+	if lastErr != nil {
+		message += ": " + lastErr.Error()
+	}
+	h.sendOpenAIError(w, http.StatusTooManyRequests, "rate_limit_error", message)
+}
+
+func (h *Handler) applyOpusPressureHeaders(w http.ResponseWriter, model string, err error, reason string) {
+	if w == nil {
+		return
+	}
+	w.Header().Set("X-Kiro-Go-Error-Reason", reason)
+	w.Header().Set("X-Kiro-Go-Retryable", "true")
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	if snap.CircuitState != "" {
+		w.Header().Set("X-Kiro-Go-Circuit-State", snap.CircuitState)
+	}
+	if snap.EffectiveMaxConcurrent > 0 {
+		w.Header().Set("X-Kiro-Go-Safe-Concurrency", strconv.Itoa(snap.EffectiveMaxConcurrent))
+	}
+	retryAfter := retryAfterSecondsFromReset(rateLimitResetFromError(err))
+	if retryAfter <= 0 {
+		retryAfter = snap.RetryAfterSeconds
+	}
+	if retryAfter <= 0 {
+		retryAfter = defaultRateLimitFallbackSeconds
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 }
 
 func (h *Handler) modelBlockedError(model string) error {
@@ -1899,7 +1992,13 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 }
 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, true, deadline)
 	if !ok {
 		return
@@ -1914,6 +2013,11 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	sessionKey := requestStickyKey(r, effectiveReq)
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			h.sendClaudeOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelSessionExcept(model, sessionKey, used)
 		if account == nil {
@@ -1996,7 +2100,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
@@ -2009,6 +2119,11 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 	capacityRetryCount := 0
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			h.sendOpenAIOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
@@ -2942,7 +3057,13 @@ func (h *Handler) handleOpenAIResponses(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, estimatedInputTokens int, req *OpenAIRequest, previousResponseID string) {
-	deadline := time.Now().Add(opusCapacityRetryBudget)
+	budget := newOpus47RequestBudget(model)
+	deadline := budget.deadline
+	snap := AdmissionPressureSnapshot{}
+	if modelAdmissionGate != nil {
+		snap = modelAdmissionGate.modelSnapshot(model)
+	}
+	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
@@ -2955,6 +3076,11 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	capacityRetryCount := 0
 
 	for {
+		if budget.attemptsExhausted(attempt, model) {
+			h.recordFailure()
+			h.sendOpenAIOpusPressureError(w, model, lastErr, "attempt_budget_exhausted")
+			return
+		}
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {

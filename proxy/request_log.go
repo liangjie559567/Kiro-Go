@@ -49,6 +49,10 @@ type RequestLogEntry struct {
 	ClaudeCodeVersionPresent            bool                      `json:"claudeCodeVersionPresent,omitempty"`
 	Opus47ThinkingNormalized            bool                      `json:"opus47ThinkingNormalized,omitempty"`
 	Opus47SamplingDropped               bool                      `json:"opus47SamplingDropped,omitempty"`
+	OpusCircuitState                    string                    `json:"opusCircuitState,omitempty"`
+	OpusRetryAfterSeconds               int                       `json:"opusRetryAfterSeconds,omitempty"`
+	OpusRequestBudgetMs                 int64                     `json:"opusRequestBudgetMs,omitempty"`
+	OpusAttemptBudget                   int                       `json:"opusAttemptBudget,omitempty"`
 	PayloadOriginalBytes                int                       `json:"payloadOriginalBytes,omitempty"`
 	PayloadFinalBytes                   int                       `json:"payloadFinalBytes,omitempty"`
 	PayloadTrimmed                      bool                      `json:"payloadTrimmed,omitempty"`
@@ -89,6 +93,7 @@ type RequestLogEntry struct {
 	CapacityRetryCount                  int                       `json:"capacityRetryCount,omitempty"`
 	FirstTokenMs                        int64                     `json:"firstTokenMs,omitempty"`
 	Attempts                            int                       `json:"attempts,omitempty"`
+	AttemptTrace                        []RequestLogAttempt       `json:"attemptTrace,omitempty"`
 	ToolUseCount                        int                       `json:"toolUseCount,omitempty"`
 	SuppressedToolUseCount              int                       `json:"suppressedToolUseCount,omitempty"`
 	SuppressedToolUseNames              []string                  `json:"suppressedToolUseNames,omitempty"`
@@ -110,6 +115,19 @@ type SuppressedToolUseDetail struct {
 	Name         string `json:"name,omitempty"`
 	Reason       string `json:"reason,omitempty"`
 	InputSummary string `json:"inputSummary,omitempty"`
+}
+
+type RequestLogAttempt struct {
+	Attempt           int       `json:"attempt"`
+	AccountID         string    `json:"accountId,omitempty"`
+	Model             string    `json:"model,omitempty"`
+	Region            string    `json:"region,omitempty"`
+	Event             string    `json:"event"`
+	Reason            string    `json:"reason,omitempty"`
+	CircuitState      string    `json:"circuitState,omitempty"`
+	RetryAfterSeconds int       `json:"retryAfterSeconds,omitempty"`
+	DurationMs        int64     `json:"durationMs,omitempty"`
+	Timestamp         time.Time `json:"timestamp"`
 }
 
 type AccountRequestHealthSnapshot struct {
@@ -612,6 +630,45 @@ func updateRequestLogCapacityRetryCount(r *http.Request, count int) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.CapacityRetryCount = count
+}
+
+func updateRequestLogOpusGovernor(r *http.Request, state string, retryAfterSeconds int, budget opus47RequestBudget) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.OpusCircuitState = strings.TrimSpace(state)
+	ctx.entry.OpusRetryAfterSeconds = retryAfterSeconds
+	ctx.entry.OpusAttemptBudget = budget.maxAttempts
+	if !budget.deadline.IsZero() {
+		ctx.entry.OpusRequestBudgetMs = time.Until(budget.deadline).Milliseconds()
+	}
+}
+
+func appendRequestLogAttempt(r *http.Request, attempt RequestLogAttempt) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	if attempt.Attempt <= 0 {
+		attempt.Attempt = 1
+	}
+	attempt.AccountID = strings.TrimSpace(attempt.AccountID)
+	attempt.Model = strings.TrimSpace(attempt.Model)
+	attempt.Region = strings.TrimSpace(attempt.Region)
+	attempt.Event = strings.TrimSpace(attempt.Event)
+	attempt.Reason = strings.TrimSpace(attempt.Reason)
+	attempt.CircuitState = strings.TrimSpace(attempt.CircuitState)
+	if attempt.Timestamp.IsZero() {
+		attempt.Timestamp = time.Now().UTC()
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	if len(ctx.entry.AttemptTrace) < 50 {
+		ctx.entry.AttemptTrace = append(ctx.entry.AttemptTrace, attempt)
+	}
 }
 
 func (h *Handler) finishRequestLog(ctx *requestLogContext, rw *responseLogWriter) {

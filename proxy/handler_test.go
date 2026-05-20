@@ -2427,6 +2427,45 @@ func TestHandleClaudeOpus47RateLimitTriesNextAccountBeforeWaiting(t *testing.T) 
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeOpus47StopsAtRequestAttemptBudget(t *testing.T) {
+	h, upstreamHits := newOpus47RetryBudgetTestHandler(t, 8, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}`))
+	})
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = 25 * time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d body=%s, want 429", w.Code, w.Body.String())
+	}
+	if *upstreamHits != 4 {
+		t.Fatalf("upstream hits = %d, want 4 attempt budget", *upstreamHits)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+}
+
 func TestHandleClaudeRateLimitKeepsTryingUnusedAccounts(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -2482,6 +2521,56 @@ func TestHandleClaudeRateLimitKeepsTryingUnusedAccounts(t *testing.T) {
 		t.Fatalf("expected attempts to advance across unused accounts, got %#v", tokens)
 	}
 	waitForAccountRequestCount(t, 1)
+}
+
+func newOpus47RetryBudgetTestHandler(t *testing.T, accounts int, upstream http.HandlerFunc) (*Handler, *int) {
+	t.Helper()
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	hits := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			recorder := httptest.NewRecorder()
+			hits++
+			upstream(recorder, req)
+			return recorder.Result(), nil
+		}),
+	})
+
+	p := &pool.AccountPool{}
+	for i := 0; i < accounts; i++ {
+		id := fmt.Sprintf("acct-%d", i+1)
+		if err := config.AddAccount(config.Account{
+			ID:          id,
+			Email:       id + "@example.test",
+			Enabled:     true,
+			AccessToken: "token-" + id,
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i+1),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+			Region:      "us-east-1",
+		}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+	for i := 0; i < accounts; i++ {
+		p.SetModelList(fmt.Sprintf("acct-%d", i+1), []string{"claude-opus-4.7"})
+	}
+
+	h := &Handler{
+		pool:        p,
+		requestLogs: newRequestLogStore(defaultRequestLogCapacity),
+		promptCache: newPromptCacheTracker(defaultPromptCacheTTL),
+	}
+	return h, &hits
 }
 
 func TestHandleClaudeOpus47AdmissionGateLimitsUpstreamConcurrency(t *testing.T) {
