@@ -84,6 +84,24 @@ func TestParseAnthropicEnvelopeCapturesParentAgentAndOfficialExtras(t *testing.T
 	}
 }
 
+func TestParseAnthropicEnvelopeExtractsMetadataUserID(t *testing.T) {
+	body := []byte(`{
+		"model":"claude-sonnet-4.5",
+		"max_tokens":64,
+		"messages":[{"role":"user","content":"hello"}],
+		"metadata":{"user_id":"{\"session_id\":\"session-from-metadata\"}"}
+	}`)
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
+
+	env, err := parseAnthropicEnvelope(r, body)
+	if err != nil {
+		t.Fatalf("parseAnthropicEnvelope returned error: %v", err)
+	}
+	if env.MetadataUserID != `{"session_id":"session-from-metadata"}` {
+		t.Fatalf("expected metadata user id, got %q", env.MetadataUserID)
+	}
+}
+
 func TestParseAnthropicEnvelopeCapturesOfficialFieldsAndClaudeCodeHeaders(t *testing.T) {
 	body := []byte(`{
 		"model":"claude-opus-4-7",

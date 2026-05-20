@@ -21,6 +21,7 @@ type anthropicEnvelope struct {
 	SessionID          string
 	AgentID            string
 	ParentAgentID      string
+	MetadataUserID     string
 	ProjectDirPresent  bool
 	Version            string
 	OfficialExtraKeys  []string
@@ -69,10 +70,24 @@ func parseAnthropicEnvelope(r *http.Request, body []byte) (*anthropicEnvelope, e
 		SessionID:          firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id"),
 		AgentID:            firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-agent-id"),
 		ParentAgentID:      firstNonEmptyHeader(r, "x-claude-code-parent-agent-id", "x-claude-parent-agent-id"),
+		MetadataUserID:     metadataUserIDFromRaw(raw["metadata"]),
 		ProjectDirPresent:  firstNonEmptyHeader(r, "x-claude-code-project-dir", "claude-code-project-dir") != "",
 		Version:            firstNonEmptyHeader(r, "x-claude-code-version", "claude-code-version"),
 		OfficialExtraKeys:  officialExtraKeys,
 	}, nil
+}
+
+func metadataUserIDFromRaw(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var meta struct {
+		UserID string `json:"user_id"`
+	}
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(meta.UserID)
 }
 
 func officialAnthropicExtraKeys(raw map[string]json.RawMessage) []string {
