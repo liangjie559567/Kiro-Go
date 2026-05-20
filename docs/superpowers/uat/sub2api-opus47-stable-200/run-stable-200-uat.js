@@ -18,8 +18,26 @@ function positiveInt(value, fallback) {
 }
 
 function hasForbiddenStatusMarker(status, text) {
-	return [429, 502, 503].includes(status) ||
-		/HTTP 429|HTTP 502|HTTP 503|kiro_go_stable_fallback|Opus 4\.7 is temporarily waiting/.test(text);
+  return [429, 502, 503].includes(status) ||
+    /HTTP 429|HTTP 502|HTTP 503|kiro_go_stable_fallback|Opus 4\.7 is temporarily waiting/.test(text);
+}
+
+function hasAnthropicContent(text, stream) {
+  if (stream) {
+    return /content_block_delta/.test(text) && /text_delta|input_json_delta|thinking_delta/.test(text);
+  }
+  try {
+    const body = JSON.parse(text);
+    const content = Array.isArray(body.content) ? body.content : [];
+    return content.some((block) => {
+      if (!block || typeof block !== "object") return false;
+      if (block.type === "text") return typeof block.text === "string" && block.text.trim().length > 0;
+      if (block.type === "tool_use") return true;
+      return false;
+    });
+  } catch {
+    return false;
+  }
 }
 
 function validateJSONBody(text) {
@@ -115,13 +133,15 @@ async function callOnce(index, stream) {
   const text = await res.text();
   const forbidden = hasForbiddenStatusMarker(res.status, text);
   const bodyError = validateBody(text, stream);
-  const ok = res.status === 200 && !forbidden && bodyError === "";
+  const contentOk = hasAnthropicContent(text, stream);
+  const ok = res.status === 200 && !forbidden && bodyError === "" && contentOk;
 
   return {
     index,
     stream,
     status: res.status,
     ok,
+    contentOk,
     forbidden,
     body_error: bodyError || undefined,
     sample: text.slice(0, 240),
@@ -129,23 +149,23 @@ async function callOnce(index, stream) {
 }
 
 async function main() {
-	const total = rounds * concurrency;
-	const results = new Array(total);
-	let next = 0;
+  const total = rounds * concurrency;
+  const results = new Array(total);
+  let next = 0;
 
-	async function worker() {
-		for (;;) {
-			const index = next;
-			next += 1;
-			if (index >= total) {
-				return;
-			}
-			results[index] = await callOnce(index, index % 2 === 0);
-		}
-	}
+  async function worker() {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= total) {
+        return;
+      }
+      results[index] = await callOnce(index, index % 2 === 0);
+    }
+  }
 
-	await Promise.all(Array.from({ length: concurrency }, worker));
-	const failed = results.filter((result) => !result.ok);
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  const failed = results.filter((result) => !result.ok);
   const forbiddenStatuses = results.filter((result) => [429, 502, 503].includes(result.status)).length;
 
   console.log(JSON.stringify({

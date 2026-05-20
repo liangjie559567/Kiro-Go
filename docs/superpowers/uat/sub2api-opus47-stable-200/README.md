@@ -29,4 +29,7 @@ Pass criteria:
 - Every HTTP response status is `200`.
 - Every response body is valid JSON or valid Anthropic SSE for the chosen endpoint.
 - No response body contains gateway-level `HTTP 429`, `HTTP 502`, or `HTTP 503`.
+- Every successful response includes real assistant text, thinking, or tool_use content.
+- Empty HTTP `200` completions fail this UAT even if the JSON/SSE envelope is valid.
+- Kiro-Go request logs must show `contentSuccess=true` for successful samples.
 - Kiro-Go Admin request logs show stable fallback metadata if upstream capacity was exhausted.
