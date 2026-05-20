@@ -229,6 +229,9 @@ func (g *modelAdmissionGateSet) recordPressureUntil(model string, statusCode int
 	if retryAt.After(state.retryAt) {
 		state.retryAt = retryAt
 	}
+	if state.retryAt.After(state.expiresAt) {
+		state.expiresAt = state.retryAt
+	}
 	if state.score >= 4 {
 		if state.retryAt.IsZero() {
 			state.retryAt = expiresAt
@@ -331,7 +334,14 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 		} else {
 			state.halfOpenSuccesses = 0
 		}
+		if latency < 5*time.Second && state.effectiveMaxConcurrent < gate.maxConcurrent {
+			state.effectiveMaxConcurrent++
+			if gate.gate != nil {
+				gate.gate.broadcast()
+			}
+		}
 		state.circuitState = circuitStateForPressure(state, now)
+		return
 	}
 	effectiveBefore := state.effectiveMaxConcurrent
 	if latency < 5*time.Second && now.After(state.expiresAt) && state.effectiveMaxConcurrent < gate.maxConcurrent {

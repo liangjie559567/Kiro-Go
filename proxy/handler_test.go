@@ -2751,6 +2751,66 @@ func TestModelAdmissionCircuitSuccessClosesAfterHalfOpen(t *testing.T) {
 	}
 }
 
+func TestModelAdmissionCircuitHalfOpenRequiresTwoSuccessesAtScoreFour(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	now = now.Add(11 * time.Second)
+
+	gate.recordSuccess("claude-opus-4.7", time.Second)
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "half_open" {
+		t.Fatalf("CircuitState after first success = %q, want half_open; snap=%#v", snap.CircuitState, snap)
+	}
+	if snap.Score != 4 {
+		t.Fatalf("Score after first success = %d, want 4", snap.Score)
+	}
+
+	gate.recordSuccess("claude-opus-4.7", time.Second)
+	snap = gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "closed" {
+		t.Fatalf("CircuitState after second success = %q, want closed; snap=%#v", snap.CircuitState, snap)
+	}
+}
+
+func TestModelAdmissionCircuitKeepsActivePressureForRetainedRetryAt(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	retryAt := now.Add(2 * time.Minute)
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, retryAt)
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, retryAt)
+
+	now = now.Add(45 * time.Second)
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, time.Time{})
+
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "open" {
+		t.Fatalf("CircuitState = %q, want open; snap=%#v", snap.CircuitState, snap)
+	}
+	if !snap.Active {
+		t.Fatalf("expected active pressure while retained retryAt is in the future; snap=%#v", snap)
+	}
+	if !gate.hasPressure("claude-opus-4.7") {
+		t.Fatalf("expected hasPressure while retained retryAt is in the future")
+	}
+	if snap.ExpiresAt.Before(retryAt) {
+		t.Fatalf("ExpiresAt = %v, want not before retryAt %v", snap.ExpiresAt, retryAt)
+	}
+}
+
 func TestAdminAdmissionPressureEndpointReportsActivePressure(t *testing.T) {
 	oldGate := modelAdmissionGate
 	now := time.Unix(100, 0)
