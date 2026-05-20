@@ -496,6 +496,33 @@ func normalizeContentContinuityConfig(in ContentContinuityConfig) ContentContinu
 	return in
 }
 
+type persistedContentContinuityConfig struct {
+	Enabled                *bool    `json:"enabled"`
+	Models                 []string `json:"models"`
+	MaxQueueWaitSeconds    int      `json:"maxQueueWaitSeconds"`
+	MaxQueueDepth          int      `json:"maxQueueDepth"`
+	MinContentTokens       int      `json:"minContentTokens"`
+	StreamHeartbeatSeconds int      `json:"streamHeartbeatSeconds"`
+}
+
+func normalizePersistedContentContinuityConfig(data []byte, in ContentContinuityConfig) ContentContinuityConfig {
+	defaults := defaultContentContinuityConfig()
+	var raw struct {
+		ContentContinuity *persistedContentContinuityConfig `json:"contentContinuity"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.ContentContinuity == nil {
+		return defaults
+	}
+
+	normalized := normalizeContentContinuityConfig(in)
+	if raw.ContentContinuity.Enabled == nil {
+		normalized.Enabled = defaults.Enabled
+	} else {
+		normalized.Enabled = *raw.ContentContinuity.Enabled
+	}
+	return normalized
+}
+
 type persistedStableDownstreamConfig struct {
 	Enabled           *bool    `json:"enabled"`
 	Sub2APICompatible *bool    `json:"sub2apiCompatible"`
@@ -688,7 +715,7 @@ func Load() error {
 	c.Opus47Admission = normalizeOpus47AdmissionConfig(c.Opus47Admission)
 	c.ModelAdmission = normalizeModelAdmissionConfig(c.ModelAdmission, c.Opus47Admission)
 	c.StableDownstream = normalizePersistedStableDownstreamConfig(data, c.StableDownstream)
-	c.ContentContinuity = normalizeContentContinuityConfig(c.ContentContinuity)
+	c.ContentContinuity = normalizePersistedContentContinuityConfig(data, c.ContentContinuity)
 	c.LoadBalance = normalizeLoadBalanceConfig(c.LoadBalance)
 	cfg = &c
 	return nil

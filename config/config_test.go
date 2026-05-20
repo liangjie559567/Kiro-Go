@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -295,6 +296,43 @@ func TestContentContinuityDefaultsEnableOpus47(t *testing.T) {
 	}
 	if cfg.ContentContinuity.SupportsModel("claude-sonnet-4.5") {
 		t.Fatalf("did not expect content continuity to support sonnet by default")
+	}
+}
+
+func TestContentContinuityMissingConfigDefaultsEnabled(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"password":"x","port":8080,"host":"0.0.0.0","accounts":[]}`), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := Init(path); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := Get()
+	if cfg == nil || !cfg.ContentContinuity.Enabled {
+		t.Fatalf("missing contentContinuity should default enabled, got %#v", cfg)
+	}
+	if !cfg.ContentContinuity.SupportsModel("claude-opus-4.7") {
+		t.Fatalf("missing contentContinuity should default to Opus 4.7 support")
+	}
+}
+
+func TestContentContinuityExplicitDisabledStaysDisabled(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"password":"x","port":8080,"host":"0.0.0.0","accounts":[],"contentContinuity":{"enabled":false}}`), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := Init(path); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := Get()
+	if cfg == nil {
+		t.Fatalf("config is nil")
+	}
+	if cfg.ContentContinuity.Enabled {
+		t.Fatalf("explicit enabled=false should stay disabled")
+	}
+	if cfg.ContentContinuity.SupportsModel("claude-opus-4.7") {
+		t.Fatalf("disabled content continuity must not support models")
 	}
 }
 
