@@ -114,6 +114,23 @@ async function jsonFetch(name, url, options = {}) {
   }
 }
 
+async function firstOkJsonFetch(name, urls, options = {}) {
+  const attempts = [];
+  for (const url of urls) {
+    const result = await jsonFetch(`${name}-${attempts.length + 1}`, url, options);
+    attempts.push({ url, status: result.status, ok: result.ok });
+    if (result.ok) {
+      result.selectedUrl = url;
+      result.attempts = attempts;
+      writeJson(path.join(apiDir, `${name}.json`), result);
+      return result;
+    }
+  }
+  const result = { ok: false, status: attempts[attempts.length - 1] ? attempts[attempts.length - 1].status : 0, attempts };
+  writeJson(path.join(apiDir, `${name}.json`), result);
+  return result;
+}
+
 function dockerContainer(name) {
   const exact = shSafe(['docker', 'ps', '--filter', `name=^/${name}$`, '--format', '{{.Names}}']);
   if (exact.ok && exact.value) return exact.value.split(/\r?\n/)[0];
@@ -206,6 +223,10 @@ async function postOpusProbe(apiKey, stream, index) {
 }
 
 async function captureBrowser(summary, subAuth) {
+  if (!process.env.KIRO_GO_ADMIN_PASSWORD) {
+    summary.browser = { status: 'BLOCKED_BY_ENV', reason: 'KIRO_GO_ADMIN_PASSWORD is required for admin screenshots' };
+    return;
+  }
   if (!chromium) {
     summary.browser = { status: 'BLOCKED_BY_ENV', reason: 'playwright package unavailable' };
     return;
@@ -291,7 +312,13 @@ async function main() {
   if (subContainer) writeText(path.join(logDir, 'sub2api-tail.log'), shSafe(['docker', 'logs', '--tail', '300', subContainer]).value || '');
 
   summary.api.kiroHealth = await jsonFetch('kiro-health', `${kiroBase}/health`);
-  summary.api.sub2apiHealth = await jsonFetch('sub2api-health', `${subBase}/api/status`);
+  summary.api.sub2apiHealth = await firstOkJsonFetch('sub2api-health', [
+    `${subBase}/health`,
+    `${subBase}/api/status`,
+    `${subBase}/api/health`,
+    `${subBase}/api/v1/status`,
+    `${subBase}/api/v1/health`,
+  ]);
   if (process.env.KIRO_GO_ADMIN_PASSWORD) {
     summary.api.fleetReadiness = await jsonFetch('kiro-fleet-readiness', `${kiroBase}/admin/api/fleet/readiness?model=claude-opus-4-7`, { headers: kiroHeaders });
     summary.api.modelReadiness = await jsonFetch('kiro-model-readiness', `${kiroBase}/admin/api/claude-code/model-readiness?model=claude-opus-4-7`, { headers: kiroHeaders });
@@ -335,16 +362,25 @@ async function main() {
   const markerUsage = summary.db.usage && Array.isArray(summary.db.usage.recentMarkers) ? summary.db.usage.recentMarkers : [];
   const probeFailures = summary.probes.filter((probe) => !probe.ok);
   const upstreamBlocked = fleet.status === 'blocked' || probeFailures.some((probe) => probe.status === 429 && probe.kiroReason);
+  const kiroLogText = fs.existsSync(path.join(logDir, 'kiro-go-tail.log')) ? fs.readFileSync(path.join(logDir, 'kiro-go-tail.log'), 'utf8') : '';
+  const subLogText = fs.existsSync(path.join(logDir, 'sub2api-tail.log')) ? fs.readFileSync(path.join(logDir, 'sub2api-tail.log'), 'utf8') : '';
+  const opusRequestLogs = requestLogs.filter((row) => String(row.model || '').includes('opus'));
+  const apiDbConsistent = !runProbes || probeFailures.length > 0 || markerUsage.length >= Math.min(1, probeCount);
+  const apiLogConsistent = opusRequestLogs.length > 0 || /claude-opus-4-7|claude-opus-4\.7/i.test(kiroLogText + '\n' + subLogText);
+  const screenshotApiConsistent = !summary.browser || summary.browser.status !== 'CAPTURED' || (summary.browser.textChecks && summary.browser.textChecks.kiroOpusPanelVisible && Boolean(fleet.status));
 
   summary.checks = {
     mcpPinned073: summary.mcp.configured === true && summary.mcp.npmVersion === '0.0.73',
-    dockerContainersRunning: summary.docker.kiroGo.running === true && summary.docker.sub2api.running === true,
+    dockerHealthyOrNoHealthcheck: summary.docker.kiroGo.ok === true && summary.docker.sub2api.ok === true,
     kiroHealth200: summary.api.kiroHealth.status === 200,
     sub2apiHealth200: summary.api.sub2apiHealth.status === 200,
     fleetContractPresent: Boolean(fleet.status && fleet.circuitState && typeof fleet.safeConcurrency !== 'undefined'),
-    requestLogsBoundedAttempts: requestLogs.filter((row) => String(row.model || '').includes('opus')).every((row) => Number(row.attempts || 0) <= 4),
+    requestLogsBoundedAttempts: opusRequestLogs.every((row) => Number(row.attempts || 0) <= 4),
     dbUsageEvidencePresent: recentUsage.length > 0 || markerUsage.length > 0,
     probesOkOrExplicitlyBlocked: !runProbes || probeFailures.length === 0 || upstreamBlocked,
+    logEvidencePresent: kiroLogText.length > 0 && subLogText.length > 0 && apiLogConsistent,
+    apiDbConsistency: apiDbConsistent,
+    screenshotApiConsistency: screenshotApiConsistent,
     screenshotsCaptured: summary.browser && summary.browser.status === 'CAPTURED' && Object.values(summary.browser.screenshots || {}).every((row) => row.bytes > 5000),
     screenshotTextMatchesApis: summary.browser && summary.browser.textChecks && summary.browser.textChecks.kiroOpusPanelVisible === true,
     noBrowserPageErrors: summary.browser && Array.isArray(summary.browser.errors) && summary.browser.errors.length === 0,
@@ -365,4 +401,3 @@ main().catch((error) => {
   console.error(error && error.stack ? redactString(error.stack) : redactString(error));
   process.exit(1);
 });
-
