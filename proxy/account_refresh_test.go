@@ -70,7 +70,7 @@ func TestRunRefreshBatchContinuesAfterFailure(t *testing.T) {
 	}
 }
 
-func TestRunRefreshBatchQuietModeSkipsCooldownAccount(t *testing.T) {
+func TestRunRefreshBatchQuietModeMaintainsCooldownTokenWithoutProbe(t *testing.T) {
 	oldGate := modelAdmissionGate
 	now := time.Unix(2000, 0)
 	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
@@ -83,14 +83,21 @@ func TestRunRefreshBatchQuietModeSkipsCooldownAccount(t *testing.T) {
 	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
 	oldNow := backgroundQuietModeNow
 	backgroundQuietModeNow = func() time.Time { return now }
+	oldMaintenance := refreshAccountTokenMaintenance
+	var maintained []string
+	refreshAccountTokenMaintenance = func(account *config.Account) error {
+		maintained = append(maintained, account.ID)
+		return nil
+	}
 	t.Cleanup(func() {
 		modelAdmissionGate = oldGate
 		backgroundQuietModeNow = oldNow
+		refreshAccountTokenMaintenance = oldMaintenance
 	})
 
 	accounts := []config.Account{
 		{ID: "ok", Enabled: true},
-		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonTemporaryLimited)},
 	}
 
 	selected, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeEnabled, now)
@@ -112,7 +119,10 @@ func TestRunRefreshBatchQuietModeSkipsCooldownAccount(t *testing.T) {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 	if len(refreshed) != 1 || refreshed[0] != "ok" {
-		t.Fatalf("quiet-mode cooldown account should not be refreshed, got calls %#v", refreshed)
+		t.Fatalf("quiet-mode cooldown account should not run expensive refresh, got calls %#v", refreshed)
+	}
+	if len(maintained) != 1 || maintained[0] != "cooling" {
+		t.Fatalf("quiet-mode cooldown account should receive token maintenance, got calls %#v", maintained)
 	}
 }
 
@@ -164,6 +174,43 @@ func TestAutoRefreshStatusRecordsQuietModeSkips(t *testing.T) {
 	}
 	if status.LastQuietSkipped != 1 {
 		t.Fatalf("expected last quiet skipped 1, got %d", status.LastQuietSkipped)
+	}
+}
+
+func TestAutoRefreshStatusRecordsSelectorQuietSkipsFromBatchResult(t *testing.T) {
+	h := &Handler{}
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	oldNow := backgroundQuietModeNow
+	backgroundQuietModeNow = func() time.Time { return now }
+	oldMaintenance := refreshAccountTokenMaintenance
+	refreshAccountTokenMaintenance = func(account *config.Account) error { return nil }
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		backgroundQuietModeNow = oldNow
+		refreshAccountTokenMaintenance = oldMaintenance
+	})
+
+	accounts := []config.Account{
+		{ID: "ok", Enabled: true},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+	}
+	selected, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeEnabled, now)
+	result := runRefreshBatch(selected, func(account *config.Account) error { return nil })
+	result.Skipped = skipped
+	h.finishAutoRefresh(result, now.Unix(), now.Add(time.Hour).Unix())
+
+	status := h.getAutoRefreshStatus()
+	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 {
+		t.Fatalf("expected selector quiet skip to reach status, got %#v", status)
 	}
 }
 

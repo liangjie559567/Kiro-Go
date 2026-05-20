@@ -196,6 +196,38 @@ func TestHealthCheckStatusRecordsQuietModeSkips(t *testing.T) {
 	}
 }
 
+func TestHealthCheckStatusRecordsSelectorQuietSkipsFromBatchResult(t *testing.T) {
+	h := &Handler{}
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	accounts := []config.Account{
+		{ID: "ok", Enabled: true},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+	}
+	selected, skipped := selectHealthCheckAccountsForTime(accounts, now)
+	result := runHealthCheckBatch(selected, false, func(account *config.Account) error { return nil }, func(account *config.Account, reason string, now int64) error {
+		t.Fatalf("disable should not be called")
+		return nil
+	}, now.Unix())
+	result.Skipped = skipped
+	h.finishHealthCheck(result, now.Unix(), now.Add(time.Hour).Unix())
+
+	status := h.getHealthCheckStatus()
+	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 {
+		t.Fatalf("expected selector quiet skip to reach status, got %#v", status)
+	}
+}
+
 func TestComputeNextHealthCheckRunAt(t *testing.T) {
 	now := time.Unix(1000, 0)
 	got := computeNextHealthCheckRunAt(now, config.HealthCheckConfig{Enabled: true, IntervalMinutes: 60})

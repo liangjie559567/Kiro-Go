@@ -34,6 +34,14 @@ type refreshAccountResult struct {
 	Message string
 }
 
+var refreshAccountTokenMaintenance = func(account *config.Account) error {
+	if account.RefreshToken == "" {
+		return nil
+	}
+	_, _, _, _, err := refreshAccountToken(account)
+	return err
+}
+
 func selectAutoRefreshAccounts(accounts []config.Account, scope string) []config.Account {
 	selected, _ := selectAutoRefreshAccountsForTime(accounts, scope, time.Now())
 	return selected
@@ -41,14 +49,15 @@ func selectAutoRefreshAccounts(accounts []config.Account, scope string) []config
 
 func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, now time.Time) ([]config.Account, int) {
 	var skipped int
+	quietMode := opusQuietModeActive()
 	if scope == config.AutoRefreshScopeAll {
 		selected := make([]config.Account, 0, len(accounts))
 		for _, account := range accounts {
-			if shouldSkipMaintenanceAccount(account, now) {
+			if !quietMode && shouldSkipMaintenanceAccount(account, now) {
 				skipped++
 				continue
 			}
-			if shouldSkipBackgroundAccountForQuietMode(account, now) {
+			if quietMode && account.CooldownUntil > now.Unix() {
 				skipped++
 			}
 			selected = append(selected, account)
@@ -58,11 +67,11 @@ func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, n
 
 	selected := make([]config.Account, 0, len(accounts))
 	for _, account := range accounts {
-		if shouldSkipMaintenanceAccount(account, now) {
+		if !quietMode && shouldSkipMaintenanceAccount(account, now) {
 			skipped++
 			continue
 		}
-		if shouldSkipBackgroundAccountForQuietMode(account, now) {
+		if quietMode && account.CooldownUntil > now.Unix() {
 			skipped++
 		}
 		if account.Enabled {
@@ -78,6 +87,9 @@ func runRefreshBatch(accounts []config.Account, refresh func(account *config.Acc
 	for i := range accounts {
 		if shouldSkipBackgroundAccountForQuietMode(accounts[i], now) {
 			result.QuietSkipped++
+			if err := refreshAccountTokenMaintenance(&accounts[i]); err != nil {
+				result.Failed++
+			}
 			continue
 		}
 		if err := refresh(&accounts[i]); err != nil {
@@ -148,36 +160,14 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 	tokenRefreshed := false
 
 	refreshToken := func() error {
-		if account.RefreshToken == "" {
-			return nil
-		}
-
-		originalRefreshToken := account.RefreshToken
-		newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := auth.RefreshToken(account)
+		newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := refreshAccountToken(account)
 		if err != nil {
 			return err
 		}
-		tokenRefreshed = true
-
-		if !accountRefreshTokenUnchanged(account.ID, originalRefreshToken) {
-			return fmt.Errorf("stale refresh result for account %s: refresh token changed during refresh", account.ID)
+		if newAccessToken != "" {
+			tokenRefreshed = true
 		}
-
-		account.AccessToken = newAccessToken
-		if newRefreshToken != "" {
-			account.RefreshToken = newRefreshToken
-		}
-		account.ExpiresAt = newExpiresAt
-		if err := config.UpdateAccountToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt); err != nil {
-			return err
-		}
-		pool.GetPool().UpdateToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt)
-		if profileArn != "" {
-			account.ProfileArn = profileArn
-			if err := config.UpdateAccountProfileArn(account.ID, profileArn); err != nil {
-				return err
-			}
-		}
+		_, _, _, _ = newAccessToken, newRefreshToken, newExpiresAt, profileArn
 		return nil
 	}
 
@@ -218,6 +208,39 @@ func refreshAccountData(account *config.Account) (*refreshAccountResult, error) 
 	}
 	logger.Infof("[AutoRefresh] Refreshed %s: %s %.1f/%.1f", account.Email, info.SubscriptionType, info.UsageCurrent, info.UsageLimit)
 	return &refreshAccountResult{Info: info}, nil
+}
+
+func refreshAccountToken(account *config.Account) (string, string, int64, string, error) {
+	if account.RefreshToken == "" {
+		return "", "", 0, "", nil
+	}
+
+	originalRefreshToken := account.RefreshToken
+	newAccessToken, newRefreshToken, newExpiresAt, profileArn, err := auth.RefreshToken(account)
+	if err != nil {
+		return "", "", 0, "", err
+	}
+
+	if !accountRefreshTokenUnchanged(account.ID, originalRefreshToken) {
+		return "", "", 0, "", fmt.Errorf("stale refresh result for account %s: refresh token changed during refresh", account.ID)
+	}
+
+	account.AccessToken = newAccessToken
+	if newRefreshToken != "" {
+		account.RefreshToken = newRefreshToken
+	}
+	account.ExpiresAt = newExpiresAt
+	if err := config.UpdateAccountToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt); err != nil {
+		return "", "", 0, "", err
+	}
+	pool.GetPool().UpdateToken(account.ID, newAccessToken, newRefreshToken, newExpiresAt)
+	if profileArn != "" {
+		account.ProfileArn = profileArn
+		if err := config.UpdateAccountProfileArn(account.ID, profileArn); err != nil {
+			return "", "", 0, "", err
+		}
+	}
+	return newAccessToken, newRefreshToken, newExpiresAt, profileArn, nil
 }
 
 func accountRefreshTokenUnchanged(accountID, originalRefreshToken string) bool {
