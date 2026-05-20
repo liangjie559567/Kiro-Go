@@ -88,6 +88,16 @@ type RequestLogEntry struct {
 	RoutingDecision                     string                    `json:"routingDecision,omitempty"`
 	RoutingStrategy                     string                    `json:"routingStrategy,omitempty"`
 	RoutingPressure                     bool                      `json:"routingPressure,omitempty"`
+	PriorityLane                        string                    `json:"priorityLane,omitempty"`
+	QueuePosition                       int                       `json:"queuePosition,omitempty"`
+	SessionConcurrencyWaitMs            int64                     `json:"sessionConcurrencyWaitMs,omitempty"`
+	AccountConcurrencyWaitMs            int64                     `json:"accountConcurrencyWaitMs,omitempty"`
+	ModelConcurrencyWaitMs              int64                     `json:"modelConcurrencyWaitMs,omitempty"`
+	SelectedAccountHealthState          string                    `json:"selectedAccountHealthState,omitempty"`
+	SelectedAccountFirstTokenEwmaMs     int64                     `json:"selectedAccountFirstTokenEwmaMs,omitempty"`
+	GovernorDecision                    string                    `json:"governorDecision,omitempty"`
+	GovernorWaitReason                  string                    `json:"governorWaitReason,omitempty"`
+	BackgroundQuietModeSkipped          bool                      `json:"backgroundQuietModeSkipped,omitempty"`
 	Stream                              bool                      `json:"stream"`
 	StatusCode                          int                       `json:"statusCode"`
 	Outcome                             string                    `json:"outcome"`
@@ -151,6 +161,18 @@ type AccountRequestHealthSnapshot struct {
 	RecentSuccesses   int
 	AvgLatencyMS      int64
 	Score             int
+}
+
+type GovernorLogUpdate struct {
+	QueuePosition                   int
+	SessionConcurrencyWait          time.Duration
+	AccountConcurrencyWait          time.Duration
+	ModelConcurrencyWait            time.Duration
+	SelectedAccountHealthState      string
+	SelectedAccountFirstTokenEwmaMs int64
+	GovernorDecision                string
+	GovernorWaitReason              string
+	BackgroundQuietModeSkipped      bool
 }
 
 type RequestLogBucket struct {
@@ -560,6 +582,65 @@ func updateRequestLogRouting(r *http.Request, decision, strategy string, pressur
 	ctx.entry.RoutingDecision = strings.TrimSpace(decision)
 	ctx.entry.RoutingStrategy = strings.TrimSpace(strategy)
 	ctx.entry.RoutingPressure = pressure
+}
+
+func updateRequestLogClassification(r *http.Request, c RequestClassification) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.PriorityLane = string(c.Lane)
+	if strings.TrimSpace(c.SessionID) != "" {
+		ctx.entry.ClaudeCodeSessionID = strings.TrimSpace(c.SessionID)
+	}
+	if strings.TrimSpace(c.AgentID) != "" {
+		ctx.entry.ClaudeCodeAgentID = strings.TrimSpace(c.AgentID)
+	}
+	if strings.TrimSpace(c.ParentAgentID) != "" {
+		ctx.entry.ClaudeCodeParentAgentID = strings.TrimSpace(c.ParentAgentID)
+	}
+	if strings.TrimSpace(c.Model) != "" {
+		ctx.entry.Model = strings.TrimSpace(c.Model)
+	}
+	ctx.entry.Stream = c.Stream
+}
+
+func updateRequestLogGovernor(r *http.Request, u GovernorLogUpdate) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	if u.QueuePosition > 0 {
+		ctx.entry.QueuePosition = u.QueuePosition
+	}
+	if u.SessionConcurrencyWait >= 0 {
+		ctx.entry.SessionConcurrencyWaitMs = u.SessionConcurrencyWait.Milliseconds()
+	}
+	if u.AccountConcurrencyWait >= 0 {
+		ctx.entry.AccountConcurrencyWaitMs = u.AccountConcurrencyWait.Milliseconds()
+	}
+	if u.ModelConcurrencyWait >= 0 {
+		ctx.entry.ModelConcurrencyWaitMs = u.ModelConcurrencyWait.Milliseconds()
+	}
+	if strings.TrimSpace(u.SelectedAccountHealthState) != "" {
+		ctx.entry.SelectedAccountHealthState = strings.TrimSpace(u.SelectedAccountHealthState)
+	}
+	if u.SelectedAccountFirstTokenEwmaMs > 0 {
+		ctx.entry.SelectedAccountFirstTokenEwmaMs = u.SelectedAccountFirstTokenEwmaMs
+	}
+	if strings.TrimSpace(u.GovernorDecision) != "" {
+		ctx.entry.GovernorDecision = strings.TrimSpace(u.GovernorDecision)
+	}
+	if strings.TrimSpace(u.GovernorWaitReason) != "" {
+		ctx.entry.GovernorWaitReason = strings.TrimSpace(u.GovernorWaitReason)
+	}
+	if u.BackgroundQuietModeSkipped {
+		ctx.entry.BackgroundQuietModeSkipped = true
+	}
 }
 
 func updateRequestLogWebSearch(r *http.Request, query string, resultCount int, mcpStatus string, injectedPayloadBytes int, failureReason string, latency time.Duration) {

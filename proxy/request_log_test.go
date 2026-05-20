@@ -183,6 +183,63 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	}
 }
 
+func TestRequestLogRecordsGovernorClassificationAndWaits(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogClassification(loggedReq, RequestClassification{
+		Lane:          RequestLaneSubagent,
+		Reason:        "agent_metadata",
+		SessionID:     "session-1",
+		AgentID:       "agent-1",
+		ParentAgentID: "parent-1",
+		ClaudeCode:    true,
+		Model:         "claude-opus-4.7",
+		Stream:        true,
+	})
+	updateRequestLogGovernor(loggedReq, GovernorLogUpdate{
+		QueuePosition:                   3,
+		SessionConcurrencyWait:          25 * time.Millisecond,
+		AccountConcurrencyWait:          5 * time.Millisecond,
+		ModelConcurrencyWait:            10 * time.Millisecond,
+		SelectedAccountHealthState:      "healthy",
+		SelectedAccountFirstTokenEwmaMs: 750,
+		GovernorDecision:                "admitted_subagent",
+		GovernorWaitReason:              "subagent_slots_full",
+		BackgroundQuietModeSkipped:      true,
+	})
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.PriorityLane != "subagent" {
+		t.Fatalf("expected priority lane subagent, got %#v", entry)
+	}
+	if entry.ClaudeCodeSessionID != "session-1" || entry.ClaudeCodeAgentID != "agent-1" || entry.ClaudeCodeParentAgentID != "parent-1" {
+		t.Fatalf("expected Claude Code classification metadata, got %#v", entry)
+	}
+	if entry.QueuePosition != 3 {
+		t.Fatalf("expected queue position 3, got %#v", entry)
+	}
+	if entry.SessionConcurrencyWaitMs != 25 || entry.AccountConcurrencyWaitMs != 5 || entry.ModelConcurrencyWaitMs != 10 {
+		t.Fatalf("expected governor wait metadata, got %#v", entry)
+	}
+	if entry.SelectedAccountHealthState != "healthy" || entry.SelectedAccountFirstTokenEwmaMs != 750 {
+		t.Fatalf("expected selected account governor metadata, got %#v", entry)
+	}
+	if entry.GovernorDecision != "admitted_subagent" || entry.GovernorWaitReason != "subagent_slots_full" {
+		t.Fatalf("expected governor decision metadata, got %#v", entry)
+	}
+	if !entry.BackgroundQuietModeSkipped {
+		t.Fatalf("expected background quiet mode skipped, got %#v", entry)
+	}
+}
+
 func TestRequestLogOpusGovernorSkipsBudgetFieldsForNonOpus(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
