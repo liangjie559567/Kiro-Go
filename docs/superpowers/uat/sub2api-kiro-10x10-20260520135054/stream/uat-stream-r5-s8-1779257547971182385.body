@@ -1,0 +1,18 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_9bc2c451-b966-4f0a-b4dd-a9842c4ceb1c","model":"claude-opus-4.7","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":67,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"text":"","type":"text"},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"text":"{\"uat\":\"UAT_stream_R5_S8_END\"}","type":"text_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"end_turn","stop_sequence":null},"type":"message_delta","usage":{"input_tokens":6018,"output_tokens":13}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

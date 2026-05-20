@@ -1,0 +1,8 @@
+  id   |          created_at           | user_id | api_key_id | account_id | group_id |                request_id                |      model      | requested_model | upstream_model | stream | duration_ms | inbound_endpoint | upstream_endpoint 
+-------+-------------------------------+---------+------------+------------+----------+------------------------------------------+-----------------+-----------------+----------------+--------+-------------+------------------+-------------------
+ 68107 | 2026-05-20 13:43:46.374657+08 |       1 |          2 |         24 |        1 | req_51f8389b-9bad-4147-b2a2-ab3fadb76f49 | claude-opus-4-7 | claude-opus-4-7 |                | t      |        2729 | /v1/messages     | /v1/messages
+ 68102 | 2026-05-20 13:43:16.770594+08 |       1 |          1 |         74 |        2 | generated:r1ia46yuuuvkzh-2dp             | claude-opus-4-7 | claude-opus-4-7 | gpt-5.5        | f      |        2833 | /v1/messages     | /v1/responses
+ 68054 | 2026-05-20 13:40:15.644366+08 |       1 |          1 |         93 |        2 | generated:r1ia46yuuuvkzh-29p             | claude-opus-4-7 | claude-opus-4-7 | gpt-5.5        | f      |        1704 | /v1/messages     | /v1/responses
+ 68007 | 2026-05-20 13:37:15.146575+08 |       1 |          1 |         94 |        2 | generated:r1ia46yuuuvkzh-25u             | claude-opus-4-7 | claude-opus-4-7 | gpt-5.5        | f      |        1208 | /v1/messages     | /v1/responses
+(4 rows)
+

@@ -44,6 +44,8 @@ var modelMapOrdered = []modelMapping{
 }
 
 var claudeDateSuffixRE = regexp.MustCompile(`^(claude-(?:haiku|sonnet|opus)-\d+(?:[.-]\d+)?)-\d{8}$`)
+var claudeDashedMinorSuffixRE = regexp.MustCompile(`^(claude-(?:haiku|sonnet|opus)-\d+)-(\d{1,2})(?:-(?:\d{8}|latest|\d+))?$`)
+var claudeNoMinorDateSuffixRE = regexp.MustCompile(`^(claude-(?:haiku|sonnet|opus)-\d+)-\d{8}$`)
 
 // Thinking 模式提示
 const ThinkingModePrompt = `<thinking_mode>enabled</thinking_mode>
@@ -100,11 +102,17 @@ func normalizeClaudeModelName(model string) string {
 	}
 	lower := strings.ToLower(trimmed)
 	probe := strings.TrimSuffix(lower, "-latest")
+	if m := claudeDashedMinorSuffixRE.FindStringSubmatch(lower); len(m) == 3 {
+		probe = m[1] + "." + m[2]
+	}
 	if m := claudeDateSuffixRE.FindStringSubmatch(probe); len(m) == 2 {
 		probe = m[1]
 	}
+	if m := claudeNoMinorDateSuffixRE.FindStringSubmatch(probe); len(m) == 2 {
+		probe = m[1]
+	}
 	for _, mapping := range modelMapOrdered {
-		if lower == mapping.key {
+		if probe == mapping.key {
 			return mapping.value
 		}
 	}

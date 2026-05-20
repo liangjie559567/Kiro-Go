@@ -30,17 +30,21 @@ func TestParseModelAndThinkingNormalizesOfficialOpus47Names(t *testing.T) {
 	}
 }
 
-func TestParseModelAndThinkingPreservesUnknownNonOpusClaudeAliases(t *testing.T) {
-	for _, model := range []string{
-		"claude-sonnet-5-latest",
-		"claude-haiku-4-20260514",
-		"claude-sonnet-4-latest",
-		"claude-sonnet-4-5-latest",
-		"claude-haiku-4-5-20260514",
-	} {
-		gotModel, gotThinking := ParseModelAndThinking(model, "-thinking")
-		if gotModel != model || gotThinking {
-			t.Fatalf("ParseModelAndThinking(%q) = %q/%v, want %q/false", model, gotModel, gotThinking, model)
+func TestParseModelAndThinkingNormalizesOfficialClaudeAliases(t *testing.T) {
+	tests := []struct {
+		model string
+		want  string
+	}{
+		{model: "claude-haiku-4-5-20251001", want: "claude-haiku-4.5"},
+		{model: "claude-haiku-4-5-latest", want: "claude-haiku-4.5"},
+		{model: "claude-sonnet-4-5-latest", want: "claude-sonnet-4.5"},
+		{model: "claude-sonnet-4-20250514", want: "claude-sonnet-4"},
+		{model: "claude-sonnet-5-latest", want: "claude-sonnet-5-latest"},
+	}
+	for _, tt := range tests {
+		gotModel, gotThinking := ParseModelAndThinking(tt.model, "-thinking")
+		if gotModel != tt.want || gotThinking {
+			t.Fatalf("ParseModelAndThinking(%q) = %q/%v, want %q/false", tt.model, gotModel, gotThinking, tt.want)
 		}
 	}
 }

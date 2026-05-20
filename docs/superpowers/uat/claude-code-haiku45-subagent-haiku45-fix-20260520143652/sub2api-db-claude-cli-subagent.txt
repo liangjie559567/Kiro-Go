@@ -1,0 +1,7 @@
+  id   |          created_at           | api_key_id | account_id | group_id |                request_id                |      model      | requested_model | stream | input_tokens | output_tokens | duration_ms | inbound_endpoint 
+-------+-------------------------------+------------+------------+----------+------------------------------------------+-----------------+-----------------+--------+--------------+---------------+-------------+------------------
+ 69154 | 2026-05-20 14:38:45.597588+08 |          2 |         24 |        1 | req_4552a50b-ae96-4530-b7d0-c3485ed3b4d0 | claude-opus-4-7 | claude-opus-4-7 | t      |         8918 |             4 |        4574 | /v1/messages
+ 69152 | 2026-05-20 14:38:40.89854+08  |          2 |         24 |        1 | req_5e64de73-90b8-4ab4-acf4-f4ce825e7f34 | claude-opus-4-7 | claude-opus-4-7 | t      |         8437 |           130 |        8402 | /v1/messages
+ 69151 | 2026-05-20 14:38:37.049975+08 |          2 |         24 |        1 | req_8a0d8dd8-0c89-4e7b-bfe5-35c16e367349 | claude-opus-4-7 | claude-opus-4-7 | t      |         6382 |            15 |        4636 | /v1/messages
+(3 rows)
+

@@ -1,0 +1,67 @@
+{
+  "sub2api": {
+    "account24": {
+      "id": 24,
+      "name": "kiro_claude_01",
+      "temp_unschedulable_until": null,
+      "temp_unschedulable_reason": null
+    },
+    "claudeGroupAccounts": [
+      {
+        "id": 24,
+        "name": "kiro_claude_01",
+        "platform": "anthropic",
+        "type": "apikey",
+        "status": "active",
+        "schedulable": true,
+        "concurrency": 12,
+        "group_id": 1
+      }
+    ],
+    "recentOpusErrors": [],
+    "recentUsage": [
+      {
+        "id": 67322,
+        "created_at": "2026-05-20T11:52:19.396686+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": false,
+        "duration_ms": 1639,
+        "input_tokens": 5892,
+        "output_tokens": 1
+      },
+      {
+        "id": 67265,
+        "created_at": "2026-05-20T11:48:46.475006+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": true,
+        "duration_ms": 53401,
+        "input_tokens": 5891,
+        "output_tokens": 1
+      },
+      {
+        "id": 67255,
+        "created_at": "2026-05-20T11:47:53.036109+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-opus-4-7",
+        "requested_model": "claude-opus-4-7",
+        "upstream_model": null,
+        "stream": false,
+        "duration_ms": 54200,
+        "input_tokens": 5888,
+        "output_tokens": 1
+      }
+    ]
+  }
+}

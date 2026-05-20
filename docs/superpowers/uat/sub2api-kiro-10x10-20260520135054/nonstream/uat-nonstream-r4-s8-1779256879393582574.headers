@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Wed, 20 May 2026 06:01:34 GMT
+Referrer-Policy: strict-origin-when-cross-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Request-Id: acdadf4c-8ec2-4ace-ac6b-145602ff54eb
+X-Request-Id: req_a19aa2a9-70d4-4762-84df-b88268cd3f4f
+Content-Length: 282
+

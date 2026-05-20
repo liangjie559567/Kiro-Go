@@ -1,0 +1,10 @@
+47:2026-05-20T06:38:32.358Z [DEBUG] [auto-mode] verifyAutoModeGateAccess: enabledState=opt-in disabledBySettings=false model=claude-opus-4-7 modelSupported=true disableFastModeBreakerFires=false carouselAvailable=false canEnterAuto=true
+59:2026-05-20T06:38:32.399Z [DEBUG] [API REQUEST] /v1/messages source=generate_session_title
+78:2026-05-20T06:38:32.486Z [DEBUG] [API REQUEST] /v1/messages source=sdk
+79:2026-05-20T06:38:37.054Z [DEBUG] Stream started - received first chunk
+80:2026-05-20T06:38:39.447Z [DEBUG] Stream started - received first chunk
+81:2026-05-20T06:38:40.907Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=tooluse_FPeKAOh9SyCsj3srPWnGLZ permissionDecisionMs=4
+90:2026-05-20T06:38:40.989Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=tooluse_FPeKAOh9SyCsj3srPWnGLZ outcome=ok durationMs=82
+100:2026-05-20T06:38:41.013Z [DEBUG] [API REQUEST] /v1/messages source=sdk
+101:2026-05-20T06:38:45.598Z [DEBUG] Stream started - received first chunk
+104:2026-05-20T06:38:45.609Z [ERROR] Failed to check metrics opt-out status: Auth error: No API key available

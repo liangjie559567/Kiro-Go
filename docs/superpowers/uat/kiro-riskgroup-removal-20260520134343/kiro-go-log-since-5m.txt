@@ -1,0 +1,7 @@
+INFO  2026/05/20 05:43:05 [ModelAdmission] default=16/300 models=2 legacyOpus47=10/300
+INFO  2026/05/20 05:43:05 Kiro-Go starting on http://0.0.0.0:8080 (log level: info)
+INFO  2026/05/20 05:43:05 Admin panel: http://0.0.0.0:8080/admin
+INFO  2026/05/20 05:43:05 Claude API: http://0.0.0.0:8080/v1/messages
+INFO  2026/05/20 05:43:05 OpenAI API: http://0.0.0.0:8080/v1/chat/completions
+INFO  2026/05/20 05:43:12 [ModelsCache] Cached 13 models
+WARN  2026/05/20 05:43:44 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}

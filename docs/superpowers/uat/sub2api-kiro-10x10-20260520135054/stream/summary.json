@@ -1,0 +1,15 @@
+{
+  "mode": "stream",
+  "total": 100,
+  "ok": 100,
+  "failed": 0,
+  "status_counts": [
+    {
+      "status": 200,
+      "count": 100
+    }
+  ],
+  "wrong_text": 0,
+  "max_duration_ms": 43213,
+  "avg_duration_ms": 17528.05
+}

@@ -1,0 +1,224 @@
+{
+  "sub2api": {
+    "account24": {
+      "id": 24,
+      "name": "kiro_claude_01",
+      "temp_unschedulable_until": null,
+      "temp_unschedulable_reason": ""
+    },
+    "claudeGroupAccounts": [
+      {
+        "id": 24,
+        "name": "kiro_claude_01",
+        "platform": "anthropic",
+        "type": "apikey",
+        "status": "active",
+        "schedulable": true,
+        "concurrency": 12,
+        "group_id": 1
+      }
+    ],
+    "recentHaikuUsage": [
+      {
+        "id": 69214,
+        "created_at": "2026-05-20T14:43:12.132083+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-haiku-4-5-20251001",
+        "requested_model": "claude-haiku-4-5-20251001",
+        "stream": false,
+        "duration_ms": 1540,
+        "input_tokens": 4130,
+        "output_tokens": 12
+      },
+      {
+        "id": 69197,
+        "created_at": "2026-05-20T14:41:47.148552+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-haiku-4-5-20251001",
+        "requested_model": "claude-haiku-4-5-20251001",
+        "stream": false,
+        "duration_ms": 1337,
+        "input_tokens": 4130,
+        "output_tokens": 12
+      },
+      {
+        "id": 69185,
+        "created_at": "2026-05-20T14:41:04.50639+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-haiku-4-5-20251001",
+        "requested_model": "claude-haiku-4-5-20251001",
+        "stream": false,
+        "duration_ms": 1331,
+        "input_tokens": 4130,
+        "output_tokens": 12
+      },
+      {
+        "id": 69122,
+        "created_at": "2026-05-20T14:36:59.732041+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-haiku-4-5-20251001",
+        "requested_model": "claude-haiku-4-5-20251001",
+        "stream": true,
+        "duration_ms": 1449,
+        "input_tokens": 4124,
+        "output_tokens": 12
+      },
+      {
+        "id": 69120,
+        "created_at": "2026-05-20T14:36:58.239231+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "model": "claude-haiku-4-5-20251001",
+        "requested_model": "claude-haiku-4-5-20251001",
+        "stream": false,
+        "duration_ms": 1311,
+        "input_tokens": 4124,
+        "output_tokens": 12
+      }
+    ],
+    "haikuErrorsSinceUATStart": [],
+    "historicalHaikuErrors": [
+      {
+        "id": 1626,
+        "created_at": "2026-05-20T14:29:59.279483+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1625,
+        "created_at": "2026-05-20T14:29:01.852903+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1624,
+        "created_at": "2026-05-20T14:28:09.323043+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1623,
+        "created_at": "2026-05-20T14:27:15.968493+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1622,
+        "created_at": "2026-05-20T14:26:23.238062+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1621,
+        "created_at": "2026-05-20T14:25:46.890923+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1620,
+        "created_at": "2026-05-20T14:25:16.790575+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1619,
+        "created_at": "2026-05-20T14:24:52.475403+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1618,
+        "created_at": "2026-05-20T14:24:30.31236+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1617,
+        "created_at": "2026-05-20T14:24:08.953724+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      },
+      {
+        "id": 1616,
+        "created_at": "2026-05-20T14:23:48.178597+08:00",
+        "api_key_id": 2,
+        "account_id": 24,
+        "group_id": 1,
+        "platform": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "status_code": 502,
+        "upstream_status_code": 503,
+        "error_message": "Upstream service temporarily unavailable"
+      }
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+ column_name | data_type 
+-------------+-----------
+(0 rows)
+

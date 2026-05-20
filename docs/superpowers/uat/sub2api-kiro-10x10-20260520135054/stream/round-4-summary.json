@@ -1,0 +1,14 @@
+{
+  "mode": "stream",
+  "round": 4,
+  "total": 40,
+  "ok": 40,
+  "failed": 0,
+  "max_duration_ms": 34614,
+  "status_counts": [
+    {
+      "status": 200,
+      "count": 40
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+ id |      name      | status | schedulable | temp_unschedulable_until | temp_unschedulable_reason 
+----+----------------+--------+-------------+--------------------------+---------------------------
+ 24 | kiro_claude_01 | active | t           |                          | 
+ 40 | kiro_claude_03 | active | t           |                          | 
+ 41 | kiro_claude_04 | active | t           |                          | 
+ 42 | kiro_claude_05 | active | t           |                          | 
+(4 rows)
+

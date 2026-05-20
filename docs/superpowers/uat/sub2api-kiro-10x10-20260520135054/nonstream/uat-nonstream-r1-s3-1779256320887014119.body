@@ -1,0 +1,1 @@
+{"id":"msg_8964b331-449a-4c5a-bcfa-6c222e2c44a0","type":"message","role":"assistant","content":[{"type":"text","text":"ok-nonstream-1-3"}],"model":"claude-opus-4.7","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":6010,"output_tokens":6}}

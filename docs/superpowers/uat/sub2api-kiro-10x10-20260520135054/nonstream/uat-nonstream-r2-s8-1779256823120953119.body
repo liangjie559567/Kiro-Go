@@ -1,0 +1,1 @@
+{"id":"msg_b5d57ec2-71b9-4870-ab6b-dd0065cd04db","type":"message","role":"assistant","content":[{"type":"text","text":"{\"uat\":\"UAT_nonstream_R2_S8_END\"}"}],"model":"claude-opus-4.7","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":6047,"output_tokens":13}}

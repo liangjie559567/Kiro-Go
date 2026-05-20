@@ -1,0 +1,23 @@
+{
+  "url": "http://127.0.0.1:8080/admin",
+  "checks": {
+    "dashboardVisible": true,
+    "accountsRows": 21,
+    "accountsTextHasRiskGroup": true,
+    "readiness": {
+      "routingReason": "schedulable accounts available",
+      "accountsEvaluated": 21,
+      "locallySchedulable": 21,
+      "riskGroupCoolingDown": 0,
+      "generationBlocked": 0,
+      "nonSchedulable": 0,
+      "riskGroupRows": 0
+    }
+  },
+  "screenshots": [
+    "/www/Kiro-Go/docs/superpowers/uat/kiro-riskgroup-removal-20260520134343/kiro-dashboard.png",
+    "/www/Kiro-Go/docs/superpowers/uat/kiro-riskgroup-removal-20260520134343/kiro-accounts-page.png",
+    "/www/Kiro-Go/docs/superpowers/uat/kiro-riskgroup-removal-20260520134343/kiro-api-readiness-page.png"
+  ],
+  "pass": true
+}

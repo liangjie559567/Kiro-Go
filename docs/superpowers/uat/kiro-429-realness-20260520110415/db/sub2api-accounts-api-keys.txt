@@ -1,0 +1,32 @@
+          captured_at          
+-------------------------------
+ 2026-05-20 11:05:30.272173+08
+(1 row)
+
+ id |       name       | group_id | status |    key_mask     
+----+------------------+----------+--------+-----------------
+  1 | openai           |        2 | active | sk-b5f7d...55c7
+  2 | claude           |        1 | active | sk-aa1c2...167e
+  3 | lin              |        2 | active | sk-805ec...3436
+  4 | OpenAI Frist API |        2 | active | sk-22317...9303
+(4 rows)
+
+ id |      name       | platform  |  type  | status | schedulable | concurrency |      rate_limit_reset_at      | temp_unschedulable_until | temp_unschedulable_reason | group_id 
+----+-----------------+-----------+--------+--------+-------------+-------------+-------------------------------+--------------------------+---------------------------+----------
+  2 | openai002       | openai    | oauth  | active | t           |          10 | 2026-05-20 03:38:01.344266+08 |                          |                           |        2
+ 24 | kiro_claude_01  | anthropic | apikey | active | t           |          12 |                               |                          |                           |        1
+ 74 | cd2             | openai    | oauth  | active | t           |          10 | 2026-05-19 23:32:00.874827+08 |                          |                           |        2
+ 83 | ahot1           | openai    | oauth  | active | t           |          10 | 2026-05-19 21:41:37.980058+08 |                          |                           |        2
+ 88 | JalonStehrdxo+2 | openai    | oauth  | active | t           |          10 | 2026-05-20 04:18:47.395058+08 |                          |                           |        2
+ 89 | bnhot2          | openai    | oauth  | active | t           |          10 | 2026-05-20 04:24:09.418187+08 |                          |                           |        2
+ 90 | bnhot3          | openai    | oauth  | active | t           |          10 | 2026-05-20 04:25:08.454161+08 |                          |                           |        2
+ 91 | cnhot2          | openai    | oauth  | active | t           |          10 | 2026-05-19 23:19:04.447383+08 |                          |                           |        2
+ 92 | cnhot3          | openai    | oauth  | active | t           |          10 | 2026-05-20 04:23:09.393987+08 |                          |                           |        2
+ 93 | anhot4          | openai    | oauth  | active | t           |          10 |                               |                          |                           |        2
+ 94 | anhot5          | openai    | oauth  | active | t           |          10 | 2026-05-19 23:52:41.528479+08 |                          |                           |        2
+ 95 | anhot6          | openai    | oauth  | active | t           |          10 | 2026-05-20 04:52:05.401308+08 |                          |                           |        2
+ 96 | bnhot6          | openai    | oauth  | active | t           |          10 | 2026-05-20 04:53:48.98387+08  |                          |                           |        2
+ 97 | cnhot5          | openai    | oauth  | active | t           |          10 |                               |                          |                           |        2
+ 98 | cnhot6          | openai    | oauth  | active | t           |          10 |                               |                          |                           |        2
+(15 rows)
+

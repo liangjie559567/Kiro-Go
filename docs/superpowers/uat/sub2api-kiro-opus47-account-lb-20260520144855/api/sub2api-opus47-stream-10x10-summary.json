@@ -1,0 +1,19 @@
+{
+  "mode": "stream",
+  "url": "http://127.0.0.1:18080/v1/messages",
+  "rounds": 10,
+  "concurrency": 10,
+  "total": 100,
+  "passed": 100,
+  "failed": 0,
+  "pass": true,
+  "statusCounts": {
+    "200": 100
+  },
+  "maxLatencyMs": 56595,
+  "p95LatencyMs": 44386,
+  "p50LatencyMs": 22086,
+  "firstFailure": null,
+  "startedAt": "2026-05-20T07:01:33.875Z",
+  "completedAt": "2026-05-20T07:02:30.470Z"
+}

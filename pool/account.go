@@ -129,9 +129,10 @@ func ClassifyFailureReason(err error) FailureReason {
 	}
 }
 
-// AccountRiskGroupKey returns the upstream risk subject shared by accounts.
-// Kiro generation throttling can apply to the CodeWhisperer profile or the
-// stable user-id prefix, so temporary-limit protection must cool the group.
+// AccountRiskGroupKey returns a display grouping for accounts that appear to
+// share an upstream subject. It is informational only; generation temporary
+// limits are enforced per account because Kiro can limit one account while
+// other accounts with the same profile or user-id prefix still succeed.
 func AccountRiskGroupKey(account config.Account) string {
 	if profileArn := strings.TrimSpace(account.ProfileArn); profileArn != "" {
 		return "profile:" + profileArn
@@ -259,13 +260,6 @@ func (p *AccountPool) Reload() {
 	}
 	p.accounts = weighted
 	p.totalAccounts = len(enabled)
-	now := time.Now()
-	for _, account := range enabled {
-		if FailureReason(account.LastFailureReason) != FailureReasonTemporaryLimited || account.CooldownUntil <= now.Unix() {
-			continue
-		}
-		p.recordRiskGroupCooldownLocked(account, FailureReasonTemporaryLimited, time.Unix(account.CooldownUntil, 0))
-	}
 }
 
 // GetNext 获取下一个可用账号（加权轮询）
@@ -588,11 +582,6 @@ func (p *AccountPool) accountBaseUsableLocked(acc *config.Account, now time.Time
 	if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
 		return false
 	}
-	if key := AccountRiskGroupKey(*acc); key != "" {
-		if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
-			return false
-		}
-	}
 	if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 		return false
 	}
@@ -711,10 +700,6 @@ func (p *AccountPool) clearFailureStateLocked(id string) {
 	delete(p.cooldowns, id)
 	p.errorCounts[id] = 0
 	delete(p.failures, id)
-	if key := p.riskGroupKeyForIDLocked(id); key != "" {
-		delete(p.groupCooldowns, key)
-		delete(p.groupFailures, key)
-	}
 	for i := range p.accounts {
 		if p.accounts[i].ID == id {
 			p.accounts[i].FailureCount = 0
@@ -773,9 +758,6 @@ func (p *AccountPool) RecordFailure(id string, reason FailureReason) {
 			until := now.Add(cooldown)
 			p.cooldowns[id] = until
 			p.accounts[i].CooldownUntil = until.Unix()
-			if reason == FailureReasonTemporaryLimited {
-				p.recordRiskGroupCooldownLocked(p.accounts[i], reason, until)
-			}
 		}
 		if config.Get() != nil {
 			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
@@ -821,9 +803,6 @@ func (p *AccountPool) RecordFailureUntil(id string, reason FailureReason, resetA
 		p.accounts[i].LastFailureAt = now.Unix()
 		p.cooldowns[id] = resetAt
 		p.accounts[i].CooldownUntil = resetAt.Unix()
-		if reason == FailureReasonTemporaryLimited {
-			p.recordRiskGroupCooldownLocked(p.accounts[i], reason, resetAt)
-		}
 		if config.Get() != nil {
 			_ = config.UpdateAccountHealth(id, p.accounts[i].LastFailureReason, p.accounts[i].LastFailureAt, p.accounts[i].CooldownUntil, p.accounts[i].FailureCount)
 		}
@@ -955,16 +934,6 @@ func (p *AccountPool) ModelBlockState(model string, now time.Time) ModelBlockSta
 		if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
 			reason = p.failures[acc.ID]
 			retryAt = cooldown
-		}
-		if key := AccountRiskGroupKey(acc); key != "" {
-			if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
-				if reason == "" || reason == FailureReasonUnknown {
-					reason = p.groupFailures[key]
-				}
-				if retryAt.IsZero() || cooldown.After(retryAt) {
-					retryAt = cooldown
-				}
-			}
 		}
 		if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 			if reason == "" || reason == FailureReasonUnknown {
@@ -1161,19 +1130,6 @@ func (p *AccountPool) CooldownState(id string, now time.Time) CooldownState {
 			}
 			if retryAt.After(state.RetryAt) {
 				state.RetryAt = retryAt
-			}
-		}
-		if key := AccountRiskGroupKey(acc); key != "" {
-			if cooldown, ok := p.groupCooldowns[key]; ok && now.Before(cooldown) {
-				extendsCooldown := !state.CoolingDown || cooldown.After(state.RetryAt)
-				state.CoolingDown = true
-				if state.Reason == "" || state.Reason == FailureReasonUnknown {
-					state.Reason = p.groupFailures[key]
-				}
-				if extendsCooldown {
-					state.RiskGroup = true
-					state.RetryAt = cooldown
-				}
 			}
 		}
 	}

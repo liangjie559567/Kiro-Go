@@ -1,0 +1,48 @@
+{
+  "checks": {
+    "kiroDashboardVisible": true,
+    "kiroAccountsRows": 21,
+    "kiroReadiness": {
+      "routingReason": "schedulable accounts available",
+      "accountsEvaluated": 21,
+      "locallySchedulable": 17,
+      "riskGroupCoolingDown": 0,
+      "nonSchedulable": 4
+    },
+    "sub2apiAccountsPage": {
+      "hasKiroClaude01": true,
+      "hasActive": true
+    },
+    "sub2apiUsagePage": {
+      "hasOpusModel": true,
+      "hasMessagesEndpoint": true
+    },
+    "sub2apiApi": {
+      "accountsCount": 1,
+      "usageCount": 20,
+      "totalRequests": 858
+    }
+  },
+  "screenshots": [
+    "/www/Kiro-Go/docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/playwright-kiro-dashboard.png",
+    "/www/Kiro-Go/docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/playwright-kiro-accounts.png",
+    "/www/Kiro-Go/docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/playwright-kiro-api-readiness.png",
+    "/www/Kiro-Go/docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/playwright-sub2api-accounts.png",
+    "/www/Kiro-Go/docs/superpowers/uat/sub2api-kiro-10x10-20260520135054/playwright-sub2api-usage.png"
+  ],
+  "api": {
+    "kiroReadiness": {
+      "accountsEvaluated": 21,
+      "generationBlocked": 4,
+      "locallySchedulable": 17,
+      "modelListed": true,
+      "riskGroupCoolingDown": 0
+    },
+    "sub2api": {
+      "accountsCount": 1,
+      "usageCount": 20,
+      "totalRequests": 858
+    }
+  },
+  "pass": true
+}

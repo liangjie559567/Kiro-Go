@@ -1,0 +1,102 @@
+   table_name   |       column_name        |        data_type         
+----------------+--------------------------+--------------------------
+ ops_error_logs | id                       | bigint
+ ops_error_logs | request_id               | character varying
+ ops_error_logs | client_request_id        | character varying
+ ops_error_logs | user_id                  | bigint
+ ops_error_logs | api_key_id               | bigint
+ ops_error_logs | account_id               | bigint
+ ops_error_logs | group_id                 | bigint
+ ops_error_logs | client_ip                | inet
+ ops_error_logs | platform                 | character varying
+ ops_error_logs | model                    | character varying
+ ops_error_logs | request_path             | character varying
+ ops_error_logs | stream                   | boolean
+ ops_error_logs | user_agent               | text
+ ops_error_logs | error_phase              | character varying
+ ops_error_logs | error_type               | character varying
+ ops_error_logs | severity                 | character varying
+ ops_error_logs | status_code              | integer
+ ops_error_logs | is_business_limited      | boolean
+ ops_error_logs | error_message            | text
+ ops_error_logs | error_body               | text
+ ops_error_logs | error_source             | character varying
+ ops_error_logs | error_owner              | character varying
+ ops_error_logs | account_status           | character varying
+ ops_error_logs | upstream_status_code     | integer
+ ops_error_logs | upstream_error_message   | text
+ ops_error_logs | upstream_error_detail    | text
+ ops_error_logs | provider_error_code      | character varying
+ ops_error_logs | provider_error_type      | character varying
+ ops_error_logs | network_error_type       | character varying
+ ops_error_logs | retry_after_seconds      | integer
+ ops_error_logs | duration_ms              | integer
+ ops_error_logs | time_to_first_token_ms   | bigint
+ ops_error_logs | auth_latency_ms          | bigint
+ ops_error_logs | routing_latency_ms       | bigint
+ ops_error_logs | upstream_latency_ms      | bigint
+ ops_error_logs | response_latency_ms      | bigint
+ ops_error_logs | created_at               | timestamp with time zone
+ ops_error_logs | upstream_errors          | jsonb
+ ops_error_logs | is_count_tokens          | boolean
+ ops_error_logs | resolved                 | boolean
+ ops_error_logs | resolved_at              | timestamp with time zone
+ ops_error_logs | resolved_by_user_id      | bigint
+ ops_error_logs | inbound_endpoint         | character varying
+ ops_error_logs | upstream_endpoint        | character varying
+ ops_error_logs | requested_model          | character varying
+ ops_error_logs | upstream_model           | character varying
+ ops_error_logs | request_type             | smallint
+ usage_logs     | id                       | bigint
+ usage_logs     | user_id                  | bigint
+ usage_logs     | api_key_id               | bigint
+ usage_logs     | account_id               | bigint
+ usage_logs     | request_id               | character varying
+ usage_logs     | model                    | character varying
+ usage_logs     | input_tokens             | integer
+ usage_logs     | output_tokens            | integer
+ usage_logs     | cache_creation_tokens    | integer
+ usage_logs     | cache_read_tokens        | integer
+ usage_logs     | cache_creation_5m_tokens | integer
+ usage_logs     | cache_creation_1h_tokens | integer
+ usage_logs     | input_cost               | numeric
+ usage_logs     | output_cost              | numeric
+ usage_logs     | cache_creation_cost      | numeric
+ usage_logs     | cache_read_cost          | numeric
+ usage_logs     | total_cost               | numeric
+ usage_logs     | actual_cost              | numeric
+ usage_logs     | stream                   | boolean
+ usage_logs     | duration_ms              | integer
+ usage_logs     | created_at               | timestamp with time zone
+ usage_logs     | group_id                 | bigint
+ usage_logs     | subscription_id          | bigint
+ usage_logs     | rate_multiplier          | numeric
+ usage_logs     | first_token_ms           | integer
+ usage_logs     | billing_type             | smallint
+ usage_logs     | user_agent               | character varying
+ usage_logs     | image_count              | integer
+ usage_logs     | image_size               | character varying
+ usage_logs     | ip_address               | character varying
+ usage_logs     | account_rate_multiplier  | numeric
+ usage_logs     | reasoning_effort         | character varying
+ usage_logs     | cache_ttl_overridden     | boolean
+ usage_logs     | openai_ws_mode           | boolean
+ usage_logs     | request_type             | smallint
+ usage_logs     | service_tier             | character varying
+ usage_logs     | inbound_endpoint         | character varying
+ usage_logs     | upstream_endpoint        | character varying
+ usage_logs     | upstream_model           | character varying
+ usage_logs     | requested_model          | character varying
+ usage_logs     | channel_id               | bigint
+ usage_logs     | model_mapping_chain      | character varying
+ usage_logs     | billing_tier             | character varying
+ usage_logs     | billing_mode             | character varying
+ usage_logs     | image_output_tokens      | integer
+ usage_logs     | image_output_cost        | numeric
+ usage_logs     | account_stats_cost       | numeric
+ usage_logs     | image_input_size         | character varying
+ usage_logs     | image_output_size        | character varying
+ usage_logs     | image_size_source        | character varying
+ usage_logs     | image_size_breakdown     | jsonb
+(98 rows)
+

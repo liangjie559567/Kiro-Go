@@ -198,7 +198,7 @@ func TestRecordFailureUntilSuspiciousTemporaryLimitKeepsMultiAccountFloor(t *tes
 	}
 }
 
-func TestTemporaryLimitCoolsSharedProfileRiskGroup(t *testing.T) {
+func TestTemporaryLimitSingleAccountDoesNotCoolSharedProfileRiskGroup(t *testing.T) {
 	p := &AccountPool{
 		cooldowns:     make(map[string]time.Time),
 		errorCounts:   make(map[string]int),
@@ -219,15 +219,155 @@ func TestTemporaryLimitCoolsSharedProfileRiskGroup(t *testing.T) {
 
 	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
 
-	if !p.IsCoolingDown("acct-2", time.Now()) {
-		t.Fatalf("expected shared-profile account to be cooling down")
+	if p.IsCoolingDown("acct-2", time.Now()) {
+		t.Fatalf("did not expect one temporary-limited account to cool shared-profile account")
 	}
 	if p.IsCoolingDown("acct-3", time.Now()) {
 		t.Fatalf("did not expect different-profile account to be cooling down")
 	}
 	next := p.GetNextForModelExcept("claude-opus-4.7", map[string]bool{"acct-1": true})
+	if next == nil || next.ID != "acct-2" {
+		t.Fatalf("expected routing to keep healthy shared-profile account available, got %#v", next)
+	}
+}
+
+func TestTemporaryLimitMultipleAccountsDoNotCoolSharedProfileRiskGroup(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "acct-1", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-2", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-3", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-4", Enabled: true, ProfileArn: "arn:other"},
+		},
+		totalAccounts: 4,
+	}
+	for _, id := range []string{"acct-1", "acct-2", "acct-3", "acct-4"} {
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+	}
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+	p.RecordFailureUntil("acct-2", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+
+	if p.IsCoolingDown("acct-3", time.Now()) {
+		t.Fatalf("did not expect shared-profile account to cool down after other accounts were limited")
+	}
+	if p.IsCoolingDown("acct-4", time.Now()) {
+		t.Fatalf("did not expect different-profile account to be cooling down")
+	}
+	next := p.GetNextForModelExcept("claude-opus-4.7", map[string]bool{"acct-1": true, "acct-2": true})
 	if next == nil || next.ID != "acct-3" {
-		t.Fatalf("expected routing to skip shared profile and choose acct-3, got %#v", next)
+		t.Fatalf("expected routing to keep untouched shared-profile account available, got %#v", next)
+	}
+}
+
+func TestTemporaryLimitMultipleAccountsDoNotCoolSharedUserIDPrefix(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "acct-1", Enabled: true, UserId: "d-9067c98495.alpha"},
+			{ID: "acct-2", Enabled: true, UserId: "d-9067c98495.beta"},
+			{ID: "acct-3", Enabled: true, UserId: "d-9067c98495.gamma"},
+		},
+		totalAccounts: 3,
+	}
+	for _, id := range []string{"acct-1", "acct-2", "acct-3"} {
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+	}
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+	p.RecordFailureUntil("acct-2", FailureReasonTemporaryLimited, time.Now().Add(5*time.Second))
+
+	if p.IsCoolingDown("acct-3", time.Now()) {
+		t.Fatalf("did not expect shared user-id prefix account to cool down after other accounts were limited")
+	}
+	next := p.GetNextForModelExcept("claude-opus-4.7", map[string]bool{"acct-1": true, "acct-2": true})
+	if next == nil || next.ID != "acct-3" {
+		t.Fatalf("expected routing to keep untouched shared-prefix account available, got %#v", next)
+	}
+}
+
+func TestRecordSuccessClearsOnlySuccessfulAccountCooldown(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "acct-1", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-2", Enabled: true, ProfileArn: "arn:shared"},
+			{ID: "acct-3", Enabled: true, ProfileArn: "arn:shared"},
+		},
+		totalAccounts: 3,
+	}
+
+	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, time.Now().Add(time.Minute))
+	p.RecordFailureUntil("acct-2", FailureReasonTemporaryLimited, time.Now().Add(time.Minute))
+	p.RecordSuccess("acct-1")
+
+	if p.IsCoolingDown("acct-1", time.Now()) {
+		t.Fatalf("did not expect successful account to keep cooling down")
+	}
+	if !p.IsCoolingDown("acct-2", time.Now()) {
+		t.Fatalf("expected still-limited account to keep cooling down")
+	}
+	if p.IsCoolingDown("acct-3", time.Now()) {
+		t.Fatalf("did not expect untouched shared-profile account to cool down")
+	}
+}
+
+func TestReloadDoesNotEscalatePersistedTemporaryLimitsToRiskGroup(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	now := time.Now()
+	accounts := []config.Account{
+		{
+			ID:                "acct-1",
+			Enabled:           true,
+			ProfileArn:        "arn:shared",
+			LastFailureReason: "temporary_limited",
+			CooldownUntil:     now.Add(time.Minute).Unix(),
+		},
+		{
+			ID:                "acct-2",
+			Enabled:           true,
+			ProfileArn:        "arn:shared",
+			LastFailureReason: "temporary_limited",
+			CooldownUntil:     now.Add(time.Minute).Unix(),
+		},
+		{
+			ID:         "acct-3",
+			Enabled:    true,
+			ProfileArn: "arn:shared",
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &AccountPool{}
+
+	p.Reload()
+
+	if !p.IsCoolingDown("acct-1", now) || !p.IsCoolingDown("acct-2", now) {
+		t.Fatalf("expected persisted account cooldowns to remain active")
+	}
+	if p.IsCoolingDown("acct-3", now) {
+		t.Fatalf("did not expect reload to escalate persisted temporary limits to shared risk group")
 	}
 }
 

@@ -530,9 +530,34 @@ func (h *Handler) modelBlockedError(model string) error {
 	}
 }
 
+func (h *Handler) waitForRecoverablePoolBlock(model string, deadline time.Time) bool {
+	if h == nil || h.pool == nil || model == "" {
+		return false
+	}
+	state := h.pool.ModelBlockState(model, time.Now())
+	if state.AccountsEvaluated == 0 || state.Blocked == 0 || !state.AllBlocked || state.RetryAt.IsZero() {
+		return false
+	}
+	switch state.LastReason {
+	case pool.FailureReasonRateLimited, pool.FailureReasonModelCapacity, pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
+	default:
+		return false
+	}
+	delay := time.Until(state.RetryAt)
+	if delay < 0 {
+		delay = 0
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 || delay > remaining {
+		return false
+	}
+	sleepForOpusCapacityRetry(delay)
+	return true
+}
+
 func shouldRetryAccount(reason pool.FailureReason, attempt int) bool {
 	switch reason {
-	case pool.FailureReasonQuotaExhausted, pool.FailureReasonRateLimited, pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
+	case pool.FailureReasonQuotaExhausted, pool.FailureReasonRateLimited, pool.FailureReasonTemporaryLimited, pool.FailureReasonTransientNetwork, pool.FailureReasonUpstream5xx:
 		return true
 	default:
 		return false
@@ -1892,6 +1917,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelSessionExcept(model, sessionKey, used)
 		if account == nil {
+			if h.waitForRecoverablePoolBlock(model, deadline) {
+				capacityRetryCount++
+				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
+				used = make(map[string]bool)
+				attempt++
+				continue
+			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
 					capacityRetryCount++
@@ -1980,6 +2012,13 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
+			if h.waitForRecoverablePoolBlock(model, deadline) {
+				capacityRetryCount++
+				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
+				used = make(map[string]bool)
+				attempt++
+				continue
+			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
 					capacityRetryCount++
@@ -2919,6 +2958,13 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		updateRequestLogReliability(r, -1, attempt+1, 0, -1)
 		account, releaseRequest := h.pool.BeginNextForModelExcept(model, used)
 		if account == nil {
+			if h.waitForRecoverablePoolBlock(model, deadline) {
+				capacityRetryCount++
+				updateRequestLogCapacityRetryCount(r, capacityRetryCount)
+				used = make(map[string]bool)
+				attempt++
+				continue
+			}
 			if shouldWaitAndRetryOpus47(lastErr, model) {
 				if delay, ok := opusCapacityRetryDelay(lastErr, deadline); ok {
 					capacityRetryCount++
@@ -4910,6 +4956,7 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 	if schedulableCount > 0 {
 		routingReason = "schedulable accounts available"
 	}
+	summary := claudeCodeModelReadinessSummary(listed, accountRows)
 	resp := map[string]interface{}{
 		"requestedModel":    requested,
 		"mappedModel":       mapped,
@@ -4919,6 +4966,7 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 		"routingReason":     routingReason,
 		"accounts":          accountRows,
 		"admissionPressure": h.admissionPressureForModel(mapped),
+		"summary":           summary,
 		"capabilities": map[string]interface{}{
 			"vision":    supportsImage,
 			"toolUse":   true,
@@ -4928,6 +4976,30 @@ func (h *Handler) apiGetClaudeCodeModelReadiness(w http.ResponseWriter, r *http.
 		"reason": modelReadinessReason(listed),
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func claudeCodeModelReadinessSummary(modelListed bool, rows []map[string]interface{}) map[string]interface{} {
+	summary := map[string]interface{}{
+		"modelListed":          modelListed,
+		"accountsEvaluated":    len(rows),
+		"locallySchedulable":   0,
+		"riskGroupCoolingDown": 0,
+		"generationBlocked":    0,
+	}
+	for _, row := range rows {
+		if schedulable, _ := row["schedulable"].(bool); schedulable {
+			summary["locallySchedulable"] = summary["locallySchedulable"].(int) + 1
+		}
+		if coolingDown, _ := row["coolingDown"].(bool); coolingDown {
+			summary["generationBlocked"] = summary["generationBlocked"].(int) + 1
+		}
+		if source, _ := row["cooldownSource"].(string); source == "risk_group" {
+			if coolingDown, _ := row["coolingDown"].(bool); coolingDown {
+				summary["riskGroupCoolingDown"] = summary["riskGroupCoolingDown"].(int) + 1
+			}
+		}
+	}
+	return summary
 }
 
 func (h *Handler) admissionPressureForModel(model string) map[string]interface{} {

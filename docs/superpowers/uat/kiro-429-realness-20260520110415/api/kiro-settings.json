@@ -1,0 +1,1 @@
+{"allowOverUsage":true,"apiKey":"sk-R2BgTlrPGGiUzr8XviyPvQYIQKMaG3HC","clientApiKeys":null,"clientIPAllowlist":null,"host":"0.0.0.0","modelAdmission":{"default":{"maxConcurrent":16,"maxWaiting":300},"models":{"claude-opus-4.7":{"maxConcurrent":10,"maxWaiting":300},"claude-sonnet-4.5":{"maxConcurrent":8,"maxWaiting":300}}},"modelMappings":null,"port":8080,"requireApiKey":true}

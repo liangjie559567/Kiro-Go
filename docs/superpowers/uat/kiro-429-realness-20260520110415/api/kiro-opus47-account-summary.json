@@ -1,0 +1,12 @@
+{
+  "total": 21,
+  "schedulable": 21,
+  "coolingDown": 0,
+  "notSchedulable": 0,
+  "reasons": [
+    {
+      "reason": "schedulable",
+      "count": 21
+    }
+  ]
+}

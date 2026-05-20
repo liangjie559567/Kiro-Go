@@ -1,0 +1,5 @@
+ recent_temp_errors 
+--------------------
+                  0
+(1 row)
+

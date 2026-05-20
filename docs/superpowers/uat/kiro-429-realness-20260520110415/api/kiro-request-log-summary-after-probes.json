@@ -1,0 +1,232 @@
+{
+  "total": 30,
+  "opus429": 19,
+  "opus200": 6,
+  "recent": [
+    {
+      "timestamp": "2026-05-20T03:06:05.744470338Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 1482,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=80 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T03:06:03.214171375Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 2499,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T03:06:01.578909656Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 1591,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T03:00:50.681763669Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 2553,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T03:00:30.230524371Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 2321,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T03:00:26.839838619Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 200,
+      "outcome": "success",
+      "error": null,
+      "durationMs": 3358,
+      "routingDecision": "selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T02:55:44.38622239Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 30,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:43.84933782Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 32,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:43.313656287Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 31,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:42.763829593Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 39,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:03.190064482Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 48,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:02.629479787Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 56,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:02.052569908Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 70,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:55:00.034495625Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "HTTP 429 from Kiro IDE: {\"message\":\"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.d48824a8-3061-70e3-9324-846270d35e24) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.\",\"reason\":null}",
+      "durationMs": 1506,
+      "routingDecision": "selected account=125bd142-5218-45d9-8748-3e29a775050b model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=31 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T02:54:23.148568363Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 28,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:54:22.615086917Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 28,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:54:22.0808229Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 28,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:54:21.546004029Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 30,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:45.915123142Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 29,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:45.382800092Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 28,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:44.852263985Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 27,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:42.797927344Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "HTTP 429 from Kiro IDE: {\"message\":\"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.d48824a8-3061-70e3-9324-846270d35e24) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.\",\"reason\":null}",
+      "durationMs": 1551,
+      "routingDecision": "selected account=125bd142-5218-45d9-8748-3e29a775050b model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=37 pressure=false"
+    },
+    {
+      "timestamp": "2026-05-20T02:53:09.629717808Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 27,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:09.093056836Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 33,
+      "routingDecision": null
+    },
+    {
+      "timestamp": "2026-05-20T02:53:08.554197141Z",
+      "model": "claude-opus-4.7",
+      "statusCode": 429,
+      "outcome": "error",
+      "error": "No available accounts for claude-opus-4.7: upstream temporary limits are cooling down (TEMPORARY_LIMITED)",
+      "durationMs": 36,
+      "routingDecision": null
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"settings":{"enabled":true,"intervalMinutes":5,"autoDisableUnhealthy":true},"status":{"running":false,"lastStartedAt":1779246359,"lastFinishedAt":1779246365,"nextRunAt":1779246665,"lastSuccess":21,"lastFailed":0,"lastDisabled":0,"lastSkipped":false}}

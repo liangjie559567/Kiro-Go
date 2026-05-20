@@ -1,0 +1,15 @@
+{
+  "mode": "nonstream",
+  "total": 100,
+  "ok": 100,
+  "failed": 0,
+  "status_counts": [
+    {
+      "status": 200,
+      "count": 100
+    }
+  ],
+  "wrong_text": 0,
+  "max_duration_ms": 35872,
+  "avg_duration_ms": 15980.39
+}

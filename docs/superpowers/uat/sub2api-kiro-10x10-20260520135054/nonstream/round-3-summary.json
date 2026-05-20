@@ -1,0 +1,14 @@
+{
+  "mode": "nonstream",
+  "round": 3,
+  "total": 30,
+  "ok": 30,
+  "failed": 0,
+  "max_duration_ms": 30300,
+  "status_counts": [
+    {
+      "status": 200,
+      "count": 30
+    }
+  ]
+}

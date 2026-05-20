@@ -754,7 +754,7 @@ func TestHandleOpenAIResponsesRestoresPreviousResponseSession(t *testing.T) {
 	if !restored {
 		t.Fatalf("expected previous response tool call restored in history, got %#v", secondPayload.ConversationState.History)
 	}
-	waitForAccountRequestCount(t, 2)
+	waitForAccountRequestCount(t, 1)
 }
 
 func TestOpenAIResponsesSessionPrunesExpiredAndOldestEntries(t *testing.T) {
@@ -2249,6 +2249,118 @@ func TestHandleClaudeWaitsAndRetriesOpus47RateLimit(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeWaitsForShortPoolRateLimitCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+	p.RecordFailureUntil("acct-1", pool.FailureReasonRateLimited, time.Now().Add(20*time.Millisecond))
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = time.Second
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+		time.Sleep(d)
+	}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected pool wait to recover, got status %d body %s", w.Code, w.Body.String())
+	}
+	if attempts != 1 {
+		t.Fatalf("expected one upstream attempt after pool wait, got %d", attempts)
+	}
+	if len(sleeps) != 1 {
+		t.Fatalf("expected one pool wait, got %d", len(sleeps))
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleClaudeDoesNotWaitForTemporaryLimitedPoolCooldown(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+	p.RecordFailureUntil("acct-1", pool.FailureReasonTemporaryLimited, time.Now().Add(time.Minute))
+
+	oldSleep := sleepForOpusCapacityRetry
+	var sleeps []time.Duration
+	sleepForOpusCapacityRetry = func(d time.Duration) {
+		sleeps = append(sleeps, d)
+	}
+	t.Cleanup(func() {
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected temporary limit to return 429, got status %d body %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "TEMPORARY_LIMITED" {
+		t.Fatalf("expected TEMPORARY_LIMITED header, got %q", got)
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	if len(sleeps) != 0 {
+		t.Fatalf("expected no wait for temporary-limited pool cooldown, got %d", len(sleeps))
+	}
+}
+
 func TestHandleClaudeOpus47RateLimitTriesNextAccountBeforeWaiting(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -2757,6 +2869,13 @@ func TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix(t *testing.T) {
 	if body["listedByGateway"] != true {
 		t.Fatalf("expected listedByGateway=true: %#v", body)
 	}
+	summary, ok := body["summary"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected layered readiness summary, got %#v", body)
+	}
+	if summary["modelListed"] != true {
+		t.Fatalf("expected summary modelListed=true, got %#v", summary)
+	}
 	caps, ok := body["capabilities"].(map[string]interface{})
 	if !ok || caps["vision"] != true || caps["toolUse"] != true {
 		t.Fatalf("expected capabilities, got %#v", body["capabilities"])
@@ -2768,6 +2887,35 @@ func TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix(t *testing.T) {
 	h.handleAdminAPI(routeRR, routeReq)
 	if routeRR.Code != http.StatusOK {
 		t.Fatalf("expected route 200, got %d body=%s", routeRR.Code, routeRR.Body.String())
+	}
+}
+
+func TestAdminClaudeCodeModelReadinessNormalizesVersionedHaiku45(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{
+		cachedModels: []ModelInfo{
+			{ModelId: "claude-haiku-4.5"},
+		},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-haiku-4-5-20251001", nil)
+	rr := httptest.NewRecorder()
+
+	h.apiGetClaudeCodeModelReadiness(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if body["mappedModel"] != "claude-haiku-4.5" {
+		t.Fatalf("expected versioned Haiku 4.5 to normalize to Kiro model, got %#v", body)
+	}
+	if body["listedByGateway"] != true {
+		t.Fatalf("expected normalized Haiku 4.5 to be listed, got %#v", body)
 	}
 }
 
@@ -2981,7 +3129,7 @@ func TestClaudeCodeModelReadinessReportsAccountsEvaluatedWhenEnabledButBlocked(t
 	}
 }
 
-func TestClaudeCodeModelReadinessBlocksSharedRiskGroupCooldown(t *testing.T) {
+func TestClaudeCodeModelReadinessKeepsSharedProfileSchedulableAfterSingleTemporaryLimit(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -3021,20 +3169,81 @@ func TestClaudeCodeModelReadinessBlocksSharedRiskGroupCooldown(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if resp["routingReason"] != "accounts evaluated" {
-		t.Fatalf("expected accounts evaluated while shared group cools down, got %#v", resp)
+	if resp["routingReason"] != "schedulable accounts available" {
+		t.Fatalf("expected schedulable shared-profile account after one temporary limit, got %#v", resp)
 	}
 	rows := resp["accounts"].([]interface{})
 	for _, raw := range rows {
 		row := raw.(map[string]interface{})
-		if row["schedulable"] != false {
-			t.Fatalf("expected cooled account to be non-schedulable, got %#v", row)
-		}
 		if row["id"] == "limited-account" && (row["reason"] != "temporary limited account cooling down" || row["cooldownSource"] != "account") {
 			t.Fatalf("expected limited account to report account cooldown source, got %#v", row)
 		}
-		if row["id"] == "shared-account" && (row["reason"] != "temporary limited risk group cooling down" || row["cooldownSource"] != "risk_group") {
-			t.Fatalf("expected shared account to report risk-group cooldown source, got %#v", row)
+		if row["id"] == "shared-account" && (row["schedulable"] != true || row["reason"] != "schedulable") {
+			t.Fatalf("expected shared account to remain schedulable, got %#v", row)
+		}
+	}
+}
+
+func TestClaudeCodeModelReadinessKeepsSharedProfileSchedulableAfterMultipleTemporaryLimits(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	accounts := []config.Account{
+		{
+			ID:          "limited-account-1",
+			Email:       "limited1@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "limited-account-2",
+			Email:       "limited2@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "shared-account",
+			Email:       "shared@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil("limited-account-1", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	p.RecordFailureUntil("limited-account-2", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p, startTime: time.Now().Unix()}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/claude-code/model-readiness?model=claude-sonnet-4.5", nil)
+	w := httptest.NewRecorder()
+	h.apiGetClaudeCodeModelReadiness(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["routingReason"] != "schedulable accounts available" {
+		t.Fatalf("expected untouched shared-profile account to remain routable, got %#v", resp)
+	}
+	rows := resp["accounts"].([]interface{})
+	for _, raw := range rows {
+		row := raw.(map[string]interface{})
+		if strings.HasPrefix(row["id"].(string), "limited-account-") && row["schedulable"] != false {
+			t.Fatalf("expected explicitly limited account to be non-schedulable, got %#v", row)
+		}
+		if row["id"] == "shared-account" && (row["schedulable"] != true || row["reason"] != "schedulable" || row["cooldownSource"] != "account") {
+			t.Fatalf("expected untouched shared account to remain schedulable, got %#v", row)
 		}
 	}
 }
@@ -4792,11 +5001,67 @@ func TestAdminAccountsExposeRiskGroupAndCooldownState(t *testing.T) {
 	if rows[0]["coolingDown"] != true {
 		t.Fatalf("expected first account coolingDown=true, got %#v", rows[0])
 	}
-	if rows[1]["coolingDown"] != true || rows[1]["cooldownSource"] != "risk_group" {
-		t.Fatalf("expected second account to inherit risk-group cooldown, got %#v", rows[1])
+	if rows[1]["coolingDown"] != false || rows[1]["cooldownSource"] != "account" {
+		t.Fatalf("expected second account to remain available after one account cooldown, got %#v", rows[1])
 	}
 	if remaining, ok := rows[0]["cooldownRemainingSeconds"].(float64); !ok || remaining < 50 || remaining > 65 {
 		t.Fatalf("expected cooldown remaining around 60s, got %#v", rows[0])
+	}
+}
+
+func TestAdminAccountsDoNotExposeEscalatedRiskGroupCooldownState(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	accounts := []config.Account{
+		{
+			ID:         "acct-1",
+			Email:      "one@example.com",
+			Enabled:    true,
+			ProfileArn: "arn:aws:codewhisperer:us-east-1:123:profile/shared",
+		},
+		{
+			ID:         "acct-2",
+			Email:      "two@example.com",
+			Enabled:    true,
+			ProfileArn: "arn:aws:codewhisperer:us-east-1:123:profile/shared",
+		},
+		{
+			ID:         "acct-3",
+			Email:      "three@example.com",
+			Enabled:    true,
+			ProfileArn: "arn:aws:codewhisperer:us-east-1:123:profile/shared",
+		},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil("acct-1", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	p.RecordFailureUntil("acct-2", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/accounts", nil)
+
+	h.apiGetAccounts(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	var rows []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
+		t.Fatalf("decode accounts: %v", err)
+	}
+	for _, row := range rows {
+		if row["id"] == "acct-3" && row["coolingDown"] != false {
+			t.Fatalf("did not expect untouched shared account to inherit cooldown, got %#v", row)
+		}
+		if row["cooldownSource"] == "risk_group" {
+			t.Fatalf("did not expect risk-group cooldown source after temporary limits, got %#v", row)
+		}
 	}
 }
 
@@ -5045,7 +5310,7 @@ func TestAPITestAccountSkipsUpstreamWhenTemporaryLimitCoolingDown(t *testing.T) 
 	}
 }
 
-func TestAPITestAccountSkipsUpstreamWhenSharedRiskGroupCoolingDown(t *testing.T) {
+func TestAPITestAccountAllowsSharedProfileUpstreamAfterSingleTemporaryLimit(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -5094,18 +5359,71 @@ func TestAPITestAccountSkipsUpstreamWhenSharedRiskGroupCoolingDown(t *testing.T)
 
 	h.apiTestAccount(w, req, "acct-shared")
 
-	if upstreamCalled {
-		t.Fatalf("expected shared-risk-group test to skip upstream")
+	if !upstreamCalled {
+		t.Fatalf("expected shared-profile account test to call upstream after one account temporary limit")
 	}
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected cooldown UI response to use HTTP 200, got %d body %s", w.Code, w.Body.String())
+}
+
+func TestAPITestAccountAllowsSharedProfileUpstreamAfterMultipleTemporaryLimits(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
 	}
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
+	accounts := []config.Account{
+		{
+			ID:          "acct-limited-1",
+			Email:       "limited1@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "acct-limited-2",
+			Email:       "limited2@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
+		{
+			ID:          "acct-shared",
+			Email:       "shared@example.com",
+			Enabled:     true,
+			AccessToken: "token",
+			ProfileArn:  "arn:aws:codewhisperer:profile/shared",
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		},
 	}
-	if resp["success"] != true || resp["status"] != "temporary_limited" || resp["cooldown_source"] != "risk_group" {
-		t.Fatalf("expected temporary_limited risk-group cooldown response, got %#v", resp)
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.RecordFailureUntil("acct-limited-1", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	p.RecordFailureUntil("acct-limited-2", pool.FailureReasonTemporaryLimited, time.Now().Add(30*time.Second))
+	h := &Handler{pool: p}
+	upstreamCalled := false
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			upstreamCalled = true
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/api/accounts/acct-shared/test", strings.NewReader(`{"model":"claude-sonnet-4"}`))
+	w := httptest.NewRecorder()
+
+	h.apiTestAccount(w, req, "acct-shared")
+
+	if !upstreamCalled {
+		t.Fatalf("expected untouched shared-profile account test to call upstream")
 	}
 }
 
@@ -5193,8 +5511,8 @@ func TestRecordAccountFailureSuspiciousTemporaryLimitUsesAdaptiveCooldown(t *tes
 	if remaining < 2 || remaining > 5 {
 		t.Fatalf("expected single-account adaptive cooldown around 3s, got %ds", remaining)
 	}
-	if shouldRetryAccount(reason, 0) {
-		t.Fatalf("expected temporary_limited to stop the current request without burning more accounts")
+	if !shouldRetryAccount(reason, 0) {
+		t.Fatalf("expected temporary_limited to try another account for the current request")
 	}
 	status, errType := claudeUpstreamErrorStatusAndType(&rateLimitError{endpoint: "AmazonQ", body: errBody, resetAt: time.Now().Add(5 * time.Second)})
 	if status != http.StatusTooManyRequests || errType != "rate_limit_error" {
@@ -5211,6 +5529,80 @@ func TestRecordAccountFailureSuspiciousTemporaryLimitUsesAdaptiveCooldown(t *tes
 	if retryAfter < 55 || retryAfter > 65 {
 		t.Fatalf("expected public Retry-After around 60s for upstream suspicious temporary limit, got %d", retryAfter)
 	}
+}
+
+func TestHandleClaudeTemporaryLimitFallsThroughToNextAccount(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateLoadBalanceConfig(config.LoadBalanceConfig{Strategy: config.LoadBalanceStrategyRoundRobin}); err != nil {
+		t.Fatalf("update load balance strategy: %v", err)
+	}
+	accounts := []config.Account{
+		{ID: "acct-1", Email: "one@example.com", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-2", Email: "two@example.com", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetStrategy(pool.StrategyRoundRobin)
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL)}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	var seen []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			authHeader := req.Header.Get("Authorization")
+			seen = append(seen, authHeader)
+			if strings.Contains(authHeader, "token-1") {
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Body:       io.NopCloser(strings.NewReader(errBody)),
+					Header:     make(http.Header),
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`))
+	w := httptest.NewRecorder()
+
+	h.handleClaudeMessagesInternal(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected second account to satisfy request, got %d body=%s", w.Code, w.Body.String())
+	}
+	if len(seen) != 2 {
+		t.Fatalf("expected first temporary-limited account and second fallback account, got %#v", seen)
+	}
+	rows := config.GetAccounts()
+	byID := map[string]config.Account{}
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	if byID["acct-1"].LastFailureReason != string(pool.FailureReasonTemporaryLimited) || byID["acct-1"].CooldownUntil <= time.Now().Unix() {
+		t.Fatalf("expected acct-1 temporary-limited cooldown, got %#v", byID["acct-1"])
+	}
+	if byID["acct-2"].LastFailureReason != "" || byID["acct-2"].CooldownUntil != 0 {
+		t.Fatalf("did not expect acct-2 to inherit cooldown, got %#v", byID["acct-2"])
+	}
+	waitForAccountRequestCount(t, 1)
 }
 
 func TestSendNoAvailableAccountsMapsTemporaryLimitedPoolToClaudeRetryableRateLimit(t *testing.T) {
