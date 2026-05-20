@@ -75,23 +75,32 @@ type Handler struct {
 	healthCheckMu      sync.RWMutex
 	healthCheckStatus  healthCheckStatus
 	// 模型缓存
-	cachedModels    []ModelInfo
-	modelsCacheMu   sync.RWMutex
-	modelsCacheTime int64
-	promptCache     *promptCacheTracker
-	tokenRefreshMu  sync.Mutex
-	tokenRefreshes  map[string]*tokenRefreshCall
-	requestLogsMu   sync.Mutex
-	requestLogs     *requestLogStore
-	accountTestMu   sync.Mutex
-	accountTestLast map[string]time.Time
-	responsesMu     sync.Mutex
-	responses       map[string]responsesSession
+	cachedModels     []ModelInfo
+	modelsCacheMu    sync.RWMutex
+	modelsCacheTime  int64
+	promptCache      *promptCacheTracker
+	tokenRefreshMu   sync.Mutex
+	tokenRefreshes   map[string]*tokenRefreshCall
+	tokenRefreshLast map[string]tokenRefreshResult
+	requestLogsMu    sync.Mutex
+	requestLogs      *requestLogStore
+	accountTestMu    sync.Mutex
+	accountTestLast  map[string]time.Time
+	responsesMu      sync.Mutex
+	responses        map[string]responsesSession
 }
 
 type tokenRefreshCall struct {
 	done chan struct{}
 	err  error
+}
+
+type tokenRefreshResult struct {
+	accessToken  string
+	refreshToken string
+	expiresAt    int64
+	profileArn   string
+	recordedAt   time.Time
 }
 
 const (
@@ -2517,6 +2526,19 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				h.recordFailure()
 				status, errType := claudeUpstreamErrorStatusAndType(err)
+				if stableDownstreamForRequest(r, model, true) {
+					if h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
+						return h.stableAttemptBudgetStillBlocked(model)
+					}, stableStreamHeartbeatEvery, stableStreamHeartbeat) {
+						used = make(map[string]bool)
+						attempt = 0
+						continue
+					}
+					if r.Context().Err() == nil {
+						continue
+					}
+					return
+				}
 				if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
 					if h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, func() bool {
 						return h.stableAttemptBudgetStillBlocked(model)
@@ -2958,11 +2980,15 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	var rawThinkingBuilder strings.Builder
 	startInputTokens := estimatedInputTokens
 	sse := newClaudeSSEWriter(w, msgID, model, buildClaudeUsageMap(startInputTokens, 0, cacheUsage, cacheProfile != nil), 4096)
+	var sseMu sync.Mutex
 	streamStarted := false
 	upstreamStartedAt := time.Now()
 	firstTokenRecorded := false
+	stableStreamFirstTokenWait := stableDownstreamForRequest(r, model, true)
 
 	recordFirstToken := func() {
+		sseMu.Lock()
+		defer sseMu.Unlock()
 		if firstTokenRecorded {
 			return
 		}
@@ -2971,6 +2997,8 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	startMessage := func() {
+		sseMu.Lock()
+		defer sseMu.Unlock()
 		if streamStarted {
 			return
 		}
@@ -2979,11 +3007,18 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	closeActiveBlock := func() {
+		sseMu.Lock()
+		defer sseMu.Unlock()
 		sse.closeBlock()
 	}
 
 	startContentBlock := func(blockType string) {
-		startMessage()
+		sseMu.Lock()
+		defer sseMu.Unlock()
+		if !streamStarted {
+			streamStarted = true
+			sse.Start()
+		}
 		if blockType == "thinking" {
 			signature := generateClaudeThinkingSignature()
 			sse.startBlock("thinking", map[string]string{"type": "thinking", "thinking": "", "signature": signature})
@@ -2997,7 +3032,12 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		if text == "" {
 			return
 		}
-		startMessage()
+		sseMu.Lock()
+		defer sseMu.Unlock()
+		if !streamStarted {
+			streamStarted = true
+			sse.Start()
+		}
 		sse.TextDelta(text)
 	}
 
@@ -3005,7 +3045,12 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		if text == "" {
 			return
 		}
-		startMessage()
+		sseMu.Lock()
+		defer sseMu.Unlock()
+		if !streamStarted {
+			streamStarted = true
+			sse.Start()
+		}
 		sse.ThinkingDelta(text)
 	}
 
@@ -3058,7 +3103,10 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 					return
 				}
 				if thinkingState == 3 {
-					if sse.activeType != "thinking" {
+					sseMu.Lock()
+					activeThinking := sse.activeType == "thinking"
+					sseMu.Unlock()
+					if !activeThinking {
 						startContentBlock("thinking")
 					}
 					closeActiveBlock()
@@ -3066,7 +3114,10 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 				return
 			}
 			if thinkingState == 3 && text == "" {
-				if sse.activeType == "thinking" {
+				sseMu.Lock()
+				activeThinking := sse.activeType == "thinking"
+				sseMu.Unlock()
+				if activeThinking {
 					closeActiveBlock()
 				}
 				return
@@ -3074,7 +3125,10 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			if text != "" {
 				sendThinkingDelta(text)
 			}
-			if thinkingState == 3 && sse.activeType == "thinking" {
+			sseMu.Lock()
+			activeThinking := sse.activeType == "thinking"
+			sseMu.Unlock()
+			if thinkingState == 3 && activeThinking {
 				closeActiveBlock()
 			}
 		}
@@ -3218,8 +3272,13 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			toolUses = append(toolUses, tu)
 			updateRequestLogReliability(r, -1, 0, 0, len(toolUses))
 			closeActiveBlock()
-			startMessage()
+			sseMu.Lock()
+			if !streamStarted {
+				streamStarted = true
+				sse.Start()
+			}
 			sse.ToolUse(tu)
+			sseMu.Unlock()
 			return true
 		},
 		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
@@ -3243,7 +3302,51 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 
 	upstreamStartedAt = time.Now()
 	startedAt := upstreamStartedAt
-	err := CallKiroAPI(account, payload, callback)
+	var heartbeatStop chan struct{}
+	if stableStreamFirstTokenWait {
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.WriteHeader(http.StatusOK)
+		sseMu.Lock()
+		sse.Ping()
+		sseMu.Unlock()
+		heartbeatEvery := stableClaudeStreamHeartbeatInterval()
+		heartbeatStop = make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(heartbeatEvery)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					sseMu.Lock()
+					shouldPing := !firstTokenRecorded
+					if shouldPing {
+						sse.Ping()
+					}
+					sseMu.Unlock()
+					if !shouldPing {
+						return
+					}
+				case <-heartbeatStop:
+					return
+				default:
+					if r != nil && r.Context().Err() != nil {
+						return
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}()
+	}
+	callCtx := context.Background()
+	if r != nil && r.Context() != nil {
+		callCtx = r.Context()
+	}
+	err := CallKiroAPIWithContext(callCtx, account, payload, callback)
+	if heartbeatStop != nil {
+		close(heartbeatStop)
+	}
 	latency := time.Since(startedAt)
 	if err != nil {
 		h.recordFailure()
@@ -3266,6 +3369,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 			return false, err
 		}
 		if !streamStarted {
+			if stableStreamFirstTokenWait {
+				return false, err
+			}
 			status, errType := claudeUpstreamErrorStatusAndType(err)
 			if _, _, stable := downstreamStatusForRetryExhaustion(r, model, true, status, errType); stable {
 				return false, err
@@ -3276,7 +3382,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 		}
 		startMessage()
 		_, errType := claudeUpstreamErrorStatusAndType(err)
+		sseMu.Lock()
 		sse.Error(errType, err.Error())
+		sseMu.Unlock()
 		return true, err
 	}
 	modelAdmissionGate.recordSuccess(model, latency)
@@ -3327,7 +3435,9 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	startMessage()
+	sseMu.Lock()
 	sse.Stop(stopReason, buildClaudeUsageMap(inputTokens, outputTokens, cacheUsage, cacheProfile != nil))
+	sseMu.Unlock()
 	return true, nil
 }
 
@@ -4857,6 +4967,14 @@ func (h *Handler) ensureValidToken(account *config.Account) error {
 	}
 
 	h.tokenRefreshMu.Lock()
+	if h.applyRecentTokenRefreshLocked(account) {
+		h.tokenRefreshMu.Unlock()
+		return nil
+	}
+	if h.syncLatestAccountToken(account) {
+		h.tokenRefreshMu.Unlock()
+		return nil
+	}
 	if h.tokenRefreshes == nil {
 		h.tokenRefreshes = make(map[string]*tokenRefreshCall)
 	}
@@ -4872,14 +4990,45 @@ func (h *Handler) ensureValidToken(account *config.Account) error {
 	h.tokenRefreshes[account.ID] = call
 	h.tokenRefreshMu.Unlock()
 
-	call.err = h.refreshExpiredToken(account)
+	result, err := h.refreshExpiredToken(account)
+	call.err = err
 
 	h.tokenRefreshMu.Lock()
+	if call.err == nil {
+		if h.tokenRefreshLast == nil {
+			h.tokenRefreshLast = make(map[string]tokenRefreshResult)
+		}
+		result.recordedAt = time.Now()
+		h.tokenRefreshLast[account.ID] = result
+	}
 	delete(h.tokenRefreshes, account.ID)
 	h.tokenRefreshMu.Unlock()
 	close(call.done)
 
 	return call.err
+}
+
+func (h *Handler) applyRecentTokenRefreshLocked(account *config.Account) bool {
+	if h.tokenRefreshLast == nil {
+		return false
+	}
+	result, ok := h.tokenRefreshLast[account.ID]
+	if !ok || time.Since(result.recordedAt) > time.Minute {
+		delete(h.tokenRefreshLast, account.ID)
+		return false
+	}
+	if result.expiresAt > 0 && time.Now().Unix() >= result.expiresAt-tokenRefreshSkewSeconds {
+		return false
+	}
+	account.AccessToken = result.accessToken
+	if result.refreshToken != "" {
+		account.RefreshToken = result.refreshToken
+	}
+	account.ExpiresAt = result.expiresAt
+	if result.profileArn != "" {
+		account.ProfileArn = result.profileArn
+	}
+	return true
 }
 
 func (h *Handler) syncLatestAccountToken(account *config.Account) bool {
@@ -4893,16 +5042,21 @@ func (h *Handler) syncLatestAccountToken(account *config.Account) bool {
 	return false
 }
 
-func (h *Handler) refreshExpiredToken(account *config.Account) error {
+func (h *Handler) refreshExpiredToken(account *config.Account) (tokenRefreshResult, error) {
 	// Another concurrent request for the same account may have refreshed it
 	// before this call became the owner.
 	if h.syncLatestAccountToken(account) {
-		return nil
+		return tokenRefreshResult{
+			accessToken:  account.AccessToken,
+			refreshToken: account.RefreshToken,
+			expiresAt:    account.ExpiresAt,
+			profileArn:   account.ProfileArn,
+		}, nil
 	}
 
 	accessToken, refreshToken, expiresAt, profileArn, err := auth.RefreshToken(account)
 	if err != nil {
-		return err
+		return tokenRefreshResult{}, err
 	}
 
 	// 更新内存
@@ -4920,7 +5074,12 @@ func (h *Handler) refreshExpiredToken(account *config.Account) error {
 	// 持久化
 	config.UpdateAccountToken(account.ID, accessToken, refreshToken, expiresAt)
 
-	return nil
+	return tokenRefreshResult{
+		accessToken:  account.AccessToken,
+		refreshToken: account.RefreshToken,
+		expiresAt:    account.ExpiresAt,
+		profileArn:   account.ProfileArn,
+	}, nil
 }
 
 // ==================== 管理 API ====================

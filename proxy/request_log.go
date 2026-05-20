@@ -243,9 +243,10 @@ type responseLogWriter struct {
 }
 
 func (w *responseLogWriter) WriteHeader(statusCode int) {
-	if w.statusCode == 0 {
-		w.statusCode = statusCode
+	if w.statusCode != 0 {
+		return
 	}
+	w.statusCode = statusCode
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 

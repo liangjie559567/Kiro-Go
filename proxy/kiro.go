@@ -4,6 +4,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1405,6 +1406,14 @@ func getSortedEndpointsForRegion(preferred, region string) []kiroEndpoint {
 
 // CallKiroAPI calls the Kiro streaming API, trying each configured endpoint with automatic fallback.
 func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroStreamCallback) error {
+	return CallKiroAPIWithContext(context.Background(), account, payload, callback)
+}
+
+// CallKiroAPIWithContext calls the Kiro streaming API, trying each configured endpoint with automatic fallback.
+func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payload *KiroPayload, callback *KiroStreamCallback) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if _, err := json.Marshal(payload); err != nil {
 		return err
 	}
@@ -1433,7 +1442,7 @@ func CallKiroAPI(account *config.Account, payload *KiroPayload, callback *KiroSt
 		attemptPayload.ConversationState.CurrentMessage.UserInputMessage.Origin = ep.Origin
 
 		reqBody, _ := json.Marshal(attemptPayload)
-		req, err := http.NewRequest("POST", ep.URL, bytes.NewReader(reqBody))
+		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(reqBody))
 		if err != nil {
 			lastErr = err
 			continue

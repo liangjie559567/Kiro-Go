@@ -319,6 +319,8 @@ func TestValidateOpenAIRequestShapeAllowsToolResultFinalTurn(t *testing.T) {
 }
 
 func TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount(t *testing.T) {
+	authHTTPClientTestMu.Lock()
+	t.Cleanup(authHTTPClientTestMu.Unlock)
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -398,6 +400,8 @@ func TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount(t *testing.T) {
 }
 
 func TestEnsureValidTokenRefreshesDifferentAccountsInParallel(t *testing.T) {
+	authHTTPClientTestMu.Lock()
+	t.Cleanup(authHTTPClientTestMu.Unlock)
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2746,6 +2750,82 @@ func TestStableClaudeStreamCapacityWaitSendsPingBeforeMessageStart(t *testing.T)
 	}
 	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
 		t.Fatalf("stable stream wait must not emit fallback assistant text, body=%q", body)
+	}
+}
+
+func TestStableClaudeStreamUpstreamFirstTokenWaitSendsPing(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.StreamHeartbeatSeconds = 1
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	oldClient := kiroHttpStore.Load()
+	t.Cleanup(func() {
+		kiroHttpStore.Store(oldClient)
+	})
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			reader, writer := io.Pipe()
+			go func() {
+				<-req.Context().Done()
+				_ = writer.CloseWithError(req.Context().Err())
+			}()
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       reader,
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	h := &Handler{pool: &pool.AccountPool{}, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(ctx)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+	payload := &KiroPayload{}
+	payload.ConversationState.CurrentMessage.UserInputMessage.ModelID = "claude-opus-4.7"
+	payload.ConversationState.CurrentMessage.UserInputMessage.Content = "hello"
+	account := &config.Account{ID: "acct-1", AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1"}
+
+	done := make(chan struct{}, 1)
+	go func() {
+		_, _ = h.handleClaudeStreamAttempt(w, req, account, payload, "claude-opus-4.7", false, claudeThinkingResponseOptions{}, 1, promptCacheUsage{}, nil, nil, 0)
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("handleClaudeStreamAttempt did not return after request context cancellation")
+	}
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "event: ping") {
+		t.Fatalf("stable upstream first-token wait must send heartbeat ping: %s", body)
+	}
+	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
+		t.Fatalf("stable upstream first-token wait must not emit assistant frames before real upstream content: %s", body)
+	}
+	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
+		t.Fatalf("stable upstream first-token wait must not emit fallback assistant text: %s", body)
 	}
 }
 

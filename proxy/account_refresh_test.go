@@ -260,6 +260,8 @@ func TestComputeNextRunAt(t *testing.T) {
 }
 
 func TestRefreshAccountDataRefreshesTokenWhenTokenIsStillValid(t *testing.T) {
+	authHTTPClientTestMu.Lock()
+	t.Cleanup(authHTTPClientTestMu.Unlock)
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -338,6 +340,8 @@ func TestRefreshAccountDataRefreshesTokenWhenTokenIsStillValid(t *testing.T) {
 }
 
 func TestRefreshAccountDataSkipsStaleTokenWriteWhenRefreshTokenChanged(t *testing.T) {
+	authHTTPClientTestMu.Lock()
+	t.Cleanup(authHTTPClientTestMu.Unlock)
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
