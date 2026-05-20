@@ -131,3 +131,138 @@ func TestClaudeCodeGovernorDoesNotApplyToNonOpusModel(t *testing.T) {
 		t.Fatalf("Applied = true, want false")
 	}
 }
+
+func TestClaudeCodeGovernorCanceledContextBeforeAcquire(t *testing.T) {
+	gov := newClaudeCodeConcurrencyGovernor(testClaudeCodeGovernorConfig())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	decision, err := gov.Acquire(ctx, claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+	}, time.Second)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("acquire err = %v, want context canceled", err)
+	}
+	if decision.Applied {
+		t.Fatalf("Applied = true, want false")
+	}
+	decision.Release()
+}
+
+func TestClaudeCodeGovernorEnforcesQueueMaxDepth(t *testing.T) {
+	cfg := testClaudeCodeGovernorConfig()
+	cfg.QueueMaxDepth = 1
+	gov := newClaudeCodeConcurrencyGovernor(cfg)
+
+	first, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("first subagent acquire: %v", err)
+	}
+	defer first.Release()
+
+	second, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-2",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("second subagent acquire: %v", err)
+	}
+	defer second.Release()
+
+	waiterStarted := make(chan struct{})
+	waiterDone := make(chan error, 1)
+	waiterCtx, cancelWaiter := context.WithCancel(context.Background())
+	defer cancelWaiter()
+	go func() {
+		close(waiterStarted)
+		decision, err := gov.Acquire(waiterCtx, claudeCodeAdmissionRequest{
+			Model:     "claude-opus-4.7",
+			SessionID: "session-1",
+			AgentID:   "agent-3",
+		}, time.Second)
+		decision.Release()
+		waiterDone <- err
+	}()
+
+	<-waiterStarted
+	waitUntilGovernorWaiting(t, gov, "session-1", 1)
+
+	start := time.Now()
+	overflow, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-4",
+	}, time.Second)
+	overflow.Release()
+	if !errors.Is(err, errClaudeCodeGovernorQueueFull) {
+		t.Fatalf("overflow acquire err = %v, want queue full", err)
+	}
+	if elapsed := time.Since(start); elapsed > 100*time.Millisecond {
+		t.Fatalf("overflow acquire took %s, want quick queue-full failure", elapsed)
+	}
+
+	cancelWaiter()
+	if err := <-waiterDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first waiter err = %v, want context canceled", err)
+	}
+}
+
+func TestClaudeCodeGovernorReleaseIsIdempotent(t *testing.T) {
+	gov := newClaudeCodeConcurrencyGovernor(testClaudeCodeGovernorConfig())
+
+	decision, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("subagent acquire: %v", err)
+	}
+
+	decision.Release()
+	decision.Release()
+
+	first, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-2",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("first acquire after double release: %v", err)
+	}
+	defer first.Release()
+
+	second, err := gov.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-3",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("second acquire after double release: %v", err)
+	}
+	defer second.Release()
+}
+
+func waitUntilGovernorWaiting(t *testing.T, gov *claudeCodeConcurrencyGovernor, sessionID string, want int) {
+	t.Helper()
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		gov.mu.Lock()
+		got := 0
+		if gate := gov.sessions[sessionID]; gate != nil {
+			got = gate.waiting
+		}
+		gov.mu.Unlock()
+		if got == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("governor waiting count for %s did not reach %d", sessionID, want)
+}
