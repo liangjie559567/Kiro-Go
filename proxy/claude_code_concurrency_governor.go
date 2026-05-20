@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sync"
 	"time"
 
@@ -37,6 +38,21 @@ type claudeCodeAdmissionDecision struct {
 	Applied bool
 	Role    string
 	Wait    time.Duration
+}
+
+func claudeCodeAdmissionRequestFromHTTP(r *http.Request, model string, stream bool, claudeFormat bool) claudeCodeAdmissionRequest {
+	req := claudeCodeAdmissionRequest{
+		Model:        model,
+		Stream:       stream,
+		ClaudeFormat: claudeFormat,
+	}
+	if r == nil {
+		return req
+	}
+	req.SessionID = firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id")
+	req.AgentID = firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-agent-id")
+	req.ParentAgentID = firstNonEmptyHeader(r, "x-claude-code-parent-agent-id", "x-claude-parent-agent-id")
+	return req
 }
 
 func newClaudeCodeConcurrencyGovernor(cfg config.ClaudeCodeGovernorConfig) *claudeCodeConcurrencyGovernor {

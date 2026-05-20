@@ -79,6 +79,7 @@ type Handler struct {
 	modelsCacheMu    sync.RWMutex
 	modelsCacheTime  int64
 	promptCache      *promptCacheTracker
+	governor         *claudeCodeConcurrencyGovernor
 	tokenRefreshMu   sync.Mutex
 	tokenRefreshes   map[string]*tokenRefreshCall
 	tokenRefreshLast map[string]tokenRefreshResult
@@ -1063,6 +1064,7 @@ func NewHandler() *Handler {
 		autoRefreshUpdated: make(chan struct{}, 1),
 		healthCheckUpdated: make(chan struct{}, 1),
 		promptCache:        newPromptCacheTracker(defaultPromptCacheTTL),
+		governor:           newClaudeCodeConcurrencyGovernor(config.GetClaudeCodeGovernorConfig()),
 		requestLogs:        newRequestLogStore(defaultRequestLogCapacity),
 		responses:          make(map[string]responsesSession),
 	}
@@ -2413,6 +2415,12 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 		snap = modelAdmissionGate.modelSnapshot(model)
 	}
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
+	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, true, deadline)
+	if !ok {
+		return
+	}
+	defer releaseSession()
+
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, true, deadline)
 	if !ok {
 		return
@@ -2581,6 +2589,12 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 		snap = modelAdmissionGate.modelSnapshot(model)
 	}
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
+	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, false, deadline)
+	if !ok {
+		return
+	}
+	defer releaseSession()
+
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return
@@ -2773,6 +2787,36 @@ func (h *Handler) shouldFastRejectOpus47OpenCircuit(model string, snap Admission
 	}
 	state := h.pool.ModelBlockState(model, time.Now())
 	return state.Blocked >= defaultOpus47MaxAttempts
+}
+
+func (h *Handler) acquireClaudeCodeSessionAdmissionForRequest(r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
+	if h == nil || h.governor == nil {
+		return func() {}, true
+	}
+
+	timeout := time.Until(deadline)
+	if timeout <= 0 {
+		timeout = 0
+	}
+	ctx := context.Background()
+	if r != nil && r.Context() != nil {
+		ctx = r.Context()
+	}
+
+	decision, err := h.governor.Acquire(ctx, claudeCodeAdmissionRequestFromHTTP(r, model, stream, claudeFormat), timeout)
+	if err != nil {
+		updateRequestLogGovernor(r, GovernorLogUpdate{
+			SessionConcurrencyWait: decision.Wait,
+			GovernorDecision:       "session_governor_rejected",
+			GovernorWaitReason:     err.Error(),
+		})
+		return nil, false
+	}
+	updateRequestLogGovernor(r, GovernorLogUpdate{
+		SessionConcurrencyWait: decision.Wait,
+		GovernorDecision:       "session_governor_admitted_" + decision.Role,
+	})
+	return decision.Release, true
 }
 
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
@@ -3881,6 +3925,12 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 		snap = modelAdmissionGate.modelSnapshot(model)
 	}
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
+	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, false, deadline)
+	if !ok {
+		return
+	}
+	defer releaseSession()
+
 	releaseGate, ok := h.acquireOpus47AdmissionForRequest(w, r, model, stream, false, deadline)
 	if !ok {
 		return

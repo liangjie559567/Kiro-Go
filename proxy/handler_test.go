@@ -3929,6 +3929,108 @@ func TestStableAdmissionPressureResumesAfterCapacityBroadcast(t *testing.T) {
 	}
 }
 
+func TestHandlerClaudeSessionGovernorRunsBeforeModelAdmission(t *testing.T) {
+	cfg := testClaudeCodeGovernorConfig()
+	h := &Handler{
+		governor:    newClaudeCodeConcurrencyGovernor(cfg),
+		requestLogs: newRequestLogStore(defaultRequestLogCapacity),
+		promptCache: newPromptCacheTracker(defaultPromptCacheTTL),
+	}
+
+	first, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("first subagent acquire: %v", err)
+	}
+	defer first.Release()
+
+	second, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-2",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("second subagent acquire: %v", err)
+	}
+	defer second.Release()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-3")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	release, ok := h.acquireClaudeCodeSessionAdmissionForRequest(loggedReq, "claude-opus-4.7", true, true, time.Now().Add(20*time.Millisecond))
+	if ok {
+		release()
+		t.Fatalf("expected session governor to reject queued subagent")
+	}
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if logs[0].GovernorDecision != "session_governor_rejected" {
+		t.Fatalf("GovernorDecision = %q, want session_governor_rejected", logs[0].GovernorDecision)
+	}
+	if logs[0].GovernorWaitReason == "" {
+		t.Fatalf("expected GovernorWaitReason to record rejection reason")
+	}
+}
+
+func TestHandlerClaudeSessionGovernorAllowsInteractiveWhenSubagentsFull(t *testing.T) {
+	cfg := testClaudeCodeGovernorConfig()
+	h := &Handler{
+		governor:    newClaudeCodeConcurrencyGovernor(cfg),
+		requestLogs: newRequestLogStore(defaultRequestLogCapacity),
+		promptCache: newPromptCacheTracker(defaultPromptCacheTTL),
+	}
+
+	first, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("first subagent acquire: %v", err)
+	}
+	defer first.Release()
+
+	second, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:         "claude-opus-4.7",
+		SessionID:     "session-1",
+		ParentAgentID: "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("second subagent acquire: %v", err)
+	}
+	defer second.Release()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(rr, req)
+
+	release, ok := h.acquireClaudeCodeSessionAdmissionForRequest(loggedReq, "claude-opus-4.7", true, true, time.Now().Add(20*time.Millisecond))
+	if !ok {
+		t.Fatalf("expected interactive request to acquire when subagents are full")
+	}
+	release()
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if logs[0].GovernorDecision != "session_governor_admitted_interactive" {
+		t.Fatalf("GovernorDecision = %q, want session_governor_admitted_interactive", logs[0].GovernorDecision)
+	}
+}
+
 func TestAcquireAdmissionCanBypassStreamWhenConfigured(t *testing.T) {
 	oldGate := modelAdmissionGate
 	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
