@@ -3942,7 +3942,12 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 	updateRequestLogOpusGovernor(r, snap.CircuitState, snap.RetryAfterSeconds, budget)
 	releaseSession, ok := h.acquireClaudeCodeSessionAdmissionForRequest(r, model, stream, false, deadline)
 	if !ok {
-		h.sendClaudeCodeSessionGovernorRejected(w, r, model, stream, false)
+		err := fmt.Errorf("claude code session governor rejected")
+		if stableDownstreamForRequest(r, model, true) {
+			h.sendStableOpenAIResponsesFallback(w, r, model, "session_governor_rejected", err)
+			return
+		}
+		h.sendOpenAIOpusPressureError(w, model, err, "session_governor_rejected")
 		return
 	}
 	defer releaseSession()

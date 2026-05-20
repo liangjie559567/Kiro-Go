@@ -4061,6 +4061,86 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	}
 }
 
+func TestOpenAIResponsesStableSessionGovernorRejectionReturnsResponsesFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := testClaudeCodeGovernorConfig()
+	cfg.QueueMaxDepth = -1
+	h := &Handler{
+		governor:    newClaudeCodeConcurrencyGovernor(cfg),
+		requestLogs: newRequestLogStore(defaultRequestLogCapacity),
+		promptCache: newPromptCacheTracker(defaultPromptCacheTTL),
+		responses:   make(map[string]responsesSession),
+	}
+
+	first, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("first subagent acquire: %v", err)
+	}
+	defer first.Release()
+
+	second, err := h.governor.Acquire(context.Background(), claudeCodeAdmissionRequest{
+		Model:     "claude-opus-4.7",
+		SessionID: "session-1",
+		AgentID:   "agent-2",
+	}, time.Second)
+	if err != nil {
+		t.Fatalf("second subagent acquire: %v", err)
+	}
+	defer second.Release()
+
+	body := `{"model":"claude-opus-4.7","stream":false,"max_output_tokens":16,"input":"say ok"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0")
+	req.Header.Set("X-Sub2API-Request", "uat")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-3")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 stable fallback; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Kiro-Go-Stable-Fallback"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Stable-Fallback = %q, want true; body=%s", got, w.Body.String())
+	}
+	if got := w.Header().Get("X-Kiro-Go-Internal-Reason"); got != "session_governor_rejected" {
+		t.Fatalf("X-Kiro-Go-Internal-Reason = %q, want session_governor_rejected", got)
+	}
+	if !strings.Contains(w.Body.String(), `"object":"response"`) {
+		t.Fatalf("expected OpenAI Responses fallback object, got %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), "chat.completion") {
+		t.Fatalf("responses governor fallback must not return chat.completion shape: %s", w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("response body is not valid JSON: %v body=%s", err, w.Body.String())
+	}
+	if resp["object"] != "response" {
+		t.Fatalf("object = %#v, want response; body=%s", resp["object"], w.Body.String())
+	}
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if logs[0].GovernorDecision != "session_governor_rejected" {
+		t.Fatalf("GovernorDecision = %q, want session_governor_rejected", logs[0].GovernorDecision)
+	}
+	if !logs[0].StableDownstreamFallback {
+		t.Fatalf("expected stable fallback log entry: %#v", logs[0])
+	}
+}
+
 func TestHandlerClaudeSessionGovernorAllowsInteractiveWhenSubagentsFull(t *testing.T) {
 	cfg := testClaudeCodeGovernorConfig()
 	h := &Handler{
