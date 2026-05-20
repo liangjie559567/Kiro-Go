@@ -40,10 +40,14 @@ type adaptiveAdmissionGate struct {
 type admissionPressureState struct {
 	score                  int
 	expiresAt              time.Time
+	retryAt                time.Time
+	circuitState           string
+	lastPressureReason     string
 	effectiveMaxConcurrent int
 	recentCapacityErrors   int
 	recentQueueTimeouts    int
 	recentSuccesses        int
+	halfOpenSuccesses      int
 	lastPressureAt         time.Time
 	lastSuccessAt          time.Time
 }
@@ -53,6 +57,10 @@ type AdmissionPressureSnapshot struct {
 	Score                  int       `json:"score"`
 	Active                 bool      `json:"active"`
 	ReducedConcurrency     bool      `json:"reducedConcurrency"`
+	CircuitState           string    `json:"circuitState,omitempty"`
+	RetryAfterSeconds      int       `json:"retryAfterSeconds,omitempty"`
+	LastPressureReason     string    `json:"lastPressureReason,omitempty"`
+	LastPressureAt         time.Time `json:"lastPressureAt,omitempty"`
 	ExpiresAt              time.Time `json:"expiresAt,omitempty"`
 	ExpiresInMs            int64     `json:"expiresInMs,omitempty"`
 	MaxConcurrent          int       `json:"maxConcurrent,omitempty"`
@@ -216,7 +224,19 @@ func (g *modelAdmissionGateSet) recordPressureUntil(model string, statusCode int
 		state.recentQueueTimeouts++
 	}
 	state.lastPressureAt = now
+	state.lastPressureReason = pressureReasonForStatus(statusCode)
 	state.expiresAt = expiresAt
+	if retryAt.After(state.retryAt) {
+		state.retryAt = retryAt
+	}
+	if state.score >= 4 {
+		if state.retryAt.IsZero() {
+			state.retryAt = expiresAt
+		}
+		state.effectiveMaxConcurrent = 1
+	}
+	state.circuitState = circuitStateForPressure(state, now)
+	state.halfOpenSuccesses = 0
 }
 
 func (g *modelAdmissionGateSet) recordQueueTimeout(model string) {
@@ -251,9 +271,17 @@ func (g *modelAdmissionGateSet) recordQueueTimeout(model string) {
 	}
 	state.recentQueueTimeouts++
 	state.lastPressureAt = now
+	state.lastPressureReason = "queue_timeout"
 	if !state.expiresAt.After(now) {
 		state.expiresAt = now.Add(ttl)
 	}
+	if state.score >= 4 {
+		if state.retryAt.IsZero() || state.retryAt.Before(state.expiresAt) {
+			state.retryAt = state.expiresAt
+		}
+	}
+	state.circuitState = circuitStateForPressure(state, now)
+	state.halfOpenSuccesses = 0
 }
 
 func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duration) {
@@ -283,6 +311,28 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 	}
 	state.recentSuccesses++
 	state.lastSuccessAt = now
+	if circuitStateForPressure(state, now) == "half_open" {
+		if latency < 5*time.Second {
+			state.halfOpenSuccesses++
+			if state.halfOpenSuccesses >= 2 {
+				state.score = 0
+				state.recentCapacityErrors = 0
+				state.recentQueueTimeouts = 0
+				state.halfOpenSuccesses = 0
+				state.retryAt = time.Time{}
+				state.expiresAt = time.Time{}
+				state.effectiveMaxConcurrent = gate.maxConcurrent
+				state.circuitState = circuitStateForPressure(state, now)
+				if gate.gate != nil {
+					gate.gate.broadcast()
+				}
+				return
+			}
+		} else {
+			state.halfOpenSuccesses = 0
+		}
+		state.circuitState = circuitStateForPressure(state, now)
+	}
 	effectiveBefore := state.effectiveMaxConcurrent
 	if latency < 5*time.Second && now.After(state.expiresAt) && state.effectiveMaxConcurrent < gate.maxConcurrent {
 		state.effectiveMaxConcurrent++
@@ -326,13 +376,71 @@ func (g *modelAdmissionGateSet) admissionMetrics(model string) (effectiveMaxConc
 	return state.effectiveMaxConcurrent, state.score
 }
 
+func (g *modelAdmissionGateSet) modelSnapshot(model string) AdmissionPressureSnapshot {
+	model = normalizeAdmissionModel(model)
+	snaps := g.snapshot()
+	for _, snap := range snaps {
+		if snap.Model == model {
+			return snap
+		}
+	}
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	gate := g.models[model]
+	if gate == nil {
+		gate = g.def
+	}
+	maxConcurrent := 0
+	if gate != nil {
+		maxConcurrent = gate.maxConcurrent
+	}
+	return AdmissionPressureSnapshot{
+		Model:                  model,
+		CircuitState:           "closed",
+		MaxConcurrent:          maxConcurrent,
+		EffectiveMaxConcurrent: maxConcurrent,
+	}
+}
+
+func circuitStateForPressure(state *admissionPressureState, now time.Time) string {
+	if state == nil || state.score <= 0 {
+		return "closed"
+	}
+	if state.retryAt.After(now) {
+		return "open"
+	}
+	if state.score >= 4 {
+		return "half_open"
+	}
+	if now.Before(state.expiresAt) {
+		return "degraded"
+	}
+	return "closed"
+}
+
+func pressureReasonForStatus(statusCode int) string {
+	switch {
+	case statusCode == http.StatusTooManyRequests:
+		return "rate_limited_or_model_capacity"
+	case statusCode == http.StatusServiceUnavailable:
+		return "service_unavailable"
+	case statusCode >= 500:
+		return "upstream_5xx"
+	default:
+		return "latency"
+	}
+}
+
 func (g *modelAdmissionGateSet) pressureStateForUpdateLocked(model string, gate *adaptiveAdmissionGate, now time.Time, resetExpired bool) *admissionPressureState {
 	if g.pressure == nil {
 		g.pressure = make(map[string]*admissionPressureState)
 	}
 	state := g.pressure[model]
 	if state == nil || (resetExpired && now.After(state.expiresAt)) {
-		state = &admissionPressureState{effectiveMaxConcurrent: gate.maxConcurrent}
+		state = &admissionPressureState{
+			circuitState:           "closed",
+			effectiveMaxConcurrent: gate.maxConcurrent,
+		}
 		g.pressure[model] = state
 	}
 	if state.effectiveMaxConcurrent <= 0 {
@@ -376,11 +484,23 @@ func (g *modelAdmissionGateSet) snapshot() []AdmissionPressureSnapshot {
 		if active {
 			expiresIn = state.expiresAt.Sub(now).Milliseconds()
 		}
+		circuitState := circuitStateForPressure(state, now)
+		if circuitState == "" {
+			circuitState = "closed"
+		}
+		retryAfterSeconds := 0
+		if state.retryAt.After(now) {
+			retryAfterSeconds = int((state.retryAt.Sub(now) + time.Second - 1) / time.Second)
+		}
 		out = append(out, AdmissionPressureSnapshot{
 			Model:                  model,
 			Score:                  state.score,
 			Active:                 active,
 			ReducedConcurrency:     active && state.score >= 2 && maxConcurrent > 1,
+			CircuitState:           circuitState,
+			RetryAfterSeconds:      retryAfterSeconds,
+			LastPressureReason:     state.lastPressureReason,
+			LastPressureAt:         state.lastPressureAt,
 			ExpiresAt:              state.expiresAt,
 			ExpiresInMs:            expiresIn,
 			MaxConcurrent:          maxConcurrent,

@@ -2671,6 +2671,86 @@ func TestModelAdmissionGatePressureHonorsRetryAfter(t *testing.T) {
 	}
 }
 
+func TestModelAdmissionCircuitOpensAfterRepeatedCapacityPressure(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "open" {
+		t.Fatalf("CircuitState = %q, want open; snap=%#v", snap.CircuitState, snap)
+	}
+	if snap.RetryAfterSeconds < 40 || snap.RetryAfterSeconds > 45 {
+		t.Fatalf("RetryAfterSeconds = %d, want around 45", snap.RetryAfterSeconds)
+	}
+	if snap.EffectiveMaxConcurrent != 1 {
+		t.Fatalf("EffectiveMaxConcurrent = %d, want 1", snap.EffectiveMaxConcurrent)
+	}
+	if !snap.Active {
+		t.Fatalf("expected active pressure snapshot")
+	}
+}
+
+func TestModelAdmissionCircuitHalfOpenAfterRetryAfter(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+
+	now = now.Add(11 * time.Second)
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "half_open" {
+		t.Fatalf("CircuitState = %q, want half_open; snap=%#v", snap.CircuitState, snap)
+	}
+	if snap.RetryAfterSeconds != 0 {
+		t.Fatalf("RetryAfterSeconds = %d, want 0", snap.RetryAfterSeconds)
+	}
+}
+
+func TestModelAdmissionCircuitSuccessClosesAfterHalfOpen(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	now = now.Add(11 * time.Second)
+
+	gate.recordSuccess("claude-opus-4.7", time.Second)
+	gate.recordSuccess("claude-opus-4.7", time.Second)
+
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "closed" {
+		t.Fatalf("CircuitState = %q, want closed; snap=%#v", snap.CircuitState, snap)
+	}
+	if snap.Score != 0 {
+		t.Fatalf("Score = %d, want 0", snap.Score)
+	}
+	if snap.EffectiveMaxConcurrent != 4 {
+		t.Fatalf("EffectiveMaxConcurrent = %d, want restored max 4", snap.EffectiveMaxConcurrent)
+	}
+}
+
 func TestAdminAdmissionPressureEndpointReportsActivePressure(t *testing.T) {
 	oldGate := modelAdmissionGate
 	now := time.Unix(100, 0)
