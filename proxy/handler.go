@@ -883,7 +883,7 @@ func (h *Handler) runAutoRefresh() {
 		return
 	}
 
-	accounts := selectAutoRefreshAccounts(config.GetAccounts(), settings.Scope)
+	accounts, skipped := selectAutoRefreshAccountsForTime(config.GetAccounts(), settings.Scope, now)
 	result := runRefreshBatch(accounts, func(account *config.Account) error {
 		_, err := refreshAccountData(account)
 		if err != nil {
@@ -891,12 +891,13 @@ func (h *Handler) runAutoRefresh() {
 		}
 		return err
 	})
+	result.Skipped = skipped
 	h.pool.Reload()
 
 	finishedAt := time.Now()
 	nextSettings := config.GetAutoRefreshConfig()
 	h.finishAutoRefresh(result, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
-	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d", result.Success, result.Failed)
+	logger.Infof("[AutoRefresh] Completed: success=%d failed=%d skipped=%d", result.Success, result.Failed, result.Skipped)
 }
 
 func (h *Handler) backgroundHealthCheck() {
@@ -966,7 +967,7 @@ func (h *Handler) runHealthCheck() {
 		return
 	}
 
-	accounts := selectHealthCheckAccounts(config.GetAccounts())
+	accounts, skipped := selectHealthCheckAccountsForTime(config.GetAccounts(), now)
 	result := runHealthCheckBatch(accounts, settings.AutoDisableUnhealthy, func(account *config.Account) error {
 		err := h.checkAccountHealth(account)
 		if err != nil {
@@ -974,6 +975,7 @@ func (h *Handler) runHealthCheck() {
 		}
 		return err
 	}, disableUnhealthyAccount, now.Unix())
+	result.Skipped = skipped
 
 	if result.Disabled > 0 {
 		h.pool.Reload()
@@ -982,7 +984,7 @@ func (h *Handler) runHealthCheck() {
 	finishedAt := time.Now()
 	nextSettings := config.GetHealthCheckConfig()
 	h.finishHealthCheck(result, finishedAt.Unix(), computeNextHealthCheckRunAt(finishedAt, nextSettings))
-	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d", result.Success, result.Failed, result.Disabled)
+	logger.Infof("[HealthCheck] Completed: success=%d failed=%d disabled=%d skipped=%d", result.Success, result.Failed, result.Disabled, result.Skipped)
 }
 
 func (h *Handler) checkAccountHealth(account *config.Account) error {
