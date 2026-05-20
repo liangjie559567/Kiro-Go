@@ -212,9 +212,14 @@ func TestHealthCheckStatusRecordsSelectorQuietSkipsFromBatchResult(t *testing.T)
 
 	accounts := []config.Account{
 		{ID: "ok", Enabled: true},
-		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+		{ID: "temporary", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonTemporaryLimited)},
+		{ID: "rate", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonRateLimited)},
+		{ID: "quota", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonQuotaExhausted)},
 	}
 	selected, skipped := selectHealthCheckAccountsForTime(accounts, now)
+	if skipped != 3 {
+		t.Fatalf("expected three quiet cooldown skips, got %d", skipped)
+	}
 	result := runHealthCheckBatch(selected, false, func(account *config.Account) error { return nil }, func(account *config.Account, reason string, now int64) error {
 		t.Fatalf("disable should not be called")
 		return nil
@@ -223,7 +228,7 @@ func TestHealthCheckStatusRecordsSelectorQuietSkipsFromBatchResult(t *testing.T)
 	h.finishHealthCheck(result, now.Unix(), now.Add(time.Hour).Unix())
 
 	status := h.getHealthCheckStatus()
-	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 {
+	if status.LastSkippedCount != 3 || status.LastQuietSkipped != 3 {
 		t.Fatalf("expected selector quiet skip to reach status, got %#v", status)
 	}
 }

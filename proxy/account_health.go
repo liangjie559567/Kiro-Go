@@ -39,12 +39,13 @@ func selectHealthCheckAccounts(accounts []config.Account) []config.Account {
 func selectHealthCheckAccountsForTime(accounts []config.Account, now time.Time) ([]config.Account, int) {
 	selected := make([]config.Account, 0, len(accounts))
 	var skipped int
+	quietMode := opusQuietModeActive()
 	for _, account := range accounts {
-		if shouldSkipMaintenanceAccount(account, now) {
+		if !quietMode && shouldSkipMaintenanceAccount(account, now) {
 			skipped++
 			continue
 		}
-		if shouldSkipBackgroundAccountForQuietMode(account, now) {
+		if quietMode && account.CooldownUntil > now.Unix() {
 			skipped++
 		}
 		if account.Enabled {
