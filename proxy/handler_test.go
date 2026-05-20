@@ -2158,28 +2158,42 @@ func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
 	w := httptest.NewRecorder()
 
-	h.handleClaudeMessagesInternal(w, req)
+	h.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected capacity retries to recover, got status %d body %s", w.Code, w.Body.String())
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected capacity retries to stop at request attempt budget, got status %d body %s", w.Code, w.Body.String())
 	}
-	if attempts != 7 {
-		t.Fatalf("expected six capacity retries then success, got %d attempts", attempts)
+	if attempts != 4 {
+		t.Fatalf("expected four real upstream attempts, got %d attempts", attempts)
 	}
-	if len(sleeps) != 6 {
-		t.Fatalf("expected one wait per capacity response, got %d waits", len(sleeps))
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
 	}
-	if !strings.Contains(w.Body.String(), `"model":"claude-opus-4.7"`) {
-		t.Fatalf("expected response to preserve requested opus model, got %s", w.Body.String())
+	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
 	}
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if config.GetAccounts()[0].RequestCount > 0 {
-			return
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	if !strings.Contains(w.Body.String(), `"type":"rate_limit_error"`) {
+		t.Fatalf("expected Claude rate_limit_error body, got %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].Attempts > defaultOpus47MaxAttempts {
+		t.Fatalf("request log attempts = %d, want <= %d", logs[0].Attempts, defaultOpus47MaxAttempts)
+	}
+	selected := 0
+	for _, attempt := range logs[0].AttemptTrace {
+		if attempt.Event == "selected" {
+			selected++
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("expected async account stats update to complete")
+	if selected > defaultOpus47MaxAttempts {
+		t.Fatalf("request log selected attempts = %d, want <= %d; trace=%#v", selected, defaultOpus47MaxAttempts, logs[0].AttemptTrace)
+	}
 }
 
 func TestHandleClaudeWaitsAndRetriesOpus47RateLimit(t *testing.T) {
