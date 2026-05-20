@@ -182,7 +182,9 @@ Kiro-Go includes specific handling for Opus 4.7 because it is more likely to hit
 - Claude Code Opus 4.7 requests are normalized to adaptive thinking and sampling parameters are dropped.
 - Model admission control tracks pressure separately from account health.
 - `GET /admin/api/fleet/readiness?model=claude-opus-4-7` reports `healthy`, `degraded`, or `blocked`, plus safe concurrency and retry timing.
-- Stable downstream mode can keep sub2api-facing generation responses syntactically valid and HTTP `200` while Kiro-Go records the internally suppressed retryable failure.
+- Stable downstream mode protects sub2api-facing generation responses from gateway-level HTTP `429`, `502`, and `503`.
+- Content continuity is tracked separately: a response is only considered a content success when Kiro-Go receives real upstream assistant text, thinking, or tool calls.
+- Empty StableDownstream fallback responses are transport-only completions and are recorded with `contentSuccess=false`.
 
 Run the stable downstream UAT when Kiro-Go and sub2api are both available:
 
