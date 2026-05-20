@@ -270,6 +270,34 @@ func TestStableDownstreamSupportsOpus47OnlyByDefault(t *testing.T) {
 	}
 }
 
+func TestContentContinuityDefaultsEnableOpus47(t *testing.T) {
+	if err := Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := Get()
+	if cfg == nil {
+		t.Fatalf("config is nil")
+	}
+	if !cfg.ContentContinuity.Enabled {
+		t.Fatalf("ContentContinuity.Enabled = false, want true")
+	}
+	if cfg.ContentContinuity.MaxQueueWaitSeconds != 120 {
+		t.Fatalf("MaxQueueWaitSeconds = %d, want 120", cfg.ContentContinuity.MaxQueueWaitSeconds)
+	}
+	if cfg.ContentContinuity.MaxQueueDepth != 300 {
+		t.Fatalf("MaxQueueDepth = %d, want 300", cfg.ContentContinuity.MaxQueueDepth)
+	}
+	if cfg.ContentContinuity.MinContentTokens != 1 {
+		t.Fatalf("MinContentTokens = %d, want 1", cfg.ContentContinuity.MinContentTokens)
+	}
+	if !cfg.ContentContinuity.SupportsModel("claude-opus-4.7") {
+		t.Fatalf("expected content continuity to support claude-opus-4.7")
+	}
+	if cfg.ContentContinuity.SupportsModel("claude-sonnet-4.5") {
+		t.Fatalf("did not expect content continuity to support sonnet by default")
+	}
+}
+
 func TestValidateModelAdmissionConfig(t *testing.T) {
 	valid := ModelAdmissionConfig{
 		Default: ModelAdmissionRule{MaxConcurrent: 10, MaxWaiting: 100},
