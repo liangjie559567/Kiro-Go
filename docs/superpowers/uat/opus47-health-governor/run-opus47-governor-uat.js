@@ -145,9 +145,9 @@ function dockerHealth(container) {
   try {
     const state = JSON.parse(inspect.value);
     return {
-      ok: state.Running === true && (!state.Health || state.Health.Status === 'healthy'),
+      ok: state.Running === true && state.Health && state.Health.Status === 'healthy',
       running: state.Running === true,
-      health: state.Health ? state.Health.Status : 'none',
+      health: state.Health ? state.Health.Status : 'missing',
       status: state.Status,
     };
   } catch (error) {
@@ -366,8 +366,14 @@ async function main() {
   const subLogText = fs.existsSync(path.join(logDir, 'sub2api-tail.log')) ? fs.readFileSync(path.join(logDir, 'sub2api-tail.log'), 'utf8') : '';
   const opusRequestLogs = requestLogs.filter((row) => String(row.model || '').includes('opus'));
   const apiDbConsistent = !runProbes || probeFailures.length > 0 || markerUsage.length >= Math.min(1, probeCount);
-  const apiLogConsistent = opusRequestLogs.length > 0 || /claude-opus-4-7|claude-opus-4\.7/i.test(kiroLogText + '\n' + subLogText);
-  const screenshotApiConsistent = !summary.browser || summary.browser.status !== 'CAPTURED' || (summary.browser.textChecks && summary.browser.textChecks.kiroOpusPanelVisible && Boolean(fleet.status));
+  const requestLogApiOk = summary.api.requestLogs && summary.api.requestLogs.ok === true && opusRequestLogs.length > 0;
+  const apiLogConsistent = requestLogApiOk && /claude-opus-4-7|claude-opus-4\.7/i.test(kiroLogText + '\n' + subLogText);
+  const screenshotApiConsistent = summary.browser && summary.browser.status === 'CAPTURED' &&
+    summary.browser.textChecks &&
+    summary.browser.textChecks.kiroOpusPanelVisible === true &&
+    summary.browser.textChecks.sub2apiAccountsVisible === true &&
+    summary.browser.textChecks.sub2apiUsageVisible === true &&
+    Boolean(fleet.status);
 
   summary.checks = {
     mcpPinned073: summary.mcp.configured === true && summary.mcp.npmVersion === '0.0.73',
@@ -375,7 +381,8 @@ async function main() {
     kiroHealth200: summary.api.kiroHealth.status === 200,
     sub2apiHealth200: summary.api.sub2apiHealth.status === 200,
     fleetContractPresent: Boolean(fleet.status && fleet.circuitState && typeof fleet.safeConcurrency !== 'undefined'),
-    requestLogsBoundedAttempts: opusRequestLogs.every((row) => Number(row.attempts || 0) <= 4),
+    requestLogApiEvidencePresent: requestLogApiOk,
+    requestLogsBoundedAttempts: requestLogApiOk && opusRequestLogs.every((row) => Number(row.attempts || 0) <= 4),
     dbUsageEvidencePresent: recentUsage.length > 0 || markerUsage.length > 0,
     probesOkOrExplicitlyBlocked: !runProbes || probeFailures.length === 0 || upstreamBlocked,
     logEvidencePresent: kiroLogText.length > 0 && subLogText.length > 0 && apiLogConsistent,
