@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 3,
+  "body": {
+    "status": "ok"
+  }
+}

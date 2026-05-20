@@ -1,0 +1,205 @@
+{
+  "kiroGo": {
+    "lines": 108,
+    "warn429": 68,
+    "temporaryLimited": 72,
+    "panic": 0
+  },
+  "sub2api": {
+    "lines": 0,
+    "errors": 0,
+    "panic": 0
+  },
+  "checks": {
+    "dockerHealthOk": true,
+    "nonstream100Pass": true,
+    "stream100Pass": true,
+    "adminApisOk": true,
+    "opusReadinessSchedulable": true,
+    "haikuAliasSchedulable": true,
+    "fleetReadinessHasEligible": true,
+    "schedulerPreviewHasPreferred": true,
+    "websearchDiagnosticsReady": true,
+    "credentialValidateDryRun": true,
+    "accountDiagnosticsOk": true,
+    "kiroLogsRecent200": true,
+    "requestLogsHaveAttemptTrace": true,
+    "dbUsageRowsRecorded": true,
+    "dbLoadBalancedAcrossAccounts": true,
+    "clientVisibleErrorsZero": true,
+    "dbAccount24Schedulable": true,
+    "sub2apiAdminApisOk": true,
+    "sub2apiApiShowsKiroAndUsage": true,
+    "screenshotsExistAndLarge": true,
+    "screenshotTextLooksCorrect": true,
+    "noBrowserPageErrors": true,
+    "pass": true
+  },
+  "screenshots": {
+    "kiroDashboard": {
+      "file": "screenshots/kiro-admin-dashboard.png",
+      "bytes": 701550
+    },
+    "kiroAccounts": {
+      "file": "screenshots/kiro-admin-accounts.png",
+      "bytes": 701550
+    },
+    "kiroApiReadiness": {
+      "file": "screenshots/kiro-admin-api-readiness.png",
+      "bytes": 520140
+    },
+    "kiroRequestLogs": {
+      "file": "screenshots/kiro-admin-request-logs.png",
+      "bytes": 1178799
+    },
+    "sub2apiAccounts": {
+      "file": "screenshots/sub2api-admin-accounts.png",
+      "bytes": 277092
+    },
+    "sub2apiUsage": {
+      "file": "screenshots/sub2api-admin-usage.png",
+      "bytes": 750709
+    }
+  },
+  "db": {
+    "byStream": [
+      {
+        "stream": false,
+        "n": 115,
+        "min_ms": 1104,
+        "max_ms": 10473,
+        "p95_ms": 3759,
+        "accounts": 13
+      },
+      {
+        "stream": true,
+        "n": 173,
+        "min_ms": 1181,
+        "max_ms": 238276,
+        "p95_ms": 81314,
+        "accounts": 13
+      }
+    ],
+    "accountDistribution": [
+      {
+        "account_id": 24,
+        "n": 73,
+        "max_ms": 238276
+      },
+      {
+        "account_id": 91,
+        "n": 42,
+        "max_ms": 4319
+      },
+      {
+        "account_id": 90,
+        "n": 32,
+        "max_ms": 5573
+      },
+      {
+        "account_id": 83,
+        "n": 22,
+        "max_ms": 10428
+      },
+      {
+        "account_id": 97,
+        "n": 22,
+        "max_ms": 5467
+      },
+      {
+        "account_id": 2,
+        "n": 20,
+        "max_ms": 10473
+      },
+      {
+        "account_id": 74,
+        "n": 20,
+        "max_ms": 4672
+      },
+      {
+        "account_id": 95,
+        "n": 18,
+        "max_ms": 4869
+      },
+      {
+        "account_id": 96,
+        "n": 18,
+        "max_ms": 2588
+      },
+      {
+        "account_id": 98,
+        "n": 7,
+        "max_ms": 4702
+      },
+      {
+        "account_id": 94,
+        "n": 6,
+        "max_ms": 2031
+      },
+      {
+        "account_id": 88,
+        "n": 3,
+        "max_ms": 2786
+      },
+      {
+        "account_id": 93,
+        "n": 3,
+        "max_ms": 2541
+      },
+      {
+        "account_id": 89,
+        "n": 1,
+        "max_ms": 1854
+      },
+      {
+        "account_id": 92,
+        "n": 1,
+        "max_ms": 1291
+      }
+    ],
+    "kiroAccount24": {
+      "id": 24,
+      "name": "kiro_claude_01",
+      "status": "active",
+      "schedulable": true,
+      "temp_unschedulable_until": null,
+      "temp_unschedulable_reason": ""
+    }
+  },
+  "load": {
+    "nonstream": {
+      "mode": "nonstream",
+      "rounds": 10,
+      "concurrency": 10,
+      "total": 100,
+      "passed": 100,
+      "failed": 0,
+      "pass": true,
+      "statusCounts": {
+        "200": 100
+      },
+      "maxLatencyMs": 10489,
+      "p95LatencyMs": 3775,
+      "p50LatencyMs": 1489,
+      "firstFailure": null,
+      "completedAt": "2026-05-20T09:03:40.742Z"
+    },
+    "stream": {
+      "mode": "stream",
+      "rounds": 10,
+      "concurrency": 10,
+      "total": 100,
+      "passed": 100,
+      "failed": 0,
+      "pass": true,
+      "statusCounts": {
+        "200": 100
+      },
+      "maxLatencyMs": 10444,
+      "p95LatencyMs": 4303,
+      "p50LatencyMs": 1708,
+      "firstFailure": null,
+      "completedAt": "2026-05-20T09:04:30.667Z"
+    }
+  }
+}

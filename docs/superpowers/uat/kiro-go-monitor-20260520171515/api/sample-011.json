@@ -1,0 +1,704 @@
+{
+  "index": 11,
+  "sampledAt": "2026-05-20T09:21:42.885Z",
+  "health": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 2,
+    "body": {
+      "status": "ok",
+      "uptime": 1363,
+      "version": "1.0.8"
+    }
+  },
+  "subHealth": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1,
+    "body": {
+      "status": "ok"
+    }
+  },
+  "status": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1
+  },
+  "readiness": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1,
+    "body": {
+      "capabilities": {
+        "assistantPrefill": {
+          "claudeCodeCompatibility": {
+            "mode": "emulated_text_prefill",
+            "proof": "text prefill conversion is implemented",
+            "status": "EMULATED_PASS"
+          },
+          "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+          "evidence": {
+            "mode": "emulated_text_prefill",
+            "proof": "no recent assistant text prefill request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "emulated_text_prefill",
+            "proof": "native upstream prefill is not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "countTokens": "[REDACTED]",
+        "fineGrainedToolStreaming": {
+          "claudeCodeCompatibility": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "Anthropic SSE input_json_delta writer is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+          "evidence": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "no recent fine-grained tool stream in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "upstream partial tool input deltas are not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "maxTokensZero": "[REDACTED]",
+        "messages": {
+          "detail": "/v1/messages is implemented",
+          "status": "PASS"
+        },
+        "opus47AdaptiveAdmission": {
+          "detail": "Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency",
+          "status": "PASS"
+        },
+        "toolReference": {
+          "detail": "tool_reference is accepted and materialized when relevant",
+          "status": "PASS"
+        },
+        "toolSchemaValidation": {
+          "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+          "status": "PASS"
+        }
+      },
+      "examples": [
+        {
+          "contextReminderKinds": null,
+          "currentMessageShape": "text",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-opus-4.7",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-20T09:20:42.194928986Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": [
+            "system",
+            "language"
+          ],
+          "currentMessageShape": "tool_result",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-opus-4.7",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-20T09:19:42.956280779Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": [
+            "system",
+            "language"
+          ],
+          "currentMessageShape": "tool_result",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-opus-4.7",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-20T09:18:48.358952264Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": [
+            "system",
+            "language"
+          ],
+          "currentMessageShape": "tool_result",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-opus-4.7",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-20T09:18:30.243930155Z",
+          "unsupportedContentBlocks": null
+        },
+        {
+          "contextReminderKinds": [
+            "system",
+            "language"
+          ],
+          "currentMessageShape": "tool_result",
+          "endpoint": "/v1/messages",
+          "fineGrainedToolStreamingMode": "",
+          "model": "claude-opus-4.7",
+          "parentAgentId": "",
+          "suppressedToolUseCount": 0,
+          "suppressedToolUseNames": null,
+          "timestamp": "2026-05-20T09:17:47.771498001Z",
+          "unsupportedContentBlocks": null
+        }
+      ],
+      "lastSeen": "2026-05-20T09:20:42Z",
+      "recentAdmissionPressure": true,
+      "recentClaudeCode": true,
+      "recentContextReminders": [
+        "language",
+        "system"
+      ],
+      "recentFineGrainedToolStreaming": false,
+      "recentMCPTools": false,
+      "recentOrphanedToolResults": false,
+      "recentParentAgents": false,
+      "recentResponsesRestore": false,
+      "recentSuppressedToolUses": false,
+      "recentToolReferences": false,
+      "recentToolResultImages": false,
+      "recentToolResultTurns": true,
+      "recentToolTrimming": true,
+      "recentUnsupportedBlocks": false
+    }
+  },
+  "modelReadiness": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1,
+    "body": {
+      "accounts": [
+        {
+          "cooldownRemainingSeconds": 34,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 36,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 37,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 38,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 40,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 41,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 43,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 44,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 46,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 47,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 48,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 50,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 51,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 53,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 54,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 56,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 57,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 58,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": false,
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "5debe1f7-8b5c-4574-a980-41c4ceb7da8c",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "175f2e1d-8bd9-48dd-b4a1-ec8e3b86ae44",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "78cf7a21-e23c-4fb8-ac36-583ea7dffd73",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "a15db1aa-f062-41f6-b402-63a8cfbdcfb2",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "d1848110-3608-479d-899a-318baf4f6319",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        }
+      ],
+      "admissionPressure": {
+        "active": true,
+        "activeRequests": 1,
+        "effectiveMaxConcurrent": 1,
+        "expiresInMs": 27900,
+        "maxConcurrent": 10,
+        "model": "claude-opus-4-7",
+        "queueDepth": 2,
+        "recentCapacityErrors": 19,
+        "recentQueueTimeouts": 0,
+        "recentSuccesses": 0,
+        "reducedConcurrency": true,
+        "score": 6
+      },
+      "capabilities": {
+        "thinking": true,
+        "toolUse": true,
+        "vision": true,
+        "webSearch": true
+      },
+      "listedByGateway": true,
+      "mappedModel": "claude-opus-4.7",
+      "reason": "model listed by Kiro-Go model cache",
+      "requestedModel": "claude-opus-4-7",
+      "routingReason": "schedulable accounts available",
+      "summary": {
+        "accountsEvaluated": 30,
+        "generationBlocked": 18,
+        "locallySchedulable": 12,
+        "modelListed": true,
+        "riskGroupCoolingDown": 0
+      },
+      "thinking": false,
+      "thinkingVariant": false
+    }
+  },
+  "requestLogs": {
+    "total": 53,
+    "byStatus": {
+      "200": 53
+    },
+    "byModel": {
+      "claude-opus-4.7": 51,
+      "claude-opus-4-7": 2
+    },
+    "byOutcome": {
+      "success": 53
+    },
+    "attemptTrace": 51,
+    "errorEntries": 0,
+    "maxDurationMs": 238275
+  },
+  "db": {
+    "now": "2026-05-20T17:21:43.019162+08:00",
+    "recentUsage": [
+      {
+        "requested_model": "gpt-5.5",
+        "stream": true,
+        "n": 139,
+        "min_created_at": "2026-05-20T17:06:46.141482+08:00",
+        "max_created_at": "2026-05-20T17:21:40.448493+08:00",
+        "max_ms": 53908,
+        "p95_ms": 40599,
+        "accounts": 3
+      },
+      {
+        "requested_model": "claude-opus-4-7",
+        "stream": true,
+        "n": 38,
+        "min_created_at": "2026-05-20T17:06:44.588066+08:00",
+        "max_created_at": "2026-05-20T17:21:13.746771+08:00",
+        "max_ms": 85632,
+        "p95_ms": 62962,
+        "accounts": 1
+      },
+      {
+        "requested_model": "gpt-5.5",
+        "stream": false,
+        "n": 15,
+        "min_created_at": "2026-05-20T17:07:41.916238+08:00",
+        "max_created_at": "2026-05-20T17:21:41.971395+08:00",
+        "max_ms": 2983,
+        "p95_ms": 2983,
+        "accounts": 11
+      },
+      {
+        "requested_model": "claude-opus-4-7",
+        "stream": false,
+        "n": 5,
+        "min_created_at": "2026-05-20T17:07:41.963179+08:00",
+        "max_created_at": "2026-05-20T17:19:41.679354+08:00",
+        "max_ms": 2053,
+        "p95_ms": 2053,
+        "accounts": 5
+      }
+    ],
+    "accounts": [
+      {
+        "status": "active",
+        "schedulable": true,
+        "n": 15
+      }
+    ],
+    "tempUnschedulable": []
+  },
+  "dockerLogs": {
+    "kiroGo": {
+      "error": 0,
+      "warn": 106,
+      "panic": 0,
+      "rate429": 106,
+      "temporaryLimit": 176,
+      "noAvailable": 0,
+      "status503": 0
+    },
+    "sub2api": {
+      "error": 2,
+      "warn": 0,
+      "panic": 0,
+      "rate429": 0,
+      "temporaryLimit": 0,
+      "noAvailable": 0,
+      "status503": 0
+    }
+  }
+}

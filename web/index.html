@@ -1235,6 +1235,7 @@
             <div id="claude-code-readiness"></div>
             <div id="claude-code-model-readiness"></div>
             <div id="fleet-readiness"></div>
+            <div id="websearch-diagnostics"></div>
             <div class="card">
                 <div class="card-header"><span class="card-title" data-i18n="api.endpoints"></span></div>
                 <p style="margin-bottom:10px;font-weight:500;font-size:14px">Claude API</p>
@@ -2153,6 +2154,7 @@
             loadClaudeCodeReadiness();
             loadClaudeCodeModelReadiness();
             loadFleetReadiness();
+            loadWebSearchDiagnostics();
             // 自动检查更新
             setTimeout(() => checkUpdate(false), 2000);
         }
@@ -2554,9 +2556,25 @@
                 '<div class="detail-item"><div class="detail-label">' + t('detail.failureCount') + '</div><div class="detail-value">' + (a.failureCount || 0) + '</div></div>' +
                 '<div class="detail-item"><div class="detail-label">' + t('detail.lastFailureAt') + '</div><div class="detail-value">' + (a.lastFailureAt ? new Date(a.lastFailureAt * 1000).toLocaleString() : '-') + '</div></div>' +
                 '<div class="detail-item"><div class="detail-label">' + t('detail.cooldownUntil') + '</div><div class="detail-value">' + cooldownText + '</div></div>' +
-                '</div></div>' +
+                '</div><div id="accountDiagnostics" style="margin-top:10px;font-size:12px;color:#64748b">Diagnostics loading...</div></div>' +
                 '<div class="detail-section"><h4>' + t('detail.models') + ' <button class="btn btn-sm btn-secondary" onclick="loadModels(\'' + id + '\')" style="margin-left:8px">' + t('detail.loadModels') + '</button> <button class="btn btn-sm btn-secondary" onclick="refreshAccountModels(\'' + id + '\')" style="margin-left:4px">' + t('detail.refreshModelCache') + '</button></h4><div id="modelsList" class="model-list"></div></div>';
             restoreDetailDraftValues(draft);
+            loadAccountDiagnostics(id);
+        }
+        async function loadAccountDiagnostics(id) {
+            try {
+                const resp = await fetch('/admin/api/accounts/' + id + '/diagnostics', { headers: { 'X-Admin-Password': password } });
+                const data = await resp.json();
+                const el = document.getElementById('accountDiagnostics');
+                if (!el) return;
+                const checks = data.checks || {};
+                el.innerHTML = '<div style="font-weight:600;color:#334155;margin-bottom:4px">' + escapeHtml(data.status || '-') + ' · ' + escapeHtml(data.reason || '-') + '</div>' +
+                    '<div style="line-height:1.5">' + escapeHtml(data.message || '-') + '</div>' +
+                    '<div style="margin-top:6px">Refresh: ' + escapeHtml(String(!!checks.refreshViable)) +
+                    ' · Profile: ' + escapeHtml(String(!!checks.profileArnPresent)) +
+                    ' · Model cache: ' + escapeHtml(String(!!checks.modelListCached)) +
+                    ' · Proxy: ' + escapeHtml(String(!!checks.proxyConfigured)) + '</div>';
+            } catch (e) { }
         }
         async function showDetail(id) {
             const a = accountsData.find(x => x.id === id);
@@ -3108,6 +3126,31 @@
                     '</div>' +
                     '<div style="font-size:12px;color:#64748b;margin-top:8px">Strategy: ' + escapeHtml(data.strategy || '-') + ' · Model: ' + escapeHtml(data.mappedModel || data.model || '-') + ' · Last pressure: ' + escapeHtml(data.lastPressureReason || '-') + '</div>' +
                     '<div style="font-size:12px;color:#64748b;margin-top:6px">' + escapeHtml(notes.join(' | ') || 'sub2api can use this contract to route, queue, or back off Opus 4.7 traffic.') + '</div>' +
+                    '</div>';
+            } catch (e) { }
+        }
+        async function loadWebSearchDiagnostics() {
+            if (!password) return;
+            try {
+                const resp = await fetch('/admin/api/websearch/diagnostics', { headers: { 'X-Admin-Password': password } });
+                const data = await resp.json();
+                const el = document.getElementById('websearch-diagnostics');
+                if (!el) return;
+                const recent = Array.isArray(data.recent) ? data.recent : [];
+                const rows = recent.slice(0, 5).map(function(row) {
+                    return '<tr>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.query || '-') + '</td>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.mcpStatus || '-') + '</td>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(String(row.resultCount || 0)) + '</td>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.failureReason || '-') + '</td>' +
+                        '</tr>';
+                }).join('');
+                el.innerHTML = '<div class="card">' +
+                    '<div class="card-header"><span class="card-title">WebSearch / MCP</span><button class="btn btn-sm btn-secondary" onclick="loadWebSearchDiagnostics()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
+                    '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Kiro-Go observes MCP/WebSearch calls from Claude Code; it does not host local MCP servers.</div>' +
+                    '<table style="width:100%;border-collapse:collapse;font-size:12px;color:#475569"><thead><tr><th style="text-align:left;padding:6px">Query</th><th style="text-align:left;padding:6px">MCP</th><th style="text-align:left;padding:6px">Results</th><th style="text-align:left;padding:6px">Failure</th></tr></thead><tbody>' +
+                    (rows || '<tr><td colspan="4" style="padding:6px;border-top:1px solid #e2e8f0;color:#64748b">No recent WebSearch evidence</td></tr>') +
+                    '</tbody></table>' +
                     '</div>';
             } catch (e) { }
         }

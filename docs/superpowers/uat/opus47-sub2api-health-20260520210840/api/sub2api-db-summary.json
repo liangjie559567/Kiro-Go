@@ -1,0 +1,22 @@
+{
+  "recent_successes": {
+    "exit": 0,
+    "stdout": "successes,latest_success\n27,2026-05-20 21:09:46.202133+08\n(1 row)\n",
+    "stderr": ""
+  },
+  "recent_errors": {
+    "exit": 0,
+    "stdout": "status_code,error_type,error_source,count\n200,upstream_error,upstream_http,3\n502,upstream_error,upstream_http,11\n(2 rows)\n",
+    "stderr": ""
+  },
+  "recent_429": {
+    "exit": 0,
+    "stdout": "recent_429\n0\n(1 row)\n",
+    "stderr": ""
+  },
+  "kiro_accounts": {
+    "exit": 0,
+    "stdout": "active_schedulable,total\n5,5\n(1 row)\n",
+    "stderr": ""
+  }
+}

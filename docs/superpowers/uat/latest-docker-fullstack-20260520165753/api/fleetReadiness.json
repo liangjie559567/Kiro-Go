@@ -1,0 +1,933 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 2,
+  "body": {
+    "accounts": [
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+        "modelsCached": [
+          "claude-opus-4.6",
+          "claude-sonnet-4.6",
+          "minimax-m2.5",
+          "claude-haiku-4.5",
+          "minimax-m2.1",
+          "glm-5",
+          "auto",
+          "qwen3-coder-next",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "claude-opus-4.7",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 310,
+          "lastUpdatedAt": 1779268155,
+          "score": 100
+        },
+        "weight": 0
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+        "modelsCached": [
+          "claude-sonnet-4.5",
+          "minimax-m2.5",
+          "qwen3-coder-next",
+          "claude-sonnet-4",
+          "minimax-m2.1",
+          "glm-5",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "deepseek-3.2",
+          "claude-haiku-4.5",
+          "auto",
+          "claude-opus-4.7",
+          "claude-opus-4.6"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 317,
+          "lastUpdatedAt": 1779268155,
+          "score": 100
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+        "modelsCached": [
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "minimax-m2.1",
+          "qwen3-coder-next",
+          "auto",
+          "claude-sonnet-4.6",
+          "minimax-m2.5",
+          "glm-5",
+          "claude-opus-4.7",
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "claude-opus-4.6",
+          "claude-sonnet-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 265,
+          "lastUpdatedAt": 1779268154,
+          "score": 100
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+        "modelsCached": [
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "claude-haiku-4.5",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "qwen3-coder-next",
+          "glm-5",
+          "auto",
+          "claude-sonnet-4.5",
+          "deepseek-3.2"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 322,
+          "lastUpdatedAt": 1779268153,
+          "score": 100
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "d1848110-3608-479d-899a-318baf4f6319",
+        "modelsCached": [
+          "minimax-m2.5",
+          "claude-opus-4.5",
+          "minimax-m2.1",
+          "glm-5",
+          "deepseek-3.2",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "auto",
+          "claude-sonnet-4"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 4,
+          "avgLatencyMs": 2609,
+          "lastUpdatedAt": 1779268155,
+          "score": 90
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "a15db1aa-f062-41f6-b402-63a8cfbdcfb2",
+        "modelsCached": [
+          "claude-opus-4.5",
+          "deepseek-3.2",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "qwen3-coder-next",
+          "claude-opus-4.6",
+          "claude-sonnet-4.5",
+          "glm-5",
+          "auto",
+          "claude-haiku-4.5",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4",
+          "claude-opus-4.7"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 5,
+          "avgLatencyMs": 4614,
+          "lastUpdatedAt": 1779268154,
+          "score": 80
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "claude-sonnet-4",
+          "claude-sonnet-4.5",
+          "minimax-m2.5",
+          "qwen3-coder-next",
+          "auto",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "minimax-m2.1",
+          "claude-opus-4.6",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "glm-5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 1,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 320,
+          "lastUpdatedAt": 1779268152,
+          "score": 66
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+        "modelsCached": [
+          "claude-sonnet-4",
+          "minimax-m2.1",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-haiku-4.5",
+          "glm-5",
+          "auto",
+          "claude-sonnet-4.5",
+          "deepseek-3.2",
+          "minimax-m2.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 1,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 318,
+          "lastUpdatedAt": 1779268152,
+          "score": 66
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+        "modelsCached": [
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "auto",
+          "claude-opus-4.7",
+          "claude-sonnet-4",
+          "glm-5",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "claude-opus-4.6",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "qwen3-coder-next"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 1,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 302,
+          "lastUpdatedAt": 1779268153,
+          "score": 66
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "claude-sonnet-4.5",
+          "minimax-m2.5",
+          "auto",
+          "claude-sonnet-4.6",
+          "minimax-m2.1",
+          "glm-5",
+          "qwen3-coder-next",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "claude-opus-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 1,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 313,
+          "lastUpdatedAt": 1779268152,
+          "score": 66
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "78cf7a21-e23c-4fb8-ac36-583ea7dffd73",
+        "modelsCached": [
+          "claude-sonnet-4.6",
+          "minimax-m2.5",
+          "claude-opus-4.6",
+          "minimax-m2.1",
+          "qwen3-coder-next",
+          "auto",
+          "claude-sonnet-4",
+          "glm-5",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "claude-opus-4.7",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 7238,
+          "lastUpdatedAt": 1779268154,
+          "score": 65
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "5debe1f7-8b5c-4574-a980-41c4ceb7da8c",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "claude-sonnet-4.5",
+          "deepseek-3.2",
+          "qwen3-coder-next",
+          "claude-sonnet-4",
+          "minimax-m2.5",
+          "glm-5",
+          "minimax-m2.1",
+          "auto",
+          "claude-opus-4.6",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-haiku-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 8068,
+          "lastUpdatedAt": 1779268153,
+          "score": 60
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+        "modelsCached": [
+          "auto",
+          "glm-5",
+          "claude-haiku-4.5",
+          "minimax-m2.1",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "minimax-m2.5",
+          "qwen3-coder-next"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 2,
+          "recentSuccesses": 4,
+          "avgLatencyMs": 2806,
+          "lastUpdatedAt": 1779268308,
+          "score": 56
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+        "modelsCached": [
+          "glm-5",
+          "auto",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-haiku-4.5",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "claude-sonnet-4",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "claude-sonnet-4.5",
+          "deepseek-3.2",
+          "claude-opus-4.6"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 3,
+          "recentSuccesses": 4,
+          "avgLatencyMs": 1807,
+          "lastUpdatedAt": 1779268313,
+          "score": 52
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+        "modelsCached": [
+          "claude-sonnet-4.6",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "glm-5",
+          "auto",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-opus-4.5",
+          "deepseek-3.2",
+          "claude-haiku-4.5",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "qwen3-coder-next"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 2,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 3145,
+          "lastUpdatedAt": 1779268356,
+          "score": 45
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+        "modelsCached": [
+          "claude-sonnet-4.6",
+          "claude-sonnet-4",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "glm-5",
+          "qwen3-coder-next",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "auto",
+          "claude-opus-4.7",
+          "claude-opus-4.6"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 3,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1046,
+          "lastUpdatedAt": 1779268314,
+          "score": 45
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+        "modelsCached": [
+          "auto",
+          "glm-5",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-sonnet-4.6",
+          "deepseek-3.2",
+          "minimax-m2.5",
+          "claude-opus-4.5",
+          "claude-haiku-4.5",
+          "minimax-m2.1",
+          "qwen3-coder-next",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 4,
+          "recentSuccesses": 4,
+          "avgLatencyMs": 1974,
+          "lastUpdatedAt": 1779268311,
+          "score": 45
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "deepseek-3.2",
+          "auto",
+          "qwen3-coder-next",
+          "glm-5",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "minimax-m2.5",
+          "claude-opus-4.6",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4",
+          "minimax-m2.1"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 3,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1183,
+          "lastUpdatedAt": 1779268316,
+          "score": 45
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+        "modelsCached": [
+          "auto",
+          "claude-sonnet-4.6",
+          "minimax-m2.1",
+          "minimax-m2.5",
+          "glm-5",
+          "qwen3-coder-next",
+          "claude-opus-4.6",
+          "claude-haiku-4.5",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "claude-opus-4.7",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 1,
+          "recentFailures": 2,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1914,
+          "lastUpdatedAt": 1779268360,
+          "score": 40
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+        "modelsCached": [
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "claude-opus-4.7",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "qwen3-coder-next",
+          "auto",
+          "minimax-m2.5",
+          "glm-5",
+          "claude-opus-4.6",
+          "minimax-m2.1"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 4,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1327,
+          "lastUpdatedAt": 1779268360,
+          "score": 37
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+        "modelsCached": [
+          "claude-haiku-4.5",
+          "glm-5",
+          "claude-opus-4.7",
+          "claude-sonnet-4.6",
+          "deepseek-3.2",
+          "auto",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "minimax-m2.1",
+          "claude-opus-4.6",
+          "claude-sonnet-4",
+          "minimax-m2.5",
+          "qwen3-coder-next"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 6,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1735,
+          "lastUpdatedAt": 1779268324,
+          "score": 28
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+        "modelsCached": [
+          "deepseek-3.2",
+          "qwen3-coder-next",
+          "claude-haiku-4.5",
+          "minimax-m2.5",
+          "glm-5",
+          "claude-opus-4.6",
+          "claude-opus-4.7",
+          "claude-opus-4.5",
+          "auto",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "minimax-m2.1",
+          "claude-sonnet-4.6"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 5,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 2841,
+          "lastUpdatedAt": 1779268310,
+          "score": 27
+        },
+        "weight": 3
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+        "modelsCached": [
+          "minimax-m2.1",
+          "auto",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4.5",
+          "glm-5",
+          "claude-opus-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "minimax-m2.5"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 5,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 2004,
+          "lastUpdatedAt": 1779268320,
+          "score": 27
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+        "modelsCached": [
+          "claude-opus-4.5",
+          "claude-opus-4.6",
+          "deepseek-3.2",
+          "minimax-m2.5",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "minimax-m2.1",
+          "claude-opus-4.7",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4",
+          "glm-5",
+          "qwen3-coder-next",
+          "auto"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 5,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 2071,
+          "lastUpdatedAt": 1779268359,
+          "score": 27
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "claude-opus-4.5",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "minimax-m2.5",
+          "glm-5",
+          "qwen3-coder-next",
+          "auto",
+          "claude-sonnet-4.6",
+          "claude-opus-4.6",
+          "minimax-m2.1"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 7,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 1762,
+          "lastUpdatedAt": 1779268319,
+          "score": 25
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "125bd142-5218-45d9-8748-3e29a775050b",
+        "modelsCached": [
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "claude-opus-4.6",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "deepseek-3.2",
+          "claude-sonnet-4.6",
+          "glm-5",
+          "qwen3-coder-next",
+          "minimax-m2.1",
+          "claude-opus-4.7",
+          "minimax-m2.5",
+          "auto"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 6,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 2234,
+          "lastUpdatedAt": 1779268322,
+          "score": 23
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+        "modelsCached": [
+          "auto",
+          "claude-opus-4.6",
+          "claude-opus-4.5",
+          "minimax-m2.5",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "glm-5",
+          "claude-sonnet-4.5",
+          "claude-haiku-4.5",
+          "minimax-m2.1",
+          "claude-sonnet-4.6"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 6,
+          "recentSuccesses": 3,
+          "avgLatencyMs": 2099,
+          "lastUpdatedAt": 1779268317,
+          "score": 23
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+        "modelsCached": [
+          "deepseek-3.2",
+          "auto",
+          "claude-opus-4.5",
+          "claude-sonnet-4",
+          "qwen3-coder-next",
+          "claude-opus-4.7",
+          "claude-opus-4.6",
+          "claude-haiku-4.5",
+          "minimax-m2.5",
+          "minimax-m2.1",
+          "claude-sonnet-4.6",
+          "claude-sonnet-4.5",
+          "glm-5"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 5,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 1318,
+          "lastUpdatedAt": 1779268325,
+          "score": 23
+        },
+        "weight": 2
+      },
+      {
+        "eligible": false,
+        "email": "[REDACTED]",
+        "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+        "modelsCached": [
+          "claude-opus-4.6",
+          "claude-opus-4.7",
+          "claude-sonnet-4.6",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "deepseek-3.2",
+          "minimax-m2.1",
+          "claude-haiku-4.5",
+          "glm-5",
+          "auto",
+          "minimax-m2.5",
+          "qwen3-coder-next"
+        ],
+        "reason": "temporary_limited",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 6,
+          "recentSuccesses": 2,
+          "avgLatencyMs": 1542,
+          "lastUpdatedAt": 1779268357,
+          "score": 20
+        },
+        "weight": 2
+      },
+      {
+        "eligible": true,
+        "email": "[REDACTED]",
+        "id": "175f2e1d-8bd9-48dd-b4a1-ec8e3b86ae44",
+        "modelsCached": [
+          "claude-opus-4.7",
+          "claude-sonnet-4.6",
+          "deepseek-3.2",
+          "minimax-m2.1",
+          "minimax-m2.5",
+          "glm-5",
+          "claude-opus-4.6",
+          "qwen3-coder-next",
+          "auto",
+          "claude-opus-4.5",
+          "claude-sonnet-4.5",
+          "claude-sonnet-4",
+          "claude-haiku-4.5"
+        ],
+        "reason": "eligible",
+        "runtimeHealth": {
+          "activeConnections": 0,
+          "recentFailures": 0,
+          "recentSuccesses": 4,
+          "avgLatencyMs": 172267,
+          "lastUpdatedAt": 1779268154,
+          "score": 0
+        },
+        "weight": 2
+      }
+    ],
+    "autoRefresh": "[REDACTED]",
+    "healthCheck": {
+      "running": false,
+      "lastStartedAt": 1779268149,
+      "lastFinishedAt": 1779268155,
+      "nextRunAt": 1779268455,
+      "lastSuccess": 21,
+      "lastFailed": 0,
+      "lastDisabled": 0,
+      "lastSkipped": false,
+      "lastSkippedCount": 9
+    },
+    "mappedModel": "claude-opus-4.7",
+    "requestedModel": "claude-opus-4-7",
+    "strategy": "health",
+    "summary": {
+      "coolingDown": 16,
+      "disabled": 0,
+      "eligible": 14,
+      "enabled": 30,
+      "modelNotListed": 0,
+      "quotaBlocked": 0,
+      "total": 30
+    }
+  }
+}

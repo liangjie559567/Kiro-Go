@@ -220,6 +220,20 @@ func TestRequestLogCapturesMaxTokensZeroMode(t *testing.T) {
 	}
 }
 
+func TestRequestLogRecordsStableDownstreamFallback(t *testing.T) {
+	entry := RequestLogEntry{}
+	markRequestLogStableFallback(&entry, "no_available_accounts", http.StatusServiceUnavailable)
+	if !entry.StableDownstreamFallback {
+		t.Fatalf("expected StableDownstreamFallback true")
+	}
+	if entry.StableFallbackReason != "no_available_accounts" {
+		t.Fatalf("reason = %q", entry.StableFallbackReason)
+	}
+	if entry.SuppressedDownstreamStatus != http.StatusServiceUnavailable {
+		t.Fatalf("suppressed status = %d", entry.SuppressedDownstreamStatus)
+	}
+}
+
 func TestRequestLogCapturesClaudeParityModes(t *testing.T) {
 	store := newRequestLogStore(10)
 	loggedReq := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)

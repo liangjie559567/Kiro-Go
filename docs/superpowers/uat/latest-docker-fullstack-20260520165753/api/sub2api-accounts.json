@@ -1,0 +1,119 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 11,
+  "body": {
+    "code": 0,
+    "message": "success",
+    "data": {
+      "items": [
+        {
+          "id": 24,
+          "name": "kiro_claude_01",
+          "notes": null,
+          "platform": "anthropic",
+          "type": "apikey",
+          "credentials": "[REDACTED]",
+          "credentials_status": "[REDACTED]",
+          "extra": {
+            "anthropic_passthrough": true
+          },
+          "proxy_id": null,
+          "concurrency": 12,
+          "priority": 1,
+          "rate_multiplier": 1,
+          "status": "active",
+          "error_message": "",
+          "last_used_at": "2026-05-20T17:12:34.528282+08:00",
+          "expires_at": null,
+          "auto_pause_on_expired": false,
+          "created_at": "2026-05-13T23:13:32.475583+08:00",
+          "updated_at": "2026-05-20T17:12:40.151304+08:00",
+          "schedulable": true,
+          "rate_limited_at": null,
+          "rate_limit_reset_at": null,
+          "overload_until": null,
+          "temp_unschedulable_until": null,
+          "temp_unschedulable_reason": "",
+          "session_window_start": null,
+          "session_window_end": null,
+          "session_window_status": "",
+          "account_groups": [
+            {
+              "account_id": 24,
+              "group_id": 1,
+              "priority": 1,
+              "created_at": "2026-05-20T11:02:28.784058+08:00",
+              "group": {
+                "id": 1,
+                "name": "claude",
+                "description": "Default group",
+                "platform": "anthropic",
+                "rate_multiplier": 1,
+                "is_exclusive": false,
+                "status": "active",
+                "subscription_type": "standard",
+                "daily_limit_usd": 0,
+                "weekly_limit_usd": 0,
+                "monthly_limit_usd": 0,
+                "allow_image_generation": false,
+                "image_rate_independent": false,
+                "image_rate_multiplier": 1,
+                "image_price_1k": null,
+                "image_price_2k": null,
+                "image_price_4k": null,
+                "claude_code_only": false,
+                "fallback_group_id": null,
+                "fallback_group_id_on_invalid_request": null,
+                "allow_messages_dispatch": false,
+                "require_oauth_only": false,
+                "require_privacy_set": false,
+                "rpm_limit": 0,
+                "created_at": "2026-05-12T19:57:33.34606+08:00",
+                "updated_at": "2026-05-13T13:35:42.748823+08:00"
+              }
+            }
+          ],
+          "group_ids": [
+            1
+          ],
+          "groups": [
+            {
+              "id": 1,
+              "name": "claude",
+              "description": "Default group",
+              "platform": "anthropic",
+              "rate_multiplier": 1,
+              "is_exclusive": false,
+              "status": "active",
+              "subscription_type": "standard",
+              "daily_limit_usd": 0,
+              "weekly_limit_usd": 0,
+              "monthly_limit_usd": 0,
+              "allow_image_generation": false,
+              "image_rate_independent": false,
+              "image_rate_multiplier": 1,
+              "image_price_1k": null,
+              "image_price_2k": null,
+              "image_price_4k": null,
+              "claude_code_only": false,
+              "fallback_group_id": null,
+              "fallback_group_id_on_invalid_request": null,
+              "allow_messages_dispatch": false,
+              "require_oauth_only": false,
+              "require_privacy_set": false,
+              "rpm_limit": 0,
+              "created_at": "2026-05-12T19:57:33.34606+08:00",
+              "updated_at": "2026-05-13T13:35:42.748823+08:00"
+            }
+          ],
+          "current_concurrency": 1
+        }
+      ],
+      "total": 1,
+      "page": 1,
+      "page_size": 50,
+      "pages": 1
+    }
+  }
+}

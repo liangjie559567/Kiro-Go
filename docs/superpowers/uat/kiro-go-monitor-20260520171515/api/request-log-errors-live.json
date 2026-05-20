@@ -1,0 +1,338 @@
+{
+  "status": 200,
+  "total": 67,
+  "errorCount": 2,
+  "errors": [
+    {
+      "timestamp": "2026-05-20T09:22:11.135211494Z",
+      "requestId": "78e738e0-04ba-44e0-8418-973edd8910ad",
+      "endpoint": "/v1/messages",
+      "model": "claude-opus-4.7",
+      "accountId": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+      "statusCode": 429,
+      "outcome": "error",
+      "durationMs": 73044,
+      "attempts": 17,
+      "attemptTrace": [
+        {
+          "attempt": 1,
+          "accountId": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:03.936269153Z"
+        },
+        {
+          "attempt": 1,
+          "accountId": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1258,
+          "timestamp": "2026-05-20T09:23:05.197220049Z"
+        },
+        {
+          "attempt": 2,
+          "accountId": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:05.198753416Z"
+        },
+        {
+          "attempt": 2,
+          "accountId": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1270,
+          "timestamp": "2026-05-20T09:23:06.470893954Z"
+        },
+        {
+          "attempt": 3,
+          "accountId": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:06.471042925Z"
+        },
+        {
+          "attempt": 3,
+          "accountId": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1233,
+          "timestamp": "2026-05-20T09:23:07.742465969Z"
+        },
+        {
+          "attempt": 4,
+          "accountId": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:07.742690191Z"
+        },
+        {
+          "attempt": 4,
+          "accountId": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1217,
+          "timestamp": "2026-05-20T09:23:08.977839138Z"
+        },
+        {
+          "attempt": 5,
+          "accountId": "5debe1f7-8b5c-4574-a980-41c4ceb7da8c",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:08.977986587Z"
+        },
+        {
+          "attempt": 5,
+          "accountId": "5debe1f7-8b5c-4574-a980-41c4ceb7da8c",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1291,
+          "timestamp": "2026-05-20T09:23:10.27091511Z"
+        },
+        {
+          "attempt": 6,
+          "accountId": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:10.271082505Z"
+        },
+        {
+          "attempt": 6,
+          "accountId": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1226,
+          "timestamp": "2026-05-20T09:23:11.498675845Z"
+        },
+        {
+          "attempt": 7,
+          "accountId": "175f2e1d-8bd9-48dd-b4a1-ec8e3b86ae44",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:11.498914904Z"
+        },
+        {
+          "attempt": 7,
+          "accountId": "175f2e1d-8bd9-48dd-b4a1-ec8e3b86ae44",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1241,
+          "timestamp": "2026-05-20T09:23:12.743547535Z"
+        },
+        {
+          "attempt": 8,
+          "accountId": "78cf7a21-e23c-4fb8-ac36-583ea7dffd73",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:12.743724508Z"
+        },
+        {
+          "attempt": 8,
+          "accountId": "78cf7a21-e23c-4fb8-ac36-583ea7dffd73",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1281,
+          "timestamp": "2026-05-20T09:23:14.027216007Z"
+        },
+        {
+          "attempt": 9,
+          "accountId": "a15db1aa-f062-41f6-b402-63a8cfbdcfb2",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:14.027335984Z"
+        },
+        {
+          "attempt": 9,
+          "accountId": "a15db1aa-f062-41f6-b402-63a8cfbdcfb2",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1335,
+          "timestamp": "2026-05-20T09:23:15.364764583Z"
+        },
+        {
+          "attempt": 10,
+          "accountId": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:15.365037105Z"
+        },
+        {
+          "attempt": 10,
+          "accountId": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1270,
+          "timestamp": "2026-05-20T09:23:16.638109975Z"
+        },
+        {
+          "attempt": 11,
+          "accountId": "d1848110-3608-479d-899a-318baf4f6319",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:16.638252574Z"
+        },
+        {
+          "attempt": 11,
+          "accountId": "d1848110-3608-479d-899a-318baf4f6319",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1286,
+          "timestamp": "2026-05-20T09:23:17.926850692Z"
+        },
+        {
+          "attempt": 12,
+          "accountId": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:17.927070417Z"
+        },
+        {
+          "attempt": 12,
+          "accountId": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "model_capacity",
+          "retryAfterSeconds": 3,
+          "durationMs": 1270,
+          "timestamp": "2026-05-20T09:23:19.198968116Z"
+        },
+        {
+          "attempt": 13,
+          "accountId": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:19.19963434Z"
+        },
+        {
+          "attempt": 13,
+          "accountId": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1256,
+          "timestamp": "2026-05-20T09:23:20.476973605Z"
+        },
+        {
+          "attempt": 14,
+          "accountId": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:20.477407674Z"
+        },
+        {
+          "attempt": 14,
+          "accountId": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1230,
+          "timestamp": "2026-05-20T09:23:21.722254887Z"
+        },
+        {
+          "attempt": 15,
+          "accountId": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:21.722699875Z"
+        },
+        {
+          "attempt": 15,
+          "accountId": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1216,
+          "timestamp": "2026-05-20T09:23:22.949548645Z"
+        },
+        {
+          "attempt": 16,
+          "accountId": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "selected",
+          "timestamp": "2026-05-20T09:23:22.950137784Z"
+        },
+        {
+          "attempt": 16,
+          "accountId": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "model": "claude-opus-4.7",
+          "region": "us-east-1",
+          "event": "failure",
+          "reason": "temporary_limited",
+          "retryAfterSeconds": 3,
+          "durationMs": 1218,
+          "timestamp": "2026-05-20T09:23:24.180021186Z"
+        }
+      ],
+      "routingDecision": "selected account=f4454cf1-1b38-4fed-ad1d-076795f4d8cd model=claude-opus-4.7 region=us-east-1 attempt=16 strategy=health active=1 score=2 pressure=true",
+      "admissionPressureScore": 6,
+      "effectiveConcurrentLimit": 1
+    },
+    {
+      "timestamp": "2026-05-20T09:21:08.661328416Z",
+      "requestId": "7db4d3b5-fb83-4e14-a7f1-940f7a4df210",
+      "endpoint": "/v1/messages",
+      "model": "claude-opus-4.7",
+      "statusCode": 503,
+      "outcome": "error",
+      "durationMs": 90007,
+      "admissionPressureScore": 6,
+      "effectiveConcurrentLimit": 1
+    }
+  ]
+}

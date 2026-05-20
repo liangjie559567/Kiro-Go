@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 2,
+  "body": {
+    "checks": {
+      "authMethod": "social",
+      "cooldownRemaining": 9,
+      "coolingDown": true,
+      "enabled": true,
+      "lastFailureReason": "temporary_limited",
+      "modelListCached": true,
+      "modelListed": true,
+      "profileArnPresent": "[REDACTED]",
+      "proxyConfigured": false,
+      "quotaBlocked": false,
+      "refreshViable": "[REDACTED]",
+      "tokenExpired": "[REDACTED]",
+      "tokenExpiresAt": "[REDACTED]"
+    },
+    "email": "[REDACTED]",
+    "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+    "message": "Account is cooling down; wait before testing or routing traffic.",
+    "reason": "temporary_limited",
+    "runtimeHealth": {
+      "activeConnections": 0,
+      "recentFailures": 5,
+      "recentSuccesses": 3,
+      "avgLatencyMs": 2841,
+      "lastUpdatedAt": 1779268310,
+      "score": 27
+    },
+    "status": "blocked"
+  }
+}

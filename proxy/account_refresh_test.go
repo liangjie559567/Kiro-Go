@@ -126,6 +126,38 @@ func TestRunRefreshBatchQuietModeMaintainsCooldownTokenWithoutProbe(t *testing.T
 	}
 }
 
+func TestRunAutoRefreshSkipsAllExpensiveRefreshDuringOpusQuietMode(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateAutoRefreshConfig(config.AutoRefreshConfig{Enabled: true, IntervalMinutes: 5, Scope: config.AutoRefreshScopeEnabled}); err != nil {
+		t.Fatalf("update auto refresh: %v", err)
+	}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Email: "one@example.com", Enabled: true}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	h := &Handler{pool: pool.GetPool()}
+	h.runAutoRefresh()
+
+	status := h.getAutoRefreshStatus()
+	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 || status.LastSuccess != 0 || status.LastFailed != 0 {
+		t.Fatalf("expected one quiet skip and no expensive refresh, got %#v", status)
+	}
+}
+
 func TestTryBeginAutoRefreshPreventsOverlap(t *testing.T) {
 	h := &Handler{}
 

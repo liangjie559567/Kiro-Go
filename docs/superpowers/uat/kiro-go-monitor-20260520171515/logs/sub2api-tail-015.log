@@ -1,0 +1,200 @@
+	github.com/Wei-Shaw/sub2api/internal/handler/gateway_handler.go:762
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.func1
+2026-05-20T17:22:38.669+0800	INFO	slog	logger/slog_handler.go:59	pool_mode_error_skipped	{"service": "sub2api", "env": "production", "account_id": 24, "status_code": 503}
+	github.com/Wei-Shaw/sub2api/internal/server/routes/gateway.go:49
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.RequireGroupAssignment.func16
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/middleware.go:110
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+main.initializeApplication.NewAPIKeyAuthMiddleware.apiKeyAuthWithSubscription.func5
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/api_key_auth.go:220
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.InboundEndpointMiddleware.func15
+	github.com/Wei-Shaw/sub2api/internal/handler/endpoint.go:141
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.OpsErrorLoggerMiddleware.func14
+	github.com/Wei-Shaw/sub2api/internal/handler/ops_error_logger.go:493
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.ClientRequestID.func13
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/client_request_id.go:34
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.RequestBodyLimit.func12
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/request_body_limit.go:13
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.(*FrontendServer).Middleware.func7
+	github.com/Wei-Shaw/sub2api/internal/web/embed_on.go:91
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/middleware.SecurityHeaders.func1
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/security_headers.go:98
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/middleware.CORS.func2
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/cors.go:99
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.Logger.func5
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/logger.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.RequestLogger.func4
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/request_logger.go:43
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/gin-gonic/gin.CustomRecoveryWithWriter.func1
+	github.com/gin-gonic/[EMAIL_REDACTED]/recovery.go:102
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	github.com/gin-gonic/[EMAIL_REDACTED]/gin.go:620
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	github.com/gin-gonic/[EMAIL_REDACTED]/gin.go:576
+github.com/Wei-Shaw/sub2api/internal/server.ProvideHTTPServer.MaxBytesHandler.func1
+	net/http/server.go:4071
+net/http.HandlerFunc.ServeHTTP
+	net/http/server.go:2286
+net/http.serverHandler.ServeHTTP
+	net/http/server.go:3311
+net/http.(*conn).serve
+	net/http/server.go:2073
+2026-05-20T17:22:38.669+0800	WARN	handler/failover_loop.go:109	gateway.failover_switch_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "account_id": 24, "upstream_status": 503, "switch_count": 1, "max_switches": 10}
+2026-05-20T17:22:38.669+0800	INFO	handler/gateway_handler.go:563	sticky.selecting_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "sticky_bound_account_id": 24, "has_bound_session": true, "failed_account_count": 1}
+2026-05-20T17:22:38.670+0800	INFO	slog	logger/slog_handler.go:59	sticky.scheduler_entry	{"service": "sub2api", "env": "production", "group_id": 1, "session_hash": "2e3b41b8", "sticky_account_id": 24, "sticky_source": "prefetch", "model": "claude-opus-4-7", "load_batch": true, "has_concurrency_svc": true, "excluded_count": 1}
+2026-05-20T17:22:38.670+0800	WARN	handler/failover_loop.go:139	gateway.failover_single_account_backoff	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "backoff_delay": 2000, "switch_count": 1, "max_switches": 10}
+2026-05-20T17:22:40.372+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "cb05b086-768a-4307-96af-f9a5685da79f", "client_request_id": "", "path": "/", "method": "HEAD", "component": "http.access", "status_code": 200, "latency_ms": 0, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "HEAD", "path": "/", "completed_at": "2026-05-20T17:22:40.372+0800"}
+2026-05-20T17:22:40.372+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "da51e897-5dab-4544-ae97-3ce9710f2af7", "client_request_id": "", "path": "/", "method": "HEAD", "component": "http.access", "status_code": 200, "latency_ms": 0, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "HEAD", "path": "/", "completed_at": "2026-05-20T17:22:40.372+0800"}
+2026-05-20T17:22:40.378+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "d7d54fac-82d5-4b10-89ff-47fb47012017", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "4134eef4-2295-438f-a3df-97c76ed6b7f7", "component": "handler.openai_gateway.messages", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "claude-opus-4-7", "stream": false, "request_id": "d7d54fac-82d5-4b10-89ff-47fb47012017", "user_id": 1, "api_key_id": 1, "api_key_name": "openai", "group_id": 2, "group_name": "openai", "endpoint": "/v1/messages", "provider": "openai", "protocol": "anthropic_messages", "model": "claude-opus-4-7", "body_bytes": 488}
+2026-05-20T17:22:40.378+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "2f8c2df0-7c64-4371-a987-718c692c7289", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "ccdba1be-7f51-4211-85d3-d313068334ed", "component": "handler.openai_gateway.chat_completions", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": false, "request_id": "2f8c2df0-7c64-4371-a987-718c692c7289", "user_id": 1, "api_key_id": 1, "api_key_name": "openai", "group_id": 2, "group_name": "openai", "endpoint": "/v1/chat/completions", "provider": "openai", "protocol": "openai_chat_completions", "model": "gpt-5.5", "body_bytes": 215}
+2026-05-20T17:22:40.379+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 1, "group_id": 2, "endpoint": "/v1/chat/completions", "protocol": "openai_chat_completions"}
+2026-05-20T17:22:40.379+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 1, "group_id": 2, "endpoint": "/v1/messages", "protocol": "anthropic_messages"}
+2026-05-20T17:22:40.379+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "2f8c2df0-7c64-4371-a987-718c692c7289", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "ccdba1be-7f51-4211-85d3-d313068334ed", "component": "handler.openai_gateway.chat_completions", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": false, "request_id": "2f8c2df0-7c64-4371-a987-718c692c7289", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:22:40.379+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "d7d54fac-82d5-4b10-89ff-47fb47012017", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "4134eef4-2295-438f-a3df-97c76ed6b7f7", "component": "handler.openai_gateway.messages", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "claude-opus-4-7", "stream": false, "request_id": "d7d54fac-82d5-4b10-89ff-47fb47012017", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:22:40.670+0800	WARN	handler/failover_loop.go:147	gateway.failover_single_account_retry	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "switch_count": 1, "max_switches": 10}
+2026-05-20T17:22:40.671+0800	INFO	handler/gateway_handler.go:563	sticky.selecting_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "sticky_bound_account_id": 24, "has_bound_session": true, "failed_account_count": 0}
+2026-05-20T17:22:40.671+0800	INFO	slog	logger/slog_handler.go:59	sticky.scheduler_entry	{"service": "sub2api", "env": "production", "group_id": 1, "session_hash": "2e3b41b8", "sticky_account_id": 24, "sticky_source": "prefetch", "model": "claude-opus-4-7", "load_batch": true, "has_concurrency_svc": true, "excluded_count": 0}
+2026-05-20T17:22:40.672+0800	INFO	handler/gateway_handler.go:604	sticky.account_selected	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "selected_account_id": 24, "account_name": "kiro_claude_01", "slot_acquired": true, "has_wait_plan": false, "sticky_bound_account_id": 24, "sticky_honored": true}
+2026-05-20T17:22:40.672+0800	INFO	service/gateway_service.go:5075	[Anthropic 自动透传] 命中 API Key [REDACTED] account=24 name=kiro_claude_01 model=claude-opus-4-7 stream=true	{"service": "sub2api", "env": "production", "component": "service.gateway", "legacy_printf": true}
+2026-05-20T17:22:43.438+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "2f8c2df0-7c64-4371-a987-718c692c7289", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "ccdba1be-7f51-4211-85d3-d313068334ed", "component": "http.access", "status_code": 200, "latency_ms": 3060, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/chat/completions", "account_id": 97, "platform": "openai", "model": "gpt-5.5", "completed_at": "2026-05-20T17:22:43.438+0800"}
+2026-05-20T17:22:43.454+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "d7d54fac-82d5-4b10-89ff-47fb47012017", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "4134eef4-2295-438f-a3df-97c76ed6b7f7", "component": "http.access", "status_code": 200, "latency_ms": 3076, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/messages", "account_id": 97, "platform": "openai", "model": "claude-opus-4-7", "completed_at": "2026-05-20T17:22:43.454+0800"}
+2026-05-20T17:22:50.140+0800	INFO	stdlog	service/timing_wheel_service.go:59	[DeferredService] BatchUpdateLastUsed flushed 1 accounts	{"service": "sub2api", "env": "production", "legacy_stdlog": true}
+2026-05-20T17:22:53.426+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "189d01e5-ba26-42d0-8434-132b524a8c2d", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "be7a3f87-59a9-4e89-80cd-84560f576649", "component": "http.access", "status_code": 200, "latency_ms": 60089, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/messages", "account_id": 24, "platform": "anthropic", "model": "claude-opus-4-7", "completed_at": "2026-05-20T17:22:53.426+0800"}
+2026-05-20T17:23:00.142+0800	INFO	stdlog	service/timing_wheel_service.go:59	[DeferredService] BatchUpdateLastUsed flushed 1 accounts	{"service": "sub2api", "env": "production", "legacy_stdlog": true}
+2026-05-20T17:23:03.935+0800	INFO	service/gateway_service.go:8477	force_cache_billing: 17315 input_tokens → cache_read_input_tokens (account=24)	{"service": "sub2api", "env": "production", "component": "service.gateway", "legacy_printf": true}
+2026-05-20T17:23:03.939+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "9af1bd9f-7c39-4b87-9d56-42c67252bf9c", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "3203e7e4-ff1a-4b40-8fd9-9d72805cc8b6", "component": "http.access", "status_code": 200, "latency_ms": 115288, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/messages", "account_id": 24, "platform": "anthropic", "model": "claude-opus-4-7", "completed_at": "2026-05-20T17:23:03.939+0800"}
+2026-05-20T17:23:04.017+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "user_id": 1, "api_key_id": 2, "api_key_name": "claude", "group_id": 1, "group_name": "claude", "endpoint": "/v1/messages", "provider": "anthropic", "protocol": "anthropic_messages", "model": "claude-opus-4-7", "body_bytes": 102933}
+2026-05-20T17:23:04.018+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 2, "group_id": 1, "endpoint": "/v1/messages", "protocol": "anthropic_messages"}
+2026-05-20T17:23:04.018+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:23:04.019+0800	INFO	slog	logger/slog_handler.go:59	sticky.hash_source	{"service": "sub2api", "env": "production", "source": "metadata_user_id", "session_id": "2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd", "device_id": "493667fc65acac721054c80e3ef80ca8bd45237652be9b398cb28c393cc88655", "is_new_format": true}
+2026-05-20T17:23:04.019+0800	INFO	handler/gateway_handler.go:275	sticky.session_hash_generated	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_hash": "2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd", "metadata_user_id_raw": "{\"device_id\":\"493667fc65acac721054c80e3ef80ca8bd45237652be9b398cb28c393cc88655\",\"account_uuid\":\"\",\"session_id\":\"2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd\"}"}
+2026-05-20T17:23:04.019+0800	INFO	handler/gateway_handler.go:297	sticky.cache_lookup	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "bound_account_id": 24}
+2026-05-20T17:23:04.024+0800	INFO	handler/gateway_handler.go:563	sticky.selecting_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "sticky_bound_account_id": 24, "has_bound_session": true, "failed_account_count": 0}
+2026-05-20T17:23:04.024+0800	INFO	slog	logger/slog_handler.go:59	sticky.scheduler_entry	{"service": "sub2api", "env": "production", "group_id": 1, "session_hash": "2e3b41b8", "sticky_account_id": 24, "sticky_source": "prefetch", "model": "claude-opus-4-7", "load_batch": true, "has_concurrency_svc": true, "excluded_count": 0}
+2026-05-20T17:23:04.026+0800	INFO	handler/gateway_handler.go:604	sticky.account_selected	{"service": "sub2api", "env": "production", "component": "http", "request_id": "570e9046-d004-4d94-b304-5844bffbea04", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "c300f60f-e6b6-4e37-b277-578cb82d0e50", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "selected_account_id": 24, "account_name": "kiro_claude_01", "slot_acquired": true, "has_wait_plan": false, "sticky_bound_account_id": 24, "sticky_honored": true}
+2026-05-20T17:23:04.026+0800	INFO	service/gateway_service.go:5075	[Anthropic 自动透传] 命中 API Key [REDACTED] account=24 name=kiro_claude_01 model=claude-opus-4-7 stream=true	{"service": "sub2api", "env": "production", "component": "service.gateway", "legacy_printf": true}
+2026-05-20T17:23:10.140+0800	INFO	stdlog	service/timing_wheel_service.go:59	[DeferredService] BatchUpdateLastUsed flushed 1 accounts	{"service": "sub2api", "env": "production", "legacy_stdlog": true}
+2026-05-20T17:23:13.113+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "8c955c69-6ff3-4ecc-b1cc-346c8f89f3ea", "client_request_id": "", "path": "/api/v1/auth/me", "method": "GET", "component": "http.access", "status_code": 200, "latency_ms": 5, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "GET", "path": "/api/v1/auth/me", "completed_at": "2026-05-20T17:23:13.113+0800"}
+2026-05-20T17:23:24.180+0800	ERROR	service/gateway_service.go:5215	[Anthropic Passthrough] Upstream error (failover): Account=24(kiro_claude_01) Status=429 RequestID=req_d9bcc761-4941-4a1c-a902-fe74a76d6bdc Body={"error":{"message":"HTTP 429 from Kiro IDE: {\"message\":\"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.9458c4e8-f001-70ab-a16a-8ae4dbcd533d) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.\",\"reason\":null}","type":"rate_limit_error"},"type":"error"}	{"service": "sub2api", "env": "production", "component": "service.gateway", "legacy_printf": true}
+github.com/Wei-Shaw/sub2api/internal/service.(*GatewayService).forwardAnthropicAPIKeyPassthroughWithInput
+	github.com/Wei-Shaw/sub2api/internal/service/gateway_service.go:5215
+github.com/Wei-Shaw/sub2api/internal/service.(*GatewayService).Forward
+	github.com/Wei-Shaw/sub2api/internal/service/gateway_service.go:4431
+github.com/Wei-Shaw/sub2api/internal/handler.(*GatewayHandler).Messages
+	github.com/Wei-Shaw/sub2api/internal/handler/gateway_handler.go:762
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.func1
+	github.com/Wei-Shaw/sub2api/internal/server/routes/gateway.go:49
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.RequireGroupAssignment.func16
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/middleware.go:110
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+2026-05-20T17:23:24.180+0800	INFO	slog	logger/slog_handler.go:59	pool_mode_error_skipped	{"service": "sub2api", "env": "production", "account_id": 24, "status_code": 429}
+main.initializeApplication.NewAPIKeyAuthMiddleware.apiKeyAuthWithSubscription.func5
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/api_key_auth.go:220
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.InboundEndpointMiddleware.func15
+	github.com/Wei-Shaw/sub2api/internal/handler/endpoint.go:141
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.OpsErrorLoggerMiddleware.func14
+	github.com/Wei-Shaw/sub2api/internal/handler/ops_error_logger.go:493
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.ClientRequestID.func13
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/client_request_id.go:34
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/routes.RegisterGatewayRoutes.RequestBodyLimit.func12
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/request_body_limit.go:13
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.(*FrontendServer).Middleware.func7
+	github.com/Wei-Shaw/sub2api/internal/web/embed_on.go:91
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/middleware.SecurityHeaders.func1
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/security_headers.go:98
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server/middleware.CORS.func2
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/cors.go:99
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.Logger.func5
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/logger.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/Wei-Shaw/sub2api/internal/server.SetupRouter.RequestLogger.func4
+	github.com/Wei-Shaw/sub2api/internal/server/middleware/request_logger.go:43
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/gin-gonic/gin.CustomRecoveryWithWriter.func1
+	github.com/gin-gonic/[EMAIL_REDACTED]/recovery.go:102
+github.com/gin-gonic/gin.(*Context).Next
+	github.com/gin-gonic/[EMAIL_REDACTED]/context.go:174
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	github.com/gin-gonic/[EMAIL_REDACTED]/gin.go:620
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	github.com/gin-gonic/[EMAIL_REDACTED]/gin.go:576
+github.com/Wei-Shaw/sub2api/internal/server.ProvideHTTPServer.MaxBytesHandler.func1
+	net/http/server.go:4071
+net/http.HandlerFunc.ServeHTTP
+	net/http/server.go:2286
+net/http.serverHandler.ServeHTTP
+	net/http/server.go:3311
+net/http.(*conn).serve
+	net/http/server.go:2073
+2026-05-20T17:23:24.180+0800	INFO	handler/gateway_handler.go:563	sticky.selecting_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "868ebfae-6e60-4981-8386-113c500109fc", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "87ccf2e8-d28d-4dda-8fed-8c9a052628ab", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "sticky_bound_account_id": 24, "has_bound_session": true, "failed_account_count": 1}
+2026-05-20T17:23:24.180+0800	WARN	handler/failover_loop.go:109	gateway.failover_switch_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "868ebfae-6e60-4981-8386-113c500109fc", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "87ccf2e8-d28d-4dda-8fed-8c9a052628ab", "account_id": 24, "upstream_status": 429, "switch_count": 1, "max_switches": 10}
+2026-05-20T17:23:24.180+0800	INFO	slog	logger/slog_handler.go:59	sticky.scheduler_entry	{"service": "sub2api", "env": "production", "group_id": 1, "session_hash": "2e3b41b8", "sticky_account_id": 24, "sticky_source": "prefetch", "model": "claude-opus-4-7", "load_batch": true, "has_concurrency_svc": true, "excluded_count": 1}
+2026-05-20T17:23:24.181+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "868ebfae-6e60-4981-8386-113c500109fc", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "87ccf2e8-d28d-4dda-8fed-8c9a052628ab", "component": "http.access", "status_code": 429, "latency_ms": 73053, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/messages", "account_id": 24, "platform": "anthropic", "model": "claude-opus-4-7", "completed_at": "2026-05-20T17:23:24.181+0800"}
+2026-05-20T17:23:24.407+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "a4df659c-afb6-4695-b88c-bb754e9339c7", "client_request_id": "", "path": "/api/v1/auth/me", "method": "GET", "component": "http.access", "status_code": 200, "latency_ms": 3, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "GET", "path": "/api/v1/auth/me", "completed_at": "2026-05-20T17:23:24.406+0800"}
+2026-05-20T17:23:24.747+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "user_id": 1, "api_key_id": 2, "api_key_name": "claude", "group_id": 1, "group_name": "claude", "endpoint": "/v1/messages", "provider": "anthropic", "protocol": "anthropic_messages", "model": "claude-opus-4-7", "body_bytes": 97619}
+2026-05-20T17:23:24.748+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 2, "group_id": 1, "endpoint": "/v1/messages", "protocol": "anthropic_messages"}
+2026-05-20T17:23:24.748+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:23:24.749+0800	INFO	slog	logger/slog_handler.go:59	sticky.hash_source	{"service": "sub2api", "env": "production", "source": "metadata_user_id", "session_id": "2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd", "device_id": "493667fc65acac721054c80e3ef80ca8bd45237652be9b398cb28c393cc88655", "is_new_format": true}
+2026-05-20T17:23:24.749+0800	INFO	handler/gateway_handler.go:275	sticky.session_hash_generated	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_hash": "2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd", "metadata_user_id_raw": "{\"device_id\":\"493667fc65acac721054c80e3ef80ca8bd45237652be9b398cb28c393cc88655\",\"account_uuid\":\"\",\"session_id\":\"2e3b41b8-fae8-4572-a677-8c9ac5aaf3cd\"}"}
+2026-05-20T17:23:24.749+0800	INFO	handler/gateway_handler.go:297	sticky.cache_lookup	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "bound_account_id": 24}
+2026-05-20T17:23:24.750+0800	INFO	handler/gateway_handler.go:563	sticky.selecting_account	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "session_key": "[REDACTED]", "sticky_bound_account_id": 24, "has_bound_session": true, "failed_account_count": 0}
+2026-05-20T17:23:24.751+0800	INFO	slog	logger/slog_handler.go:59	sticky.scheduler_entry	{"service": "sub2api", "env": "production", "group_id": 1, "session_hash": "2e3b41b8", "sticky_account_id": 24, "sticky_source": "prefetch", "model": "claude-opus-4-7", "load_batch": true, "has_concurrency_svc": true, "excluded_count": 0}
+2026-05-20T17:23:24.751+0800	INFO	handler/gateway_handler.go:604	sticky.account_selected	{"service": "sub2api", "env": "production", "component": "http", "request_id": "c293a98f-cc5c-488b-a3ca-7cc866b1f7d4", "client_request_id": "", "path": "/v1/messages", "method": "POST", "client_request_id": "8618bf69-67d1-4781-9145-39d401362a5d", "component": "handler.gateway.messages", "user_id": 1, "api_key_id": 2, "group_id": 1, "model": "claude-opus-4-7", "stream": true, "selected_account_id": 24, "account_name": "kiro_claude_01", "slot_acquired": true, "has_wait_plan": false, "sticky_bound_account_id": 24, "sticky_honored": true}
+2026-05-20T17:23:24.751+0800	INFO	service/gateway_service.go:5075	[Anthropic 自动透传] 命中 API Key [REDACTED] account=24 name=kiro_claude_01 model=claude-opus-4-7 stream=true	{"service": "sub2api", "env": "production", "component": "service.gateway", "legacy_printf": true}
+2026-05-20T17:23:40.374+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "fc51a267-66db-401f-8d1c-ab78e2342e7b", "client_request_id": "", "path": "/", "method": "HEAD", "component": "http.access", "status_code": 200, "latency_ms": 0, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "HEAD", "path": "/", "completed_at": "2026-05-20T17:23:40.374+0800"}
+2026-05-20T17:23:40.384+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "bef66e45-deba-4278-b64d-17097cbf1f91", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "c3f9bb88-0f22-48f9-aa31-6feefbae0a78", "component": "handler.openai_gateway.chat_completions", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": false, "request_id": "bef66e45-deba-4278-b64d-17097cbf1f91", "user_id": 1, "api_key_id": 1, "api_key_name": "openai", "group_id": 2, "group_name": "openai", "endpoint": "/v1/chat/completions", "provider": "openai", "protocol": "openai_chat_completions", "model": "gpt-5.5", "body_bytes": 216}
+2026-05-20T17:23:40.385+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 1, "group_id": 2, "endpoint": "/v1/chat/completions", "protocol": "openai_chat_completions"}
+2026-05-20T17:23:40.385+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "bef66e45-deba-4278-b64d-17097cbf1f91", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "c3f9bb88-0f22-48f9-aa31-6feefbae0a78", "component": "handler.openai_gateway.chat_completions", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": false, "request_id": "bef66e45-deba-4278-b64d-17097cbf1f91", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:23:41.820+0800	INFO	middleware/logger.go:60	http request completed	{"service": "sub2api", "env": "production", "component": "http", "request_id": "bef66e45-deba-4278-b64d-17097cbf1f91", "client_request_id": "", "path": "/v1/chat/completions", "method": "POST", "client_request_id": "c3f9bb88-0f22-48f9-aa31-6feefbae0a78", "component": "http.access", "status_code": 200, "latency_ms": 1440, "client_ip": "172.24.0.1", "protocol": "HTTP/1.1", "method": "POST", "path": "/v1/chat/completions", "account_id": 95, "platform": "openai", "model": "gpt-5.5", "completed_at": "2026-05-20T17:23:41.820+0800"}
+2026-05-20T17:23:42.414+0800	INFO	handler/content_moderation_helper.go:46	content_moderation.gateway_check_start	{"service": "sub2api", "env": "production", "component": "http", "request_id": "4a399b46-d098-4303-8ad8-c46e9117d2de", "client_request_id": "", "path": "/responses", "method": "POST", "client_request_id": "2f36a3fc-958d-4e79-b727-1361c1856734", "component": "handler.openai_gateway.responses", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": true, "request_id": "4a399b46-d098-4303-8ad8-c46e9117d2de", "user_id": 1, "api_key_id": 1, "api_key_name": "openai", "group_id": 2, "group_name": "openai", "endpoint": "/responses", "provider": "openai", "protocol": "openai_responses", "model": "gpt-5.5", "body_bytes": 581701}
+2026-05-20T17:23:42.415+0800	INFO	slog	logger/slog_handler.go:59	content_moderation.skip_feature_disabled	{"service": "sub2api", "env": "production", "user_id": 1, "api_key_id": 1, "group_id": 2, "endpoint": "/responses", "protocol": "openai_responses"}
+2026-05-20T17:23:42.415+0800	INFO	handler/content_moderation_helper.go:68	content_moderation.gateway_check_done	{"service": "sub2api", "env": "production", "component": "http", "request_id": "4a399b46-d098-4303-8ad8-c46e9117d2de", "client_request_id": "", "path": "/responses", "method": "POST", "client_request_id": "2f36a3fc-958d-4e79-b727-1361c1856734", "component": "handler.openai_gateway.responses", "user_id": 1, "api_key_id": 1, "group_id": 2, "model": "gpt-5.5", "stream": true, "request_id": "4a399b46-d098-4303-8ad8-c46e9117d2de", "allowed": true, "blocked": false, "flagged": false, "action": "allow", "status_code": 0, "highest_category": "", "highest_score": 0}
+2026-05-20T17:23:42.425+0800	INFO	service/openai_gateway_service.go:2158	[OpenAI] Injected /responses image_generation tool for Codex client	{"service": "sub2api", "env": "production", "component": "service.openai_gateway", "legacy_printf": true}
+2026-05-20T17:23:42.425+0800	INFO	service/openai_gateway_service.go:2169	[OpenAI] Added Codex image_generation bridge instructions	{"service": "sub2api", "env": "production", "component": "service.openai_gateway", "legacy_printf": true}
+2026-05-20T17:23:42.425+0800	INFO	service/openai_gateway_service.go:2207	[OpenAI] /responses image_generation request inbound_model=gpt-5.5 mapped_model=gpt-5.5 account_type=oauth	{"service": "sub2api", "env": "production", "component": "service.openai_gateway", "legacy_printf": true}

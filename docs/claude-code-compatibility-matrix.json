@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "phase": "01",
+  "generated_on": "2026-05-20",
+  "project": "Kiro-Go Claude Code Compatibility and High Availability",
+  "status_values": ["PASS", "EMULATED_PASS", "PARTIAL", "BLOCKED_BY_UPSTREAM", "BLOCKED_BY_ENV", "FAIL"],
+  "rows": [
+    {
+      "id": "CC-01",
+      "feature": "Claude Code compatibility matrix",
+      "surface": "docs/claude-code-compatibility-matrix.md and /admin/api/claude-code/compat",
+      "claude_code_compatibility": {"status": "PASS", "mode": "documented_contract"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "evidence_split"},
+      "evidence": ["docs/claude-code-compatibility-matrix.md", "proxy/handler_test.go:TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings"],
+      "notes": "The matrix separates Kiro-Go-controlled Claude Code compatibility from official Anthropic parity."
+    },
+    {
+      "id": "CC-02",
+      "feature": "Model alias and readiness contract",
+      "surface": "/v1/models, /admin/api/claude-code/readiness, /admin/api/claude-code/model-readiness",
+      "claude_code_compatibility": {"status": "PASS", "mode": "deterministic_alias_mapping"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "kiro_model_cache_and_local_schedulability"},
+      "evidence": ["proxy/translator_test.go:TestParseModelAndThinkingNormalizesOfficialOpus47Names", "proxy/handler_test.go:TestAdminClaudeCodeModelReadinessReturnsCapabilityMatrix"],
+      "notes": "Readiness distinguishes requested, mapped, listed, and schedulable state."
+    },
+    {
+      "id": "CC-03",
+      "feature": "Tool-loop fidelity",
+      "surface": "/v1/messages tools/tool_choice/tool_use/tool_result/tool_reference",
+      "claude_code_compatibility": {"status": "PASS", "mode": "translated_and_logged"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "upstream_tool_shape_unproven"},
+      "evidence": ["proxy/translator_test.go", "proxy/request_log_test.go", "proxy/handler_test.go:TestAdminClaudeCodeReadinessRouteReportsRecentToolEvidence"],
+      "notes": "Kiro-Go preserves supported tool shapes and records suppressed or deferred tool behavior."
+    },
+    {
+      "id": "CC-04",
+      "feature": "Anthropic SSE event ordering",
+      "surface": "streaming /v1/messages",
+      "claude_code_compatibility": {"status": "PASS", "mode": "anthropic_sse_writer"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "kiro_go_chunked_complete_input"},
+      "evidence": ["proxy/claude_sse_writer_test.go:TestClaudeSSEWriterMixedThinkingTextToolOrder", "proxy/claude_sse_writer_test.go:TestClaudeSSEWriterPostStartErrorDoesNotEmitMessageStop"],
+      "notes": "Kiro-Go emits Anthropic-compatible SSE frames; true upstream fine-grained partial tool JSON depends on Kiro stream shape."
+    },
+    {
+      "id": "CC-05",
+      "feature": "Large-context payload policy",
+      "surface": "Claude Code large /v1/messages payloads",
+      "claude_code_compatibility": {"status": "PASS", "mode": "local_payload_guard"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "local_trim_or_reject_policy"},
+      "evidence": ["proxy/payload_guard_test.go", "proxy/handler_test.go request-log payload assertions"],
+      "notes": "Payload guard records original/final size and trimming metadata; current user input must be preserved or the request rejected."
+    },
+    {
+      "id": "CC-06-count-tokens",
+      "feature": "Count tokens disclosure",
+      "surface": "/v1/messages/count_tokens",
+      "claude_code_compatibility": {"status": "PASS", "mode": "estimated"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "estimated"},
+      "evidence": ["proxy/handler_test.go:TestClaudeCodeReadinessReportsLayeredPartialCapabilities", "proxy/token_estimator_test.go"],
+      "notes": "Kiro-Go provides Claude Code-compatible local estimates, not official upstream exact counts."
+    },
+    {
+      "id": "CC-06-prompt-cache",
+      "feature": "Prompt cache and max_tokens=0 disclosure",
+      "surface": "cache_control, prompt cache usage, max_tokens=0",
+      "claude_code_compatibility": {"status": "PASS", "mode": "local_zero_output"},
+      "official_anthropic_parity": {"status": "BLOCKED_BY_UPSTREAM", "mode": "local_zero_output"},
+      "evidence": ["proxy/cache_tracker_test.go", "proxy/handler_test.go:TestClaudeCodeReadinessReportsLayeredPartialCapabilities"],
+      "notes": "Official cache warmup parity is only PASS when real upstream cache usage tokens are observed."
+    },
+    {
+      "id": "CC-06-thinking-prefill",
+      "feature": "Thinking and assistant prefill disclosure",
+      "surface": "thinking config and assistant prefill in /v1/messages",
+      "claude_code_compatibility": {"status": "EMULATED_PASS", "mode": "emulated_text_prefill"},
+      "official_anthropic_parity": {"status": "PARTIAL", "mode": "emulated_text_prefill"},
+      "evidence": ["proxy/handler_test.go:TestClaudeCodeReadinessReportsLayeredPartialCapabilities", "proxy/handler_test.go:TestResolveClaudeThinkingModeHonorsRequestThinking"],
+      "notes": "Text assistant prefill is emulated as continuation guidance; unsupported model families are disclosed."
+    },
+    {
+      "id": "CC-07",
+      "feature": "Real Claude Code and sub2api UAT evidence",
+      "surface": "docs/superpowers/uat/phase1-claude-code-official-compatibility",
+      "claude_code_compatibility": {"status": "BLOCKED_BY_ENV", "mode": "uat_harness_ready"},
+      "official_anthropic_parity": {"status": "BLOCKED_BY_UPSTREAM", "mode": "live_evidence_required"},
+      "evidence": ["docs/superpowers/uat/phase1-claude-code-official-compatibility/README.md", "docs/superpowers/uat/phase1-claude-code-official-compatibility/run-phase1-uat.js"],
+      "notes": "PASS requires latest-code API/log/readiness/screenshot/sub2api evidence alignment."
+    }
+  ]
+}
+

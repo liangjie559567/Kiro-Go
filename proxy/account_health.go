@@ -190,6 +190,10 @@ func shouldSkipBackgroundAccountForQuietMode(account config.Account, now time.Ti
 	return opusQuietModeActive() && account.CooldownUntil > now.Unix()
 }
 
+func shouldSkipBackgroundProbeForOpusQuietMode() bool {
+	return opusQuietModeActive()
+}
+
 func opusQuietModeActive() bool {
 	if modelAdmissionGate == nil {
 		return false

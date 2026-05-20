@@ -1,0 +1,17 @@
+{
+  "mode": "stream",
+  "rounds": 10,
+  "concurrency": 10,
+  "total": 100,
+  "passed": 100,
+  "failed": 0,
+  "pass": true,
+  "statusCounts": {
+    "200": 100
+  },
+  "maxLatencyMs": 10444,
+  "p95LatencyMs": 4303,
+  "p50LatencyMs": 1708,
+  "firstFailure": null,
+  "completedAt": "2026-05-20T09:04:30.667Z"
+}

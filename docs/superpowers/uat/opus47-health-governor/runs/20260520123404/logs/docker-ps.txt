@@ -1,0 +1,20 @@
+kiro-go-kiro-go-1 kiro-go-kiro-go Up 2 minutes (healthy)
+sub2api sub2api:local Up About an hour (healthy)
+waoowaoo-test-redis redis:7-alpine Up 2 hours
+waoowaoo-test-mysql mysql:8.0 Up 2 hours
+waoowaoo-app ghcr.io/saturndec/waoowaoo:latest Up 2 hours (healthy)
+waoowaoo-redis redis:7-alpine Up 2 hours (healthy)
+waoowaoo-minio minio/minio:RELEASE.2025-02-28T09-55-16Z Up 2 hours (healthy)
+waoowaoo-mysql mysql:8.0 Up 2 hours (healthy)
+sub2api-postgres postgres:18-alpine Up 2 days (healthy)
+sub2api-redis redis:8-alpine Up 2 days (healthy)
+xboard-web-1 ghcr.io/cedar2025/xboard:new Up 3 days
+xboard-horizon-1 ghcr.io/cedar2025/xboard:new Up 3 days
+xboard-ws-server-1 ghcr.io/cedar2025/xboard:new Up 3 days
+xboard-redis-1 redis:8-alpine Up 3 days
+memos neosmemo/memos:stable Up 3 days
+php kjlion/php:fpm-alpine Up 3 days
+php74 kjlion/php:7.4-fpm-alpine Up 3 days
+nginx nginx:alpine Up 3 days
+redis redis:alpine Up 3 days
+mysql mysql Up 3 days (healthy)

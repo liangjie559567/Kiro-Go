@@ -1,0 +1,4 @@
+kiro-go-kiro-go-1 kiro-go-kiro-go Up 13 minutes
+sub2api sub2api:local Up 3 hours (healthy)
+sub2api-postgres postgres:18-alpine Up 2 days (healthy)
+sub2api-redis redis:8-alpine Up 2 days (healthy)

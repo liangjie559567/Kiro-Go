@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "phase": "03",
+  "generated_on": "2026-05-20",
+  "project": "Kiro-Go Claude Code Compatibility and High Availability",
+  "rows": [
+    {
+      "id": "KE-01",
+      "feature": "Credential source validation",
+      "surface": "/admin/api/auth/credentials/validate",
+      "automated": {"status": "PASS", "mode": "dry_run_json_validation"},
+      "admin_evidence": {"status": "HUMAN_NEEDED", "mode": "screenshot_required"},
+      "evidence": ["proxy/ecosystem_ops_test.go:TestValidateCredentialSourceDryRunDoesNotMutateAccounts"],
+      "notes": "Local CLI secret-file discovery is intentionally unsupported; JSON fixtures are validated without mutating config."
+    },
+    {
+      "id": "KE-02",
+      "feature": "Account onboarding diagnostics",
+      "surface": "/admin/api/accounts/{id}/diagnostics",
+      "automated": {"status": "PASS", "mode": "deterministic_diagnostics"},
+      "admin_evidence": {"status": "HUMAN_NEEDED", "mode": "screenshot_required"},
+      "evidence": ["proxy/ecosystem_ops_test.go:TestAccountDiagnosticsReportsActionableBlockedState"],
+      "notes": "Diagnostics report status, reason, message, auth, token, profile, model cache, quota, proxy, cooldown, and runtime health."
+    },
+    {
+      "id": "KE-03",
+      "feature": "Scheduler policy preview",
+      "surface": "/admin/api/scheduler/preview",
+      "automated": {"status": "PASS", "mode": "read_only_preview"},
+      "admin_evidence": {"status": "HUMAN_NEEDED", "mode": "screenshot_required"},
+      "evidence": ["proxy/ecosystem_ops_test.go:TestSchedulerPreviewAndFleetReadinessAreReadOnly"],
+      "notes": "Preview is read-only and does not reserve accounts, call upstream, or mutate counters/cooldowns."
+    },
+    {
+      "id": "KE-04",
+      "feature": "WebSearch/MCP observability",
+      "surface": "request logs and /admin/api/websearch/diagnostics",
+      "automated": {"status": "PASS", "mode": "request_log_evidence"},
+      "admin_evidence": {"status": "HUMAN_NEEDED", "mode": "screenshot_required"},
+      "evidence": ["proxy/ecosystem_ops_test.go:TestWebSearchDiagnosticsReadsRequestLogEvidence"],
+      "notes": "Kiro-Go observes Claude Code MCP/WebSearch calls; it does not manage local MCP servers."
+    },
+    {
+      "id": "KE-05",
+      "feature": "Fleet admin operations",
+      "surface": "/admin/api/fleet/readiness and /admin/api/accounts/batch",
+      "automated": {"status": "PASS", "mode": "per_account_results"},
+      "admin_evidence": {"status": "HUMAN_NEEDED", "mode": "screenshot_required"},
+      "evidence": ["proxy/ecosystem_ops_test.go:TestBatchAccountsReturnsPerAccountResults", "proxy/ecosystem_ops_test.go:TestSchedulerPreviewAndFleetReadinessAreReadOnly"],
+      "notes": "Batch enable/disable/refresh responses include per-account results and summary counts."
+    }
+  ]
+}

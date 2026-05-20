@@ -142,6 +142,52 @@ func TestRunHealthCheckBatchQuietModeSkipsCooldownAccount(t *testing.T) {
 	}
 }
 
+func TestRunHealthCheckSkipsAllProbesDuringOpusQuietMode(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdateHealthCheckConfig(config.HealthCheckConfig{Enabled: true, IntervalMinutes: 5, AutoDisableUnhealthy: true}); err != nil {
+		t.Fatalf("update health check: %v", err)
+	}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Email: "one@example.com", Enabled: true}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	oldEnsure := ensureValidTokenForHealthCheck
+	oldList := listAvailableModelsForHealthCheck
+	ensureValidTokenForHealthCheck = func(h *Handler, account *config.Account) error {
+		t.Fatalf("health check token validation should not run during quiet mode")
+		return nil
+	}
+	listAvailableModelsForHealthCheck = func(account *config.Account) ([]ModelInfo, error) {
+		t.Fatalf("health check model probe should not run during quiet mode")
+		return nil, nil
+	}
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		ensureValidTokenForHealthCheck = oldEnsure
+		listAvailableModelsForHealthCheck = oldList
+	})
+
+	h := &Handler{pool: pool.GetPool()}
+	h.runHealthCheck()
+
+	status := h.getHealthCheckStatus()
+	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 || status.LastSuccess != 0 || status.LastFailed != 0 {
+		t.Fatalf("expected one quiet skip and no probes, got %#v", status)
+	}
+}
+
 func TestTryBeginHealthCheckPreventsOverlap(t *testing.T) {
 	h := &Handler{}
 

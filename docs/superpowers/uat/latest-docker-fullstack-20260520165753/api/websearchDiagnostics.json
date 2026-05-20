@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 1,
+  "body": {
+    "failureClasses": [
+      "query_extraction_failed",
+      "no_account_available",
+      "kiro_mcp_http_error",
+      "empty_results",
+      "payload_injection_failed"
+    ],
+    "localMCPHost": false,
+    "query": "latest-uat",
+    "reason": "",
+    "recent": [],
+    "status": "ready",
+    "supported": true
+  }
+}

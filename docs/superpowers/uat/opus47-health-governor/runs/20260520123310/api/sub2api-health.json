@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "status": 200,
+  "durationMs": 15,
+  "body": {
+    "status": "ok"
+  },
+  "selectedUrl": "http://127.0.0.1:18080/health",
+  "attempts": [
+    {
+      "url": "http://127.0.0.1:18080/health",
+      "status": 200,
+      "ok": true
+    }
+  ]
+}

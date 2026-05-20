@@ -7,31 +7,31 @@
 
 ### Claude Code Compatibility
 
-- [ ] **CC-01**: Kiro-Go documents and tests a Claude Code compatibility matrix covering endpoints, auth headers, models, streaming, tool use, tool result, thinking, prompt cache behavior, large context, and count-token behavior.
-- [ ] **CC-02**: Claude model aliases including dot, hyphen, versioned, Opus/Sonnet/Haiku, and `ANTHROPIC_SMALL_FAST_MODEL` forms resolve deterministically and are visible in readiness and request logs.
-- [ ] **CC-03**: Claude Code tool loops preserve `tools`, `tool_choice`, `tool_use`, `tool_result`, and `tool_reference` request/response shapes without dropping tool calls or creating empty assistant turns.
-- [ ] **CC-04**: Anthropic SSE output is valid for normal text, thinking/reasoning, tool use, first-token retry, upstream errors before first chunk, and upstream errors after streaming starts.
-- [ ] **CC-05**: Large Claude Code context requests are protected by explicit, configurable payload policy that logs size, trimming/rejection decisions, and does not silently corrupt current user input.
-- [ ] **CC-06**: Prompt cache controls and thinking settings are preserved, normalized, or rejected with clear compatibility errors and tests.
-- [ ] **CC-07**: Automated UAT verifies real Claude Code-style stream, non-stream, and tool-loop calls through Kiro-Go and records API/log/screenshot evidence before PASS.
+- [x] **CC-01**: Kiro-Go documents and tests a Claude Code compatibility matrix covering endpoints, auth headers, models, streaming, tool use, tool result, thinking, prompt cache behavior, large context, and count-token behavior.
+- [x] **CC-02**: Claude model aliases including dot, hyphen, versioned, Opus/Sonnet/Haiku, and `ANTHROPIC_SMALL_FAST_MODEL` forms resolve deterministically and are visible in readiness and request logs.
+- [x] **CC-03**: Claude Code tool loops preserve `tools`, `tool_choice`, `tool_use`, `tool_result`, and `tool_reference` request/response shapes without dropping tool calls or creating empty assistant turns.
+- [x] **CC-04**: Anthropic SSE output is valid for normal text, thinking/reasoning, tool use, first-token retry, upstream errors before first chunk, and upstream errors after streaming starts.
+- [x] **CC-05**: Large Claude Code context requests are protected by explicit, configurable payload policy that logs size, trimming/rejection decisions, and does not silently corrupt current user input.
+- [x] **CC-06**: Prompt cache controls and thinking settings are preserved, normalized, or rejected with clear compatibility errors and tests.
+- [x] **CC-07**: Automated UAT verifies real Claude Code-style stream, non-stream, and tool-loop calls through Kiro-Go and records API/log/screenshot evidence before PASS.
 
 ### High Availability and sub2api
 
-- [ ] **HA-01**: Kiro temporary-limit 429 is isolated to the account that returned it unless direct evidence proves a shared upstream state.
-- [ ] **HA-02**: Kiro-Go classifies upstream failures separately as `model_capacity`, `temporary_limited`, `rate_limited`, `quota`, `auth`, `network`, and `unknown`.
-- [ ] **HA-03**: Account scheduler continues trying other viable accounts after per-account 429 while avoiding same-account retry amplification.
-- [ ] **HA-04**: Model admission control is configurable and account-aware for Opus 4.7 and other high-pressure models.
-- [ ] **HA-05**: Background auto-refresh and health-check jobs use bounded concurrency, jitter, and cooldown awareness so they do not amplify user traffic limits.
-- [ ] **HA-06**: sub2api integration receives clear retryability and exhausted-pool semantics from Kiro-Go and does not turn one Kiro account 429 into repeated downstream failure.
-- [ ] **HA-07**: Real 10 concurrent x 10 non-stream and 10 concurrent x 10 stream Opus 4.7 calls through `/www/sub2api` return correct content, record max latency, and leave no stale database unschedulable state.
+- [x] **HA-01**: Kiro temporary-limit 429 is isolated to the account that returned it unless direct evidence proves a shared upstream state.
+- [x] **HA-02**: Kiro-Go classifies upstream failures separately as `model_capacity`, `temporary_limited`, `rate_limited`, `quota`, `auth`, `network`, and `unknown`.
+- [x] **HA-03**: Account scheduler continues trying other viable accounts after per-account 429 while avoiding same-account retry amplification.
+- [x] **HA-04**: Model admission control is configurable and account-aware for Opus 4.7 and other high-pressure models.
+- [x] **HA-05**: Background auto-refresh and health-check jobs use bounded concurrency, jitter, and cooldown awareness so they do not amplify user traffic limits.
+- [x] **HA-06**: sub2api integration receives clear retryability and exhausted-pool semantics from Kiro-Go and does not turn one Kiro account 429 into repeated downstream failure.
+- [x] **HA-07**: Real 10 concurrent x 10 non-stream and 10 concurrent x 10 stream Opus 4.7 calls through `/www/sub2api` return correct content, record max latency, and leave no stale database unschedulable state.
 
 ### Kiro Ecosystem Operations
 
-- [ ] **KE-01**: Admin can import or validate Kiro CLI / Amazon Q CLI credential sources where supported, with rollback-safe error handling.
-- [ ] **KE-02**: Account onboarding diagnostics show auth method, token expiry, profile ARN state, model list state, quota state, proxy state, and actionable error text.
-- [ ] **KE-03**: Operators can choose and inspect scheduler policies such as round-robin, least-recently-used, quota-aware, and latency-aware routing.
-- [ ] **KE-04**: WebSearch/MCP observability shows search query, result count, upstream MCP status, injected payload size, and failure reason.
-- [ ] **KE-05**: Admin fleet operations support batch refresh, batch health check, enable/disable, readiness filtering, and export without breaking existing single-account flows.
+- [x] **KE-01**: Admin can import or validate Kiro CLI / Amazon Q CLI credential sources where supported, with rollback-safe error handling.
+- [x] **KE-02**: Account onboarding diagnostics show auth method, token expiry, profile ARN state, model list state, quota state, proxy state, and actionable error text.
+- [x] **KE-03**: Operators can choose and inspect scheduler policies such as round-robin, least-recently-used, quota-aware, and latency-aware routing.
+- [x] **KE-04**: WebSearch/MCP observability shows search query, result count, upstream MCP status, injected payload size, and failure reason.
+- [x] **KE-05**: Admin fleet operations support batch refresh, batch health check, enable/disable, readiness filtering, and export without breaking existing single-account flows.
 
 ## v2 Requirements
 
@@ -57,25 +57,25 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CC-01 | Phase 1 | Pending |
-| CC-02 | Phase 1 | Pending |
-| CC-03 | Phase 1 | Pending |
-| CC-04 | Phase 1 | Pending |
-| CC-05 | Phase 1 | Pending |
-| CC-06 | Phase 1 | Pending |
-| CC-07 | Phase 1 | Pending |
-| HA-01 | Phase 2 | Pending |
-| HA-02 | Phase 2 | Pending |
-| HA-03 | Phase 2 | Pending |
-| HA-04 | Phase 2 | Pending |
-| HA-05 | Phase 2 | Pending |
-| HA-06 | Phase 2 | Pending |
-| HA-07 | Phase 2 | Pending |
-| KE-01 | Phase 3 | Pending |
-| KE-02 | Phase 3 | Pending |
-| KE-03 | Phase 3 | Pending |
-| KE-04 | Phase 3 | Pending |
-| KE-05 | Phase 3 | Pending |
+| CC-01 | Phase 1 | Automated complete |
+| CC-02 | Phase 1 | Automated complete |
+| CC-03 | Phase 1 | Automated complete |
+| CC-04 | Phase 1 | Automated complete |
+| CC-05 | Phase 1 | Automated complete |
+| CC-06 | Phase 1 | Automated complete |
+| CC-07 | Phase 1 | Human live UAT needed |
+| HA-01 | Phase 2 | Automated complete |
+| HA-02 | Phase 2 | Automated complete |
+| HA-03 | Phase 2 | Automated complete |
+| HA-04 | Phase 2 | Automated complete |
+| HA-05 | Phase 2 | Automated complete |
+| HA-06 | Phase 2 | Automated complete |
+| HA-07 | Phase 2 | Human latest-code live UAT needed |
+| KE-01 | Phase 3 | Automated complete |
+| KE-02 | Phase 3 | Automated complete |
+| KE-03 | Phase 3 | Automated complete |
+| KE-04 | Phase 3 | Human live WebSearch evidence needed |
+| KE-05 | Phase 3 | Human Admin screenshot evidence needed |
 
 **Coverage:**
 - v1 requirements: 19 total

@@ -41,6 +41,12 @@ type RequestLogEntry struct {
 	HasMetadata                         bool                      `json:"hasMetadata,omitempty"`
 	HasStopSequences                    bool                      `json:"hasStopSequences,omitempty"`
 	ToolChoiceMode                      string                    `json:"toolChoiceMode,omitempty"`
+	WebSearchQuery                      string                    `json:"webSearchQuery,omitempty"`
+	WebSearchResultCount                int                       `json:"webSearchResultCount,omitempty"`
+	WebSearchMCPStatus                  string                    `json:"webSearchMcpStatus,omitempty"`
+	WebSearchInjectedPayloadBytes       int                       `json:"webSearchInjectedPayloadBytes,omitempty"`
+	WebSearchFailureReason              string                    `json:"webSearchFailureReason,omitempty"`
+	WebSearchLatencyMs                  int64                     `json:"webSearchLatencyMs,omitempty"`
 	AnthropicBetaPresent                bool                      `json:"anthropicBetaPresent,omitempty"`
 	ClaudeCodeSessionPresent            bool                      `json:"claudeCodeSessionPresent,omitempty"`
 	ClaudeCodeAgentPresent              bool                      `json:"claudeCodeAgentPresent,omitempty"`
@@ -91,6 +97,9 @@ type RequestLogEntry struct {
 	EffectiveConcurrentLimit            int                       `json:"effectiveConcurrentLimit,omitempty"`
 	AdmissionPressureScore              int                       `json:"admissionPressureScore,omitempty"`
 	CapacityRetryCount                  int                       `json:"capacityRetryCount,omitempty"`
+	StableDownstreamFallback            bool                      `json:"stableDownstreamFallback,omitempty"`
+	StableFallbackReason                string                    `json:"stableFallbackReason,omitempty"`
+	SuppressedDownstreamStatus          int                       `json:"suppressedDownstreamStatus,omitempty"`
 	FirstTokenMs                        int64                     `json:"firstTokenMs,omitempty"`
 	Attempts                            int                       `json:"attempts,omitempty"`
 	AttemptTrace                        []RequestLogAttempt       `json:"attemptTrace,omitempty"`
@@ -546,6 +555,27 @@ func updateRequestLogRouting(r *http.Request, decision, strategy string, pressur
 	ctx.entry.RoutingPressure = pressure
 }
 
+func updateRequestLogWebSearch(r *http.Request, query string, resultCount int, mcpStatus string, injectedPayloadBytes int, failureReason string, latency time.Duration) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.WebSearchQuery = strings.TrimSpace(query)
+	if resultCount >= 0 {
+		ctx.entry.WebSearchResultCount = resultCount
+	}
+	ctx.entry.WebSearchMCPStatus = strings.TrimSpace(mcpStatus)
+	if injectedPayloadBytes >= 0 {
+		ctx.entry.WebSearchInjectedPayloadBytes = injectedPayloadBytes
+	}
+	ctx.entry.WebSearchFailureReason = strings.TrimSpace(failureReason)
+	if latency > 0 {
+		ctx.entry.WebSearchLatencyMs = latency.Milliseconds()
+	}
+}
+
 func updateRequestLogUsage(r *http.Request, inputTokens, outputTokens, cacheReadInputTokens, cacheCreationInputTokens int) {
 	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
 	if ctx == nil {
@@ -630,6 +660,25 @@ func updateRequestLogCapacityRetryCount(r *http.Request, count int) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.CapacityRetryCount = count
+}
+
+func markRequestLogStableFallback(entry *RequestLogEntry, reason string, suppressedStatus int) {
+	if entry == nil {
+		return
+	}
+	entry.StableDownstreamFallback = true
+	entry.StableFallbackReason = strings.TrimSpace(reason)
+	entry.SuppressedDownstreamStatus = suppressedStatus
+}
+
+func updateRequestLogStableFallback(r *http.Request, reason string, suppressedStatus int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	markRequestLogStableFallback(&ctx.entry, reason, suppressedStatus)
 }
 
 func updateRequestLogOpusGovernor(r *http.Request, state string, retryAfterSeconds int, budget opus47RequestBudget) {

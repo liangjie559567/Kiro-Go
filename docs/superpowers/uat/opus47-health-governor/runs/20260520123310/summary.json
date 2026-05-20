@@ -1,0 +1,86 @@
+{
+  "runId": "20260520123310",
+  "startedAt": "2026-05-20T12:33:10.851Z",
+  "mcp": {
+    "configured": true,
+    "npmVersion": "0.0.73"
+  },
+  "docker": {
+    "kiroGo": {
+      "container": "kiro-go-kiro-go-1",
+      "ok": true,
+      "running": true,
+      "health": "healthy",
+      "status": "running"
+    },
+    "sub2api": {
+      "container": "sub2api",
+      "ok": true,
+      "running": true,
+      "health": "healthy",
+      "status": "running"
+    },
+    "ps": "kiro-go-kiro-go-1 kiro-go-kiro-go Up About a minute (healthy)\nsub2api sub2api:local Up About an hour (healthy)\nwaoowaoo-test-redis redis:7-alpine Up 2 hours\nwaoowaoo-test-mysql mysql:8.0 Up 2 hours\nwaoowaoo-app ghcr.io/saturndec/waoowaoo:latest Up 2 hours (healthy)\nwaoowaoo-redis redis:7-alpine Up 2 hours (healthy)\nwaoowaoo-minio minio/minio:RELEASE.2025-02-28T09-55-16Z Up 2 hours (healthy)\nwaoowaoo-mysql mysql:8.0 Up 2 hours (healthy)\nsub2api-postgres postgres:18-alpine Up 2 days (healthy)\nsub2api-redis redis:8-alpine Up 2 days (healthy)\nxboard-web-1 ghcr.io/cedar2025/xboard:new Up 3 days\nxboard-horizon-1 ghcr.io/cedar2025/xboard:new Up 3 days\nxboard-ws-server-1 ghcr.io/cedar2025/xboard:new Up 3 days\nxboard-redis-1 redis:8-alpine Up 3 days\nmemos neosmemo/memos:stable Up 3 days\nphp kjlion/php:fpm-alpine Up 3 days\nphp74 kjlion/php:7.4-fpm-alpine Up 3 days\nnginx nginx:alpine Up 3 days\nredis redis:alpine Up 3 days\nmysql mysql Up 3 days (healthy)"
+  },
+  "api": {
+    "kiroHealth": {
+      "ok": true,
+      "status": 200,
+      "durationMs": 14,
+      "body": {
+        "status": "ok",
+        "uptime": 78,
+        "version": "1.0.8"
+      }
+    },
+    "sub2apiHealth": {
+      "ok": true,
+      "status": 200,
+      "durationMs": 15,
+      "body": {
+        "status": "ok"
+      },
+      "selectedUrl": "http://127.0.0.1:18080/health",
+      "attempts": [
+        {
+          "url": "http://127.0.0.1:18080/health",
+          "status": 200,
+          "ok": true
+        }
+      ]
+    }
+  },
+  "db": {
+    "usage": {
+      "recentOpus47": [
+        {
+          "requested_model": "claude-opus-4-7",
+          "n": 86,
+          "max_ms": 209384,
+          "accounts": 17
+        }
+      ],
+      "recentMarkers": []
+    }
+  },
+  "probes": [],
+  "logs": {},
+  "checks": {
+    "mcpPinned073": true,
+    "dockerHealthyOrNoHealthcheck": true,
+    "kiroHealth200": true,
+    "sub2apiHealth200": true,
+    "fleetContractPresent": false,
+    "dbUsageEvidencePresent": true,
+    "probesOkOrExplicitlyBlocked": true,
+    "apiDbConsistency": true,
+    "screenshotApiConsistency": false,
+    "screenshotsCaptured": false,
+    "noBrowserPageErrors": false
+  },
+  "browser": {
+    "status": "BLOCKED_BY_ENV",
+    "reason": "KIRO_GO_ADMIN_PASSWORD [REDACTED] required for admin screenshots"
+  },
+  "result": "FAIL"
+}
