@@ -204,10 +204,12 @@ func (g *modelAdmissionGateSet) recordPressureUntil(model string, statusCode int
 		ttl = 30 * time.Second
 	}
 	expiresAt := now.Add(ttl)
-	if retryAt.After(expiresAt) {
+	if retryAt.After(now) {
+		expiresAt = retryAt
+	} else if retryAt.After(expiresAt) {
 		expiresAt = retryAt
 	}
-	state := g.pressureStateForUpdateLocked(model, gate, now, true)
+	state := g.pressureStateForUpdateLocked(model, gate, now, false)
 	state.score += score
 	if state.score > 6 {
 		state.score = 6
@@ -233,7 +235,7 @@ func (g *modelAdmissionGateSet) recordPressureUntil(model string, statusCode int
 		state.expiresAt = state.retryAt
 	}
 	if state.score >= 4 {
-		if state.retryAt.IsZero() {
+		if state.retryAt.IsZero() || !state.retryAt.After(now) || state.retryAt.Before(expiresAt) {
 			state.retryAt = expiresAt
 		}
 		state.effectiveMaxConcurrent = 1

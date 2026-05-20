@@ -2811,6 +2811,41 @@ func TestModelAdmissionCircuitKeepsActivePressureForRetainedRetryAt(t *testing.T
 	}
 }
 
+func TestModelAdmissionCircuitReopensAfterFailedHalfOpenProbe(t *testing.T) {
+	now := time.Unix(1000, 0)
+	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	gate.now = func() time.Time { return now }
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(10*time.Second))
+	now = now.Add(11 * time.Second)
+
+	snap := gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "half_open" {
+		t.Fatalf("CircuitState before failed probe = %q, want half_open; snap=%#v", snap.CircuitState, snap)
+	}
+
+	gate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, time.Time{})
+	snap = gate.modelSnapshot("claude-opus-4.7")
+	if snap.CircuitState != "open" {
+		t.Fatalf("CircuitState after failed probe = %q, want open; snap=%#v", snap.CircuitState, snap)
+	}
+	if snap.RetryAfterSeconds <= 0 {
+		t.Fatalf("RetryAfterSeconds = %d, want > 0; snap=%#v", snap.RetryAfterSeconds, snap)
+	}
+	if !snap.Active {
+		t.Fatalf("expected active pressure after failed half-open probe; snap=%#v", snap)
+	}
+	if !gate.hasPressure("claude-opus-4.7") {
+		t.Fatalf("expected hasPressure after failed half-open probe")
+	}
+}
+
 func TestAdminAdmissionPressureEndpointReportsActivePressure(t *testing.T) {
 	oldGate := modelAdmissionGate
 	now := time.Unix(100, 0)
