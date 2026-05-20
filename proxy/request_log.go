@@ -100,6 +100,12 @@ type RequestLogEntry struct {
 	StableDownstreamFallback            bool                      `json:"stableDownstreamFallback,omitempty"`
 	StableFallbackReason                string                    `json:"stableFallbackReason,omitempty"`
 	SuppressedDownstreamStatus          int                       `json:"suppressedDownstreamStatus,omitempty"`
+	ContentSuccess                      bool                      `json:"contentSuccess,omitempty"`
+	ContentFailureReason                string                    `json:"contentFailureReason,omitempty"`
+	UpstreamContentTokens               int                       `json:"upstreamContentTokens,omitempty"`
+	StableFallbackFinal                 bool                      `json:"stableFallbackFinal,omitempty"`
+	QueuedForCapacity                   bool                      `json:"queuedForCapacity,omitempty"`
+	CapacityQueueWaitMs                 int64                     `json:"capacityQueueWaitMs,omitempty"`
 	FirstTokenMs                        int64                     `json:"firstTokenMs,omitempty"`
 	Attempts                            int                       `json:"attempts,omitempty"`
 	AttemptTrace                        []RequestLogAttempt       `json:"attemptTrace,omitempty"`
@@ -662,13 +668,66 @@ func updateRequestLogCapacityRetryCount(r *http.Request, count int) {
 	ctx.entry.CapacityRetryCount = count
 }
 
+func markRequestLogContentSuccess(entry *RequestLogEntry, tokens int) {
+	if entry == nil {
+		return
+	}
+	entry.ContentSuccess = true
+	entry.ContentFailureReason = ""
+	if tokens > 0 {
+		entry.UpstreamContentTokens = tokens
+	}
+}
+
+func updateRequestLogContentSuccess(r *http.Request, tokens int) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	markRequestLogContentSuccess(&ctx.entry, tokens)
+}
+
+func markRequestLogContentFailure(entry *RequestLogEntry, reason string) {
+	if entry == nil {
+		return
+	}
+	entry.ContentSuccess = false
+	entry.ContentFailureReason = strings.TrimSpace(reason)
+}
+
+func updateRequestLogContentFailure(r *http.Request, reason string) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	markRequestLogContentFailure(&ctx.entry, reason)
+}
+
+func updateRequestLogCapacityQueue(r *http.Request, waited time.Duration) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.QueuedForCapacity = true
+	ctx.entry.CapacityQueueWaitMs = waited.Milliseconds()
+}
+
 func markRequestLogStableFallback(entry *RequestLogEntry, reason string, suppressedStatus int) {
 	if entry == nil {
 		return
 	}
+	reason = strings.TrimSpace(reason)
 	entry.StableDownstreamFallback = true
-	entry.StableFallbackReason = strings.TrimSpace(reason)
+	entry.StableFallbackReason = reason
 	entry.SuppressedDownstreamStatus = suppressedStatus
+	entry.StableFallbackFinal = true
+	markRequestLogContentFailure(entry, reason)
 }
 
 func updateRequestLogStableFallback(r *http.Request, reason string, suppressedStatus int) {

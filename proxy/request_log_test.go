@@ -234,6 +234,37 @@ func TestRequestLogRecordsStableDownstreamFallback(t *testing.T) {
 	}
 }
 
+func TestRequestLogMarksStableFallbackAsContentFailure(t *testing.T) {
+	entry := RequestLogEntry{}
+	markRequestLogStableFallback(&entry, "admission_pressure", http.StatusServiceUnavailable)
+	if !entry.StableDownstreamFallback {
+		t.Fatalf("expected stable fallback")
+	}
+	if entry.ContentSuccess {
+		t.Fatalf("stable fallback must not be content success")
+	}
+	if entry.ContentFailureReason != "admission_pressure" {
+		t.Fatalf("ContentFailureReason = %q, want admission_pressure", entry.ContentFailureReason)
+	}
+	if !entry.StableFallbackFinal {
+		t.Fatalf("expected StableFallbackFinal true")
+	}
+}
+
+func TestRequestLogMarksRealContentSuccess(t *testing.T) {
+	entry := RequestLogEntry{}
+	markRequestLogContentSuccess(&entry, 17)
+	if !entry.ContentSuccess {
+		t.Fatalf("expected content success")
+	}
+	if entry.UpstreamContentTokens != 17 {
+		t.Fatalf("UpstreamContentTokens = %d, want 17", entry.UpstreamContentTokens)
+	}
+	if entry.ContentFailureReason != "" {
+		t.Fatalf("ContentFailureReason = %q, want empty", entry.ContentFailureReason)
+	}
+}
+
 func TestRequestLogCapturesClaudeParityModes(t *testing.T) {
 	store := newRequestLogStore(10)
 	loggedReq := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
