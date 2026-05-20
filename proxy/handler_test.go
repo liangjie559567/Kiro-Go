@@ -3525,6 +3525,75 @@ func TestAcquireAdmissionFastRejectsOpenOpusCircuit(t *testing.T) {
 	}
 }
 
+func TestStableOpenCircuitWaitsBeforeFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	now := time.Unix(1000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	p := pool.GetPool()
+	for i := 1; i <= defaultOpus47MaxAttempts; i++ {
+		id := fmt.Sprintf("stable-acct-%d", i)
+		if err := config.AddAccount(config.Account{ID: id, Enabled: true, AccessToken: "token", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+	for i := 1; i <= defaultOpus47MaxAttempts; i++ {
+		id := fmt.Sprintf("stable-acct-%d", i)
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+		p.RecordFailureUntil(id, pool.FailureReasonTemporaryLimited, time.Now().Add(time.Minute))
+	}
+
+	h := &Handler{pool: p, requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+
+	start := time.Now()
+	release, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(30*time.Millisecond))
+	if ok {
+		release()
+		t.Fatalf("expected stable fallback after open-circuit continuity wait")
+	}
+	if time.Since(start) < 20*time.Millisecond {
+		t.Fatalf("expected continuity wait before stable fallback, waited %s", time.Since(start))
+	}
+	h.finishRequestLog(ctx, recorder)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("stable fallback status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected queued capacity wait, got %#v", entry)
+	}
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "admission_pressure" {
+		t.Fatalf("expected stable admission fallback, got %#v", entry)
+	}
+}
+
 func TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

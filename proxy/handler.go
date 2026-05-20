@@ -2596,6 +2596,28 @@ func (h *Handler) shouldFastRejectOpus47OpenCircuit(model string, snap Admission
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
 	if stableDownstreamForRequest(r, model, true) {
 		if snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap) {
+			if stableWait := contentContinuityWaitDuration(model, deadline); stableWait > 0 {
+				result := contentContinuityGateGlobal.wait(model, stableWait, func() bool {
+					return h.shouldFastRejectOpus47OpenCircuit(model, opus47OpenCircuitSnapshot(model))
+				})
+				updateRequestLogCapacityQueue(r, result.Duration)
+				effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
+				updateRequestLogAdmission(r, result.Duration, effectiveLimit, pressureScore)
+				if !result.TimedOut && !h.shouldFastRejectOpus47OpenCircuit(model, opus47OpenCircuitSnapshot(model)) {
+					retryTimeout := time.Until(deadline)
+					if retryTimeout <= 0 {
+						retryTimeout = 0
+					}
+					release, gated, err := modelAdmissionGate.acquire(model, retryTimeout)
+					if !gated {
+						return func() {}, true
+					}
+					if err == nil {
+						updateRequestLogReliability(r, result.Duration.Milliseconds(), 0, 0, -1)
+						return release, true
+					}
+				}
+			}
 			h.recordFailure()
 			h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model))
 			return nil, false
