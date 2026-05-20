@@ -366,18 +366,18 @@ async function main() {
   const subLogText = fs.existsSync(path.join(logDir, 'sub2api-tail.log')) ? fs.readFileSync(path.join(logDir, 'sub2api-tail.log'), 'utf8') : '';
   const opusRequestLogs = requestLogs.filter((row) => String(row.model || '').includes('opus'));
   const apiDbConsistent = !runProbes || probeFailures.length > 0 || markerUsage.length >= Math.min(1, probeCount);
-  const requestLogApiOk = summary.api.requestLogs && summary.api.requestLogs.ok === true && opusRequestLogs.length > 0;
+  const requestLogApiOk = Boolean(summary.api.requestLogs && summary.api.requestLogs.ok === true && opusRequestLogs.length > 0);
   const apiLogConsistent = requestLogApiOk && /claude-opus-4-7|claude-opus-4\.7/i.test(kiroLogText + '\n' + subLogText);
-  const screenshotApiConsistent = summary.browser && summary.browser.status === 'CAPTURED' &&
+  const screenshotApiConsistent = Boolean(summary.browser && summary.browser.status === 'CAPTURED' &&
     summary.browser.textChecks &&
     summary.browser.textChecks.kiroOpusPanelVisible === true &&
     summary.browser.textChecks.sub2apiAccountsVisible === true &&
     summary.browser.textChecks.sub2apiUsageVisible === true &&
-    Boolean(fleet.status);
+    Boolean(fleet.status));
 
   summary.checks = {
     mcpPinned073: summary.mcp.configured === true && summary.mcp.npmVersion === '0.0.73',
-    dockerHealthyOrNoHealthcheck: summary.docker.kiroGo.ok === true && summary.docker.sub2api.ok === true,
+    dockerHealthchecksHealthy: summary.docker.kiroGo.ok === true && summary.docker.sub2api.ok === true,
     kiroHealth200: summary.api.kiroHealth.status === 200,
     sub2apiHealth200: summary.api.sub2apiHealth.status === 200,
     fleetContractPresent: Boolean(fleet.status && fleet.circuitState && typeof fleet.safeConcurrency !== 'undefined'),
@@ -385,12 +385,12 @@ async function main() {
     requestLogsBoundedAttempts: requestLogApiOk && opusRequestLogs.every((row) => Number(row.attempts || 0) <= 4),
     dbUsageEvidencePresent: recentUsage.length > 0 || markerUsage.length > 0,
     probesOkOrExplicitlyBlocked: !runProbes || probeFailures.length === 0 || upstreamBlocked,
-    logEvidencePresent: kiroLogText.length > 0 && subLogText.length > 0 && apiLogConsistent,
+    logEvidencePresent: Boolean(kiroLogText.length > 0 && subLogText.length > 0 && apiLogConsistent),
     apiDbConsistency: apiDbConsistent,
     screenshotApiConsistency: screenshotApiConsistent,
     screenshotsCaptured: summary.browser && summary.browser.status === 'CAPTURED' && Object.values(summary.browser.screenshots || {}).every((row) => row.bytes > 5000),
-    screenshotTextMatchesApis: summary.browser && summary.browser.textChecks && summary.browser.textChecks.kiroOpusPanelVisible === true,
-    noBrowserPageErrors: summary.browser && Array.isArray(summary.browser.errors) && summary.browser.errors.length === 0,
+    screenshotTextMatchesApis: Boolean(summary.browser && summary.browser.textChecks && summary.browser.textChecks.kiroOpusPanelVisible === true),
+    noBrowserPageErrors: Boolean(summary.browser && Array.isArray(summary.browser.errors) && summary.browser.errors.length === 0),
   };
   summary.result = Object.values(summary.checks).every(Boolean)
     ? 'PASS'
