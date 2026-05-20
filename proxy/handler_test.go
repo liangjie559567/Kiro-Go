@@ -3307,6 +3307,129 @@ func TestAcquireAdmissionGatesStreamByDefault(t *testing.T) {
 	}
 }
 
+func TestStableAdmissionPressureWaitsBeforeFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	release, _, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
+	if err != nil {
+		t.Fatalf("pre-acquire model gate: %v", err)
+	}
+	defer release()
+
+	start := time.Now()
+	releaseReq, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(30*time.Millisecond))
+	if ok {
+		releaseReq()
+		t.Fatalf("expected admission fallback after continuity wait timeout")
+	}
+	if time.Since(start) < 20*time.Millisecond {
+		t.Fatalf("expected continuity wait before fallback, waited %s", time.Since(start))
+	}
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.QueuedForCapacity {
+		t.Fatalf("expected queuedForCapacity")
+	}
+	if entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected positive CapacityQueueWaitMs")
+	}
+	if entry.StableFallbackReason != "admission_pressure" {
+		t.Fatalf("StableFallbackReason = %q, want admission_pressure", entry.StableFallbackReason)
+	}
+}
+
+func TestStableAdmissionPressureResumesAfterCapacityBroadcast(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	rr := httptest.NewRecorder()
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	held, _, err := modelAdmissionGate.acquire("claude-opus-4.7", time.Second)
+	if err != nil {
+		t.Fatalf("pre-acquire model gate: %v", err)
+	}
+
+	done := make(chan struct {
+		release func()
+		ok      bool
+	}, 1)
+	go func() {
+		releaseReq, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(200*time.Millisecond))
+		done <- struct {
+			release func()
+			ok      bool
+		}{release: releaseReq, ok: ok}
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	held()
+	contentContinuityGateGlobal.broadcast("claude-opus-4.7")
+
+	select {
+	case got := <-done:
+		if !got.ok {
+			t.Fatalf("expected admission to resume without stable fallback; body=%s", rr.Body.String())
+		}
+		got.release()
+	case <-time.After(time.Second):
+		t.Fatalf("admission did not resume after capacity broadcast")
+	}
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if logs[0].StableDownstreamFallback {
+		t.Fatalf("did not expect stable fallback after capacity recovery: %#v", logs[0])
+	}
+	if !logs[0].QueuedForCapacity {
+		t.Fatalf("expected queuedForCapacity after continuity wait")
+	}
+}
+
 func TestAcquireAdmissionCanBypassStreamWhenConfigured(t *testing.T) {
 	oldGate := modelAdmissionGate
 	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{

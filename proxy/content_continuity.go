@@ -1,10 +1,13 @@
 package proxy
 
 import (
+	"kiro-go/config"
 	"strings"
 	"sync"
 	"time"
 )
+
+var contentContinuityGateGlobal = newContentContinuityGate()
 
 type contentContinuityGate struct {
 	mu       sync.Mutex
@@ -20,11 +23,36 @@ type contentContinuityWaitResult struct {
 }
 
 func newContentContinuityGate() *contentContinuityGate {
-	return &contentContinuityGate{
+	gate := &contentContinuityGate{
 		notify:   make(map[string]chan struct{}),
 		waiting:  make(map[string]int),
 		maxDepth: 300,
 	}
+	if cfg := config.Get(); cfg != nil && cfg.ContentContinuity.MaxQueueDepth > 0 {
+		gate.maxDepth = cfg.ContentContinuity.MaxQueueDepth
+	}
+	return gate
+}
+
+func contentContinuityWaitDuration(model string, deadline time.Time) time.Duration {
+	cfg := config.Get()
+	if cfg == nil || !cfg.ContentContinuity.SupportsModel(model) {
+		return 0
+	}
+	wait := time.Duration(cfg.ContentContinuity.MaxQueueWaitSeconds) * time.Second
+	if wait <= 0 {
+		return 0
+	}
+	if !deadline.IsZero() {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return 0
+		}
+		if remaining < wait {
+			wait = remaining
+		}
+	}
+	return wait
 }
 
 func (g *contentContinuityGate) setMaxDepthForTest(maxDepth int) {

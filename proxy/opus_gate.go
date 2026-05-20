@@ -297,13 +297,14 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 	if model == "" {
 		return
 	}
+	broadcastContinuity := false
 	g.mu.Lock()
-	defer g.mu.Unlock()
 	gate := g.models[model]
 	if gate == nil {
 		gate = g.def
 	}
 	if gate == nil {
+		g.mu.Unlock()
 		return
 	}
 	now := time.Now()
@@ -312,6 +313,7 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 	}
 	state := g.pressure[model]
 	if state == nil {
+		g.mu.Unlock()
 		return
 	}
 	state.recentSuccesses++
@@ -331,6 +333,11 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 				if gate.gate != nil {
 					gate.gate.broadcast()
 				}
+				broadcastContinuity = true
+				g.mu.Unlock()
+				if broadcastContinuity {
+					contentContinuityGateGlobal.broadcast(model)
+				}
 				return
 			}
 		} else {
@@ -341,8 +348,13 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 			if gate.gate != nil {
 				gate.gate.broadcast()
 			}
+			broadcastContinuity = true
 		}
 		state.circuitState = circuitStateForPressure(state, now)
+		g.mu.Unlock()
+		if broadcastContinuity {
+			contentContinuityGateGlobal.broadcast(model)
+		}
 		return
 	}
 	effectiveBefore := state.effectiveMaxConcurrent
@@ -354,6 +366,11 @@ func (g *modelAdmissionGateSet) recordSuccess(model string, latency time.Duratio
 	}
 	if state.effectiveMaxConcurrent > effectiveBefore && gate.gate != nil {
 		gate.gate.broadcast()
+		broadcastContinuity = true
+	}
+	g.mu.Unlock()
+	if broadcastContinuity {
+		contentContinuityGateGlobal.broadcast(model)
 	}
 }
 

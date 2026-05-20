@@ -2604,8 +2604,8 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 			return func() {}, true
 		}
 		startedAt := time.Now()
-		timeout := time.Until(deadline)
-		if timeout <= 0 {
+		timeout := time.Millisecond
+		if !deadline.IsZero() && time.Until(deadline) <= 0 {
 			timeout = 0
 		}
 		release, gated, err := modelAdmissionGate.acquire(model, timeout)
@@ -2618,6 +2618,35 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 		if err == nil {
 			updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
 			return release, true
+		}
+		if stableWait := contentContinuityWaitDuration(model, deadline); stableWait > 0 {
+			result := contentContinuityGateGlobal.wait(model, stableWait, func() bool {
+				probeRelease, _, probeErr := modelAdmissionGate.acquire(model, time.Millisecond)
+				if probeErr == nil {
+					probeRelease()
+					return false
+				}
+				return true
+			})
+			updateRequestLogCapacityQueue(r, result.Duration)
+			if !result.TimedOut {
+				retryTimeout := time.Until(deadline)
+				if retryTimeout <= 0 {
+					retryTimeout = 0
+				}
+				release, gated, retryErr := modelAdmissionGate.acquire(model, retryTimeout)
+				wait += result.Duration
+				effectiveLimit, pressureScore = modelAdmissionGate.admissionMetrics(model)
+				updateRequestLogAdmission(r, wait, effectiveLimit, pressureScore)
+				if !gated {
+					return func() {}, true
+				}
+				if retryErr == nil {
+					updateRequestLogReliability(r, wait.Milliseconds(), 0, 0, -1)
+					return release, true
+				}
+				err = retryErr
+			}
 		}
 		h.recordFailure()
 		h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, err)
