@@ -236,6 +236,50 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	}
 }
 
+func TestFleetReadinessReportsRecentContentFailures(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	h.ensureRequestLogStore().Add(RequestLogEntry{
+		Timestamp:                  time.Now(),
+		Model:                      "claude-opus-4.7",
+		StatusCode:                 http.StatusOK,
+		Outcome:                    "success",
+		StableDownstreamFallback:   true,
+		StableFallbackReason:       "admission_pressure",
+		ContentFailureReason:       "admission_pressure",
+		SuppressedDownstreamStatus: http.StatusServiceUnavailable,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4-7", nil)
+	w := httptest.NewRecorder()
+
+	h.apiGetFleetReadiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["recentContentRequests"] != float64(1) {
+		t.Fatalf("recentContentRequests = %#v, want 1; body=%#v", body["recentContentRequests"], body)
+	}
+	if body["contentSuccessRate"] != float64(0) {
+		t.Fatalf("contentSuccessRate = %#v, want 0; body=%#v", body["contentSuccessRate"], body)
+	}
+	if body["recentStableFallbacks"] != float64(1) {
+		t.Fatalf("recentStableFallbacks = %#v, want 1; body=%#v", body["recentStableFallbacks"], body)
+	}
+	if body["recentEmptyCompletions"] != float64(1) {
+		t.Fatalf("recentEmptyCompletions = %#v, want 1; body=%#v", body["recentEmptyCompletions"], body)
+	}
+	if body["recommendedQueueWaitSeconds"] != float64(config.Get().ContentContinuity.MaxQueueWaitSeconds) {
+		t.Fatalf("recommendedQueueWaitSeconds = %#v, body=%#v", body["recommendedQueueWaitSeconds"], body)
+	}
+}
+
 func TestFleetReadinessDoesNotTreatNearExpiryAccountAsSchedulable(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

@@ -397,32 +397,78 @@ func (h *Handler) apiGetFleetReadiness(w http.ResponseWriter, r *http.Request) {
 	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 || safeConcurrency < summary["eligible"] {
 		status = "degraded"
 	}
+	continuity := contentContinuityReadinessStats(h.ensureRequestLogStore().List(maxRequestLogLimit), mapped, time.Now())
+	recommendedQueueWaitSeconds := 0
+	if cfg := config.Get(); cfg != nil {
+		recommendedQueueWaitSeconds = cfg.ContentContinuity.MaxQueueWaitSeconds
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"model":                      model,
-		"requestedModel":             model,
-		"mappedModel":                mapped,
-		"status":                     status,
-		"circuitState":               firstNonEmpty(snap.CircuitState, "closed"),
-		"retryAfterSeconds":          snap.RetryAfterSeconds,
-		"safeConcurrency":            safeConcurrency,
-		"currentInFlight":            snap.ActiveRequests,
-		"enabledAccounts":            summary["enabled"],
-		"modelListedAccounts":        summary["total"] - summary["modelNotListed"],
-		"locallySchedulableAccounts": locallySchedulable,
-		"coolingDownAccounts":        summary["coolingDown"],
-		"temporaryLimitedAccounts":   countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
-		"quotaBlockedAccounts":       summary["quotaBlocked"],
-		"authBlockedAccounts":        countFleetRowsByReason(rows, string(pool.FailureReasonAuthExpired)),
-		"admissionPressureScore":     snap.Score,
-		"lastPressureReason":         snap.LastPressureReason,
-		"lastPressureAt":             snap.LastPressureAt,
-		"notes":                      fleetReadinessNotes(status, snap, summary),
-		"strategy":                   config.GetLoadBalanceConfig().Strategy,
-		"summary":                    summary,
-		"accounts":                   rows,
-		"autoRefresh":                h.getAutoRefreshStatus(),
-		"healthCheck":                h.getHealthCheckStatus(),
+		"model":                       model,
+		"requestedModel":              model,
+		"mappedModel":                 mapped,
+		"status":                      status,
+		"circuitState":                firstNonEmpty(snap.CircuitState, "closed"),
+		"retryAfterSeconds":           snap.RetryAfterSeconds,
+		"safeConcurrency":             safeConcurrency,
+		"currentInFlight":             snap.ActiveRequests,
+		"enabledAccounts":             summary["enabled"],
+		"modelListedAccounts":         summary["total"] - summary["modelNotListed"],
+		"locallySchedulableAccounts":  locallySchedulable,
+		"coolingDownAccounts":         summary["coolingDown"],
+		"temporaryLimitedAccounts":    countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
+		"quotaBlockedAccounts":        summary["quotaBlocked"],
+		"authBlockedAccounts":         countFleetRowsByReason(rows, string(pool.FailureReasonAuthExpired)),
+		"admissionPressureScore":      snap.Score,
+		"lastPressureReason":          snap.LastPressureReason,
+		"lastPressureAt":              snap.LastPressureAt,
+		"notes":                       fleetReadinessNotes(status, snap, summary),
+		"strategy":                    config.GetLoadBalanceConfig().Strategy,
+		"summary":                     summary,
+		"accounts":                    rows,
+		"autoRefresh":                 h.getAutoRefreshStatus(),
+		"healthCheck":                 h.getHealthCheckStatus(),
+		"recentContentRequests":       continuity["recentContentRequests"],
+		"contentSuccessRate":          continuity["contentSuccessRate"],
+		"recentStableFallbacks":       continuity["recentStableFallbacks"],
+		"recentEmptyCompletions":      continuity["recentEmptyCompletions"],
+		"recommendedQueueWaitSeconds": recommendedQueueWaitSeconds,
 	})
+}
+
+func contentContinuityReadinessStats(logs []RequestLogEntry, model string, now time.Time) map[string]interface{} {
+	model = normalizeAdmissionModel(model)
+	recent := 0
+	contentSuccess := 0
+	stableFallbacks := 0
+	emptyCompletions := 0
+	for _, entry := range logs {
+		if now.Sub(entry.Timestamp) > 10*time.Minute {
+			continue
+		}
+		if normalizeAdmissionModel(entry.Model) != model {
+			continue
+		}
+		recent++
+		if entry.ContentSuccess {
+			contentSuccess++
+		}
+		if entry.StableDownstreamFallback {
+			stableFallbacks++
+		}
+		if !entry.ContentSuccess && (entry.StableDownstreamFallback || strings.TrimSpace(entry.ContentFailureReason) != "") {
+			emptyCompletions++
+		}
+	}
+	rate := 1.0
+	if recent > 0 {
+		rate = float64(contentSuccess) / float64(recent)
+	}
+	return map[string]interface{}{
+		"recentContentRequests":  recent,
+		"contentSuccessRate":     rate,
+		"recentStableFallbacks":  stableFallbacks,
+		"recentEmptyCompletions": emptyCompletions,
+	}
 }
 
 func firstNonEmpty(values ...string) string {
