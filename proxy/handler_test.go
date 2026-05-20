@@ -2403,6 +2403,93 @@ func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
 	}
 }
 
+func TestStableAttemptBudgetExhaustionWaitsBeforeFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	opusCapacityRetryBudget = time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	if err := config.AddAccount(config.Account{ID: "acct-1", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:aws:codewhisperer:profile/test-1", ExpiresAt: time.Now().Add(time.Hour).Unix()}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	attempts := 0
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	w := httptest.NewRecorder()
+
+	start := time.Now()
+	h.ServeHTTP(w, req)
+	waited := time.Since(start)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("stable fallback status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if waited < 900*time.Millisecond {
+		t.Fatalf("stable attempt-budget fallback waited %s, want content continuity wait", waited)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "attempt_budget_exhausted" {
+		t.Fatalf("expected attempt-budget stable fallback, got %#v", entry)
+	}
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected content continuity queue wait before fallback, got %#v", entry)
+	}
+	if attempts != defaultOpus47MaxAttempts {
+		t.Fatalf("attempts = %d, want %d", attempts, defaultOpus47MaxAttempts)
+	}
+}
+
 func TestHandleClaudeWaitsAndRetriesOpus47RateLimit(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

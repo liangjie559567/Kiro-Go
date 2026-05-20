@@ -666,6 +666,36 @@ func downstreamStatusForRetryExhaustion(r *http.Request, model string, claudeFor
 	return status, errType, false
 }
 
+func (h *Handler) waitForStableContentContinuity(r *http.Request, model string, deadline time.Time, stillBlocked func() bool) bool {
+	if !stableDownstreamForRequest(r, model, true) {
+		return false
+	}
+	stableWait := contentContinuityWaitDuration(model, deadline)
+	if stableWait <= 0 {
+		return false
+	}
+	if stillBlocked == nil {
+		stillBlocked = func() bool { return true }
+	}
+	result := contentContinuityGateGlobal.wait(model, stableWait, stillBlocked)
+	updateRequestLogCapacityQueue(r, result.Duration)
+	return !result.TimedOut
+}
+
+func (h *Handler) stableAttemptBudgetStillBlocked(model string) bool {
+	if modelAdmissionGate != nil {
+		snap := modelAdmissionGate.modelSnapshot(model)
+		if snap.CircuitState == "open" || snap.EffectiveMaxConcurrent <= 0 {
+			return true
+		}
+	}
+	if h == nil || h.pool == nil {
+		return true
+	}
+	state := h.pool.ModelBlockState(model, time.Now())
+	return state.AccountsEvaluated == 0 || state.AllBlocked
+}
+
 func (h *Handler) sendNoAvailableAccountsError(w http.ResponseWriter, r *http.Request, model string, lastErr error, claude bool) {
 	if lastErr == nil && h != nil && h.pool != nil {
 		if model != "" {
@@ -2300,6 +2330,13 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 
 	for {
 		if budget.attemptsExhausted(attempt, model) {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				attempt = 0
+				continue
+			}
 			h.recordFailure()
 			if stableDownstreamForRequest(r, model, true) {
 				if stream {
@@ -2425,6 +2462,13 @@ func (h *Handler) handleOpenAIWithAccountRetry(w http.ResponseWriter, r *http.Re
 
 	for {
 		if budget.attemptsExhausted(attempt, model) {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				attempt = 0
+				continue
+			}
 			h.recordFailure()
 			if stableDownstreamForRequest(r, model, true) {
 				h.sendStableOpenAIResponsesFallback(w, r, model, "attempt_budget_exhausted", lastErr)
@@ -3578,6 +3622,13 @@ func (h *Handler) handleOpenAIResponsesWithAccountRetry(w http.ResponseWriter, r
 
 	for {
 		if budget.attemptsExhausted(attempt, model) {
+			if stableDownstreamForRequest(r, model, true) && h.waitForStableContentContinuity(r, model, deadline, func() bool {
+				return h.stableAttemptBudgetStillBlocked(model)
+			}) {
+				used = make(map[string]bool)
+				attempt = 0
+				continue
+			}
 			h.recordFailure()
 			if stableDownstreamForRequest(r, model, true) {
 				h.sendStableOpenAIFallback(w, r, model, "attempt_budget_exhausted", lastErr)
