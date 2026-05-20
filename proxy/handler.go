@@ -574,6 +574,27 @@ func stableFallbackSuppressedStatus(err error) int {
 	return http.StatusServiceUnavailable
 }
 
+func contentSuccessTokenCount(outputTokens, structuredOutputCount int, textParts ...string) int {
+	if outputTokens > 0 {
+		return outputTokens
+	}
+	if structuredOutputCount > 0 {
+		return 1
+	}
+	for _, part := range textParts {
+		if strings.TrimSpace(part) != "" {
+			return 1
+		}
+	}
+	return 0
+}
+
+func updateRequestLogContentSuccessIfPresent(r *http.Request, outputTokens, structuredOutputCount int, textParts ...string) {
+	if tokens := contentSuccessTokenCount(outputTokens, structuredOutputCount, textParts...); tokens > 0 {
+		updateRequestLogContentSuccess(r, tokens)
+	}
+}
+
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
 	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -3056,6 +3077,7 @@ func (h *Handler) handleClaudeStreamAttempt(w http.ResponseWriter, r *http.Reque
 	outputTokens = estimateClaudeOutputTokens(outputContent, thinkingOutput, toolUses)
 
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolUses), outputContent, thinkingOutput)
 	appendRequestLogAttempt(r, RequestLogAttempt{
 		Attempt:    attempt + 1,
 		AccountID:  account.ID,
@@ -3272,6 +3294,7 @@ func (h *Handler) handleClaudeNonStreamAttempt(w http.ResponseWriter, r *http.Re
 	outputTokens = estimateClaudeOutputTokens(finalContent, rawThinkingContent, toolUses)
 
 	updateRequestLogUsage(r, billedClaudeInputTokens(inputTokens, cacheUsage), outputTokens, cacheUsage.CacheReadInputTokens, cacheUsage.CacheCreationInputTokens)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolUses), finalContent, rawThinkingContent)
 	appendRequestLogAttempt(r, RequestLogAttempt{
 		Attempt:    attempt + 1,
 		AccountID:  account.ID,
@@ -4194,6 +4217,7 @@ func (h *Handler) handleOpenAIStreamAttempt(w http.ResponseWriter, r *http.Reque
 	}
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolCalls), outputContent, reasoningOutput)
 	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
@@ -4351,6 +4375,7 @@ func (h *Handler) handleOpenAIResponsesStreamAttempt(w http.ResponseWriter, r *h
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolUses), finalContent, reasoningContent)
 	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
@@ -4436,6 +4461,7 @@ func (h *Handler) handleOpenAINonStreamAttempt(w http.ResponseWriter, r *http.Re
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolUses), finalContent, reasoningContent)
 	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)
@@ -4510,6 +4536,7 @@ func (h *Handler) handleOpenAIResponsesNonStreamAttempt(w http.ResponseWriter, r
 	outputTokens = estimateOpenAIOutputTokens(finalContent, reasoningContent, toolUses)
 
 	updateRequestLogUsage(r, inputTokens, outputTokens, 0, 0)
+	updateRequestLogContentSuccessIfPresent(r, outputTokens, len(toolUses), finalContent, reasoningContent)
 	modelAdmissionGate.recordSuccess(model, latency)
 	h.recordSuccess(inputTokens, outputTokens, credits)
 	h.pool.RecordSuccessWithLatency(account.ID, latency)

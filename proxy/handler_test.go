@@ -113,6 +113,48 @@ func TestStableDownstreamClaudeStreamFallbackStartsHTTP200SSE(t *testing.T) {
 	}
 }
 
+func TestStableClaudeFallbackMarksContentFailure(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	h.sendStableClaudeFallback(loggedWriter, loggedReq, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.ContentSuccess {
+		t.Fatalf("stable fallback must not be content success: %#v", entry)
+	}
+	if entry.ContentFailureReason != "admission_pressure" {
+		t.Fatalf("ContentFailureReason = %q, want admission_pressure", entry.ContentFailureReason)
+	}
+	if !entry.StableFallbackFinal {
+		t.Fatalf("expected StableFallbackFinal")
+	}
+}
+
+func TestContentSuccessTokenCountTreatsStructuredOutputAsContent(t *testing.T) {
+	if got := contentSuccessTokenCount(0, 1); got != 1 {
+		t.Fatalf("structured output tokens = %d, want 1", got)
+	}
+	if got := contentSuccessTokenCount(0, 0, "  real content  "); got != 1 {
+		t.Fatalf("text output tokens = %d, want 1", got)
+	}
+	if got := contentSuccessTokenCount(7, 0); got != 7 {
+		t.Fatalf("estimated tokens = %d, want 7", got)
+	}
+	if got := contentSuccessTokenCount(0, 0, "   "); got != 0 {
+		t.Fatalf("blank output tokens = %d, want 0", got)
+	}
+}
+
 func TestStableDownstreamSuppressesOpus47RateLimitStatus(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
