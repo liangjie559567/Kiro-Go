@@ -161,6 +161,18 @@ type ContentContinuityConfig struct {
 	StreamHeartbeatSeconds int      `json:"streamHeartbeatSeconds"`
 }
 
+type ClaudeCodeGovernorConfig struct {
+	Enabled                         bool     `json:"enabled"`
+	Models                          []string `json:"models"`
+	InteractiveReservedPerSession   int      `json:"interactiveReservedPerSession"`
+	SubagentMaxConcurrentPerSession int      `json:"subagentMaxConcurrentPerSession"`
+	BackgroundMaxConcurrent         int      `json:"backgroundMaxConcurrent"`
+	QueueMaxDepth                   int      `json:"queueMaxDepth"`
+	InteractiveMaxWaitSeconds       int      `json:"interactiveMaxWaitSeconds"`
+	SubagentMaxWaitSeconds          int      `json:"subagentMaxWaitSeconds"`
+	BackgroundMaxWaitSeconds        int      `json:"backgroundMaxWaitSeconds"`
+}
+
 func (c StableDownstreamConfig) SupportsModel(model string) bool {
 	model = strings.ToLower(strings.TrimSpace(model))
 	if !c.Enabled || model == "" {
@@ -346,25 +358,26 @@ type PromptFilterRule struct {
 // Config represents the global application configuration.
 type Config struct {
 	// Server settings
-	Password          string                  `json:"password"`         // Admin panel password
-	Port              int                     `json:"port"`             // HTTP server port (default: 8080)
-	Host              string                  `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
-	ApiKey            string                  `json:"apiKey,omitempty"` // API key for client authentication
-	RequireApiKey     bool                    `json:"requireApiKey"`    // Whether to enforce API key validation
-	ClientApiKeys     []string                `json:"clientApiKeys,omitempty"`
-	ClientIPAllowlist []string                `json:"clientIPAllowlist,omitempty"`
-	ModelMappings     []ModelMappingRule      `json:"modelMappings,omitempty"`
-	KiroVersion       string                  `json:"kiroVersion,omitempty"`
-	SystemVersion     string                  `json:"systemVersion,omitempty"`
-	NodeVersion       string                  `json:"nodeVersion,omitempty"`
-	Accounts          []Account               `json:"accounts"` // Registered Kiro accounts
-	AutoRefresh       AutoRefreshConfig       `json:"autoRefresh"`
-	HealthCheck       HealthCheckConfig       `json:"healthCheck"`
-	Opus47Admission   Opus47AdmissionConfig   `json:"opus47Admission,omitempty"`
-	ModelAdmission    ModelAdmissionConfig    `json:"modelAdmission,omitempty"`
-	StableDownstream  StableDownstreamConfig  `json:"stableDownstream"`
-	ContentContinuity ContentContinuityConfig `json:"contentContinuity"`
-	LoadBalance       LoadBalanceConfig       `json:"loadBalance,omitempty"`
+	Password           string                   `json:"password"`         // Admin panel password
+	Port               int                      `json:"port"`             // HTTP server port (default: 8080)
+	Host               string                   `json:"host"`             // HTTP server bind address (default: 0.0.0.0)
+	ApiKey             string                   `json:"apiKey,omitempty"` // API key for client authentication
+	RequireApiKey      bool                     `json:"requireApiKey"`    // Whether to enforce API key validation
+	ClientApiKeys      []string                 `json:"clientApiKeys,omitempty"`
+	ClientIPAllowlist  []string                 `json:"clientIPAllowlist,omitempty"`
+	ModelMappings      []ModelMappingRule       `json:"modelMappings,omitempty"`
+	KiroVersion        string                   `json:"kiroVersion,omitempty"`
+	SystemVersion      string                   `json:"systemVersion,omitempty"`
+	NodeVersion        string                   `json:"nodeVersion,omitempty"`
+	Accounts           []Account                `json:"accounts"` // Registered Kiro accounts
+	AutoRefresh        AutoRefreshConfig        `json:"autoRefresh"`
+	HealthCheck        HealthCheckConfig        `json:"healthCheck"`
+	Opus47Admission    Opus47AdmissionConfig    `json:"opus47Admission,omitempty"`
+	ModelAdmission     ModelAdmissionConfig     `json:"modelAdmission,omitempty"`
+	StableDownstream   StableDownstreamConfig   `json:"stableDownstream"`
+	ContentContinuity  ContentContinuityConfig  `json:"contentContinuity"`
+	ClaudeCodeGovernor ClaudeCodeGovernorConfig `json:"claudeCodeGovernor,omitempty"`
+	LoadBalance        LoadBalanceConfig        `json:"loadBalance,omitempty"`
 
 	// Thinking mode configuration for extended reasoning output
 	ThinkingSuffix       string `json:"thinkingSuffix,omitempty"`       // Model suffix to trigger thinking mode (default: "-thinking")
@@ -496,6 +509,79 @@ func normalizeContentContinuityConfig(in ContentContinuityConfig) ContentContinu
 	return in
 }
 
+func defaultClaudeCodeGovernorConfig() ClaudeCodeGovernorConfig {
+	return ClaudeCodeGovernorConfig{
+		Enabled:                         false,
+		Models:                          []string{"claude-opus-4.7"},
+		InteractiveReservedPerSession:   1,
+		SubagentMaxConcurrentPerSession: 2,
+		BackgroundMaxConcurrent:         1,
+		QueueMaxDepth:                   300,
+		InteractiveMaxWaitSeconds:       120,
+		SubagentMaxWaitSeconds:          90,
+		BackgroundMaxWaitSeconds:        15,
+	}
+}
+
+func normalizeClaudeCodeGovernorConfig(in ClaudeCodeGovernorConfig) ClaudeCodeGovernorConfig {
+	defaults := defaultClaudeCodeGovernorConfig()
+	if len(in.Models) == 0 {
+		in.Models = defaults.Models
+	}
+	if in.InteractiveReservedPerSession == 0 {
+		in.InteractiveReservedPerSession = defaults.InteractiveReservedPerSession
+	}
+	if in.SubagentMaxConcurrentPerSession == 0 {
+		in.SubagentMaxConcurrentPerSession = defaults.SubagentMaxConcurrentPerSession
+	}
+	if in.BackgroundMaxConcurrent == 0 {
+		in.BackgroundMaxConcurrent = defaults.BackgroundMaxConcurrent
+	}
+	if in.QueueMaxDepth == 0 {
+		in.QueueMaxDepth = defaults.QueueMaxDepth
+	}
+	if in.InteractiveMaxWaitSeconds == 0 {
+		in.InteractiveMaxWaitSeconds = defaults.InteractiveMaxWaitSeconds
+	}
+	if in.SubagentMaxWaitSeconds == 0 {
+		in.SubagentMaxWaitSeconds = defaults.SubagentMaxWaitSeconds
+	}
+	if in.BackgroundMaxWaitSeconds == 0 {
+		in.BackgroundMaxWaitSeconds = defaults.BackgroundMaxWaitSeconds
+	}
+	return in
+}
+
+func ValidateClaudeCodeGovernorConfig(in ClaudeCodeGovernorConfig) error {
+	if in.InteractiveReservedPerSession < 0 {
+		return fmt.Errorf("interactiveReservedPerSession must be greater than or equal to 0")
+	}
+	if in.SubagentMaxConcurrentPerSession < 0 {
+		return fmt.Errorf("subagentMaxConcurrentPerSession must be greater than or equal to 0")
+	}
+	if in.BackgroundMaxConcurrent < 0 {
+		return fmt.Errorf("backgroundMaxConcurrent must be greater than or equal to 0")
+	}
+	if in.QueueMaxDepth < 0 {
+		return fmt.Errorf("queueMaxDepth must be greater than or equal to 0")
+	}
+	if in.InteractiveMaxWaitSeconds < 0 {
+		return fmt.Errorf("interactiveMaxWaitSeconds must be greater than or equal to 0")
+	}
+	if in.SubagentMaxWaitSeconds < 0 {
+		return fmt.Errorf("subagentMaxWaitSeconds must be greater than or equal to 0")
+	}
+	if in.BackgroundMaxWaitSeconds < 0 {
+		return fmt.Errorf("backgroundMaxWaitSeconds must be greater than or equal to 0")
+	}
+	for _, model := range in.Models {
+		if strings.TrimSpace(model) == "" {
+			return fmt.Errorf("model must not be empty")
+		}
+	}
+	return nil
+}
+
 type persistedContentContinuityConfig struct {
 	Enabled                *bool    `json:"enabled"`
 	Models                 []string `json:"models"`
@@ -557,18 +643,19 @@ func normalizePersistedStableDownstreamConfig(data []byte, in StableDownstreamCo
 
 func defaultConfig() Config {
 	return Config{
-		Password:          "changeme",
-		Port:              8080,
-		Host:              "0.0.0.0",
-		RequireApiKey:     false,
-		Accounts:          []Account{},
-		AutoRefresh:       defaultAutoRefreshConfig(),
-		HealthCheck:       defaultHealthCheckConfig(),
-		Opus47Admission:   defaultOpus47AdmissionConfig(),
-		ModelAdmission:    defaultModelAdmissionConfig(),
-		StableDownstream:  defaultStableDownstreamConfig(),
-		ContentContinuity: defaultContentContinuityConfig(),
-		LoadBalance:       defaultLoadBalanceConfig(),
+		Password:           "changeme",
+		Port:               8080,
+		Host:               "0.0.0.0",
+		RequireApiKey:      false,
+		Accounts:           []Account{},
+		AutoRefresh:        defaultAutoRefreshConfig(),
+		HealthCheck:        defaultHealthCheckConfig(),
+		Opus47Admission:    defaultOpus47AdmissionConfig(),
+		ModelAdmission:     defaultModelAdmissionConfig(),
+		StableDownstream:   defaultStableDownstreamConfig(),
+		ContentContinuity:  defaultContentContinuityConfig(),
+		ClaudeCodeGovernor: defaultClaudeCodeGovernorConfig(),
+		LoadBalance:        defaultLoadBalanceConfig(),
 	}
 }
 
@@ -716,6 +803,7 @@ func Load() error {
 	c.ModelAdmission = normalizeModelAdmissionConfig(c.ModelAdmission, c.Opus47Admission)
 	c.StableDownstream = normalizePersistedStableDownstreamConfig(data, c.StableDownstream)
 	c.ContentContinuity = normalizePersistedContentContinuityConfig(data, c.ContentContinuity)
+	c.ClaudeCodeGovernor = normalizeClaudeCodeGovernorConfig(c.ClaudeCodeGovernor)
 	c.LoadBalance = normalizeLoadBalanceConfig(c.LoadBalance)
 	cfg = &c
 	return nil
@@ -817,6 +905,15 @@ func GetModelAdmissionConfig() ModelAdmissionConfig {
 		return defaultModelAdmissionConfig()
 	}
 	return normalizeModelAdmissionConfig(cfg.ModelAdmission, cfg.Opus47Admission)
+}
+
+func GetClaudeCodeGovernorConfig() ClaudeCodeGovernorConfig {
+	cfgLock.RLock()
+	defer cfgLock.RUnlock()
+	if cfg == nil {
+		return defaultClaudeCodeGovernorConfig()
+	}
+	return normalizeClaudeCodeGovernorConfig(cfg.ClaudeCodeGovernor)
 }
 
 func UpdateOpus47AdmissionConfig(admission Opus47AdmissionConfig) error {

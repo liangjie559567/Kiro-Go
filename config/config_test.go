@@ -336,6 +336,42 @@ func TestContentContinuityExplicitDisabledStaysDisabled(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeGovernorConfigDefaultsDisabled(t *testing.T) {
+	got := GetClaudeCodeGovernorConfig()
+	if got.Enabled {
+		t.Fatalf("expected Claude Code governor disabled by default")
+	}
+	if len(got.Models) != 1 || got.Models[0] != "claude-opus-4.7" {
+		t.Fatalf("Models = %#v, want claude-opus-4.7 only", got.Models)
+	}
+	if got.InteractiveReservedPerSession != 1 {
+		t.Fatalf("InteractiveReservedPerSession = %d, want 1", got.InteractiveReservedPerSession)
+	}
+	if got.SubagentMaxConcurrentPerSession != 2 {
+		t.Fatalf("SubagentMaxConcurrentPerSession = %d, want 2", got.SubagentMaxConcurrentPerSession)
+	}
+	if got.QueueMaxDepth != 300 {
+		t.Fatalf("QueueMaxDepth = %d, want 300", got.QueueMaxDepth)
+	}
+}
+
+func TestValidateClaudeCodeGovernorConfig(t *testing.T) {
+	valid := defaultClaudeCodeGovernorConfig()
+	if err := ValidateClaudeCodeGovernorConfig(valid); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+	negativeSubagentConcurrency := valid
+	negativeSubagentConcurrency.SubagentMaxConcurrentPerSession = -1
+	if err := ValidateClaudeCodeGovernorConfig(negativeSubagentConcurrency); err == nil {
+		t.Fatalf("expected negative subagent concurrency to fail")
+	}
+	negativeQueueDepth := valid
+	negativeQueueDepth.QueueMaxDepth = -1
+	if err := ValidateClaudeCodeGovernorConfig(negativeQueueDepth); err == nil {
+		t.Fatalf("expected negative queue depth to fail")
+	}
+}
+
 func TestValidateModelAdmissionConfig(t *testing.T) {
 	valid := ModelAdmissionConfig{
 		Default: ModelAdmissionRule{MaxConcurrent: 10, MaxWaiting: 100},
