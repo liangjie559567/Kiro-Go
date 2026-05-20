@@ -604,7 +604,9 @@ func updateRequestLogClassification(r *http.Request, c RequestClassification) {
 	if strings.TrimSpace(c.Model) != "" {
 		ctx.entry.Model = strings.TrimSpace(c.Model)
 	}
-	ctx.entry.Stream = c.Stream
+	if c.Stream {
+		ctx.entry.Stream = true
+	}
 }
 
 func updateRequestLogGovernor(r *http.Request, u GovernorLogUpdate) {

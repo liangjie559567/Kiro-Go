@@ -240,6 +240,25 @@ func TestRequestLogRecordsGovernorClassificationAndWaits(t *testing.T) {
 	}
 }
 
+func TestRequestLogClassificationPreservesExistingStream(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
+	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
+
+	updateRequestLogMetadata(loggedReq, "claude-opus-4.7", true)
+	updateRequestLogClassification(loggedReq, RequestClassification{Lane: RequestLaneInteractive})
+	recorder.WriteHeader(http.StatusOK)
+	h.finishRequestLog(ctx, recorder)
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	if !logs[0].Stream {
+		t.Fatalf("expected stream metadata to remain true, got %#v", logs[0])
+	}
+}
+
 func TestRequestLogOpusGovernorSkipsBudgetFieldsForNonOpus(t *testing.T) {
 	h := &Handler{requestLogs: newRequestLogStore(5)}
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{}`))
