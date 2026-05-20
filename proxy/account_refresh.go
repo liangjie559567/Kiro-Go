@@ -11,18 +11,22 @@ import (
 )
 
 type refreshBatchResult struct {
-	Success int
-	Failed  int
+	Success      int
+	Failed       int
+	Skipped      int
+	QuietSkipped int
 }
 
 type autoRefreshStatus struct {
-	Running        bool  `json:"running"`
-	LastStartedAt  int64 `json:"lastStartedAt"`
-	LastFinishedAt int64 `json:"lastFinishedAt"`
-	NextRunAt      int64 `json:"nextRunAt"`
-	LastSuccess    int   `json:"lastSuccess"`
-	LastFailed     int   `json:"lastFailed"`
-	LastSkipped    bool  `json:"lastSkipped"`
+	Running          bool  `json:"running"`
+	LastStartedAt    int64 `json:"lastStartedAt"`
+	LastFinishedAt   int64 `json:"lastFinishedAt"`
+	NextRunAt        int64 `json:"nextRunAt"`
+	LastSuccess      int   `json:"lastSuccess"`
+	LastFailed       int   `json:"lastFailed"`
+	LastSkipped      bool  `json:"lastSkipped"`
+	LastSkippedCount int   `json:"lastSkippedCount"`
+	LastQuietSkipped int   `json:"lastQuietSkipped"`
 }
 
 type refreshAccountResult struct {
@@ -31,24 +35,51 @@ type refreshAccountResult struct {
 }
 
 func selectAutoRefreshAccounts(accounts []config.Account, scope string) []config.Account {
+	selected, _ := selectAutoRefreshAccountsForTime(accounts, scope, time.Now())
+	return selected
+}
+
+func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, now time.Time) ([]config.Account, int) {
+	var skipped int
 	if scope == config.AutoRefreshScopeAll {
-		selected := make([]config.Account, len(accounts))
-		copy(selected, accounts)
-		return selected
+		selected := make([]config.Account, 0, len(accounts))
+		for _, account := range accounts {
+			if shouldSkipMaintenanceAccount(account, now) {
+				skipped++
+				continue
+			}
+			if shouldSkipBackgroundAccountForQuietMode(account, now) {
+				skipped++
+			}
+			selected = append(selected, account)
+		}
+		return selected, skipped
 	}
 
 	selected := make([]config.Account, 0, len(accounts))
 	for _, account := range accounts {
+		if shouldSkipMaintenanceAccount(account, now) {
+			skipped++
+			continue
+		}
+		if shouldSkipBackgroundAccountForQuietMode(account, now) {
+			skipped++
+		}
 		if account.Enabled {
 			selected = append(selected, account)
 		}
 	}
-	return selected
+	return selected, skipped
 }
 
 func runRefreshBatch(accounts []config.Account, refresh func(account *config.Account) error) refreshBatchResult {
 	var result refreshBatchResult
+	now := backgroundQuietModeNow()
 	for i := range accounts {
+		if shouldSkipBackgroundAccountForQuietMode(accounts[i], now) {
+			result.QuietSkipped++
+			continue
+		}
 		if err := refresh(&accounts[i]); err != nil {
 			result.Failed++
 			continue
@@ -94,6 +125,8 @@ func (h *Handler) finishAutoRefresh(result refreshBatchResult, finishedAt, nextR
 	h.autoRefreshStatus.NextRunAt = nextRunAt
 	h.autoRefreshStatus.LastSuccess = result.Success
 	h.autoRefreshStatus.LastFailed = result.Failed
+	h.autoRefreshStatus.LastSkippedCount = result.Skipped
+	h.autoRefreshStatus.LastQuietSkipped = result.QuietSkipped
 }
 
 func (h *Handler) setNextAutoRefreshRun(nextRunAt int64) {

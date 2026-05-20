@@ -5,6 +5,7 @@ import (
 	"io"
 	"kiro-go/auth"
 	"kiro-go/config"
+	"kiro-go/pool"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,23 +19,34 @@ import (
 var authHttpClientStore atomic.Pointer[http.Client]
 
 func TestSelectAutoRefreshAccountsHonorsScope(t *testing.T) {
+	now := time.Unix(2000, 0)
 	accounts := []config.Account{
 		{ID: "enabled-1", Enabled: true},
 		{ID: "disabled-1", Enabled: false},
 		{ID: "enabled-2", Enabled: true},
+		{ID: "cooling-1", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonTemporaryLimited)},
 	}
 
-	enabledOnly := selectAutoRefreshAccounts(accounts, config.AutoRefreshScopeEnabled)
+	enabledOnly, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeEnabled, now)
 	if len(enabledOnly) != 2 {
 		t.Fatalf("expected 2 enabled accounts, got %d", len(enabledOnly))
 	}
 	if enabledOnly[0].ID != "enabled-1" || enabledOnly[1].ID != "enabled-2" {
 		t.Fatalf("unexpected enabled-only order: %#v", enabledOnly)
 	}
+	if skipped != 1 {
+		t.Fatalf("expected one cooling account skipped, got %d", skipped)
+	}
 
-	all := selectAutoRefreshAccounts(accounts, config.AutoRefreshScopeAll)
+	all, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeAll, now)
 	if len(all) != 3 {
 		t.Fatalf("expected all 3 accounts, got %d", len(all))
+	}
+	if all[0].ID != "enabled-1" || all[1].ID != "disabled-1" || all[2].ID != "enabled-2" {
+		t.Fatalf("unexpected all-scope order: %#v", all)
+	}
+	if skipped != 1 {
+		t.Fatalf("expected one cooling account skipped for all scope, got %d", skipped)
 	}
 }
 
@@ -55,6 +67,52 @@ func TestRunRefreshBatchContinuesAfterFailure(t *testing.T) {
 	}
 	if result.Success != 2 || result.Failed != 1 {
 		t.Fatalf("expected 2 success and 1 failed, got %#v", result)
+	}
+}
+
+func TestRunRefreshBatchQuietModeSkipsCooldownAccount(t *testing.T) {
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	oldNow := backgroundQuietModeNow
+	backgroundQuietModeNow = func() time.Time { return now }
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		backgroundQuietModeNow = oldNow
+	})
+
+	accounts := []config.Account{
+		{ID: "ok", Enabled: true},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+	}
+
+	selected, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeEnabled, now)
+	if skipped != 1 {
+		t.Fatalf("expected one quiet-mode selection skip, got %d", skipped)
+	}
+	if len(selected) != 2 {
+		t.Fatalf("expected quiet-mode account to be deferred to batch skip, got %#v", selected)
+	}
+
+	var refreshed []string
+	result := runRefreshBatch(selected, func(account *config.Account) error {
+		refreshed = append(refreshed, account.ID)
+		return nil
+	})
+	result.Skipped = skipped
+
+	if result.Success != 1 || result.Failed != 0 || result.Skipped != 1 || result.QuietSkipped != 1 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+	if len(refreshed) != 1 || refreshed[0] != "ok" {
+		t.Fatalf("quiet-mode cooldown account should not be refreshed, got calls %#v", refreshed)
 	}
 }
 
@@ -86,6 +144,26 @@ func TestTryBeginAutoRefreshPreventsOverlap(t *testing.T) {
 	}
 	if status.NextRunAt != 3600 {
 		t.Fatalf("expected next run 3600, got %d", status.NextRunAt)
+	}
+
+	h.finishAutoRefresh(refreshBatchResult{Success: 1, Failed: 0, Skipped: 2}, 400, 7200)
+	status = h.getAutoRefreshStatus()
+	if status.LastSkippedCount != 2 {
+		t.Fatalf("expected last skipped count 2, got %d", status.LastSkippedCount)
+	}
+}
+
+func TestAutoRefreshStatusRecordsQuietModeSkips(t *testing.T) {
+	h := &Handler{}
+
+	h.finishAutoRefresh(refreshBatchResult{Success: 1, Failed: 0, Skipped: 2, QuietSkipped: 1}, 400, 7200)
+
+	status := h.getAutoRefreshStatus()
+	if status.LastSkippedCount != 2 {
+		t.Fatalf("expected last skipped count 2, got %d", status.LastSkippedCount)
+	}
+	if status.LastQuietSkipped != 1 {
+		t.Fatalf("expected last quiet skipped 1, got %d", status.LastQuietSkipped)
 	}
 }
 

@@ -8,31 +8,50 @@ import (
 	"time"
 )
 
+var backgroundQuietModeNow = time.Now
+
 type healthCheckBatchResult struct {
-	Success  int
-	Failed   int
-	Disabled int
+	Success      int
+	Failed       int
+	Disabled     int
+	Skipped      int
+	QuietSkipped int
 }
 
 type healthCheckStatus struct {
-	Running        bool  `json:"running"`
-	LastStartedAt  int64 `json:"lastStartedAt"`
-	LastFinishedAt int64 `json:"lastFinishedAt"`
-	NextRunAt      int64 `json:"nextRunAt"`
-	LastSuccess    int   `json:"lastSuccess"`
-	LastFailed     int   `json:"lastFailed"`
-	LastDisabled   int   `json:"lastDisabled"`
-	LastSkipped    bool  `json:"lastSkipped"`
+	Running          bool  `json:"running"`
+	LastStartedAt    int64 `json:"lastStartedAt"`
+	LastFinishedAt   int64 `json:"lastFinishedAt"`
+	NextRunAt        int64 `json:"nextRunAt"`
+	LastSuccess      int   `json:"lastSuccess"`
+	LastFailed       int   `json:"lastFailed"`
+	LastDisabled     int   `json:"lastDisabled"`
+	LastSkipped      bool  `json:"lastSkipped"`
+	LastSkippedCount int   `json:"lastSkippedCount"`
+	LastQuietSkipped int   `json:"lastQuietSkipped"`
 }
 
 func selectHealthCheckAccounts(accounts []config.Account) []config.Account {
+	selected, _ := selectHealthCheckAccountsForTime(accounts, time.Now())
+	return selected
+}
+
+func selectHealthCheckAccountsForTime(accounts []config.Account, now time.Time) ([]config.Account, int) {
 	selected := make([]config.Account, 0, len(accounts))
+	var skipped int
 	for _, account := range accounts {
+		if shouldSkipMaintenanceAccount(account, now) {
+			skipped++
+			continue
+		}
+		if shouldSkipBackgroundAccountForQuietMode(account, now) {
+			skipped++
+		}
 		if account.Enabled {
 			selected = append(selected, account)
 		}
 	}
-	return selected
+	return selected, skipped
 }
 
 func runHealthCheckBatch(
@@ -43,7 +62,12 @@ func runHealthCheckBatch(
 	now int64,
 ) healthCheckBatchResult {
 	var result healthCheckBatchResult
+	nowTime := time.Unix(now, 0)
 	for i := range accounts {
+		if shouldSkipBackgroundAccountForQuietMode(accounts[i], nowTime) {
+			result.QuietSkipped++
+			continue
+		}
 		err := check(&accounts[i])
 		if err == nil {
 			result.Success++
@@ -109,6 +133,8 @@ func (h *Handler) finishHealthCheck(result healthCheckBatchResult, finishedAt, n
 	h.healthCheckStatus.LastSuccess = result.Success
 	h.healthCheckStatus.LastFailed = result.Failed
 	h.healthCheckStatus.LastDisabled = result.Disabled
+	h.healthCheckStatus.LastSkippedCount = result.Skipped
+	h.healthCheckStatus.LastQuietSkipped = result.QuietSkipped
 }
 
 func (h *Handler) setNextHealthCheckRun(nextRunAt int64) {
@@ -145,4 +171,33 @@ func disableUnhealthyAccount(account *config.Account, reason string, now int64) 
 		return config.UpdateAccount(account.ID, accounts[i])
 	}
 	return fmt.Errorf("account %s not found", account.ID)
+}
+
+func shouldSkipMaintenanceAccount(account config.Account, now time.Time) bool {
+	if account.CooldownUntil <= now.Unix() {
+		return false
+	}
+	switch pool.FailureReason(account.LastFailureReason) {
+	case pool.FailureReasonTemporaryLimited, pool.FailureReasonRateLimited, pool.FailureReasonQuotaExhausted:
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldSkipBackgroundAccountForQuietMode(account config.Account, now time.Time) bool {
+	return opusQuietModeActive() && account.CooldownUntil > now.Unix()
+}
+
+func opusQuietModeActive() bool {
+	if modelAdmissionGate == nil {
+		return false
+	}
+	snap := modelAdmissionGate.modelSnapshot("claude-opus-4.7")
+	switch snap.CircuitState {
+	case "open", "degraded":
+		return true
+	default:
+		return snap.Score >= 4
+	}
 }

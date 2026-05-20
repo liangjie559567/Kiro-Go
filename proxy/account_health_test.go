@@ -11,18 +11,23 @@ import (
 )
 
 func TestSelectHealthCheckAccountsOnlyEnabled(t *testing.T) {
+	now := time.Unix(2000, 0)
 	accounts := []config.Account{
 		{ID: "enabled-1", Enabled: true},
 		{ID: "disabled-1", Enabled: false},
-		{ID: "enabled-2", Enabled: true, CooldownUntil: time.Now().Add(time.Hour).Unix(), LastFailureReason: "quota_exhausted"},
+		{ID: "enabled-2", Enabled: true, CooldownUntil: now.Add(-time.Hour).Unix(), LastFailureReason: "quota_exhausted"},
+		{ID: "cooling-1", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonQuotaExhausted)},
 	}
 
-	got := selectHealthCheckAccounts(accounts)
+	got, skipped := selectHealthCheckAccountsForTime(accounts, now)
 	if len(got) != 2 {
 		t.Fatalf("expected 2 enabled accounts, got %d", len(got))
 	}
 	if got[0].ID != "enabled-1" || got[1].ID != "enabled-2" {
 		t.Fatalf("unexpected enabled account order: %#v", got)
+	}
+	if skipped != 1 {
+		t.Fatalf("expected one cooling account skipped, got %d", skipped)
 	}
 }
 
@@ -93,6 +98,50 @@ func TestRunHealthCheckBatchDoesNotDisableQuotaExhaustedAccounts(t *testing.T) {
 	}
 }
 
+func TestRunHealthCheckBatchQuietModeSkipsCooldownAccount(t *testing.T) {
+	oldGate := modelAdmissionGate
+	now := time.Unix(2000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	accounts := []config.Account{
+		{ID: "ok", Enabled: true},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix()},
+	}
+
+	selected, skipped := selectHealthCheckAccountsForTime(accounts, now)
+	if skipped != 1 {
+		t.Fatalf("expected one quiet-mode selection skip, got %d", skipped)
+	}
+	if len(selected) != 2 {
+		t.Fatalf("expected quiet-mode account to be deferred to batch skip, got %#v", selected)
+	}
+
+	var checked []string
+	result := runHealthCheckBatch(selected, true, func(account *config.Account) error {
+		checked = append(checked, account.ID)
+		return nil
+	}, func(account *config.Account, reason string, now int64) error {
+		t.Fatalf("disable should not be called")
+		return nil
+	}, now.Unix())
+	result.Skipped = skipped
+
+	if result.Success != 1 || result.Failed != 0 || result.Disabled != 0 || result.Skipped != 1 || result.QuietSkipped != 1 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+	if len(checked) != 1 || checked[0] != "ok" {
+		t.Fatalf("quiet-mode cooldown account should not be checked, got calls %#v", checked)
+	}
+}
+
 func TestTryBeginHealthCheckPreventsOverlap(t *testing.T) {
 	h := &Handler{}
 
@@ -124,6 +173,26 @@ func TestTryBeginHealthCheckPreventsOverlap(t *testing.T) {
 	}
 	if status.LastDisabled != 1 {
 		t.Fatalf("expected last disabled 1, got %d", status.LastDisabled)
+	}
+
+	h.finishHealthCheck(healthCheckBatchResult{Success: 1, Failed: 0, Disabled: 0, Skipped: 2}, 400, 7200)
+	status = h.getHealthCheckStatus()
+	if status.LastSkippedCount != 2 {
+		t.Fatalf("expected last skipped count 2, got %d", status.LastSkippedCount)
+	}
+}
+
+func TestHealthCheckStatusRecordsQuietModeSkips(t *testing.T) {
+	h := &Handler{}
+
+	h.finishHealthCheck(healthCheckBatchResult{Success: 1, Failed: 0, Disabled: 0, Skipped: 2, QuietSkipped: 1}, 400, 7200)
+
+	status := h.getHealthCheckStatus()
+	if status.LastSkippedCount != 2 {
+		t.Fatalf("expected last skipped count 2, got %d", status.LastSkippedCount)
+	}
+	if status.LastQuietSkipped != 1 {
+		t.Fatalf("expected last quiet skipped 1, got %d", status.LastQuietSkipped)
 	}
 }
 
