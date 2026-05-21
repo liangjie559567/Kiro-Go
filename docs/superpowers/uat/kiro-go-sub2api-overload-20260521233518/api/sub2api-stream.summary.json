@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "events": [
+    "ping",
+    "message_start",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop"
+  ],
+  "text": "ok",
+  "has_error_event": false,
+  "has_message_start": true,
+  "has_message_stop": true,
+  "has_content_delta": true,
+  "has_internal_fallback_marker": false,
+  "body_head": "event: ping\ndata: {\"type\":\"ping\"}\n\nevent: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_399b3a2a-6e2a-44a7-b3cc-9e411d2f4247\",\"model\":\"claude-opus-4.7\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}},\"type\":\"message_start\"}\n\nevent: content_block_start\ndata: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"ok\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":5891,\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+}

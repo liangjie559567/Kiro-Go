@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "type": "message",
+  "model": "claude-opus-4.7",
+  "text": "ok",
+  "error": null,
+  "has_assistant_role": true,
+  "body_head": "{\"id\":\"msg_a76a7077-e5dd-44df-bd78-441a6b868bf9\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"model\":\"claude-opus-4.7\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5888,\"output_tokens\":1}}\n"
+}

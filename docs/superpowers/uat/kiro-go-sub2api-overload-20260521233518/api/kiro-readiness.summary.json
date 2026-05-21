@@ -1,0 +1,9 @@
+{
+  "status": null,
+  "safeConcurrency": null,
+  "retryAfterSeconds": null,
+  "routingReason": "schedulable accounts available",
+  "listedByGateway": true,
+  "accountCount": 21,
+  "schedulableCount": 21
+}

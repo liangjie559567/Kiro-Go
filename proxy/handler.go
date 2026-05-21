@@ -521,6 +521,7 @@ type opus47RequestBudget struct {
 }
 
 const opus47BudgetExhaustedReason = "opus47_budget_exhausted"
+const anthropicOverloadedStatus = 529
 
 func newOpus47RequestBudget(model string) opus47RequestBudget {
 	if !isOpus47Model(model) {
@@ -587,6 +588,17 @@ func stableFallbackAssistantText(reason string, err error) string {
 	return msg
 }
 
+func stableClaudeRetryableErrorMessage(reason string, err error) string {
+	msg := "Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
+	if reason != "" {
+		msg += " Retry reason: " + reason + "."
+	}
+	if err != nil {
+		msg += " Upstream status is retryable."
+	}
+	return msg
+}
+
 func stableFallbackSuppressedStatus(err error) int {
 	if err == nil {
 		return http.StatusServiceUnavailable
@@ -615,25 +627,38 @@ func (h *Handler) recordModelContentSuccessIfPresent(accountID, model string, ou
 }
 
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	h.sendStableClaudeRetryableError(w, r, model, reason, err)
+}
+
+func (h *Handler) sendStableClaudeRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, anthropicOverloadedStatus)
+	for key, values := range opusPressureHeaders(model, err, reason) {
+		if len(values) > 0 && strings.TrimSpace(values[0]) != "" {
+			w.Header().Set(key, values[0])
+		}
+	}
+	if w.Header().Get("Retry-After") == "" {
+		w.Header().Set("Retry-After", strconv.Itoa(defaultRateLimitFallbackSeconds))
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(anthropicOverloadedStatus)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":            "msg_" + uuid.New().String(),
-		"type":          "message",
-		"role":          "assistant",
-		"model":         model,
-		"content":       []map[string]string{{"type": "text", "text": stableFallbackAssistantText(reason, err)}},
-		"stop_reason":   "end_turn",
-		"stop_sequence": nil,
-		"usage":         map[string]int{"input_tokens": 0, "output_tokens": 0},
+		"type": "error",
+		"error": map[string]string{
+			"type":    "overloaded_error",
+			"message": stableClaudeRetryableErrorMessage(reason, err),
+		},
 	})
 }
 
 func (h *Handler) sendStableClaudeStreamFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	h.sendStableClaudeStreamRetryableError(w, r, model, reason, err)
+}
+
+func (h *Handler) sendStableClaudeStreamRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, anthropicOverloadedStatus)
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -641,9 +666,7 @@ func (h *Handler) sendStableClaudeStreamFallback(w http.ResponseWriter, r *http.
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
 	w.WriteHeader(http.StatusOK)
 	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
-	sse.Start()
-	sse.TextDelta(stableFallbackAssistantText(reason, err))
-	sse.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
+	sse.Error("overloaded_error", stableClaudeRetryableErrorMessage(reason, err))
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
