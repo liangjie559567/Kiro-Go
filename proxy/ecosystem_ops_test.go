@@ -396,6 +396,102 @@ func TestFleetReadinessSafeConcurrencyFormulaForHealthyAndDegraded(t *testing.T)
 	}
 }
 
+func TestFleetReadinessConfiguredLimitIsHealthyWithoutPressure(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	now := time.Now()
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 3; i++ {
+		id := "acct-" + string(rune('0'+i))
+		if err := config.AddAccount(config.Account{ID: id, Email: id + "@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+	for _, account := range config.GetAccounts() {
+		p.SetModelList(account.ID, []string{"claude-opus-4.7"})
+	}
+
+	w := httptest.NewRecorder()
+	h.apiGetFleetReadiness(w, httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4.7", nil))
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if body["status"] != "healthy" {
+		t.Fatalf("status = %#v, want healthy; body=%#v", body["status"], body)
+	}
+	if got := body["safeConcurrency"]; got != float64(2) {
+		t.Fatalf("safeConcurrency = %#v, want configured safe limit 2; body=%#v", got, body)
+	}
+	if got := stringSliceFromInterface(body["reasonCodes"]); !reflect.DeepEqual(got, []string{"healthy"}) {
+		t.Fatalf("reasonCodes = %#v, want healthy; body=%#v", got, body)
+	}
+}
+
+func TestFleetReadinessDoesNotSurfaceCoolingDownWhenCapacityRemainsHealthy(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	now := time.Now()
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	accounts := []config.Account{
+		{ID: "cooling", Email: "cooling@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1", LastFailureReason: string(pool.FailureReasonTemporaryLimited), CooldownUntil: now.Add(time.Hour).Unix()},
+		{ID: "healthy-1", Email: "healthy1@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+		{ID: "healthy-2", Email: "healthy2@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+		{ID: "healthy-3", Email: "healthy3@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	for _, account := range accounts {
+		p.SetModelList(account.ID, []string{"claude-opus-4.7"})
+	}
+	h := &Handler{pool: p, requestLogs: newRequestLogStore(10)}
+
+	w := httptest.NewRecorder()
+	h.apiGetFleetReadiness(w, httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4.7", nil))
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness: %v", err)
+	}
+	if body["status"] != "healthy" {
+		t.Fatalf("status = %#v, want healthy; body=%#v", body["status"], body)
+	}
+	if got := body["coolingDownAccounts"]; got != float64(1) {
+		t.Fatalf("coolingDownAccounts = %#v, want 1; body=%#v", got, body)
+	}
+	if got := body["retryAfterSeconds"]; got != float64(0) {
+		t.Fatalf("retryAfterSeconds = %#v, want 0 while healthy capacity remains; body=%#v", got, body)
+	}
+	if got := stringSliceFromInterface(body["reasonCodes"]); !reflect.DeepEqual(got, []string{"healthy"}) {
+		t.Fatalf("reasonCodes = %#v, want healthy; body=%#v", got, body)
+	}
+}
+
 func TestFleetReadinessReportsRecentContentFailures(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

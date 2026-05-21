@@ -1,0 +1,31 @@
+{
+  "status": "healthy",
+  "circuitState": "closed",
+  "reasonCodes": [
+    "healthy"
+  ],
+  "safeConcurrency": 10,
+  "admissionEffectiveConcurrency": 10,
+  "locallySchedulableAccounts": 20,
+  "coolingDownAccounts": 1,
+  "temporaryLimitedAccounts": 1,
+  "admissionPressureScore": 0,
+  "lastPressureReason": "healthy",
+  "retryAfterSeconds": 0,
+  "recommendedAction": "send_with_safe_concurrency",
+  "notes": [
+    "some accounts are cooling down and must not be probed aggressively"
+  ],
+  "blockedOrCoolingAccounts": [
+    {
+      "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+      "eligible": false,
+      "reasonCodes": [
+        "cooling_down"
+      ],
+      "coolingDown": true,
+      "cooldownRemainingSeconds": 10012,
+      "lastFailureReason": "temporary_limited"
+    }
+  ]
+}

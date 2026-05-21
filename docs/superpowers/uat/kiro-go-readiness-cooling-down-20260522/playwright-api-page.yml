@@ -1,0 +1,540 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "Kiro-Go" [level=1] [ref=e4]:
+      - img [ref=e5]
+      - text: Kiro-Go
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "中文" [ref=e9] [cursor=pointer]
+        - button "EN" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]: 运行中
+      - generic [ref=e12] [cursor=pointer]: v1.0.8
+      - button "退出登录" [ref=e13] [cursor=pointer]
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]: "21"
+      - generic [ref=e17]: 账号
+    - generic [ref=e18]:
+      - generic [ref=e19]: "16924"
+      - generic [ref=e20]: 请求
+    - generic [ref=e21]:
+      - generic [ref=e22]: "7337"
+      - generic [ref=e23]: 成功
+    - generic [ref=e24]:
+      - generic [ref=e25]: "9587"
+      - generic [ref=e26]: 失败
+    - generic [ref=e27]:
+      - generic [ref=e28]: 233.9M
+      - generic [ref=e29]: Tokens
+    - generic [ref=e30]:
+      - generic [ref=e31]: "2046.1"
+      - generic [ref=e32]: Credits
+  - generic [ref=e33]:
+    - generic [ref=e34] [cursor=pointer]: 账号
+    - generic [ref=e35] [cursor=pointer]: 设置
+    - generic [ref=e36] [cursor=pointer]: API
+  - generic [ref=e2286]:
+    - generic [ref=e2288]:
+      - generic [ref=e2289]:
+        - generic [ref=e2290]: Claude Code
+        - button "刷新" [ref=e2291] [cursor=pointer]
+      - generic [ref=e2292]: Use ANTHROPIC_BASE_URL with Kiro-Go. Set ENABLE_TOOL_SEARCH=true for MCP Tool Search.
+      - generic [ref=e2293]:
+        - generic [ref=e2294]: client
+        - generic [ref=e2295]: tool_reference
+        - generic [ref=e2296]: mcp tools
+        - generic [ref=e2297]: tool trimming
+        - generic [ref=e2298]: tool_result turns
+        - generic [ref=e2299]: context reminder
+        - generic [ref=e2300]: responses restore
+        - generic [ref=e2301]: parent-agent
+        - generic [ref=e2302]: unsupported blocks
+        - generic [ref=e2303]: tool-result images
+        - generic [ref=e2304]: orphan tool_result
+        - generic [ref=e2305]: fine-grained requested
+        - generic [ref=e2306]: tool suppressed
+      - generic [ref=e2307]: "Context reminders: -"
+      - generic [ref=e2308]: "Last seen: -"
+      - generic [ref=e2309]:
+        - generic [ref=e2310]:
+          - generic [ref=e2311]:
+            - generic [ref=e2312]: assistantPrefill
+            - generic [ref=e2313]: PARTIAL
+          - generic [ref=e2314]: Text prefill is emulated as a continuation instruction; tool-use prefill is rejected
+          - generic [ref=e2315]:
+            - generic [ref=e2316]:
+              - strong [ref=e2317]: Claude Code
+              - text: · emulated_text_prefill
+              - generic [ref=e2318]: text prefill conversion is implemented
+            - generic [ref=e2319]: EMULATED_PASS
+          - generic [ref=e2320]:
+            - generic [ref=e2321]:
+              - strong [ref=e2322]: Official API
+              - text: · emulated_text_prefill
+              - generic [ref=e2323]: native upstream prefill is not proven
+            - generic [ref=e2324]: PARTIAL
+          - generic [ref=e2325]: "Evidence: emulated_text_prefill"
+        - generic [ref=e2326]:
+          - generic [ref=e2327]:
+            - generic [ref=e2328]: countTokens
+            - generic [ref=e2329]: PARTIAL
+          - generic [ref=e2330]: Claude Code compatible estimated token counting; official exact count is not proven
+          - generic [ref=e2331]:
+            - generic [ref=e2332]:
+              - strong [ref=e2333]: Claude Code
+              - text: · estimated
+              - generic [ref=e2334]: count_tokens endpoint is implemented
+            - generic [ref=e2335]: PASS
+          - generic [ref=e2336]:
+            - generic [ref=e2337]:
+              - strong [ref=e2338]: Official API
+              - text: · estimated
+              - generic [ref=e2339]: no upstream exact count_tokens evidence
+            - generic [ref=e2340]: PARTIAL
+          - generic [ref=e2341]: "Evidence: estimated"
+        - generic [ref=e2342]:
+          - generic [ref=e2343]:
+            - generic [ref=e2344]: fineGrainedToolStreaming
+            - generic [ref=e2345]: PARTIAL
+          - generic [ref=e2346]: Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape
+          - generic [ref=e2347]:
+            - generic [ref=e2348]:
+              - strong [ref=e2349]: Claude Code
+              - text: · kiro_go_chunked_complete_input
+              - generic [ref=e2350]: Anthropic SSE input_json_delta writer is implemented
+            - generic [ref=e2351]: PASS
+          - generic [ref=e2352]:
+            - generic [ref=e2353]:
+              - strong [ref=e2354]: Official API
+              - text: · kiro_go_chunked_complete_input
+              - generic [ref=e2355]: upstream partial tool input deltas are not proven
+            - generic [ref=e2356]: PARTIAL
+          - generic [ref=e2357]: "Evidence: kiro_go_chunked_complete_input"
+        - generic [ref=e2358]:
+          - generic [ref=e2359]:
+            - generic [ref=e2360]: maxTokensZero
+            - generic [ref=e2361]: PARTIAL
+          - generic [ref=e2362]: Claude Code compatible zero-output response; official cache warmup is not proven
+          - generic [ref=e2363]:
+            - generic [ref=e2364]:
+              - strong [ref=e2365]: Claude Code
+              - text: · local_zero_output
+              - generic [ref=e2366]: local zero-output response shape is implemented
+            - generic [ref=e2367]: PASS
+          - generic [ref=e2368]:
+            - generic [ref=e2369]:
+              - strong [ref=e2370]: Official API
+              - text: · local_zero_output
+              - generic [ref=e2371]: no upstream cache warmup evidence
+            - generic [ref=e2372]: BLOCKED_BY_UPSTREAM
+          - generic [ref=e2373]: "Evidence: local_zero_output"
+        - generic [ref=e2374]:
+          - generic [ref=e2375]:
+            - generic [ref=e2376]: messages
+            - generic [ref=e2377]: PASS
+          - generic [ref=e2378]: /v1/messages is implemented
+        - generic [ref=e2379]:
+          - generic [ref=e2380]:
+            - generic [ref=e2381]: opus47AdaptiveAdmission
+            - generic [ref=e2382]: PASS
+          - generic [ref=e2383]: Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency
+        - generic [ref=e2384]:
+          - generic [ref=e2385]:
+            - generic [ref=e2386]: toolReference
+            - generic [ref=e2387]: PASS
+          - generic [ref=e2388]: tool_reference is accepted and materialized when relevant
+        - generic [ref=e2389]:
+          - generic [ref=e2390]:
+            - generic [ref=e2391]: toolSchemaValidation
+            - generic [ref=e2392]: PASS
+          - generic [ref=e2393]: Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them
+      - generic [ref=e2394]: export ANTHROPIC_BASE_URL=http://127.0.0.1:8080 export ANTHROPIC_AUTH_TOKEN=any export ENABLE_TOOL_SEARCH=true
+    - generic [ref=e2396]:
+      - generic [ref=e2397]:
+        - generic [ref=e2398]: Kiro CLI diagnostics
+        - button "刷新" [ref=e2399] [cursor=pointer]
+      - generic [ref=e2400]:
+        - generic [ref=e2401]:
+          - generic [ref=e2402]: Path
+          - generic [ref=e2403]: /usr/local/bin/kiro-cli
+        - generic [ref=e2404]:
+          - generic [ref=e2405]: Availability
+          - generic [ref=e2406]: available
+        - generic [ref=e2407]:
+          - generic [ref=e2408]: Version
+          - generic [ref=e2409]: kiro-cli 2.4.0
+        - generic [ref=e2410]:
+          - generic [ref=e2411]: CLI home
+          - generic [ref=e2412]: configured
+        - generic [ref=e2413]:
+          - generic [ref=e2414]: Command router
+          - generic [ref=e2415]: unknown
+        - generic [ref=e2416]:
+          - generic [ref=e2417]: Opus 4.7 model list
+          - generic [ref=e2418]: unknown
+      - generic [ref=e2419]: "Latest: version · ok · 5ms"
+    - generic [ref=e2420]:
+      - generic [ref=e2421]: "model: claude-sonnet-4.5 -> claude-sonnet-4.5 · model listed by Kiro-Go model cache · routing: schedulable accounts available"
+      - generic [ref=e2422]: "Admission pressure: inactive"
+      - table [ref=e2423]:
+        - rowgroup [ref=e2424]:
+          - row "ID Email Enabled Healthy Lists model Schedulable Cooldown Reason" [ref=e2425]:
+            - columnheader "ID" [ref=e2426]
+            - columnheader "Email" [ref=e2427]
+            - columnheader "Enabled" [ref=e2428]
+            - columnheader "Healthy" [ref=e2429]
+            - columnheader "Lists model" [ref=e2430]
+            - columnheader "Schedulable" [ref=e2431]
+            - columnheader "Cooldown" [ref=e2432]
+            - columnheader "Reason" [ref=e2433]
+        - rowgroup [ref=e2434]:
+          - row "93fb7e70-3ccf-4330-9d8d-b25c89322ae4 r***@gmail.com yes yes yes yes - schedulable" [ref=e2435]:
+            - cell "93fb7e70-3ccf-4330-9d8d-b25c89322ae4" [ref=e2436]
+            - cell "r***@gmail.com" [ref=e2437]
+            - cell "yes" [ref=e2438]
+            - cell "yes" [ref=e2439]
+            - cell "yes" [ref=e2440]
+            - cell "yes" [ref=e2441]
+            - cell "-" [ref=e2442]
+            - cell "schedulable" [ref=e2443]
+          - row "6d524028-56ee-41e9-aad9-eaba82d4d75b r***@gmail.com yes yes yes yes - schedulable" [ref=e2444]:
+            - cell "6d524028-56ee-41e9-aad9-eaba82d4d75b" [ref=e2445]
+            - cell "r***@gmail.com" [ref=e2446]
+            - cell "yes" [ref=e2447]
+            - cell "yes" [ref=e2448]
+            - cell "yes" [ref=e2449]
+            - cell "yes" [ref=e2450]
+            - cell "-" [ref=e2451]
+            - cell "schedulable" [ref=e2452]
+          - row "fef84be2-f929-4ea2-afa9-5f8702016868 r***@gmail.com yes yes yes yes - schedulable" [ref=e2453]:
+            - cell "fef84be2-f929-4ea2-afa9-5f8702016868" [ref=e2454]
+            - cell "r***@gmail.com" [ref=e2455]
+            - cell "yes" [ref=e2456]
+            - cell "yes" [ref=e2457]
+            - cell "yes" [ref=e2458]
+            - cell "yes" [ref=e2459]
+            - cell "-" [ref=e2460]
+            - cell "schedulable" [ref=e2461]
+          - row "f4454cf1-1b38-4fed-ad1d-076795f4d8cd r***@gmail.com yes yes yes yes - schedulable" [ref=e2462]:
+            - cell "f4454cf1-1b38-4fed-ad1d-076795f4d8cd" [ref=e2463]
+            - cell "r***@gmail.com" [ref=e2464]
+            - cell "yes" [ref=e2465]
+            - cell "yes" [ref=e2466]
+            - cell "yes" [ref=e2467]
+            - cell "yes" [ref=e2468]
+            - cell "-" [ref=e2469]
+            - cell "schedulable" [ref=e2470]
+          - row "62c85da6-7eac-46eb-a8c9-7470695df3c7 r***@gmail.com yes yes yes yes - schedulable" [ref=e2471]:
+            - cell "62c85da6-7eac-46eb-a8c9-7470695df3c7" [ref=e2472]
+            - cell "r***@gmail.com" [ref=e2473]
+            - cell "yes" [ref=e2474]
+            - cell "yes" [ref=e2475]
+            - cell "yes" [ref=e2476]
+            - cell "yes" [ref=e2477]
+            - cell "-" [ref=e2478]
+            - cell "schedulable" [ref=e2479]
+          - row "95d9dcb5-f544-4bcb-9aee-ff1890938a82 c***@gmail.com yes yes yes yes - schedulable" [ref=e2480]:
+            - cell "95d9dcb5-f544-4bcb-9aee-ff1890938a82" [ref=e2481]
+            - cell "c***@gmail.com" [ref=e2482]
+            - cell "yes" [ref=e2483]
+            - cell "yes" [ref=e2484]
+            - cell "yes" [ref=e2485]
+            - cell "yes" [ref=e2486]
+            - cell "-" [ref=e2487]
+            - cell "schedulable" [ref=e2488]
+          - row "b96e50b4-e443-47ea-ac2b-568537eab945 l***@gmail.com yes yes yes yes - schedulable" [ref=e2489]:
+            - cell "b96e50b4-e443-47ea-ac2b-568537eab945" [ref=e2490]
+            - cell "l***@gmail.com" [ref=e2491]
+            - cell "yes" [ref=e2492]
+            - cell "yes" [ref=e2493]
+            - cell "yes" [ref=e2494]
+            - cell "yes" [ref=e2495]
+            - cell "-" [ref=e2496]
+            - cell "schedulable" [ref=e2497]
+          - row "125bd142-5218-45d9-8748-3e29a775050b v***@gmail.com yes yes yes yes - schedulable" [ref=e2498]:
+            - cell "125bd142-5218-45d9-8748-3e29a775050b" [ref=e2499]
+            - cell "v***@gmail.com" [ref=e2500]
+            - cell "yes" [ref=e2501]
+            - cell "yes" [ref=e2502]
+            - cell "yes" [ref=e2503]
+            - cell "yes" [ref=e2504]
+            - cell "-" [ref=e2505]
+            - cell "schedulable" [ref=e2506]
+          - row "6f572596-acd3-4e06-947a-4dd11424d4df w***@gmail.com yes yes yes yes - schedulable" [ref=e2507]:
+            - cell "6f572596-acd3-4e06-947a-4dd11424d4df" [ref=e2508]
+            - cell "w***@gmail.com" [ref=e2509]
+            - cell "yes" [ref=e2510]
+            - cell "yes" [ref=e2511]
+            - cell "yes" [ref=e2512]
+            - cell "yes" [ref=e2513]
+            - cell "-" [ref=e2514]
+            - cell "schedulable" [ref=e2515]
+          - row "1e7bad65-4a46-40d0-81bd-19fde0f14954 s***@gmail.com yes yes yes yes - schedulable" [ref=e2516]:
+            - cell "1e7bad65-4a46-40d0-81bd-19fde0f14954" [ref=e2517]
+            - cell "s***@gmail.com" [ref=e2518]
+            - cell "yes" [ref=e2519]
+            - cell "yes" [ref=e2520]
+            - cell "yes" [ref=e2521]
+            - cell "yes" [ref=e2522]
+            - cell "-" [ref=e2523]
+            - cell "schedulable" [ref=e2524]
+          - row "71cf722d-a7b0-49a1-9998-bef22a11cf45 w***@gmail.com yes yes yes yes - schedulable" [ref=e2525]:
+            - cell "71cf722d-a7b0-49a1-9998-bef22a11cf45" [ref=e2526]
+            - cell "w***@gmail.com" [ref=e2527]
+            - cell "yes" [ref=e2528]
+            - cell "yes" [ref=e2529]
+            - cell "yes" [ref=e2530]
+            - cell "yes" [ref=e2531]
+            - cell "-" [ref=e2532]
+            - cell "schedulable" [ref=e2533]
+          - row "7170ccb6-30cc-40fe-9f79-4344389c034b m***@gmail.com yes yes yes yes - schedulable" [ref=e2534]:
+            - cell "7170ccb6-30cc-40fe-9f79-4344389c034b" [ref=e2535]
+            - cell "m***@gmail.com" [ref=e2536]
+            - cell "yes" [ref=e2537]
+            - cell "yes" [ref=e2538]
+            - cell "yes" [ref=e2539]
+            - cell "yes" [ref=e2540]
+            - cell "-" [ref=e2541]
+            - cell "schedulable" [ref=e2542]
+          - row "54a00e6f-a582-4083-a197-ea2a1a0cb847 r***@gmail.com yes yes yes yes - schedulable" [ref=e2543]:
+            - cell "54a00e6f-a582-4083-a197-ea2a1a0cb847" [ref=e2544]
+            - cell "r***@gmail.com" [ref=e2545]
+            - cell "yes" [ref=e2546]
+            - cell "yes" [ref=e2547]
+            - cell "yes" [ref=e2548]
+            - cell "yes" [ref=e2549]
+            - cell "-" [ref=e2550]
+            - cell "schedulable" [ref=e2551]
+          - row "61a48fab-58c1-49b0-957a-b4caf88b51d0 r***@gmail.com yes yes yes yes - schedulable" [ref=e2552]:
+            - cell "61a48fab-58c1-49b0-957a-b4caf88b51d0" [ref=e2553]
+            - cell "r***@gmail.com" [ref=e2554]
+            - cell "yes" [ref=e2555]
+            - cell "yes" [ref=e2556]
+            - cell "yes" [ref=e2557]
+            - cell "yes" [ref=e2558]
+            - cell "-" [ref=e2559]
+            - cell "schedulable" [ref=e2560]
+          - row "ae380baf-1725-4733-9ffe-cc227764b6c4 r***@gmail.com yes yes yes yes - schedulable" [ref=e2561]:
+            - cell "ae380baf-1725-4733-9ffe-cc227764b6c4" [ref=e2562]
+            - cell "r***@gmail.com" [ref=e2563]
+            - cell "yes" [ref=e2564]
+            - cell "yes" [ref=e2565]
+            - cell "yes" [ref=e2566]
+            - cell "yes" [ref=e2567]
+            - cell "-" [ref=e2568]
+            - cell "schedulable" [ref=e2569]
+          - row "2980ad67-e95f-498f-a774-9e420b3f6f2f r***@gmail.com yes yes yes yes - schedulable" [ref=e2570]:
+            - cell "2980ad67-e95f-498f-a774-9e420b3f6f2f" [ref=e2571]
+            - cell "r***@gmail.com" [ref=e2572]
+            - cell "yes" [ref=e2573]
+            - cell "yes" [ref=e2574]
+            - cell "yes" [ref=e2575]
+            - cell "yes" [ref=e2576]
+            - cell "-" [ref=e2577]
+            - cell "schedulable" [ref=e2578]
+          - row "2ba05a3b-74e2-4500-9d29-fb84fda5416e r***@gmail.com yes yes yes yes - schedulable" [ref=e2579]:
+            - cell "2ba05a3b-74e2-4500-9d29-fb84fda5416e" [ref=e2580]
+            - cell "r***@gmail.com" [ref=e2581]
+            - cell "yes" [ref=e2582]
+            - cell "yes" [ref=e2583]
+            - cell "yes" [ref=e2584]
+            - cell "yes" [ref=e2585]
+            - cell "-" [ref=e2586]
+            - cell "schedulable" [ref=e2587]
+          - row "fb3056fa-28f8-413b-9a53-52ab3c854daf r***@gmail.com yes yes yes yes - schedulable" [ref=e2588]:
+            - cell "fb3056fa-28f8-413b-9a53-52ab3c854daf" [ref=e2589]
+            - cell "r***@gmail.com" [ref=e2590]
+            - cell "yes" [ref=e2591]
+            - cell "yes" [ref=e2592]
+            - cell "yes" [ref=e2593]
+            - cell "yes" [ref=e2594]
+            - cell "-" [ref=e2595]
+            - cell "schedulable" [ref=e2596]
+          - row "ed9239cb-65ef-4970-941c-1d716127c8cd r***@gmail.com yes yes yes yes - schedulable" [ref=e2597]:
+            - cell "ed9239cb-65ef-4970-941c-1d716127c8cd" [ref=e2598]
+            - cell "r***@gmail.com" [ref=e2599]
+            - cell "yes" [ref=e2600]
+            - cell "yes" [ref=e2601]
+            - cell "yes" [ref=e2602]
+            - cell "yes" [ref=e2603]
+            - cell "-" [ref=e2604]
+            - cell "schedulable" [ref=e2605]
+          - row "8a5910cb-c52e-498f-923c-93b174be628d r***@gmail.com yes no yes no account 10097s temporary limited account cooling down" [ref=e2606]:
+            - cell "8a5910cb-c52e-498f-923c-93b174be628d" [ref=e2607]
+            - cell "r***@gmail.com" [ref=e2608]
+            - cell "yes" [ref=e2609]
+            - cell "no" [ref=e2610]
+            - cell "yes" [ref=e2611]
+            - cell "no" [ref=e2612]
+            - cell "account 10097s" [ref=e2613]
+            - cell "temporary limited account cooling down" [ref=e2614]
+          - row "efa39437-556e-43e7-84b7-f727ad7cb576 r***@gmail.com yes yes yes yes - schedulable" [ref=e2615]:
+            - cell "efa39437-556e-43e7-84b7-f727ad7cb576" [ref=e2616]
+            - cell "r***@gmail.com" [ref=e2617]
+            - cell "yes" [ref=e2618]
+            - cell "yes" [ref=e2619]
+            - cell "yes" [ref=e2620]
+            - cell "yes" [ref=e2621]
+            - cell "-" [ref=e2622]
+            - cell "schedulable" [ref=e2623]
+    - generic [ref=e2625]:
+      - generic [ref=e2626]:
+        - generic [ref=e2627]: Opus 4.7 fleet health
+        - button "刷新" [ref=e2628] [cursor=pointer]
+      - generic [ref=e2629]:
+        - generic [ref=e2630]:
+          - generic [ref=e2631]: Contract
+          - generic [ref=e2632]: opus-4.7-readiness.1
+        - generic [ref=e2633]:
+          - generic [ref=e2634]: Status
+          - generic [ref=e2636]: healthy
+        - generic [ref=e2637]:
+          - generic [ref=e2638]: Safe concurrency
+          - generic [ref=e2639]: 10 / 10 · local 20
+        - generic [ref=e2640]:
+          - generic [ref=e2641]: Retry after
+          - generic [ref=e2642]: 0s
+        - generic [ref=e2643]:
+          - generic [ref=e2644]: Reasons
+          - generic [ref=e2645]: healthy
+        - generic [ref=e2646]:
+          - generic [ref=e2647]: Real content success
+          - generic [ref=e2648]: requests 0 · rate 100%
+        - generic [ref=e2649]:
+          - generic [ref=e2650]: Stable fallbacks
+          - generic [ref=e2651]: 0 · empty 0
+        - generic [ref=e2652]:
+          - generic [ref=e2653]: Action
+          - generic [ref=e2654]: send_with_safe_concurrency
+      - generic [ref=e2655]: "Strategy: health · Model: claude-opus-4.7 · Circuit: closed · In flight: 0 · Total: 21 · Enabled: 21 · Cooling: 1 · Temporary limited: 1 · Quota: 0 · Model breaker: 0 · Quiet skips: 0 / 0 · Last pressure: healthy"
+      - generic [ref=e2656]:
+        - generic [ref=e2657]:
+          - generic [ref=e2658]:
+            - text: 125bd142-5218-45d9-8748-3e29a775050b
+            - text: v***@gmail.com
+          - generic [ref=e2659]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2660]:
+            - text: "Model cache: listed"
+            - text: auto, claude-opus-4.7, claude-sonnet-4
+          - generic [ref=e2661]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2662]:
+            - text: Real content success
+            - text: "-"
+        - generic [ref=e2663]:
+          - generic [ref=e2664]:
+            - text: 1e7bad65-4a46-40d0-81bd-19fde0f14954
+            - text: s***@gmail.com
+          - generic [ref=e2665]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2666]:
+            - text: "Model cache: listed"
+            - text: claude-opus-4.7, claude-opus-4.6, claude-opus-4.5
+          - generic [ref=e2667]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2668]:
+            - text: Real content success
+            - text: "-"
+        - generic [ref=e2669]:
+          - generic [ref=e2670]:
+            - text: 2980ad67-e95f-498f-a774-9e420b3f6f2f
+            - text: r***@gmail.com
+          - generic [ref=e2671]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2672]:
+            - text: "Model cache: listed"
+            - text: minimax-m2.5, claude-opus-4.7, claude-sonnet-4
+          - generic [ref=e2673]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2674]:
+            - text: Real content success
+            - text: "-"
+        - generic [ref=e2675]:
+          - generic [ref=e2676]:
+            - text: 2ba05a3b-74e2-4500-9d29-fb84fda5416e
+            - text: r***@gmail.com
+          - generic [ref=e2677]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2678]:
+            - text: "Model cache: listed"
+            - text: qwen3-coder-next, claude-opus-4.5, minimax-m2.5
+          - generic [ref=e2679]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2680]:
+            - text: Real content success
+            - text: "-"
+        - generic [ref=e2681]:
+          - generic [ref=e2682]:
+            - text: 54a00e6f-a582-4083-a197-ea2a1a0cb847
+            - text: r***@gmail.com
+          - generic [ref=e2683]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2684]:
+            - text: "Model cache: listed"
+            - text: claude-haiku-4.5, auto, claude-opus-4.6
+          - generic [ref=e2685]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2686]:
+            - text: Real content success
+            - text: "-"
+        - generic [ref=e2687]:
+          - generic [ref=e2688]:
+            - text: 61a48fab-58c1-49b0-957a-b4caf88b51d0
+            - text: r***@gmail.com
+          - generic [ref=e2689]:
+            - text: "Eligible: yes"
+            - text: eligible
+          - generic [ref=e2690]:
+            - text: "Model cache: listed"
+            - text: auto, claude-opus-4.7, claude-opus-4.6
+          - generic [ref=e2691]:
+            - text: "Runtime health: 100"
+            - text: conn 0 · lat 0ms
+          - generic [ref=e2692]:
+            - text: Real content success
+            - text: "-"
+    - generic [ref=e2694]:
+      - generic [ref=e2695]:
+        - generic [ref=e2696]: WebSearch / MCP
+        - button "刷新" [ref=e2697] [cursor=pointer]
+      - generic [ref=e2698]: Kiro-Go observes MCP/WebSearch calls from Claude Code; it does not host local MCP servers.
+      - table [ref=e2699]:
+        - rowgroup [ref=e2700]:
+          - row "Query MCP Results Failure" [ref=e2701]:
+            - columnheader "Query" [ref=e2702]
+            - columnheader "MCP" [ref=e2703]
+            - columnheader "Results" [ref=e2704]
+            - columnheader "Failure" [ref=e2705]
+        - rowgroup [ref=e2706]:
+          - row "No recent WebSearch evidence" [ref=e2707]:
+            - cell "No recent WebSearch evidence" [ref=e2708]
+    - generic [ref=e2709]:
+      - generic [ref=e2711]: API 端点
+      - paragraph [ref=e2712]: Claude API
+      - generic [ref=e2713]:
+        - generic [ref=e2714]: http://127.0.0.1:8080/v1/messages
+        - button "复制" [ref=e2715] [cursor=pointer]
+      - paragraph [ref=e2716]: OpenAI API
+      - generic [ref=e2717]:
+        - generic [ref=e2718]: http://127.0.0.1:8080/v1/chat/completions
+        - button "复制" [ref=e2719] [cursor=pointer]
+      - paragraph [ref=e2720]: 模型列表
+      - generic [ref=e2721]:
+        - generic [ref=e2722]: http://127.0.0.1:8080/v1/models
+        - button "复制" [ref=e2723] [cursor=pointer]
+      - paragraph [ref=e2724]: 统计数据
+      - generic [ref=e2725]:
+        - generic [ref=e2726]: http://127.0.0.1:8080/v1/stats
+        - button "复制" [ref=e2727] [cursor=pointer]
+      - paragraph [ref=e2728]: "需要在请求头中携带 API Key 鉴权（Authorization: Bearer sk-xxx），未启用 API Key 验证时无需鉴权"

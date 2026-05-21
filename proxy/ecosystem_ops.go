@@ -487,12 +487,12 @@ func (h *Handler) fleetReadinessEvidence(model string) map[string]interface{} {
 	if admissionEffectiveConcurrency <= 0 {
 		admissionEffectiveConcurrency = locallySchedulable
 	}
-	retryAfterSeconds := fleetReadinessRetryAfterSeconds(rowModels, snap, time.Now())
+	retryAfterSeconds := fleetReadinessRetryAfterSeconds(rowModels, snap, locallySchedulable, time.Now())
 	reasonCodes := fleetReadinessReasonCodes(rowModels, snap, locallySchedulable)
 	status := "healthy"
 	if snap.CircuitState == "open" || locallySchedulable == 0 || admissionEffectiveConcurrency <= 0 {
 		status = "blocked"
-	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 || admissionEffectiveConcurrency < locallySchedulable {
+	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 {
 		status = "degraded"
 	}
 	safeConcurrency := 0
@@ -542,8 +542,11 @@ func (h *Handler) fleetReadinessEvidence(model string) map[string]interface{} {
 	}
 }
 
-func fleetReadinessRetryAfterSeconds(rows []readinessAccountRow, snap AdmissionPressureSnapshot, now time.Time) int {
+func fleetReadinessRetryAfterSeconds(rows []readinessAccountRow, snap AdmissionPressureSnapshot, locallySchedulable int, now time.Time) int {
 	retryAfter := snap.RetryAfterSeconds
+	if locallySchedulable > 0 {
+		return retryAfter
+	}
 	for _, row := range rows {
 		if row.Eligible {
 			continue
@@ -604,15 +607,15 @@ func hasReasonCode(codes []string, target string) bool {
 
 func fleetReadinessReasonCodes(rows []readinessAccountRow, snap AdmissionPressureSnapshot, locallySchedulable int) []string {
 	set := map[string]bool{}
-	for _, row := range rows {
-		for _, code := range row.ReasonCodes {
-			if code != "eligible" {
-				set[code] = true
-			}
-		}
-	}
 	if locallySchedulable == 0 {
 		set["no_schedulable_accounts"] = true
+		for _, row := range rows {
+			for _, code := range row.ReasonCodes {
+				if code != "eligible" {
+					set[code] = true
+				}
+			}
+		}
 	}
 	if snap.CircuitState == "open" {
 		set["admission_circuit_open"] = true

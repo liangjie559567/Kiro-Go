@@ -1,0 +1,11 @@
+{
+  "kiro": {
+    "status": "ok",
+    "uptime": 1608,
+    "version": "1.0.8"
+  },
+  "sub2api": {
+    "status": "ok"
+  },
+  "docker": "NAMES               STATUS                    PORTS\nkiro-go-kiro-go-1   Up 26 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp\nsub2api             Up 5 hours (healthy)      0.0.0.0:18080->8080/tcp\nsub2api-postgres    Up 3 days (healthy)       5432/tcp\nsub2api-redis       Up 3 days (healthy)       6379/tcp"
+}

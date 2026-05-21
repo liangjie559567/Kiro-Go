@@ -1,0 +1,37 @@
+{
+  "runId": "gad-20260521160014",
+  "startedAt": "2026-05-21T16:00:14.812Z",
+  "finishedAt": "2026-05-21T16:00:44.340Z",
+  "model": "claude-opus-4-7",
+  "claudeAgents": 6,
+  "apiRequests": 36,
+  "apiConcurrency": 12,
+  "claude": {
+    "total": 6,
+    "ok": 6,
+    "failed": 0,
+    "overloaded": 0,
+    "p50Ms": 8733,
+    "p95Ms": 10622,
+    "maxMs": 10622
+  },
+  "api": {
+    "total": 36,
+    "ok": 36,
+    "failed": 0,
+    "overloaded": 0,
+    "statuses": {
+      "200": 36
+    },
+    "p50Ms": 3668,
+    "p95Ms": 13370,
+    "maxMs": 16206
+  },
+  "db": {
+    "usageRowsForApiKey2": 42,
+    "errorRowsForApiKey2": 0,
+    "claudeCliRows": 6,
+    "gadApiRows": 36
+  },
+  "pass": true
+}

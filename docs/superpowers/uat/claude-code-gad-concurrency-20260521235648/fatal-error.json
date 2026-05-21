@@ -1,0 +1,4 @@
+{
+  "message": "Unexpected end of JSON input",
+  "stack": "SyntaxError: Unexpected end of JSON input\n    at JSON.parse (<anonymous>)\n    at main (/www/Kiro-Go/docs/superpowers/uat/claude-code-gad-concurrency-20260521235648/scripts/run-gad-concurrency-uat.js:278:27)"
+}
