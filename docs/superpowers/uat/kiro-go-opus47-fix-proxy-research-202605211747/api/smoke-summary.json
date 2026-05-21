@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "stream": false,
+      "status": 200,
+      "duration_ms": 25028,
+      "curl_rc": 0,
+      "stderr": "",
+      "has_marker": false,
+      "has_message_stop": false,
+      "stable_fallback": true,
+      "body_excerpt": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: opus47_budget_exhausted. This turn has been closed by the gateway to avoid an endless client retry loop; start a new request after capacity recovers.\",\"type\":\"text\"}],\"id\":\"msg_88cee472-24e6-412a-94e9-deb59bb17a41\",\"model\":\"claude-opus-4.7\",\"role\":\"assistant\",\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}\n"
+    },
+    {
+      "stream": true,
+      "status": 200,
+      "duration_ms": 16650,
+      "curl_rc": 0,
+      "stderr": "",
+      "has_marker": true,
+      "has_message_stop": true,
+      "stable_fallback": false,
+      "body_excerpt": "event: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: message_start\ndata: {\"message\":{\"content\":[],\"id\":\"msg_cdc332d2-556b-41f7-85ed-8c73d1dcd5bc\",\"model\":\"claude-opus-4.7\",\"role\":\"assistant\",\"stop"
+    }
+  ]
+}

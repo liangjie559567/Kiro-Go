@@ -1,0 +1,107 @@
+{
+  "total": 23,
+  "passed": 3,
+  "failed": 20,
+  "statusCounts": [
+    {
+      "status": 0,
+      "count": 20
+    },
+    {
+      "status": 200,
+      "count": 3
+    }
+  ],
+  "firstFailures": [
+    {
+      "index": 0,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120002,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 1,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120003,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 4,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120004,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 5,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120003,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 6,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120005,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 7,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120008,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 8,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120011,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 9,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120010,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 10,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120000,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    },
+    {
+      "index": 11,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 120001,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    }
+  ]
+}

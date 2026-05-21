@@ -1,0 +1,47 @@
+{
+  "startedAt": "2026-05-21T07:46:51.557Z",
+  "finishedAt": "2026-05-21T07:47:07.664Z",
+  "precheck": [
+    {
+      "index": 999,
+      "mode": "non-stream",
+      "ok": true,
+      "httpStatus": 200,
+      "durationMs": 1763,
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "3f2265c4-71a7-4b97-b6a1-7086a3734fcb, req_569e7669-673c-489b-8340-91ce99a2dc2d"
+      },
+      "bodyType": "message",
+      "responseModel": "claude-opus-4.7",
+      "usage": {
+        "input_tokens": 5932,
+        "output_tokens": 12
+      },
+      "contentNonEmpty": true,
+      "markerPresent": true,
+      "errorType": null,
+      "errorMessage": null,
+      "outputPreview": "KIRO_GO_SUB2API_UAT_NON-STREAM_999"
+    },
+    {
+      "index": 999,
+      "mode": "stream",
+      "ok": true,
+      "httpStatus": 200,
+      "durationMs": 14342,
+      "safeHeaders": {
+        "content-type": "text/event-stream",
+        "x-request-id": "req_da12aa8e-11cb-4968-a488-89f39bfc9eea"
+      },
+      "eventCount": 13,
+      "messageStart": true,
+      "messageStop": true,
+      "contentNonEmpty": true,
+      "markerPresent": true,
+      "replayAfterContent": false,
+      "errorEvent": "",
+      "outputPreview": "KIRO_GO_SUB2API_UAT_STREAM_999"
+    }
+  ]
+}

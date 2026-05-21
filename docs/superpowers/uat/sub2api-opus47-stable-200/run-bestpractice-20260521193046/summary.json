@@ -1,0 +1,33 @@
+{
+  "verdict": "BLOCKED_BY_UPSTREAM_CAPACITY",
+  "model": "claude-opus-4-7",
+  "requestedConcurrency": 1,
+  "effectiveConcurrency": 1,
+  "capacityAbort": {
+    "kind": "non-stream",
+    "index": 70,
+    "status": 200,
+    "capacity_reason": "readiness_blocked",
+    "sample": "{\"accounts\":[{\"coolingDown\":false,\"eligible\":true,\"email\":\"i***@googlzr.com\",\"id\":\"0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4\",\"lastFailureReason\":\"unknown\",\"modelBreakerState\":\"closed\",\"modelListed\":true,\"modelsCached\":[\"auto\",\"claude-opus-4.6\","
+  },
+  "summaries": [
+    {
+      "name": "non-stream",
+      "total": 70,
+      "passed": 70,
+      "failed": 0,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": []
+    },
+    {
+      "name": "stream",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": []
+    }
+  ]
+}

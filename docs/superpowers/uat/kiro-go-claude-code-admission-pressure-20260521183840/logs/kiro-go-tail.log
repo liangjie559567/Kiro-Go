@@ -1,0 +1,5 @@
+kiro-go-1  | INFO  2026/05/21 10:38:47 [ModelAdmission] default=16/300 models=2 legacyOpus47=10/300
+kiro-go-1  | INFO  2026/05/21 10:38:47 Kiro-Go starting on http://0.0.0.0:8080 (log level: info)
+kiro-go-1  | INFO  2026/05/21 10:38:47 Admin panel: http://0.0.0.0:8080/admin
+kiro-go-1  | INFO  2026/05/21 10:38:47 Claude API: http://0.0.0.0:8080/v1/messages
+kiro-go-1  | INFO  2026/05/21 10:38:47 OpenAI API: http://0.0.0.0:8080/v1/chat/completions

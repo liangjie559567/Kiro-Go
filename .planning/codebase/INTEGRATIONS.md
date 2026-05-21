@@ -1,169 +1,161 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-15
+**Analysis Date:** 2026-05-21
 
 ## APIs & External Services
 
-**Kiro / AWS AI Runtime:**
-- Kiro IDE generation endpoint - primary backend for translated Claude/OpenAI requests.
-  - Endpoint: `https://q.us-east-1.amazonaws.com/generateAssistantResponse`
-  - Implementation: `proxy/kiro.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token from `config.Account.AccessToken` in `config/config.go`
-- CodeWhisperer generation endpoint - fallback or preferred backend depending on endpoint settings.
-  - Endpoint: `https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse`
-  - Implementation: `proxy/kiro.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token from `config.Account.AccessToken`
-- Amazon Q generation mode - uses the Q endpoint with Amazon Q target headers.
-  - Endpoint: `https://q.us-east-1.amazonaws.com/generateAssistantResponse`
-  - Implementation: `proxy/kiro.go` and `proxy/kiro_headers.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token from `config.Account.AccessToken`
+**AWS/Kiro model generation:**
+- Amazon Q / Kiro streaming generation - upstream generation backend for local Claude/OpenAI-compatible requests.
+  - SDK/Client: Go standard library `net/http` in `proxy/kiro.go`.
+  - Endpoints: `https://q.{region}.amazonaws.com/generateAssistantResponse` and `https://codewhisperer.{region}.amazonaws.com/generateAssistantResponse`, defined by `kiroEndpoints` in `proxy/kiro.go`.
+  - Auth: per-account OAuth access token stored in `data/config.json` via `config.Account.AccessToken` in `config/config.go`; sent as bearer-style Kiro/AWS headers by `proxy/kiro_headers.go` and `proxy/kiro.go`.
+  - Configuration: region comes from `config.Account.Region`; endpoint preference is `preferredEndpoint` (`auto`, `kiro`, `codewhisperer`, or `amazonq`) in `config/config.go`.
 
-**Kiro / AWS REST Metadata:**
-- Usage limits and user info - refreshes account profile, subscription, quota, trial, and user metadata.
-  - Endpoint: `https://codewhisperer.us-east-1.amazonaws.com/getUsageLimits` in `proxy/kiro_api.go`
-  - Endpoint: `https://q.us-east-1.amazonaws.com/getUsageLimits` in `auth/sso_token.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token
-- User info - retrieves account identity metadata.
-  - Endpoint: `https://codewhisperer.us-east-1.amazonaws.com/GetUserInfo`
-  - Implementation: `proxy/kiro_api.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token
-- Available models and profiles - populates model cache and profile ARN routing data.
-  - Endpoints: `https://codewhisperer.us-east-1.amazonaws.com/ListAvailableModels`, `https://codewhisperer.us-east-1.amazonaws.com/ListAvailableProfiles`
-  - Implementation: `proxy/kiro_api.go`, `proxy/handler.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token
+**AWS/Kiro REST account metadata:**
+- CodeWhisperer REST APIs - usage limits, user info, available models, and profile discovery.
+  - SDK/Client: Go standard library `net/http` in `proxy/kiro_api.go`.
+  - Endpoints: `https://codewhisperer.{region}.amazonaws.com/getUsageLimits`, `/GetUserInfo`, `/ListAvailableModels`, and `/ListAvailableProfiles` in `proxy/kiro_api.go`.
+  - Auth: per-account access token and profile ARN fields from `config.Account` in `config/config.go`.
 
-**Kiro MCP:**
-- Kiro MCP web search - implements Claude native web search tool responses by calling Kiro MCP.
-  - Endpoints: `https://q.us-east-1.amazonaws.com/mcp`, `https://codewhisperer.us-east-1.amazonaws.com/mcp`
-  - Implementation: `proxy/handler.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: per-account OAuth bearer token plus Kiro-compatible headers
+**AWS IAM Identity Center / OIDC:**
+- IAM SSO authorization-code login - admin-triggered login flow for AWS Identity Center accounts.
+  - SDK/Client: Go standard library `net/http` plus PKCE helpers in `auth/iam_sso.go`.
+  - Endpoints: `https://oidc.{region}.amazonaws.com/client/register`, `/authorize`, and `/token` in `auth/iam_sso.go`.
+  - Auth: registered OIDC `clientId` and `clientSecret`; stored per account as `ClientID` and `ClientSecret` in `config.Account`.
+  - Callback: user supplies a `callbackUrl` to local admin endpoint `POST /admin/api/auth/iam-sso/complete`, handled by `proxy/handler.go`.
 
-**Authentication Services:**
-- AWS OIDC - registers clients, starts device authorization, exchanges authorization codes, polls device codes, and refreshes IdC tokens.
-  - Endpoints: `https://oidc.{region}.amazonaws.com/client/register`, `/authorize`, `/device_authorization`, `/token`
-  - Implementation: `auth/builderid.go`, `auth/iam_sso.go`, `auth/oidc.go`, `auth/sso_token.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: OIDC client credentials, refresh token, device code, or authorization code stored in `config.Account`
-- AWS SSO Portal - imports accounts from `x-amz-sso_authn` bearer tokens.
-  - Endpoints: `https://portal.sso.us-east-1.amazonaws.com/token/whoAmI`, `/session/device`
-  - Implementation: `auth/sso_token.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: user-provided bearer token submitted to `/admin/api/auth/sso-token`
-- Kiro social auth - refreshes social-provider accounts such as Google/GitHub/AWS Builder ID.
-  - Endpoint: `https://prod.us-east-1.auth.desktop.kiro.dev/refreshToken`
-  - Implementation: `auth/oidc.go`
-  - SDK/Client: Go standard library `net/http`
-  - Auth: `config.Account.RefreshToken`
+**AWS Builder ID device login:**
+- Builder ID device authorization - admin-triggered device-code login for Builder ID accounts.
+  - SDK/Client: Go standard library `net/http` in `auth/builderid.go`.
+  - Endpoints: `https://oidc.{region}.amazonaws.com/client/register`, `/device_authorization`, and `/token` in `auth/builderid.go`.
+  - Auth: device code polling returns access/refresh tokens and OIDC client credentials, stored through account config in `config/config.go`.
 
-**Container Registry:**
-- GitHub Container Registry - publishes Docker images.
-  - Registry: `ghcr.io`
-  - Implementation: `.github/workflows/docker.yml`
-  - SDK/Client: Docker Buildx GitHub Actions
-  - Auth: `secrets.GITHUB_TOKEN` in GitHub Actions
+**AWS SSO token import:**
+- SSO bearer-token import - imports an existing `x-amz-sso_authn`-style bearer token into a Kiro account.
+  - SDK/Client: Go standard library `net/http` in `auth/sso_token.go`.
+  - Endpoints: `https://portal.sso.us-east-1.amazonaws.com/token/whoAmI`, `/session/device`, and OIDC device authorization endpoints in `auth/sso_token.go`.
+  - Auth: bearer token is submitted to `POST /admin/api/auth/sso-token` in `proxy/handler.go`; the token is not a repo env var.
 
-**Outbound Proxy:**
-- HTTP, HTTPS, SOCKS5, and SOCKS5H proxies can be configured globally or per account.
-  - Implementation: `config/config.go`, `auth/http_client.go`, `proxy/kiro.go`, `proxy/handler.go`
-  - SDK/Client: Go `http.Transport.Proxy`
-  - Auth: optional proxy credentials embedded in configured proxy URLs
+**Kiro desktop social token refresh:**
+- Kiro desktop auth refresh - refreshes social login tokens such as GitHub/Google-backed accounts.
+  - SDK/Client: Go standard library `net/http` in `auth/oidc.go`.
+  - Endpoint: `https://prod.us-east-1.auth.desktop.kiro.dev/refreshToken` in `auth/oidc.go`.
+  - Auth: per-account refresh token stored as `config.Account.RefreshToken` in `config/config.go`.
+
+**Kiro MCP web search:**
+- Kiro MCP web search - diagnostic/native web search support when client requests compatible web search tool behavior.
+  - SDK/Client: Go standard library `net/http` in `proxy/handler.go`.
+  - Endpoints: `https://q.{region}.amazonaws.com/mcp` and `https://codewhisperer.{region}.amazonaws.com/mcp` in `callKiroMCPWebSearch` in `proxy/handler.go`.
+  - Auth: per-account access token and Kiro headers from `config.Account`.
+
+**GitHub / GitHub Container Registry:**
+- GHCR image publishing - CI builds and publishes Docker images.
+  - SDK/Client: GitHub Actions official actions in `.github/workflows/docker.yml`.
+  - Auth: `${{ secrets.GITHUB_TOKEN }}` for `docker/login-action@v3`.
+  - Registry: `ghcr.io/${{ github.repository }}` from `.github/workflows/docker.yml`.
+
+**Version-check fetch from admin UI:**
+- GitHub raw content - admin page checks upstream version metadata.
+  - SDK/Client: browser `fetch` from `web/index.html`.
+  - Endpoint: `https://raw.githubusercontent.com/Quorinex/Kiro-Go/main/version.json` in `web/index.html`.
+  - Auth: none detected.
 
 ## Data Storage
 
 **Databases:**
-- Local JSON configuration store.
-  - Connection: `CONFIG_PATH` environment variable or default `data/config.json`
-  - Client: custom JSON load/save layer in `config/config.go`
-  - Contents: admin password, API key settings, accounts, OAuth tokens, refresh tokens, client secrets, usage stats, endpoint preferences, prompt filters, auto-refresh settings, health-check settings, and proxy settings
-- No SQL, NoSQL, or external database service is detected.
+- Not detected for the Kiro-Go application.
+  - Connection: Not applicable.
+  - Client: Not detected; no ORM or database driver appears in `go.mod`.
+  - Persistence is a local JSON file managed by `config/config.go`, not a database.
 
 **File Storage:**
 - Local filesystem only.
-- Persistent data path: `data/config.json` by default; `/app/data/config.json` in Docker Compose via `docker-compose.yml`.
-- Admin UI static assets are served from `web/index.html` through `proxy/handler.go`.
-- Recovery candidate JSON files exist under `recovery/`; these were not read because they may contain account credential material.
+  - Main config and account state: `data/config.json`, path selected by `CONFIG_PATH` in `main.go` and read/written by `config/config.go`.
+  - Static admin UI: `web/index.html`, served by `proxy/handler.go`.
+  - Docker persistence: `docker-compose.yml` mounts `./data:/app/data`; `Dockerfile` declares `VOLUME /app/data`.
+  - Recovery/backup artifacts exist under `recovery/`, `.uat-backups/`, and `docs/superpowers/uat/`, but they are not runtime storage backends.
 
 **Caching:**
-- In-memory model cache in `proxy/handler.go` (`cachedModels`, per-account model lists in `pool/account.go`).
-- In-memory prompt cache/account billing estimation support in `proxy/cache_tracker.go` and `proxy/handler.go`.
-- In-memory OAuth login sessions in `auth/builderid.go` and `auth/iam_sso.go`.
-- In-memory per-proxy HTTP client caches in `auth/http_client.go` and `proxy/kiro.go`.
-- No external cache service is detected.
+- In-memory only.
+  - Account pool, health state, and routing decisions are in `pool/account.go` and `pool/breaker.go`.
+  - HTTP clients are cached in `auth/http_client.go` and `proxy/kiro.go`.
+  - Model cache and request log state are implemented in `proxy/cache_tracker.go`, `proxy/request_log.go`, `config/config.go`, and related handler code.
+  - Redis or memcached are not detected in application code or `docker-compose.yml`.
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Local admin authentication uses a password checked from `X-Admin-Password` or `admin_password` cookie in `proxy/handler.go`.
-  - Password source: persisted config in `data/config.json`, overridden at startup by `ADMIN_PASSWORD` in `main.go`
-- Local API authentication is optional bearer/API-key validation in `proxy/handler.go`.
-  - Client headers: `Authorization: Bearer ...` or `X-Api-Key`
-  - Settings: `apiKey` and `requireApiKey` persisted by `config.UpdateSettings` in `config/config.go`
-- External account identity uses AWS Builder ID, IAM Identity Center, SSO token import, social-provider refresh tokens, local cache import, and credentials JSON import.
-  - Implementation: `auth/builderid.go`, `auth/iam_sso.go`, `auth/sso_token.go`, `auth/oidc.go`, `proxy/handler.go`, `web/index.html`
-  - Stored credentials: `accessToken`, `refreshToken`, `clientId`, `clientSecret`, `region`, `profileArn`, and `authMethod` fields in `config.Account`
+- Local admin authentication - custom password-based auth.
+  - Implementation: `X-Admin-Password` header or admin cookie checked by `proxy/handler.go`; password persisted in `config.Config.Password` and overrideable with `ADMIN_PASSWORD` in `main.go`.
+- Local client API authentication - custom bearer/API-key auth.
+  - Implementation: `Authorization: Bearer ...`, `X-Api-Key`, or `x-api-key` values checked by `validateApiKey`/`validateClientAccess` in `proxy/handler.go`.
+  - Configuration: `apiKey`, `clientApiKeys`, `requireApiKey`, and `clientIPAllowlist` in `config.Config` in `config/config.go`.
+- Upstream account authentication - AWS/Kiro OAuth.
+  - Implementation: IAM SSO in `auth/iam_sso.go`, Builder ID in `auth/builderid.go`, SSO token import in `auth/sso_token.go`, and token refresh in `auth/oidc.go`.
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None external.
-- Errors are logged through the local logger in `logger/logger.go` and returned as JSON API errors in `proxy/handler.go`.
+- None detected as an external service.
 
 **Logs:**
-- Local stdout/stderr logging through `logger/logger.go`.
-- Log level is configured by `LOG_LEVEL` or `logLevel` in `data/config.json`.
-- Runtime counters are maintained in memory and persisted through `config.UpdateStats` in `config/config.go`.
-- Health endpoint: `/health` in `proxy/handler.go`.
-- Stats endpoint: `/v1/stats` in `proxy/handler.go`, protected by the optional API key mechanism.
+- Local stdout/stderr logging through `logger/logger.go`; level comes from `LOG_LEVEL` or `logLevel` config.
+- Request logs are maintained in application memory/config surfaces by `proxy/request_log.go` and exposed through admin API handlers in `proxy/handler.go`.
+- Health endpoint is local `GET /health` and `/`, handled by `proxy/handler.go`; Docker health check uses it in `docker-compose.yml`.
+- Admin readiness/diagnostic endpoints include Claude Code compatibility, fleet readiness, account diagnostics, request logs, and web search diagnostics in `proxy/handler.go`.
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Docker container deployment is first-class through `Dockerfile` and `docker-compose.yml`.
-- Published image target is GitHub Container Registry (`ghcr.io/quorinex/kiro-go:latest`) as documented in `README.md` and configured in `.github/workflows/docker.yml`.
-- The service exposes port `8080` in `Dockerfile` and maps `8080:8080` in `docker-compose.yml`.
+- Docker container is the detected deployment unit.
+- Published image target is GitHub Container Registry through `.github/workflows/docker.yml`.
+- Local deployment path is `docker-compose.yml` with service `kiro-go` on port `8080`.
 
 **CI Pipeline:**
-- GitHub Actions workflow in `.github/workflows/docker.yml`.
-- Triggers: pushes to `main`, `master`, and `dev`; `v*` tags; pull requests to `main`, `master`, and `dev`; manual workflow dispatch.
-- Actions used: `actions/checkout@v4`, `docker/setup-qemu-action@v3`, `docker/setup-buildx-action@v3`, `docker/login-action@v3`, `docker/metadata-action@v5`, `docker/build-push-action@v6`.
-- Platforms: `linux/amd64`, `linux/arm64`.
+- GitHub Actions.
+  - Workflow: `.github/workflows/docker.yml`.
+  - Triggers: pushes to `main`, `master`, `dev`; tags matching `v*`; pull requests to those branches; manual dispatch.
+  - Actions: `actions/checkout@v4`, `docker/setup-qemu-action@v3`, `docker/setup-buildx-action@v3`, `docker/login-action@v3`, `docker/metadata-action@v5`, and `docker/build-push-action@v6`.
+  - Platforms: `linux/amd64` and `linux/arm64`.
 
 ## Environment Configuration
 
 **Required env vars:**
-- None strictly required for local development because defaults exist in `main.go` and `config/config.go`.
+- None strictly required for a default local start; missing config is created with defaults by `config.Init` and `config.Load` in `config/config.go`.
 
-**Supported env vars:**
-- `CONFIG_PATH` - config file path; default `data/config.json`.
-- `ADMIN_PASSWORD` - startup override for admin password.
-- `LOG_LEVEL` - logger verbosity override; accepted values are `debug`, `info`, `warn`, `error`.
-- `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` and Go-supported proxy environment variables - honored when no explicit app proxy is configured.
+**Common env vars:**
+- `CONFIG_PATH` - config file path, default `data/config.json`, used by `main.go`.
+- `ADMIN_PASSWORD` - startup admin password override, used by `main.go`.
+- `LOG_LEVEL` - log level override, used by `logger/logger.go`.
+- `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` and lowercase variants - outbound proxy support in `auth/http_client.go` and `proxy/kiro.go`.
 
 **Secrets location:**
-- Runtime secrets are persisted in `data/config.json` or the file selected by `CONFIG_PATH`; this includes account tokens, refresh tokens, client secrets, admin password, and API key settings.
-- Docker deployment persists secrets under the mounted `/app/data` volume from `docker-compose.yml`.
-- GitHub Actions registry publishing uses `secrets.GITHUB_TOKEN` in `.github/workflows/docker.yml`.
-- No `.env` files were detected during the repository scan.
+- Runtime secrets are persisted in `data/config.json` by default via `config/config.go`.
+- Account-level secrets include `accessToken`, `refreshToken`, `clientSecret`, `apiKey`, `clientApiKeys`, and optional proxy credentials represented in `config.Account` and `config.Config` in `config/config.go`.
+- CI registry secret is `${{ secrets.GITHUB_TOKEN }}` in `.github/workflows/docker.yml`.
+- No `.env` file detected in the repo root during this scan.
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- Client-compatible API endpoints are exposed by `proxy/handler.go`: `/v1/messages`, `/messages`, `/anthropic/v1/messages`, `/v1/messages/count_tokens`, `/v1/chat/completions`, `/chat/completions`, `/v1/models`, `/models`, `/v1/stats`, `/health`, and `/admin/api/...`.
-- Admin auth import endpoints are exposed by `proxy/handler.go`: `/admin/api/auth/iam-sso/start`, `/admin/api/auth/iam-sso/complete`, `/admin/api/auth/builderid/start`, `/admin/api/auth/builderid/poll`, `/admin/api/auth/sso-token`, `/admin/api/auth/credentials`.
 - No third-party webhook receiver is detected.
+- Local API endpoints exposed by `proxy/handler.go`:
+  - `POST /v1/messages`, `/messages`, `/anthropic/v1/messages` for Anthropic-compatible messages.
+  - `POST /v1/messages/count_tokens`, `/messages/count_tokens` for local token estimates.
+  - `POST /v1/chat/completions`, `/chat/completions` for OpenAI-compatible chat.
+  - `POST /v1/responses`, `/responses` for OpenAI-compatible responses.
+  - `GET /v1/models`, `/models` for model metadata.
+  - `GET /v1/stats` for authenticated runtime stats.
+  - `POST /api/event_logging/batch` as a local Claude Code telemetry sink.
+  - `GET /health` and `/` for health checks.
+  - `/admin` and `/admin/api/*` for the admin console and account/config operations.
+- OAuth completion is manual/local: `POST /admin/api/auth/iam-sso/complete` receives a user-provided `callbackUrl` parsed by `auth/iam_sso.go`.
 
 **Outgoing:**
-- OAuth browser redirect URL for IAM SSO is `http://127.0.0.1/oauth/callback` in `auth/iam_sso.go`; the app expects the callback URL to be submitted back to `/admin/api/auth/iam-sso/complete`.
-- Outbound callbacks/webhooks to user-defined services are not detected.
-- Outbound API calls to AWS/Kiro services are implemented in `auth/` and `proxy/` using Go `net/http`.
+- AWS/Kiro auth and generation HTTP calls in `auth/*.go`, `proxy/kiro.go`, `proxy/kiro_api.go`, and `proxy/handler.go`.
+- GitHub raw version metadata fetch from `web/index.html`.
+- No outgoing webhook registration or callback delivery is detected.
 
 ---
 
-*Integration audit: 2026-05-15*
+*Integration audit: 2026-05-21*

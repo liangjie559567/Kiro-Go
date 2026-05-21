@@ -259,6 +259,20 @@ func TestComputeNextRunAt(t *testing.T) {
 	}
 }
 
+func TestAutoRefreshDelayHonorsScheduledNextRun(t *testing.T) {
+	now := time.Unix(1000, 0)
+	settings := config.AutoRefreshConfig{Enabled: true, IntervalMinutes: 60}
+	if got := autoRefreshDelay(now, settings, now.Add(5*time.Minute).Unix()); got != 5*time.Minute {
+		t.Fatalf("delay = %s, want 5m", got)
+	}
+	if got := autoRefreshDelay(now, settings, now.Add(-time.Second).Unix()); got != 0 {
+		t.Fatalf("expired next run delay = %s, want immediate", got)
+	}
+	if got := autoRefreshDelay(now, settings, 0); got != time.Hour {
+		t.Fatalf("missing next run delay = %s, want interval", got)
+	}
+}
+
 func TestRefreshAccountDataRefreshesTokenWhenTokenIsStillValid(t *testing.T) {
 	authHTTPClientTestMu.Lock()
 	t.Cleanup(authHTTPClientTestMu.Unlock)

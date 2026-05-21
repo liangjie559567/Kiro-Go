@@ -283,37 +283,160 @@ func (h *Handler) apiGetSchedulerPreview(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) schedulerPreviewRows(model string) []map[string]interface{} {
+	rows := h.readinessAccountRows(model, time.Now())
+	out := make([]map[string]interface{}, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.asMap())
+	}
+	sortReadinessRows(out)
+	return out
+}
+
+type readinessAccountRow struct {
+	ID                          string
+	Email                       string
+	Eligible                    bool
+	Reason                      string
+	ReasonCodes                 []string
+	Weight                      int
+	RuntimeHealth               pool.RuntimeHealth
+	ModelsCached                []string
+	ModelsListed                bool
+	ModelBreakerState           string
+	ModelBreakerReason          string
+	ModelBreakerRetryAt         time.Time
+	CoolingDown                 bool
+	CooldownRetryAt             time.Time
+	CooldownRemainingSeconds    int64
+	LastFailureReason           string
+	LatestContentSuccessAt      time.Time
+	LatestContentSuccessModel   string
+	LatestContentSuccessPresent bool
+}
+
+func (row readinessAccountRow) asMap() map[string]interface{} {
+	out := map[string]interface{}{
+		"id":                row.ID,
+		"email":             row.Email,
+		"eligible":          row.Eligible,
+		"reason":            row.Reason,
+		"reasonCodes":       row.ReasonCodes,
+		"weight":            row.Weight,
+		"runtimeHealth":     row.RuntimeHealth,
+		"modelsCached":      row.ModelsCached,
+		"modelListed":       row.ModelsListed,
+		"modelBreakerState": row.ModelBreakerState,
+		"coolingDown":       row.CoolingDown,
+	}
+	if row.ModelBreakerReason != "" {
+		out["modelBreakerReason"] = row.ModelBreakerReason
+	}
+	if !row.ModelBreakerRetryAt.IsZero() {
+		out["modelBreakerRetryAt"] = row.ModelBreakerRetryAt
+	}
+	if !row.CooldownRetryAt.IsZero() {
+		out["cooldownRetryAt"] = row.CooldownRetryAt
+	}
+	if row.CooldownRemainingSeconds > 0 {
+		out["cooldownRemainingSeconds"] = row.CooldownRemainingSeconds
+	}
+	if row.LastFailureReason != "" {
+		out["lastFailureReason"] = row.LastFailureReason
+	}
+	if row.LatestContentSuccessPresent {
+		out["latestContentSuccessAt"] = row.LatestContentSuccessAt
+		out["latestContentSuccessModel"] = row.LatestContentSuccessModel
+	}
+	return out
+}
+
+func (h *Handler) readinessAccountRows(model string, now time.Time) []readinessAccountRow {
 	accounts := config.GetAccounts()
-	rows := make([]map[string]interface{}, 0, len(accounts))
-	now := time.Now()
+	rows := make([]readinessAccountRow, 0, len(accounts))
 	nowUnix := now.Unix()
 	for _, account := range accounts {
-		reason := "eligible"
 		eligible := true
-		if !account.Enabled {
-			eligible, reason = false, "disabled"
-		} else if account.CooldownUntil > nowUnix {
-			eligible, reason = false, nonEmpty(account.LastFailureReason, "cooling_down")
-		} else if account.ExpiresAt > 0 && nowUnix > account.ExpiresAt-tokenRefreshSkewSeconds {
-			eligible, reason = false, "token_expired"
-		} else if readinessAccountUsageBlocked(account) {
-			eligible, reason = false, "usage_limit_reached"
-		} else if h != nil && h.pool != nil {
-			models := h.pool.GetModelList(account.ID)
-			if len(models) > 0 && !stringSliceEqualFoldContains(models, model) {
-				eligible, reason = false, "model_not_listed"
-			}
+		reasonCodes := []string{}
+		models := modelListForAccount(h, account.ID)
+		modelListed := len(models) == 0 || stringSliceEqualFoldContains(models, model)
+		cooldownState := pool.CooldownState{}
+		modelBlockState := pool.ModelAccountBlockState{CircuitState: "closed"}
+		var contentSuccessAt time.Time
+		contentSuccessOK := false
+		if h != nil && h.pool != nil {
+			cooldownState = h.pool.CooldownState(account.ID, now)
+			modelBlockState = h.pool.ModelAccountBlockState(account.ID, model, now)
+			contentSuccessAt, contentSuccessOK = h.pool.ModelContentSuccess(account.ID, model)
 		}
-		rows = append(rows, map[string]interface{}{
-			"id":            account.ID,
-			"email":         maskReadinessEmail(account.Email),
-			"eligible":      eligible,
-			"reason":        reason,
-			"weight":        account.Weight,
-			"runtimeHealth": runtimeHealthForAccount(h, account.ID),
-			"modelsCached":  modelListForAccount(h, account.ID),
+		if !account.Enabled {
+			eligible = false
+			reasonCodes = append(reasonCodes, "disabled")
+		}
+		if cooldownState.CoolingDown || account.CooldownUntil > nowUnix {
+			eligible = false
+			reasonCodes = append(reasonCodes, "cooling_down")
+		}
+		if modelBlockState.Blocked {
+			eligible = false
+			reasonCodes = append(reasonCodes, "model_breaker_open")
+		}
+		if account.ExpiresAt > 0 && nowUnix > account.ExpiresAt-tokenRefreshSkewSeconds {
+			eligible = false
+			reasonCodes = append(reasonCodes, "token_expired")
+		}
+		if readinessAccountUsageBlocked(account) {
+			eligible = false
+			reasonCodes = append(reasonCodes, "usage_limit_reached")
+		}
+		if !modelListed {
+			eligible = false
+			reasonCodes = append(reasonCodes, "model_not_listed")
+		}
+		if len(reasonCodes) == 0 {
+			reasonCodes = append(reasonCodes, "eligible")
+		}
+		cooldownRetryAt := cooldownState.RetryAt
+		if account.CooldownUntil > nowUnix && time.Unix(account.CooldownUntil, 0).After(cooldownRetryAt) {
+			cooldownRetryAt = time.Unix(account.CooldownUntil, 0)
+		}
+		cooldownRemaining := int64(0)
+		if !cooldownRetryAt.IsZero() && cooldownRetryAt.After(now) {
+			cooldownRemaining = int64((cooldownRetryAt.Sub(now) + time.Second - 1) / time.Second)
+		}
+		rows = append(rows, readinessAccountRow{
+			ID:                          account.ID,
+			Email:                       maskReadinessEmail(account.Email),
+			Eligible:                    eligible,
+			Reason:                      reasonCodes[0],
+			ReasonCodes:                 reasonCodes,
+			Weight:                      account.Weight,
+			RuntimeHealth:               runtimeHealthForAccount(h, account.ID),
+			ModelsCached:                models,
+			ModelsListed:                modelListed,
+			ModelBreakerState:           firstNonEmpty(modelBlockState.CircuitState, "closed"),
+			ModelBreakerReason:          string(modelBlockState.Reason),
+			ModelBreakerRetryAt:         modelBlockState.RetryAt,
+			CoolingDown:                 cooldownState.CoolingDown || account.CooldownUntil > nowUnix,
+			CooldownRetryAt:             cooldownRetryAt,
+			CooldownRemainingSeconds:    cooldownRemaining,
+			LastFailureReason:           firstNonEmpty(string(cooldownState.Reason), account.LastFailureReason),
+			LatestContentSuccessAt:      contentSuccessAt,
+			LatestContentSuccessModel:   model,
+			LatestContentSuccessPresent: contentSuccessOK,
 		})
 	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		ih := rows[i].RuntimeHealth.Score
+		jh := rows[j].RuntimeHealth.Score
+		if ih == jh {
+			return rows[i].ID < rows[j].ID
+		}
+		return ih > jh
+	})
+	return rows
+}
+
+func sortReadinessRows(rows []map[string]interface{}) {
 	sort.SliceStable(rows, func(i, j int) bool {
 		ih := rowHealthScore(rows[i])
 		jh := rowHealthScore(rows[j])
@@ -322,7 +445,6 @@ func (h *Handler) schedulerPreviewRows(model string) []map[string]interface{} {
 		}
 		return ih > jh
 	})
-	return rows
 }
 
 func preferredSchedulerPreviewRows(rows []map[string]interface{}) []map[string]interface{} {
@@ -340,99 +462,182 @@ func preferredSchedulerPreviewRows(rows []map[string]interface{}) []map[string]i
 }
 
 func (h *Handler) apiGetFleetReadiness(w http.ResponseWriter, r *http.Request) {
-	accounts := config.GetAccounts()
 	model := strings.TrimSpace(r.URL.Query().Get("model"))
 	if model == "" {
 		model = "claude-sonnet-4.5"
 	}
+	json.NewEncoder(w).Encode(h.fleetReadinessEvidence(model))
+}
+
+func (h *Handler) fleetReadinessEvidence(model string) map[string]interface{} {
 	mapped, _ := resolveClaudeThinkingMode(model, nil, config.GetThinkingConfig().Suffix)
-	rows := h.schedulerPreviewRows(mapped)
-	summary := map[string]int{"total": len(accounts), "enabled": 0, "eligible": 0, "disabled": 0, "coolingDown": 0, "quotaBlocked": 0, "modelNotListed": 0}
-	for _, row := range rows {
-		if eligible, _ := row["eligible"].(bool); eligible {
-			summary["eligible"]++
-		}
-		switch row["reason"] {
-		case "disabled":
-			summary["disabled"]++
-		case string(pool.FailureReasonTemporaryLimited), string(pool.FailureReasonRateLimited), "cooling_down":
-			summary["coolingDown"]++
-		case "usage_limit_reached":
-			summary["quotaBlocked"]++
-		case "model_not_listed":
-			summary["modelNotListed"]++
-		}
+	rowModels := h.readinessAccountRows(mapped, time.Now())
+	rows := make([]map[string]interface{}, 0, len(rowModels))
+	for _, row := range rowModels {
+		rows = append(rows, row.asMap())
 	}
-	for _, account := range accounts {
-		if account.Enabled {
-			summary["enabled"]++
-		}
-	}
+	sortReadinessRows(rows)
+	summary := readinessSummary(rowModels)
 	snap := AdmissionPressureSnapshot{}
 	if modelAdmissionGate != nil {
 		snap = modelAdmissionGate.modelSnapshot(mapped)
 	}
-	blockState := pool.ModelBlockState{}
-	if h != nil && h.pool != nil {
-		blockState = h.pool.ModelBlockState(mapped, time.Now())
-	}
 	locallySchedulable := summary["eligible"]
-	if blockState.AccountsEvaluated > 0 && blockState.Blocked > 0 {
-		if blockState.AllBlocked {
-			locallySchedulable = 0
-		} else if blockState.Blocked < locallySchedulable {
-			locallySchedulable -= blockState.Blocked
-		}
+	admissionEffectiveConcurrency := snap.EffectiveMaxConcurrent
+	if admissionEffectiveConcurrency <= 0 {
+		admissionEffectiveConcurrency = locallySchedulable
 	}
-	safeConcurrency := snap.EffectiveMaxConcurrent
-	if safeConcurrency <= 0 {
-		safeConcurrency = locallySchedulable
-	}
-	if locallySchedulable >= 0 && safeConcurrency > locallySchedulable {
-		safeConcurrency = locallySchedulable
-	}
+	retryAfterSeconds := fleetReadinessRetryAfterSeconds(rowModels, snap, time.Now())
+	reasonCodes := fleetReadinessReasonCodes(rowModels, snap, locallySchedulable)
 	status := "healthy"
-	if snap.CircuitState == "open" || safeConcurrency <= 0 || locallySchedulable == 0 {
+	if snap.CircuitState == "open" || locallySchedulable == 0 || admissionEffectiveConcurrency <= 0 {
 		status = "blocked"
-	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 || safeConcurrency < summary["eligible"] {
+	} else if snap.CircuitState == "degraded" || snap.CircuitState == "half_open" || snap.Score >= 2 || admissionEffectiveConcurrency < locallySchedulable {
 		status = "degraded"
+	}
+	safeConcurrency := 0
+	if status != "blocked" {
+		safeConcurrency = minInt(locallySchedulable, admissionEffectiveConcurrency)
 	}
 	continuity := contentContinuityReadinessStats(h.ensureRequestLogStore().List(maxRequestLogLimit), mapped, time.Now())
 	recommendedQueueWaitSeconds := 0
 	if cfg := config.Get(); cfg != nil {
 		recommendedQueueWaitSeconds = cfg.ContentContinuity.MaxQueueWaitSeconds
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"model":                       model,
-		"requestedModel":              model,
-		"mappedModel":                 mapped,
-		"status":                      status,
-		"circuitState":                firstNonEmpty(snap.CircuitState, "closed"),
-		"retryAfterSeconds":           snap.RetryAfterSeconds,
-		"safeConcurrency":             safeConcurrency,
-		"currentInFlight":             snap.ActiveRequests,
-		"enabledAccounts":             summary["enabled"],
-		"modelListedAccounts":         summary["total"] - summary["modelNotListed"],
-		"locallySchedulableAccounts":  locallySchedulable,
-		"coolingDownAccounts":         summary["coolingDown"],
-		"temporaryLimitedAccounts":    countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
-		"quotaBlockedAccounts":        summary["quotaBlocked"],
-		"authBlockedAccounts":         countFleetRowsByReason(rows, string(pool.FailureReasonAuthExpired)),
-		"admissionPressureScore":      snap.Score,
-		"lastPressureReason":          snap.LastPressureReason,
-		"lastPressureAt":              snap.LastPressureAt,
-		"notes":                       fleetReadinessNotes(status, snap, summary),
-		"strategy":                    config.GetLoadBalanceConfig().Strategy,
-		"summary":                     summary,
-		"accounts":                    rows,
-		"autoRefresh":                 h.getAutoRefreshStatus(),
-		"healthCheck":                 h.getHealthCheckStatus(),
-		"recentContentRequests":       continuity["recentContentRequests"],
-		"contentSuccessRate":          continuity["contentSuccessRate"],
-		"recentStableFallbacks":       continuity["recentStableFallbacks"],
-		"recentEmptyCompletions":      continuity["recentEmptyCompletions"],
-		"recommendedQueueWaitSeconds": recommendedQueueWaitSeconds,
-	})
+	return map[string]interface{}{
+		"contractVersion":               "opus-4.7-readiness.1",
+		"model":                         model,
+		"requestedModel":                model,
+		"mappedModel":                   mapped,
+		"status":                        status,
+		"circuitState":                  firstNonEmpty(snap.CircuitState, "closed"),
+		"retryAfterSeconds":             retryAfterSeconds,
+		"safeConcurrency":               safeConcurrency,
+		"admissionEffectiveConcurrency": admissionEffectiveConcurrency,
+		"currentInFlight":               snap.ActiveRequests,
+		"enabledAccounts":               summary["enabled"],
+		"modelListedAccounts":           summary["total"] - summary["modelNotListed"],
+		"locallySchedulableAccounts":    locallySchedulable,
+		"coolingDownAccounts":           summary["coolingDown"],
+		"temporaryLimitedAccounts":      countFleetRowsByReason(rows, string(pool.FailureReasonTemporaryLimited)),
+		"quotaBlockedAccounts":          summary["quotaBlocked"],
+		"authBlockedAccounts":           summary["authBlocked"],
+		"modelBreakerBlockedAccounts":   summary["modelBreakerOpen"],
+		"admissionPressureScore":        snap.Score,
+		"lastPressureReason":            firstNonEmpty(snap.LastPressureReason, status),
+		"lastPressureAt":                snap.LastPressureAt,
+		"reasonCodes":                   reasonCodes,
+		"recommendedAction":             fleetReadinessRecommendedAction(status, reasonCodes),
+		"notes":                         fleetReadinessNotes(status, snap, summary),
+		"strategy":                      config.GetLoadBalanceConfig().Strategy,
+		"summary":                       summary,
+		"accounts":                      rows,
+		"autoRefresh":                   h.getAutoRefreshStatus(),
+		"healthCheck":                   h.getHealthCheckStatus(),
+		"recentContentRequests":         continuity["recentContentRequests"],
+		"contentSuccessRate":            continuity["contentSuccessRate"],
+		"recentStableFallbacks":         continuity["recentStableFallbacks"],
+		"recentEmptyCompletions":        continuity["recentEmptyCompletions"],
+		"recommendedQueueWaitSeconds":   recommendedQueueWaitSeconds,
+	}
+}
+
+func fleetReadinessRetryAfterSeconds(rows []readinessAccountRow, snap AdmissionPressureSnapshot, now time.Time) int {
+	retryAfter := snap.RetryAfterSeconds
+	for _, row := range rows {
+		if row.Eligible {
+			continue
+		}
+		if row.CoolingDown && int(row.CooldownRemainingSeconds) > retryAfter {
+			retryAfter = int(row.CooldownRemainingSeconds)
+		}
+		if !row.ModelBreakerRetryAt.IsZero() && row.ModelBreakerRetryAt.After(now) {
+			seconds := int(time.Until(row.ModelBreakerRetryAt).Seconds())
+			if seconds < 1 {
+				seconds = 1
+			}
+			if seconds > retryAfter {
+				retryAfter = seconds
+			}
+		}
+	}
+	return retryAfter
+}
+
+func readinessSummary(rows []readinessAccountRow) map[string]int {
+	summary := map[string]int{"total": len(rows), "enabled": 0, "eligible": 0, "disabled": 0, "coolingDown": 0, "quotaBlocked": 0, "modelNotListed": 0, "authBlocked": 0, "modelBreakerOpen": 0}
+	for _, row := range rows {
+		if row.Eligible {
+			summary["eligible"]++
+		}
+		for _, code := range row.ReasonCodes {
+			switch code {
+			case "disabled":
+				summary["disabled"]++
+			case "cooling_down":
+				summary["coolingDown"]++
+			case "usage_limit_reached":
+				summary["quotaBlocked"]++
+			case "model_not_listed":
+				summary["modelNotListed"]++
+			case "token_expired":
+				summary["authBlocked"]++
+			case "model_breaker_open":
+				summary["modelBreakerOpen"]++
+			}
+		}
+		if !hasReasonCode(row.ReasonCodes, "disabled") {
+			summary["enabled"]++
+		}
+	}
+	return summary
+}
+
+func hasReasonCode(codes []string, target string) bool {
+	for _, code := range codes {
+		if code == target {
+			return true
+		}
+	}
+	return false
+}
+
+func fleetReadinessReasonCodes(rows []readinessAccountRow, snap AdmissionPressureSnapshot, locallySchedulable int) []string {
+	set := map[string]bool{}
+	for _, row := range rows {
+		for _, code := range row.ReasonCodes {
+			if code != "eligible" {
+				set[code] = true
+			}
+		}
+	}
+	if locallySchedulable == 0 {
+		set["no_schedulable_accounts"] = true
+	}
+	if snap.CircuitState == "open" {
+		set["admission_circuit_open"] = true
+	} else if snap.Score >= 2 || snap.CircuitState == "degraded" || snap.CircuitState == "half_open" {
+		set["admission_pressure"] = true
+	}
+	if len(set) == 0 {
+		return []string{"healthy"}
+	}
+	out := make([]string, 0, len(set))
+	for code := range set {
+		out = append(out, code)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func fleetReadinessRecommendedAction(status string, reasonCodes []string) string {
+	if status == "healthy" {
+		return "send_with_safe_concurrency"
+	}
+	if hasReasonCode(reasonCodes, "no_schedulable_accounts") || hasReasonCode(reasonCodes, "admission_circuit_open") {
+		return "retry_after_or_wait_for_recovery"
+	}
+	return "limit_to_safe_concurrency"
 }
 
 func contentContinuityReadinessStats(logs []RequestLogEntry, model string, now time.Time) map[string]interface{} {

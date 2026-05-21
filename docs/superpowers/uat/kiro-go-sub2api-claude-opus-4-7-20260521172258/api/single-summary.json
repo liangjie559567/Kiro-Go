@@ -1,0 +1,50 @@
+{
+  "nonstream": {
+    "kind": "nonstream",
+    "model": "claude-opus-4.7",
+    "started_at": "2026-05-21T09:23:28.487Z",
+    "duration_ms": 1751,
+    "status": 200,
+    "ok": true,
+    "headers": {
+      "content_type": "application/json; charset=utf-8",
+      "request_id": "6b14a554-f8a0-4ead-b6a0-63ff4146c47d, req_7c59f00a-0b63-4cba-8849-46b46bcd9804"
+    },
+    "response_type": "message",
+    "response_model": "claude-opus-4.7",
+    "stop_reason": "end_turn",
+    "text_excerpt": "OPUS47_OK",
+    "error_type": null,
+    "error_message_excerpt": null
+  },
+  "stream": {
+    "kind": "stream",
+    "model": "claude-opus-4.7",
+    "started_at": "2026-05-21T09:23:30.238Z",
+    "duration_ms": 3692,
+    "status": 200,
+    "ok": true,
+    "headers": {
+      "content_type": "text/event-stream; charset=utf-8",
+      "request_id": "req_261166bb-18d4-438b-b7ea-7a0bb07b68aa"
+    },
+    "response_type": null,
+    "response_model": null,
+    "stop_reason": null,
+    "event_count": 10,
+    "event_types": [
+      "ping",
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "has_message_stop": true,
+    "text_excerpt": "OPUS47_STREAM_OK",
+    "error_type": null,
+    "error_message_excerpt": null,
+    "raw_tail_excerpt": "ta: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":0,\"type\":\"content_block_start\"}\n\nevent: content_block_delta\ndata: {\"delta\":{\"text\":\"OPUS47_STREAM_OK\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}\n\nevent: content_block_stop\ndata: {\"index\":0,\"type\":\"content_block_stop\"}\n\nevent: message_delta\ndata: {\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":5996,\"output_tokens\":5}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+  }
+}

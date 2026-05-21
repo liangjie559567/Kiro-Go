@@ -1,0 +1,23 @@
+{
+  "startedAt": "2026-05-21T08:12:48.196Z",
+  "readiness": {
+    "ok": false,
+    "url": "http://127.0.0.1:8080/admin/api/fleet/readiness?model=claude-opus-4-7",
+    "httpStatus": 401,
+    "body": {
+      "error": "Unauthorized"
+    }
+  },
+  "concurrencyDecision": {
+    "requestedConcurrency": 10,
+    "effectiveConcurrency": 1,
+    "fixedConcurrency": false,
+    "safeConcurrency": 0,
+    "readinessStatus": "",
+    "circuitState": "",
+    "retryAfterSeconds": 0,
+    "reasonCodes": [],
+    "blocked": false,
+    "decision": "reduced_to_safe_concurrency"
+  }
+}

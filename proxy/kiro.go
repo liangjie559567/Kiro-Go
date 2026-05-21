@@ -11,6 +11,8 @@ import (
 	"io"
 	"kiro-go/config"
 	"kiro-go/logger"
+	"kiro-go/pool"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,13 +31,55 @@ import (
 const defaultRateLimitFallbackSeconds = 3
 const defaultKiroRegion = "us-east-1"
 
+var kiroFirstEventTimeout = 30 * time.Second
+
 type rateLimitError struct {
 	endpoint string
 	body     string
 	resetAt  time.Time
+	upstream *UpstreamError
+}
+
+type firstEventTimeoutReader struct {
+	body      io.Reader
+	timeout   time.Duration
+	seenEvent *atomic.Bool
+	cancel    context.CancelFunc
+}
+
+func (r *firstEventTimeoutReader) Read(p []byte) (int, error) {
+	if r == nil || r.body == nil {
+		return 0, io.EOF
+	}
+	if r.seenEvent == nil || r.seenEvent.Load() || r.timeout <= 0 || r.cancel == nil {
+		return r.body.Read(p)
+	}
+
+	type readResult struct {
+		n   int
+		err error
+	}
+	resultC := make(chan readResult, 1)
+	go func() {
+		n, err := r.body.Read(p)
+		resultC <- readResult{n: n, err: err}
+	}()
+
+	timer := time.NewTimer(r.timeout)
+	defer timer.Stop()
+	select {
+	case result := <-resultC:
+		return result.n, result.err
+	case <-timer.C:
+		r.cancel()
+		return 0, fmt.Errorf("upstream first event timeout after %s", r.timeout)
+	}
 }
 
 func (e *rateLimitError) Error() string {
+	if e.upstream != nil && e.upstream.Summary != "" {
+		return fmt.Sprintf("HTTP 429 from %s: %s", e.endpoint, e.upstream.Summary)
+	}
 	if e.body != "" {
 		return fmt.Sprintf("HTTP 429 from %s: %s", e.endpoint, e.body)
 	}
@@ -43,7 +87,17 @@ func (e *rateLimitError) Error() string {
 }
 
 func (e *rateLimitError) RateLimitResetAt() time.Time {
+	if e.upstream != nil && !e.upstream.RetryAfterReset.IsZero() {
+		return e.upstream.RetryAfterReset
+	}
 	return e.resetAt
+}
+
+func (e *rateLimitError) FailureReason() pool.FailureReason {
+	if e.upstream != nil {
+		return e.upstream.FailureReason()
+	}
+	return pool.FailureReasonUnknown
 }
 
 // Endpoint configuration (auto-fallback on quota exhaustion).
@@ -1442,8 +1496,10 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 		attemptPayload.ConversationState.CurrentMessage.UserInputMessage.Origin = ep.Origin
 
 		reqBody, _ := json.Marshal(attemptPayload)
-		req, err := http.NewRequestWithContext(ctx, "POST", ep.URL, bytes.NewReader(reqBody))
+		reqCtx, cancelReq := context.WithCancel(ctx)
+		req, err := http.NewRequestWithContext(reqCtx, "POST", ep.URL, bytes.NewReader(reqBody))
 		if err != nil {
+			cancelReq()
 			lastErr = err
 			continue
 		}
@@ -1469,6 +1525,7 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 
 		resp, err := GetClientForProxy(ResolveAccountProxyURL(account)).Do(req)
 		if err != nil {
+			cancelReq()
 			lastErr = err
 			logger.Warnf("[KiroAPI] Endpoint %s failed: %v", ep.Name, err)
 			continue
@@ -1477,7 +1534,14 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 		if resp.StatusCode == 429 {
 			errBody := readResponseBody(resp)
 			resetAt := rateLimitResetAt(resp.Header, errBody, time.Now())
+			upstreamErr := newUpstreamHTTPError(resp.StatusCode, ep.Name, resp.Header, errBody, time.Now())
+			if upstreamErr.RetryAfterReset.IsZero() {
+				upstreamErr.RetryAfterReset = resetAt
+				upstreamErr.RetryAfter = nonNegativeDuration(resetAt.Sub(time.Now()))
+				upstreamErr.RetryAfterSource = "fallback"
+			}
 			resp.Body.Close()
+			cancelReq()
 			if errBody != "" {
 				if isKiroSuspiciousTemporaryLimitBody(errBody) {
 					logger.Warnf("[KiroAPI] Endpoint %s returned account temporary-limit 429: %s", ep.Name, errBody)
@@ -1493,7 +1557,7 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 					logger.Warnf("[KiroAPI] Endpoint %s returned 429, trying next...", ep.Name)
 				}
 			}
-			lastErr = &rateLimitError{endpoint: ep.Name, body: errBody, resetAt: resetAt}
+			lastErr = &rateLimitError{endpoint: ep.Name, body: errBody, resetAt: resetAt, upstream: upstreamErr}
 			if opus47Payload || isKiroSuspiciousTemporaryLimitBody(errBody) {
 				return lastErr
 			}
@@ -1503,7 +1567,8 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 		if resp.StatusCode != 200 {
 			errBody := readResponseBody(resp)
 			resp.Body.Close()
-			lastErr = fmt.Errorf("HTTP %d from %s: %s", resp.StatusCode, ep.Name, errBody)
+			cancelReq()
+			lastErr = newUpstreamHTTPError(resp.StatusCode, ep.Name, resp.Header, errBody, time.Now())
 			if resp.StatusCode == 400 && isKiroMalformedRequestBody(errBody) && !malformedRetried {
 				retryPayload := cloneKiroPayload(attemptPayload)
 				if retryPayload != nil {
@@ -1531,8 +1596,15 @@ func CallKiroAPIWithContext(ctx context.Context, account *config.Account, payloa
 			continue
 		}
 
-		err = parseEventStream(resp.Body, callback)
+		seenFirstEvent := &atomic.Bool{}
+		err = parseEventStream(&firstEventTimeoutReader{
+			body:      resp.Body,
+			timeout:   kiroFirstEventTimeout,
+			seenEvent: seenFirstEvent,
+			cancel:    cancelReq,
+		}, callback, seenFirstEvent)
 		resp.Body.Close()
+		cancelReq()
 		return err
 	}
 
@@ -1573,6 +1645,14 @@ func rateLimitResetAt(headers http.Header, body string, now time.Time) time.Time
 func rateLimitResetAtFromHeaders(headers http.Header, now time.Time) (time.Time, bool) {
 	if headers == nil {
 		return time.Time{}, false
+	}
+	if retryAfterMS := strings.TrimSpace(headers.Get("retry-after-ms")); retryAfterMS != "" {
+		if ms, err := strconv.ParseFloat(retryAfterMS, 64); err == nil {
+			if ms < 0 {
+				ms = 0
+			}
+			return now.Add(time.Duration(math.Ceil(ms)) * time.Millisecond), true
+		}
 	}
 	if retryAfter := strings.TrimSpace(headers.Get("Retry-After")); retryAfter != "" {
 		if resetAt, ok := parseRateLimitTime(retryAfter, now); ok {
@@ -1663,13 +1743,17 @@ func secondsValue(value any) (float64, bool) {
 // ==================== Event Stream Parsing ====================
 
 // parseEventStream decodes an AWS binary Event Stream response body.
-func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
+func parseEventStream(body io.Reader, callback *KiroStreamCallback, seenEvents ...*atomic.Bool) error {
 	// Read directly without bufio to avoid buffering latency in streaming responses.
 	var inputTokens, outputTokens int
 	var totalCredits float64
 	var currentToolUse *toolUseState
 	var lastAssistantContent string
 	var lastReasoningContent string
+	var seenEvent *atomic.Bool
+	if len(seenEvents) > 0 {
+		seenEvent = seenEvents[0]
+	}
 
 	for {
 		// Prelude: 12 bytes (total_len + headers_len + crc)
@@ -1687,6 +1771,9 @@ func parseEventStream(body io.Reader, callback *KiroStreamCallback) error {
 
 		if totalLength < 16 {
 			continue
+		}
+		if seenEvent != nil {
+			seenEvent.Store(true)
 		}
 
 		// Read the remaining message bytes.

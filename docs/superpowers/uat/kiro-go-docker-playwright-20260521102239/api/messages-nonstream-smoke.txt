@@ -1,0 +1,4 @@
+{"id":"msg_18529fb2-a00d-403c-894b-70e4108d0af7","type":"message","role":"assistant","content":[{"type":"text","text":"KIRO_GO_UAT_SMOKE_20260521"}],"model":"claude-haiku-4.5","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":4131,"output_tokens":10}}
+
+HTTP_STATUS:200
+TIME_TOTAL:1.558142

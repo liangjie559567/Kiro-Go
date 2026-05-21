@@ -1,0 +1,15 @@
+{
+  "uat_dir": "docs/superpowers/uat/kiro-go-sub2api-claude-opus-4-7-20260521172258",
+  "verdict": "FAIL",
+  "date": "2026-05-21T17:31:00+08:00",
+  "route": "Claude Code-shaped /v1/messages -> sub2api:18080 -> Kiro-Go account 24 -> kiro-go:8080/v1/messages",
+  "model": "claude-opus-4.7",
+  "single_request": {"nonstream": "PASS", "stream": "PASS"},
+  "pressure": {"requested": "100 non-stream + 100 stream", "verdict": "FAIL", "reason": "Non-stream pressure failed before 100/100; run stopped after repeated upstream failures."},
+  "api": ["api/kiro-health.json", "api/sub2api-health.json", "api/single-summary.json", "api/single-nonstream.json", "api/single-stream.json"],
+  "database": ["db/usage-aggregate.txt", "db/error-aggregate.txt", "db/error-logs.txt", "db/uat-key-created.txt", "db/uat-key-cleanup.txt"],
+  "logs": ["logs/docker-ps.txt", "logs/sub2api-after-opus47.log", "logs/kiro-go-after-opus47.log"],
+  "screenshots": ["screenshots/kiro-go-admin-opus47-fail-202605211731.png"],
+  "db_summary": {"usage_rows": 3, "errors": 50, "status_502": 50},
+  "secret_handling": "Temporary UAT key disabled/soft-deleted and removed from /tmp; secret scan passed."
+}

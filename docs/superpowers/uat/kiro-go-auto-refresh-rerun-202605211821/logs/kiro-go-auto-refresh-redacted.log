@@ -1,0 +1,2 @@
+INFO 2026/05/21 10:20:20-10:20:42 [AutoRefresh] Refreshed <redacted-account>: PRO <usage>/<limit> (24 per-account refresh log lines observed)
+INFO 2026/05/21 10:20:42 [AutoRefresh] Completed: success=24 failed=0 skipped=0

@@ -3,6 +3,7 @@
 package pool
 
 import (
+	"errors"
 	"kiro-go/config"
 	"strings"
 	"sync"
@@ -12,7 +13,7 @@ import (
 
 const overageFrequencyScale = 10
 const tokenRefreshSkewSeconds int64 = 120
-const temporaryLimitSingleAccountBaseCooldown = 3 * time.Second
+const temporaryLimitSingleAccountBaseCooldown = time.Minute
 const temporaryLimitMultiAccountBaseCooldown = time.Minute
 const temporaryLimitMaxCooldown = 24 * time.Hour
 const modelCapacityBaseCooldown = 3 * time.Second
@@ -46,6 +47,13 @@ type ModelBlockState struct {
 	AllBlocked        bool
 	LastReason        FailureReason
 	RetryAt           time.Time
+}
+
+type ModelAccountBlockState struct {
+	Blocked      bool
+	CircuitState string
+	Reason       FailureReason
+	RetryAt      time.Time
 }
 
 type CooldownState struct {
@@ -103,6 +111,14 @@ func (h runtimeHealthState) export() RuntimeHealth {
 func ClassifyFailureReason(err error) FailureReason {
 	if err == nil {
 		return FailureReasonUnknown
+	}
+	var structured interface {
+		FailureReason() FailureReason
+	}
+	if errors.As(err, &structured) {
+		if reason := structured.FailureReason(); reason != "" && reason != FailureReasonUnknown {
+			return reason
+		}
 	}
 
 	msg := strings.ToLower(err.Error())
@@ -168,6 +184,7 @@ type AccountPool struct {
 	groupFailures  map[string]FailureReason   // shared upstream risk-group failure classification
 	modelLists     map[string]map[string]bool // accountID -> set of modelIDs
 	runtimeHealth  map[string]*runtimeHealthState
+	modelSuccess   map[string]time.Time
 	breakers       *modelBreakerState
 	strategy       Strategy
 }
@@ -188,6 +205,7 @@ func GetPool() *AccountPool {
 			groupFailures:  make(map[string]FailureReason),
 			modelLists:     make(map[string]map[string]bool),
 			runtimeHealth:  make(map[string]*runtimeHealthState),
+			modelSuccess:   make(map[string]time.Time),
 			breakers:       newModelBreakerState(),
 			strategy:       Strategy(config.GetLoadBalanceConfig().Strategy),
 		}
@@ -217,6 +235,9 @@ func (p *AccountPool) ensureStateLocked() {
 	}
 	if p.runtimeHealth == nil {
 		p.runtimeHealth = make(map[string]*runtimeHealthState)
+	}
+	if p.modelSuccess == nil {
+		p.modelSuccess = make(map[string]time.Time)
 	}
 	if p.breakers == nil {
 		p.breakers = newModelBreakerState()
@@ -300,7 +321,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 			continue
 		}
 
-		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID, "") {
 			best = acc
 		}
 		if p.strategy == StrategyRoundRobin || p.isIdleHealthyLocked(acc.ID) {
@@ -321,7 +342,7 @@ func (p *AccountPool) GetNextExcept(excluded map[string]bool) *config.Account {
 		if !p.accountBaseUsableLocked(acc, now, allowOverUsage) {
 			continue
 		}
-		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID, "") {
 			best = acc
 		}
 	}
@@ -353,6 +374,40 @@ func (p *AccountPool) GetModelList(accountID string) []string {
 		ids = append(ids, id)
 	}
 	return ids
+}
+
+func modelContentSuccessKey(accountID, model string) string {
+	return strings.TrimSpace(accountID) + "\x00" + normalizedBreakerModel(model)
+}
+
+func (p *AccountPool) RecordModelContentSuccess(accountID, model string, at time.Time) {
+	accountID = strings.TrimSpace(accountID)
+	model = strings.TrimSpace(model)
+	if accountID == "" || model == "" || at.IsZero() {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	key := modelContentSuccessKey(accountID, model)
+	if current, ok := p.modelSuccess[key]; !ok || at.After(current) {
+		p.modelSuccess[key] = at
+	}
+}
+
+func (p *AccountPool) ModelContentSuccess(accountID, model string) (time.Time, bool) {
+	accountID = strings.TrimSpace(accountID)
+	model = strings.TrimSpace(model)
+	if accountID == "" || model == "" {
+		return time.Time{}, false
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.modelSuccess == nil {
+		return time.Time{}, false
+	}
+	at, ok := p.modelSuccess[modelContentSuccessKey(accountID, model)]
+	return at, ok
 }
 
 // accountHasModel 检查账号是否支持指定模型。冷启动时模型列表为空，乐观放行。
@@ -432,6 +487,7 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 	n := len(p.accounts)
 	seen := make(map[string]bool)
 	var best *config.Account
+	hasSuccessEvidence := p.hasModelContentSuccessEvidenceLocked(model)
 
 	for i := 0; i < n; i++ {
 		idx := atomic.AddUint64(&p.currentIndex, 1) % uint64(n)
@@ -456,10 +512,10 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 			seen[acc.ID] = true
 			continue
 		}
-		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID, model) {
 			best = acc
 		}
-		if p.strategy == StrategyRoundRobin || p.isIdleHealthyLocked(acc.ID) {
+		if p.strategy == StrategyRoundRobin || (!hasSuccessEvidence && p.isIdleHealthyLocked(acc.ID)) {
 			return acc
 		}
 	}
@@ -481,7 +537,7 @@ func (p *AccountPool) getNextForModelExceptLocked(model string, excluded map[str
 		if !p.breakers.isClosed(acc.ID, model) {
 			continue
 		}
-		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID) {
+		if best == nil || p.isBetterCandidateLocked(acc.ID, best.ID, model) {
 			best = acc
 		}
 	}
@@ -579,13 +635,16 @@ func (p *AccountPool) accountUsableForModelLocked(acc *config.Account, model str
 }
 
 func (p *AccountPool) accountBaseUsableLocked(acc *config.Account, now time.Time, allowOverUsage bool) bool {
+	if !acc.Enabled && p.hasExplicitEnabledAccountsLocked() {
+		return false
+	}
 	if cooldown, ok := p.cooldowns[acc.ID]; ok && now.Before(cooldown) {
 		return false
 	}
 	if acc.CooldownUntil > 0 && now.Unix() < acc.CooldownUntil {
 		return false
 	}
-	if acc.ExpiresAt > 0 && now.Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds {
+	if acc.ExpiresAt > 0 && now.Unix() > acc.ExpiresAt-tokenRefreshSkewSeconds && strings.TrimSpace(acc.RefreshToken) == "" {
 		return false
 	}
 	if isOverUsageLimit(*acc) && !acc.AllowOverage && !allowOverUsage {
@@ -602,9 +661,22 @@ func (p *AccountPool) isIdleHealthyLocked(id string) bool {
 	return health.activeConnections == 0 && health.score() >= 90
 }
 
-func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID string) bool {
+func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID, model string) bool {
 	if p.strategy == StrategyRoundRobin {
 		return false
+	}
+	if strings.TrimSpace(model) != "" {
+		if candidateAt, ok := p.modelSuccess[modelContentSuccessKey(candidateID, model)]; ok {
+			currentAt, currentOK := p.modelSuccess[modelContentSuccessKey(currentID, model)]
+			if !currentOK || candidateAt.After(currentAt) {
+				return true
+			}
+			if currentAt.After(candidateAt) {
+				return false
+			}
+		} else if _, currentOK := p.modelSuccess[modelContentSuccessKey(currentID, model)]; currentOK {
+			return false
+		}
 	}
 	candidate := p.runtimeHealth[candidateID]
 	current := p.runtimeHealth[currentID]
@@ -624,6 +696,29 @@ func (p *AccountPool) isBetterCandidateLocked(candidateID, currentID string) boo
 		return candidate.score() > current.score()
 	}
 	return candidate.avgLatencyMS < current.avgLatencyMS
+}
+
+func (p *AccountPool) hasModelContentSuccessEvidenceLocked(model string) bool {
+	model = strings.TrimSpace(model)
+	if model == "" || len(p.modelSuccess) == 0 {
+		return false
+	}
+	suffix := "\x00" + normalizedBreakerModel(model)
+	for key := range p.modelSuccess {
+		if strings.HasSuffix(key, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *AccountPool) hasExplicitEnabledAccountsLocked() bool {
+	for i := range p.accounts {
+		if p.accounts[i].Enabled {
+			return true
+		}
+	}
+	return false
 }
 
 // GetByID 根据 ID 获取账号
@@ -967,6 +1062,29 @@ func (p *AccountPool) ModelBlockState(model string, now time.Time) ModelBlockSta
 	}
 	state.AllBlocked = state.AccountsEvaluated > 0 && state.Blocked == state.AccountsEvaluated
 	return state
+}
+
+func (p *AccountPool) ModelAccountBlockState(accountID, model string, now time.Time) ModelAccountBlockState {
+	accountID = strings.TrimSpace(accountID)
+	model = strings.TrimSpace(model)
+	if accountID == "" || model == "" {
+		return ModelAccountBlockState{CircuitState: string(breakerClosed)}
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ensureStateLocked()
+	p.clearExpiredCooldownsLocked(now)
+
+	entry := p.breakers.entries[breakerKey(accountID, model)]
+	if entry == nil || entry.Status == breakerClosed {
+		return ModelAccountBlockState{CircuitState: string(breakerClosed)}
+	}
+	return ModelAccountBlockState{
+		Blocked:      !p.breakers.canUse(accountID, model, now),
+		CircuitState: string(entry.Status),
+		Reason:       entry.Reason,
+		RetryAt:      entry.RetryAt,
+	}
 }
 
 func reasonPriority(reason FailureReason) int {

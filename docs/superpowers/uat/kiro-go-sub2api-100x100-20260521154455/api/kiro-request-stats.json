@@ -1,0 +1,46 @@
+{
+  "averageDurationMs": 71939,
+  "byEndpoint": {
+    "/v1/messages": {
+      "total": 38,
+      "success": 38,
+      "failed": 0,
+      "averageDurationMs": 71939,
+      "inputTokens": 47396,
+      "outputTokens": 98,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "queueWaitMs": 0,
+      "maxQueueWaitMs": 0,
+      "firstTokenMs": 14333,
+      "maxFirstTokenMs": 2951,
+      "attempts": 31,
+      "toolUseCount": 0
+    }
+  },
+  "byModel": {
+    "claude-opus-4.7": {
+      "total": 38,
+      "success": 38,
+      "failed": 0,
+      "averageDurationMs": 71939,
+      "inputTokens": 47396,
+      "outputTokens": 98,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "queueWaitMs": 0,
+      "maxQueueWaitMs": 0,
+      "firstTokenMs": 14333,
+      "maxFirstTokenMs": 2951,
+      "attempts": 31,
+      "toolUseCount": 0
+    }
+  },
+  "cacheCreationInputTokens": 0,
+  "cacheReadInputTokens": 0,
+  "failed": 0,
+  "inputTokens": 47396,
+  "outputTokens": 98,
+  "success": 38,
+  "total": 38
+}

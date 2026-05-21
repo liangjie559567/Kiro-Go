@@ -7669,7 +7669,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -7793,7 +7793,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -7915,7 +7915,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8037,7 +8037,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8159,7 +8159,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8281,7 +8281,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8403,7 +8403,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8525,7 +8525,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8647,7 +8647,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8769,7 +8769,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -8891,7 +8891,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9013,7 +9013,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9135,7 +9135,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9257,7 +9257,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9379,7 +9379,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9501,7 +9501,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9624,7 +9624,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -9748,7 +9748,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9870,7 +9870,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -9992,7 +9992,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",

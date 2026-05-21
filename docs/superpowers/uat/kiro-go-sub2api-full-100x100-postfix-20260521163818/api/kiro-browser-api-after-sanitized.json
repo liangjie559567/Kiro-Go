@@ -1,0 +1,1146 @@
+{
+  "checkedAt": "2026-05-21T08:49:36.693Z",
+  "pageUrl": "http://127.0.0.1:8080/admin",
+  "title": "Kiro-Go",
+  "passwordVariableAvailable": true,
+  "visibleTextSample": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n25\n账号\n16183\n请求\n6742\n成功\n9441\n失败\n222.8M\nTokens\n1960.3\nCredits\n账号\n设置\nAPI\n账号列表\n隐私模式\n导出",
+  "api": {
+    "/admin/api/status": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "accounts": 25,
+        "available": 25,
+        "failedRequests": 9441,
+        "successRequests": 6742,
+        "totalCredits": 1960.3062104965088,
+        "totalRequests": 16183,
+        "totalTokens": "[REDACTED]",
+        "uptime": 945
+      }
+    },
+    "/admin/api/stats": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "failedRequests": 9441,
+        "successRequests": 6742,
+        "totalCredits": 1960.3062104965088,
+        "totalRequests": 16183,
+        "totalTokens": "[REDACTED]",
+        "uptime": 945
+      }
+    },
+    "/admin/api/fleet/readiness?model=claude-opus-4-7": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "accounts": [
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "i***@googlzr.com",
+            "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:26.293893905Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "claude-opus-4.7",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "glm-5",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "claude-haiku-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 301,
+              "lastUpdatedAt": 1779353063,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "v***@gmail.com",
+            "id": "125bd142-5218-45d9-8748-3e29a775050b",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:02.724712628Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.5",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 275,
+              "lastUpdatedAt": 1779352859,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "f***@googlzr.com",
+            "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:16.328298459Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.1",
+              "glm-5",
+              "claude-opus-4.6",
+              "auto",
+              "claude-sonnet-4.6",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-opus-4.7",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "qwen3-coder-next"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 284,
+              "lastUpdatedAt": 1779352873,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "s***@gmail.com",
+            "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:16.698607257Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "minimax-m2.1",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5",
+              "glm-5",
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "claude-opus-4.5",
+              "deepseek-3.2",
+              "qwen3-coder-next"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 285,
+              "lastUpdatedAt": 1779352873,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:03.436955248Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "deepseek-3.2",
+              "minimax-m2.1",
+              "auto",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "claude-opus-4.6",
+              "glm-5",
+              "minimax-m2.5",
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 275,
+              "lastUpdatedAt": 1779352860,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+            "lastFailureReason": "unknown",
+            "latestContentSuccessAt": "2026-05-21T08:44:15.29824586Z",
+            "latestContentSuccessModel": "claude-opus-4.7",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:18.928900707Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.5",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 3,
+              "avgLatencyMs": 542,
+              "lastUpdatedAt": 1779353055,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "h***@googlzr.com",
+            "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-opus-4.7",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 308,
+              "lastUpdatedAt": 1779352739,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "qwen3-coder-next",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "auto",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 313,
+              "lastUpdatedAt": 1779352736,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:24.870621978Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.5",
+              "deepseek-3.2",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "auto",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 298,
+              "lastUpdatedAt": 1779353061,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+            "lastFailureReason": "unknown",
+            "latestContentSuccessAt": "2026-05-21T08:40:57.733540359Z",
+            "latestContentSuccessModel": "claude-opus-4.7",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:01.347715579Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "minimax-m2.5",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "qwen3-coder-next",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.1",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 3,
+              "avgLatencyMs": 617,
+              "lastUpdatedAt": 1779353368,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:38:57.494979593Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.5",
+              "auto",
+              "deepseek-3.2",
+              "qwen3-coder-next",
+              "minimax-m2.1",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "claude-opus-4.7",
+              "minimax-m2.5",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 466,
+              "lastUpdatedAt": 1779352734,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "w***@gmail.com",
+            "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+            "lastFailureReason": "unknown",
+            "latestContentSuccessAt": "2026-05-21T08:41:12.031624878Z",
+            "latestContentSuccessModel": "claude-opus-4.7",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:15.68086379Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4",
+              "auto",
+              "claude-haiku-4.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-opus-4.5",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 2,
+              "avgLatencyMs": 412,
+              "lastUpdatedAt": 1779352872,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "m***@gmail.com",
+            "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-opus-4.7",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "claude-sonnet-4.6",
+              "minimax-m2.5",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 313,
+              "lastUpdatedAt": 1779352735,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "w***@gmail.com",
+            "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:17.11766376Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "auto",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "minimax-m2.5",
+              "glm-5",
+              "claude-haiku-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 287,
+              "lastUpdatedAt": 1779352874,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "c***@googlzr.com",
+            "id": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "deepseek-3.2",
+              "minimax-m2.1",
+              "glm-5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "claude-opus-4.6"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 310,
+              "lastUpdatedAt": 1779352738,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:17.086997418Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "glm-5",
+              "deepseek-3.2",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 287,
+              "lastUpdatedAt": 1779352874,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:38:56.847183489Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "qwen3-coder-next",
+              "glm-5",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "minimax-m2.1",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 652,
+              "lastUpdatedAt": 1779352733,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "c***@gmail.com",
+            "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:02.05923209Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-opus-4.5",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 275,
+              "lastUpdatedAt": 1779352859,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:17.519491203Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.5",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "qwen3-coder-next",
+              "auto",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "claude-opus-4.6",
+              "minimax-m2.1",
+              "claude-opus-4.7",
+              "claude-opus-4.5",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 291,
+              "lastUpdatedAt": 1779352874,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "l***@gmail.com",
+            "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:41:16.379013356Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-sonnet-4.6",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5",
+              "claude-sonnet-4",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 284,
+              "lastUpdatedAt": 1779352873,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+            "lastFailureReason": "unknown",
+            "latestContentSuccessAt": "2026-05-21T08:44:20.559429893Z",
+            "latestContentSuccessModel": "claude-opus-4.7",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:24.183418558Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "minimax-m2.1",
+              "glm-5",
+              "claude-opus-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 2,
+              "avgLatencyMs": 659,
+              "lastUpdatedAt": 1779353061,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:19.63824396Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 292,
+              "lastUpdatedAt": 1779353056,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:38:58.799382079Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "glm-5",
+              "claude-opus-4.7",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.5",
+              "claude-haiku-4.5",
+              "minimax-m2.1",
+              "claude-opus-4.6"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 290,
+              "lastUpdatedAt": 1779352735,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:44:25.568563411Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "claude-haiku-4.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "deepseek-3.2",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 301,
+              "lastUpdatedAt": 1779353062,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+            "lastFailureReason": "unknown",
+            "modelBreakerReason": "model_capacity",
+            "modelBreakerRetryAt": "2026-05-21T08:38:58.148365908Z",
+            "modelBreakerState": "open",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "deepseek-3.2",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "qwen3-coder-next",
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "glm-5",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 1,
+              "avgLatencyMs": 288,
+              "lastUpdatedAt": 1779352735,
+              "score": 100
+            },
+            "weight": 2
+          }
+        ],
+        "admissionEffectiveConcurrency": 1,
+        "admissionPressureScore": 6,
+        "authBlockedAccounts": 0,
+        "autoRefresh": "[REDACTED]",
+        "circuitState": "half_open",
+        "contentSuccessRate": 0.16,
+        "contractVersion": "opus-4.7-readiness.1",
+        "coolingDownAccounts": 0,
+        "currentInFlight": 0,
+        "enabledAccounts": 25,
+        "healthCheck": {
+          "running": false,
+          "lastStartedAt": 1779353339,
+          "lastFinishedAt": 1779353339,
+          "nextRunAt": 1779353639,
+          "lastSuccess": 0,
+          "lastFailed": 0,
+          "lastDisabled": 0,
+          "lastSkipped": false,
+          "lastSkippedCount": 25,
+          "lastQuietSkipped": 25
+        },
+        "lastPressureAt": "2026-05-21T08:44:59.628508956Z",
+        "lastPressureReason": "queue_timeout",
+        "locallySchedulableAccounts": 25,
+        "mappedModel": "claude-opus-4.7",
+        "model": "claude-opus-4-7",
+        "modelBreakerBlockedAccounts": 0,
+        "modelListedAccounts": 25,
+        "notes": [
+          "sub2api should queue or limit Opus 4.7 calls to safeConcurrency"
+        ],
+        "quotaBlockedAccounts": 0,
+        "reasonCodes": [
+          "admission_pressure"
+        ],
+        "recentContentRequests": 25,
+        "recentEmptyCompletions": 0,
+        "recentStableFallbacks": 0,
+        "recommendedAction": "limit_to_safe_concurrency",
+        "recommendedQueueWaitSeconds": 120,
+        "requestedModel": "claude-opus-4-7",
+        "retryAfterSeconds": 0,
+        "safeConcurrency": 1,
+        "status": "degraded",
+        "strategy": "health",
+        "summary": {
+          "authBlocked": 0,
+          "coolingDown": 0,
+          "disabled": 0,
+          "eligible": 25,
+          "enabled": 25,
+          "modelBreakerOpen": 0,
+          "modelNotListed": 0,
+          "quotaBlocked": 0,
+          "total": 25
+        },
+        "temporaryLimitedAccounts": 0
+      }
+    },
+    "/admin/api/request-stats": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "averageDurationMs": 102267,
+        "byEndpoint": {
+          "/v1/messages": {
+            "total": 27,
+            "success": 27,
+            "failed": 0,
+            "averageDurationMs": 102267,
+            "inputTokens": "[REDACTED]",
+            "outputTokens": "[REDACTED]",
+            "cacheReadInputTokens": "[REDACTED]",
+            "cacheCreationInputTokens": "[REDACTED]",
+            "queueWaitMs": 0,
+            "maxQueueWaitMs": 0,
+            "firstTokenMs": "[REDACTED]",
+            "maxFirstTokenMs": "[REDACTED]",
+            "attempts": 20,
+            "toolUseCount": 0
+          }
+        },
+        "byModel": {
+          "claude-opus-4.7": {
+            "total": 26,
+            "success": 26,
+            "failed": 0,
+            "averageDurationMs": 106120,
+            "inputTokens": "[REDACTED]",
+            "outputTokens": "[REDACTED]",
+            "cacheReadInputTokens": "[REDACTED]",
+            "cacheCreationInputTokens": "[REDACTED]",
+            "queueWaitMs": 0,
+            "maxQueueWaitMs": 0,
+            "firstTokenMs": "[REDACTED]",
+            "maxFirstTokenMs": "[REDACTED]",
+            "attempts": 19,
+            "toolUseCount": 0
+          },
+          "claude-sonnet-4.6-thinking": {
+            "total": 1,
+            "success": 1,
+            "failed": 0,
+            "averageDurationMs": 2113,
+            "inputTokens": "[REDACTED]",
+            "outputTokens": "[REDACTED]",
+            "cacheReadInputTokens": "[REDACTED]",
+            "cacheCreationInputTokens": "[REDACTED]",
+            "queueWaitMs": 0,
+            "maxQueueWaitMs": 0,
+            "firstTokenMs": "[REDACTED]",
+            "maxFirstTokenMs": "[REDACTED]",
+            "attempts": 1,
+            "toolUseCount": 0
+          }
+        },
+        "cacheCreationInputTokens": "[REDACTED]",
+        "cacheReadInputTokens": "[REDACTED]",
+        "failed": 0,
+        "inputTokens": "[REDACTED]",
+        "outputTokens": "[REDACTED]",
+        "success": 27,
+        "total": 27
+      }
+    }
+  }
+}

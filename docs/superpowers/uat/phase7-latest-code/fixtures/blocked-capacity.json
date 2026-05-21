@@ -1,0 +1,16 @@
+{
+  "contractVersion": "phase7-blocked-capacity-fixture.1",
+  "readiness": {
+    "status": "blocked",
+    "safeConcurrency": 0,
+    "retryAfterSeconds": 30,
+    "reasonCodes": ["no_schedulable_accounts"]
+  },
+  "expectedVerdict": "BLOCKED_CAPACITY_PASS",
+  "requirements": [
+    "no real generation PASS is claimed",
+    "Retry-After or retryAfterSeconds is present",
+    "sub2api evidence shows skip or retryable exhaustion",
+    "account scheduling state is not permanently disabled by model pressure"
+  ]
+}

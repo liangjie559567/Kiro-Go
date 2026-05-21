@@ -1,0 +1,225 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "Kiro-Go" [level=1] [ref=e4]:
+      - img [ref=e5]
+      - text: Kiro-Go
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "中文" [ref=e9] [cursor=pointer]
+        - button "EN" [ref=e10] [cursor=pointer]
+      - generic [ref=e11]: 运行中
+      - generic [ref=e12] [cursor=pointer]: v1.0.8
+      - button "退出登录" [ref=e13] [cursor=pointer]
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]: "25"
+      - generic [ref=e17]: 账号
+    - generic [ref=e18]:
+      - generic [ref=e19]: "16449"
+      - generic [ref=e20]: 请求
+    - generic [ref=e21]:
+      - generic [ref=e22]: "6971"
+      - generic [ref=e23]: 成功
+    - generic [ref=e24]:
+      - generic [ref=e25]: "9478"
+      - generic [ref=e26]: 失败
+    - generic [ref=e27]:
+      - generic [ref=e28]: 224.7M
+      - generic [ref=e29]: Tokens
+    - generic [ref=e30]:
+      - generic [ref=e31]: "1970.8"
+      - generic [ref=e32]: Credits
+  - generic [ref=e33]:
+    - generic [ref=e34] [cursor=pointer]: 账号
+    - generic [ref=e35] [cursor=pointer]: 设置
+    - generic [ref=e36] [cursor=pointer]: API
+  - generic [ref=e1386]:
+    - generic [ref=e1387]:
+      - generic [ref=e1389]: API 设置
+      - generic [ref=e1391]:
+        - generic [ref=e1392]:
+          - checkbox "启用 API Key 验证" [checked]
+        - generic [ref=e1394]: 启用 API Key 验证
+      - generic [ref=e1395]:
+        - generic [ref=e1396]: API Key
+        - generic [ref=e1397]:
+          - textbox "留空则不验证" [ref=e1398]: sk-REDACTED
+          - button "随机生成" [ref=e1399] [cursor=pointer]
+      - generic [ref=e1400]:
+        - generic [ref=e1401]: 客户端 API Keys
+        - 'textbox "每行一个 Key；以 #disabled# 开头可临时禁用" [ref=e1402]'
+        - generic [ref=e1403]: "兼容旧 API Key。开启验证后，任意未禁用 Key 都可用于 Authorization: Bearer。"
+      - generic [ref=e1404]:
+        - generic [ref=e1405]: 来源 IP 白名单
+        - textbox "留空不限制 127.0.0.1 10.0.0.0/8" [ref=e1406]:
+          - /placeholder: "留空不限制\n127.0.0.1\n10.0.0.0/8"
+        - generic [ref=e1407]: 留空保持现有开放行为。直连本机用 127.0.0.1；Docker 下游需加入容器 IP 或 Docker 网段。
+      - generic [ref=e1408]:
+        - generic [ref=e1409]: 模型映射规则
+        - textbox "my-opus => claude-opus-4.7 my-balanced => claude-sonnet-4.6, claude-opus-4.7" [ref=e1410]:
+          - /placeholder: "my-opus => claude-opus-4.7\nmy-balanced => claude-sonnet-4.6, claude-opus-4.7"
+        - generic [ref=e1411]: 格式：源模型 => 目标模型1,目标模型2。多个目标按轮询映射。
+      - button "保存设置" [ref=e1412] [cursor=pointer]
+    - generic [ref=e1413]:
+      - generic [ref=e1415]: 自动刷新账号
+      - generic [ref=e1417]:
+        - generic [ref=e1418]:
+          - checkbox "启用自动刷新" [checked]
+        - generic [ref=e1420]: 启用自动刷新
+      - generic [ref=e1421]:
+        - generic [ref=e1422]: 刷新间隔（分钟）
+        - spinbutton [ref=e1423]: "30"
+        - generic [ref=e1424]: 范围 5-1440 分钟，管理页面关闭后仍会在后端执行
+      - generic [ref=e1425]:
+        - generic [ref=e1426]: 刷新范围
+        - combobox [ref=e1427]:
+          - option "仅启用账号"
+          - option "所有账号" [selected]
+      - generic [ref=e1428]:
+        - generic [ref=e1429]: "正在运行: 否"
+        - generic [ref=e1430]: "上次执行: -"
+        - generic [ref=e1431]: "下次执行: 5/21/2026, 6:15:49 PM"
+        - generic [ref=e1432]: "上次结果: 成功: 0, 失败: 0"
+      - button "保存自动刷新设置" [ref=e1433] [cursor=pointer]
+    - generic [ref=e1434]:
+      - generic [ref=e1436]: 账号健康检测
+      - generic [ref=e1438]:
+        - generic [ref=e1439]:
+          - checkbox "启用定时健康检测" [checked]
+        - generic [ref=e1441]: 启用定时健康检测
+      - generic [ref=e1442]:
+        - generic [ref=e1443]: 检测间隔（分钟）
+        - spinbutton [ref=e1444]: "5"
+        - generic [ref=e1445]: 范围 5-1440 分钟，仅检测启用账号；通过加载可用模型判断账号健康状态
+      - generic [ref=e1447]:
+        - generic [ref=e1448]:
+          - checkbox "检测失败时自动禁用账号" [checked]
+        - generic [ref=e1450]: 检测失败时自动禁用账号
+      - generic [ref=e1451]:
+        - generic [ref=e1452]: "正在运行: 否"
+        - generic [ref=e1453]: "上次执行: -"
+        - generic [ref=e1454]: "下次执行: 5/21/2026, 5:50:30 PM"
+        - generic [ref=e1455]: "上次结果: 成功: 0, 失败: 0, 已禁用: 0"
+      - button "保存健康检测设置" [ref=e1456] [cursor=pointer]
+    - generic [ref=e1457]:
+      - generic [ref=e1459]: 用量控制
+      - generic [ref=e1460]:
+        - generic [ref=e1461]:
+          - generic [ref=e1462]:
+            - checkbox "允许超额使用" [checked]
+          - generic [ref=e1464]: 允许超额使用
+        - generic [ref=e1465]: 开启后，即使账号额度用尽也会继续使用该账号处理请求，不再因余额不足而报错
+      - button "保存设置" [ref=e1466] [cursor=pointer]
+    - generic [ref=e1467]:
+      - generic [ref=e1469]: Thinking 模式设置
+      - generic [ref=e1470]:
+        - generic [ref=e1471]: 触发后缀
+        - textbox "-thinking" [ref=e1472]
+        - generic [ref=e1473]: 模型名称加此后缀即启用思考模式，如 claude-sonnet-4.5-thinking
+      - generic [ref=e1474]:
+        - generic [ref=e1475]: OpenAI API 输出格式
+        - combobox [ref=e1476]:
+          - option "reasoning_content (DeepSeek)"
+          - option "<thinking> (Claude)"
+          - option "<think> (OpenAI)" [selected]
+      - generic [ref=e1477]:
+        - generic [ref=e1478]: Claude API 输出格式
+        - combobox [ref=e1479]:
+          - option "<thinking> (Claude)" [selected]
+          - option "<think> (OpenAI)"
+          - option "直接输出 (无标签)"
+      - button "保存 Thinking 设置" [ref=e1480] [cursor=pointer]
+    - generic [ref=e1481]:
+      - generic [ref=e1483]: Kiro 端点设置
+      - generic [ref=e1484]:
+        - generic [ref=e1485]: 首选端点
+        - combobox [ref=e1486]:
+          - option "自动选择" [selected]
+          - option "Kiro IDE"
+          - option "CodeWhisperer"
+          - option "AmazonQ"
+        - generic [ref=e1487]: 选择首选端点，自动选择模式下会根据可用性自动选择端点
+      - generic [ref=e1488]:
+        - generic [ref=e1489] [cursor=pointer]:
+          - checkbox "端点不可用时自动切换" [checked] [ref=e1490]
+          - generic [ref=e1491]: 端点不可用时自动切换
+        - generic [ref=e1492]: 关闭后，仅使用选定的端点，不会自动切换到其他端点
+      - button "保存端点设置" [ref=e1493] [cursor=pointer]
+    - generic [ref=e1494]:
+      - generic [ref=e1496]: 账号调度策略
+      - generic [ref=e1497]:
+        - generic [ref=e1498]: 调度策略
+        - combobox [ref=e1499]:
+          - option "健康优先" [selected]
+          - option "最少连接"
+          - option "轮询"
+        - generic [ref=e1500]: 健康优先会综合连接数、成功率和延迟；最少连接适合压测；轮询保留权重顺序。
+      - button "保存调度策略" [ref=e1501] [cursor=pointer]
+    - generic [ref=e1502]:
+      - generic [ref=e1504]: 管理密码
+      - generic [ref=e1505]:
+        - generic [ref=e1506]: 新密码
+        - textbox "输入新密码" [ref=e1507]
+      - button "修改密码" [ref=e1508] [cursor=pointer]
+    - generic [ref=e1509]:
+      - generic [ref=e1511]: 出站代理设置
+      - generic [ref=e1512]:
+        - generic [ref=e1513]: 代理类型
+        - combobox [ref=e1514]:
+          - option "直连（不使用代理）" [selected]
+          - option "SOCKS5"
+          - option "HTTP"
+      - button "保存代理设置" [ref=e1515] [cursor=pointer]
+    - generic [ref=e1516]:
+      - generic [ref=e1518]: System Prompt 过滤
+      - generic [ref=e1519]:
+        - generic [ref=e1520]: 内置过滤器
+        - generic [ref=e1521]:
+          - generic [ref=e1522]:
+            - generic [ref=e1523]:
+              - generic [ref=e1524]:
+                - checkbox "替换 Claude Code CLI 系统提示" [checked]
+              - generic [ref=e1526]: 替换 Claude Code CLI 系统提示
+            - generic [ref=e1527]: 检测到 Claude Code 内置系统提示时，替换为精简的后端提示词，避免泄露大量 CLI 指令到请求体。
+          - generic [ref=e1528]:
+            - generic [ref=e1529]:
+              - generic [ref=e1530]:
+                - checkbox "过滤环境噪音行" [checked]
+              - generic [ref=e1532]: 过滤环境噪音行
+            - generic [ref=e1533]: 移除系统提示中注入的环境变量、Git 状态、最近提交等噪音内容。
+          - generic [ref=e1534]:
+            - generic [ref=e1535]:
+              - generic [ref=e1536]:
+                - checkbox "移除边界标记" [checked]
+              - generic [ref=e1538]: 移除边界标记
+            - generic [ref=e1539]: 移除 --- SYSTEM PROMPT --- / --- END SYSTEM PROMPT --- 等边界标记行。
+      - generic [ref=e1540]:
+        - generic [ref=e1541]: 自定义过滤规则
+        - generic [ref=e1542]: 暂无自定义规则
+        - generic [ref=e1543]:
+          - button "+ 正则替换规则" [ref=e1544] [cursor=pointer]
+          - button "+ 行级过滤规则" [ref=e1545] [cursor=pointer]
+      - button "保存过滤设置" [ref=e1546] [cursor=pointer]
+    - generic [ref=e1547]:
+      - generic [ref=e1549]: 统计
+      - button "重置统计" [ref=e1550] [cursor=pointer]
+    - generic [ref=e1551]:
+      - generic [ref=e1552]:
+        - generic [ref=e1553]: 最近请求日志
+        - generic [ref=e1554]:
+          - button "刷新" [ref=e1555] [cursor=pointer]
+          - button "清空" [ref=e1556] [cursor=pointer]
+      - generic [ref=e1557]: 总数 0，成功 0，失败 0，平均耗时 0ms，输入 0，输出 0
+      - table [ref=e1559]:
+        - rowgroup [ref=e1560]:
+          - row "时间 模型 账号/区域 状态 耗时 Tokens 错误" [ref=e1561]:
+            - columnheader "时间" [ref=e1562]
+            - columnheader "模型" [ref=e1563]
+            - columnheader "账号/区域" [ref=e1564]
+            - columnheader "状态" [ref=e1565]
+            - columnheader "耗时" [ref=e1566]
+            - columnheader "Tokens" [ref=e1567]
+            - columnheader "错误" [ref=e1568]
+        - rowgroup [ref=e1569]:
+          - row "暂无请求日志" [ref=e1570]:
+            - cell "暂无请求日志" [ref=e1571]

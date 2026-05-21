@@ -1,0 +1,9 @@
+[      37ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8080/admin:0
+[      37ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8080/admin:0
+[      37ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://127.0.0.1:8080/admin:0
+[ 2490037ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8080/admin/api/status:0
+[ 2490037ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8080/admin/api/accounts:0
+[ 2490041ms] TypeError: Failed to fetch
+    at loadStats (http://127.0.0.1:8080/admin:2164:31)
+    at refreshVisibleData (http://127.0.0.1:8080/admin:3928:32)
+    at refreshDashboardData (http://127.0.0.1:8080/admin:3937:19)

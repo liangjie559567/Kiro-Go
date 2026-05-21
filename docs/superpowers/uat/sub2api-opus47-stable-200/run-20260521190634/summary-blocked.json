@@ -1,0 +1,53 @@
+{
+  "verdict": "BLOCKED_BY_UPSTREAM_CAPACITY",
+  "model": "claude-opus-4-7",
+  "requestedConcurrency": 1,
+  "effectiveConcurrency": 1,
+  "reason": "Kiro-Go returned Opus 4.7 upstream capacity fallback text after real upstream model capacity pressure.",
+  "abortedByOperator": true,
+  "resultsWritten": {
+    "nonStream": 12,
+    "stream": 0
+  },
+  "observed": {
+    "nonStreamPassed": 9,
+    "nonStreamFailed": 3,
+    "streamPassed": 0,
+    "streamFailed": 0,
+    "failedSamples": [
+      {
+        "index": 8,
+        "status": 200,
+        "reason": "opus47_budget_exhausted"
+      },
+      {
+        "index": 9,
+        "status": 200,
+        "reason": "admission_pressure"
+      },
+      {
+        "index": 10,
+        "status": 200,
+        "reason": "admission_pressure"
+      }
+    ]
+  },
+  "readinessAfter": {
+    "status": "degraded",
+    "safeConcurrency": 1,
+    "reasonCodes": [
+      "admission_pressure"
+    ],
+    "lastPressureReason": "rate_limited_or_model_capacity",
+    "recommendedAction": "limit_to_safe_concurrency",
+    "recommendedQueueWaitSeconds": 120
+  },
+  "evidence": {
+    "readiness": "evidence/readiness-after-block.json",
+    "sub2apiLog": "evidence/sub2api-redacted.log",
+    "kiroGoLog": "evidence/kiro-go-capacity.log",
+    "dbUsage": "evidence/db-usage-api-key-11.txt",
+    "dbKeyCleanup": "evidence/db-key-cleanup.txt",
+    "screenshot": "evidence/kiro-opus47-readiness-after-block-202605211908.png"
+  }
+}

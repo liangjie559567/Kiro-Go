@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-05-21T18:40:00+08:00",
+  "status": "PASS",
+  "notes": [
+    "Playwright API evidence was redacted after compat endpoint returned environment key fields.",
+    "Evidence scan found no API keys, passwords, accessToken, or refreshToken strings in the UAT directory after redaction."
+  ],
+  "redactedFields": [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN"
+  ]
+}

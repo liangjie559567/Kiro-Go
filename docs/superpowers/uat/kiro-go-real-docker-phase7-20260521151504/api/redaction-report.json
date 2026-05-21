@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-05-21T07:20:51.714Z",
+  "action": "Removed raw settings and aggregate browser API files because settings contains apiKey-like configuration fields.",
+  "removedFiles": [
+    "api/settings.json",
+    "playwright-admin-api-results.json",
+    "browser/playwright-admin-api-results.json",
+    "headers/settings.headers"
+  ],
+  "retainedFiles": [
+    "api/settings.redacted.json",
+    "api/settings.keys.json"
+  ]
+}

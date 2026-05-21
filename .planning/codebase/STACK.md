@@ -1,89 +1,96 @@
 # Technology Stack
 
-**Analysis Date:** 2026-05-15
+**Analysis Date:** 2026-05-21
 
 ## Languages
 
 **Primary:**
-- Go 1.21 module target - all backend service code in `main.go`, `auth/`, `config/`, `logger/`, `pool/`, and `proxy/`; declared in `go.mod`.
+- Go 1.21 - HTTP proxy, auth flows, scheduler, config persistence, request translation, and tests in `main.go`, `auth/`, `config/`, `pool/`, `proxy/`, and `logger/`; declared in `go.mod`.
 
 **Secondary:**
-- HTML/CSS/JavaScript - single-file admin UI in `web/index.html`.
-- Dockerfile syntax - container build in `Dockerfile`.
-- YAML - Docker Compose and GitHub Actions configuration in `docker-compose.yml` and `.github/workflows/docker.yml`.
+- HTML/CSS/JavaScript - single-file admin console in `web/index.html`, served by `proxy/handler.go`.
+- JavaScript/Node.js - UAT and operational scripts under `docs/superpowers/uat/`; not part of the production application build.
+- Markdown/JSON - documentation and compatibility matrices under `README.md`, `README_CN.md`, `docs/claude-code-compatibility-matrix.json`, `docs/kiro-ecosystem-operations-matrix.json`, and `docs/kiro-ha-compatibility-matrix.json`.
 
 ## Runtime
 
 **Environment:**
-- Go HTTP server using the standard library `net/http`; service entry point is `main.go`.
-- Container runtime supported through a static Go binary built in `Dockerfile` and run on `alpine:latest`.
-- Current local toolchain observed during analysis: Go 1.22.2. The repository target remains Go 1.21 via `go.mod` and `Dockerfile`.
+- Go 1.21+ for local development and production binary builds, declared by `go.mod`.
+- Docker runtime uses a multi-stage build: `golang:1.21-alpine` builder and `alpine:latest` runtime in `Dockerfile`.
+- The production binary is a static-style Go HTTP server started by `CMD ["./kiro-go"]` in `Dockerfile`.
+- The default HTTP listen address is `0.0.0.0:8080`, configured by `config/defaultConfig()` in `config/config.go` and logged by `main.go`.
 
 **Package Manager:**
 - Go modules.
-- Lockfile: `go.sum` present.
-- Dependency manifest: `go.mod`.
+- Lockfile: present via `go.sum`.
+- Primary commands:
+```bash
+go test ./...          # Run all Go tests
+go build -o kiro-go .  # Build local binary
+docker-compose up -d   # Build and run container stack
+```
 
 ## Frameworks
 
 **Core:**
-- Go standard library HTTP stack - request routing, handlers, outbound HTTP clients, SSE, and static file serving in `main.go`, `proxy/handler.go`, `proxy/kiro.go`, `auth/http_client.go`.
-- No third-party web framework is used; routes are implemented manually in `proxy/handler.go`.
+- Go standard library `net/http` - HTTP server, request routing, upstream calls, SSE/event stream parsing, and static file serving in `main.go`, `proxy/handler.go`, `proxy/kiro.go`, `proxy/kiro_api.go`, and `auth/*.go`.
+- Go standard library `encoding/json` - request/response translation, config serialization, and admin API payloads in `config/config.go`, `proxy/translator.go`, `proxy/handler.go`, and `auth/*.go`.
+- Go standard library `sync`, `sync/atomic`, and goroutines - shared config locking, account pool routing, background refresh jobs, and swappable HTTP clients in `config/config.go`, `pool/account.go`, `auth/http_client.go`, and `proxy/kiro.go`.
 
 **Testing:**
-- Go `testing` package - unit tests are co-located as `*_test.go` files under `auth/`, `config/`, `pool/`, and `proxy/`.
-- No external assertion or mocking framework is detected.
+- Go standard library `testing` - unit and integration-style tests in `*_test.go` files across `auth/`, `config/`, `pool/`, `proxy/`, and root `main_test.go`.
+- No external Go test framework detected in `go.mod`.
 
 **Build/Dev:**
-- `go build` - source build command documented in `README.md`.
-- `go test ./...` - standard test runner implied by Go package tests.
-- Docker BuildKit multi-stage build - `Dockerfile` builds with `golang:1.21-alpine` and copies the binary plus `web/` into `alpine:latest`.
-- Docker Compose - local/container deployment in `docker-compose.yml`.
-- GitHub Actions + Docker Buildx - multi-architecture image build and GHCR publishing in `.github/workflows/docker.yml`.
+- Docker - container build defined in `Dockerfile`.
+- Docker Compose - local deployment and health check defined in `docker-compose.yml`.
+- GitHub Actions - multi-arch image build and GHCR publication in `.github/workflows/docker.yml`.
+- Docker Buildx/QEMU - configured by `.github/workflows/docker.yml` for `linux/amd64` and `linux/arm64` images.
 
 ## Key Dependencies
 
 **Critical:**
-- `github.com/google/uuid` v1.6.0 - generates account IDs, OAuth state values, and web search tool-use IDs in `auth/iam_sso.go`, `auth/sso_token.go`, `proxy/handler.go`, and `proxy/kiro.go`.
+- `github.com/google/uuid` v1.6.0 - UUID generation for IAM SSO sessions, Builder ID sessions, account IDs, request/session identifiers, and machine/account metadata in `auth/iam_sso.go`, `auth/sso_token.go`, and `proxy/kiro.go`.
 
 **Infrastructure:**
-- Go standard library `net/http` - inbound server in `main.go` and outbound clients in `auth/` and `proxy/`.
-- Go standard library `encoding/json` - request/response translation and persistent config serialization in `config/config.go`, `proxy/translator.go`, and `proxy/handler.go`.
-- Go standard library `sync`, `sync/atomic` - thread-safe config, account pool, counters, cached model lists, and swappable HTTP clients in `config/config.go`, `pool/account.go`, `proxy/handler.go`, `proxy/kiro.go`, and `auth/http_client.go`.
-- Go standard library `crypto/rand`, `crypto/sha256`, `encoding/base64` - machine IDs and PKCE login support in `config/config.go` and `auth/iam_sso.go`.
+- Go standard library HTTP stack - no third-party router, middleware, SDK, ORM, or cloud SDK is used.
+- Alpine Linux packages - `ca-certificates` installed in the runtime image by `Dockerfile` for outbound HTTPS calls.
 
 ## Configuration
 
 **Environment:**
-- `CONFIG_PATH` selects the JSON config path; default is `data/config.json` in `main.go`.
-- `ADMIN_PASSWORD` overrides the persisted admin password at process startup in `main.go`.
-- `LOG_LEVEL` overrides the configured log level in `logger/logger.go`.
-- Standard proxy environment variables are honored by Go transports when no explicit app proxy is configured because `auth/http_client.go` and `proxy/kiro.go` use `http.ProxyFromEnvironment`.
-- Runtime application configuration is persisted as JSON through `config/config.go`. The default file is `data/config.json`; this file can contain tokens and is not read or quoted in codebase documentation.
-- Docker Compose sets `CONFIG_PATH=/app/data/config.json` and mounts `./data` to `/app/data` in `docker-compose.yml`.
+- `CONFIG_PATH` - overrides the JSON config file location; default is `data/config.json` in `main.go`.
+- `ADMIN_PASSWORD` - overrides the admin password at startup in `main.go`.
+- `LOG_LEVEL` - overrides configured logging verbosity in `logger/logger.go`; accepted values are `debug`, `info`, `warn`, and `error` from `config/config.go`.
+- `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` and lowercase variants - supported by auth and Kiro HTTP clients in `auth/http_client.go` and `proxy/kiro.go`.
+
+**Application config:**
+- Main persisted config is JSON at `data/config.json` by default; `config/config.go` creates it when missing and writes it with mode `0600`.
+- Important config keys are modeled by `config.Config` in `config/config.go`: `host`, `port`, `password`, `apiKey`, `requireApiKey`, `clientApiKeys`, `clientIPAllowlist`, `accounts`, `autoRefresh`, `healthCheck`, `loadBalance`, `modelAdmission`, `stableDownstream`, `contentContinuity`, `claudeCodeGovernor`, `preferredEndpoint`, `endpointFallback`, `proxyURL`, `promptFilterRules`, and `logLevel`.
+- Do not treat `data/config.json` as a harmless sample file: `config.Account` in `config/config.go` stores OAuth access tokens, refresh tokens, client secrets, profile ARNs, API keys, and optional proxy URLs.
 
 **Build:**
-- `go.mod` declares module `kiro-go`, Go target `1.21`, and dependency `github.com/google/uuid v1.6.0`.
-- `go.sum` pins module checksums.
-- `Dockerfile` performs a two-stage cross-platform build with `CGO_ENABLED=0`.
-- `docker-compose.yml` builds the local image, maps `8080:8080`, persists `/app/data`, and restarts unless stopped.
-- `.github/workflows/docker.yml` builds `linux/amd64` and `linux/arm64` images with Docker Buildx and publishes to `ghcr.io`.
+- `go.mod` - module name, Go version, and Go dependencies.
+- `go.sum` - dependency checksums.
+- `Dockerfile` - multi-stage Go build and Alpine runtime.
+- `docker-compose.yml` - local container service, bind mount, environment, and health check.
+- `.github/workflows/docker.yml` - CI image build, GHCR login, metadata tags, cache, and multi-architecture publish.
 
 ## Platform Requirements
 
 **Development:**
 - Go 1.21+.
-- Docker and Docker Compose for containerized execution.
-- Network access to AWS/Kiro endpoints is required for authentication, model listing, account refresh, health checks, generation requests, and Kiro MCP web search.
-- Writable config directory for `data/config.json` or the path configured by `CONFIG_PATH`.
+- Docker and Docker Compose for containerized local runs.
+- Network access to AWS/Kiro endpoints for real account auth, token refresh, model calls, usage refresh, health checks, and web search diagnostics.
+- Optional Node.js for UAT scripts under `docs/superpowers/uat/`; production app does not require Node.js.
 
 **Production:**
-- HTTP service binds to `0.0.0.0:8080` by default through `config/config.go` and `main.go`.
-- Persist `/app/data` when running the Docker image so `data/config.json` survives restarts.
-- Set `ADMIN_PASSWORD` or change the persisted admin password before exposing `/admin`.
-- Configure `apiKey` and `requireApiKey` through `/admin/api/settings` when client API authentication is required.
-- Use the GHCR image published by `.github/workflows/docker.yml` or build from `Dockerfile`.
+- A container or host capable of running the Go binary and serving HTTP on the configured `host`/`port`.
+- Persistent writable storage for `/app/data` or the configured `CONFIG_PATH`; `docker-compose.yml` mounts `./data:/app/data`.
+- Outbound HTTPS to AWS IAM Identity Center/OIDC, AWS SSO portal, Kiro desktop auth, Amazon Q, and CodeWhisperer endpoints.
+- Optional outbound proxy support through config `proxyURL`, per-account `proxyURL`, or standard proxy environment variables.
+- Deployment target detected: Docker image published to GitHub Container Registry (`ghcr.io`) by `.github/workflows/docker.yml`.
 
 ---
 
-*Stack analysis: 2026-05-15*
+*Stack analysis: 2026-05-21*

@@ -1,0 +1,38 @@
+{
+  "nonstream": {
+    "kind": "nonstream",
+    "total": 100,
+    "concurrency": 10,
+    "pass": 100,
+    "fail": 0,
+    "statuses": {
+      "200": 100
+    },
+    "duration_ms": 66528,
+    "latency_ms": {
+      "min": 1700,
+      "p50": 3216,
+      "p95": 24543,
+      "max": 28804
+    },
+    "failures": []
+  },
+  "stream": {
+    "kind": "stream",
+    "total": 100,
+    "concurrency": 10,
+    "pass": 100,
+    "fail": 0,
+    "statuses": {
+      "200": 100
+    },
+    "duration_ms": 41141,
+    "latency_ms": {
+      "min": 1833,
+      "p50": 2814,
+      "p95": 12760,
+      "max": 19144
+    },
+    "failures": []
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "verdict": "BLOCKED_BY_UPSTREAM_CAPACITY",
+  "model": "claude-opus-4-7",
+  "requestedConcurrency": 4,
+  "effectiveConcurrency": 4,
+  "capacityAbort": {
+    "kind": "non-stream",
+    "index": 8,
+    "status": 200,
+    "capacity_reason": "upstream_capacity",
+    "sample": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: admission_pressure. This turn has been closed by the gateway to avoid an endless client retry loop; start a new requ"
+  },
+  "summaries": [
+    {
+      "name": "non-stream",
+      "total": 9,
+      "passed": 5,
+      "failed": 4,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": [
+        {
+          "index": 4,
+          "stream": false,
+          "status": 200,
+          "ok": false,
+          "contentOk": true,
+          "forbidden": true,
+          "capacity_reason": "upstream_capacity",
+          "duration_ms": 15011,
+          "sample": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: admission_pressure. This turn has been closed by the gateway to avoid an endless client retry loop; start a new requ"
+        },
+        {
+          "index": 5,
+          "stream": false,
+          "status": 200,
+          "ok": false,
+          "contentOk": true,
+          "forbidden": true,
+          "capacity_reason": "upstream_capacity",
+          "duration_ms": 15013,
+          "sample": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: admission_pressure. This turn has been closed by the gateway to avoid an endless client retry loop; start a new requ"
+        },
+        {
+          "index": 6,
+          "stream": false,
+          "status": 200,
+          "ok": false,
+          "contentOk": true,
+          "forbidden": true,
+          "capacity_reason": "upstream_capacity",
+          "duration_ms": 15012,
+          "sample": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: admission_pressure. This turn has been closed by the gateway to avoid an endless client retry loop; start a new requ"
+        },
+        {
+          "index": 8,
+          "stream": false,
+          "status": 200,
+          "ok": false,
+          "contentOk": true,
+          "forbidden": true,
+          "capacity_reason": "upstream_capacity",
+          "duration_ms": 15012,
+          "sample": "{\"content\":[{\"text\":\"Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery. Retry reason: admission_pressure. This turn has been closed by the gateway to avoid an endless client retry loop; start a new requ"
+        }
+      ]
+    },
+    {
+      "name": "stream",
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": []
+    }
+  ]
+}

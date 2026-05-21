@@ -1,0 +1,39 @@
+{
+  "uat_dir": "docs/superpowers/uat/kiro-go-sub2api-claude-code-e2e-20260521171455",
+  "verdict": "PASS",
+  "date": "2026-05-21T17:18:00+08:00",
+  "route": "Claude Code-shaped /v1/messages -> sub2api:18080 -> Kiro-Go account 24 -> kiro-go:8080/v1/messages",
+  "fix": "Added runtime model mapping for Claude Code hyphenated claude-sonnet-4-6 to Kiro-Go dotted claude-sonnet-4.6 on sub2api account 24.",
+  "api": [
+    "api/kiro-health.json",
+    "api/sub2api-health.json",
+    "api/nonstream-result.json",
+    "api/stream-result.json",
+    "api/load-summary.json",
+    "api/load-nonstream-results.json",
+    "api/load-stream-results.json"
+  ],
+  "database": [
+    "db/usage-logs.txt",
+    "db/usage-aggregate.txt",
+    "db/error-logs.txt",
+    "db/error-aggregate.txt",
+    "db/uat-key-cleanup.txt"
+  ],
+  "logs": [
+    "logs/docker-ps.txt",
+    "logs/docker-compose-ps.txt",
+    "logs/sub2api-after-load.log",
+    "logs/kiro-go-after-load.log"
+  ],
+  "screenshots": [
+    "screenshots/kiro-go-admin-post-mapping-fix-2026052117.png",
+    "screenshots/sub2api-login-health-2026052117.png"
+  ],
+  "load_summary": {
+    "nonstream": {"total": 100, "pass": 100, "fail": 0, "status_200": 100, "concurrency": 10},
+    "stream": {"total": 100, "pass": 100, "fail": 0, "status_200": 100, "concurrency": 10, "requires_message_stop": true}
+  },
+  "db_summary": {"usage_rows": 202, "account24_rows": 202, "errors": 0},
+  "secret_handling": "Temporary UAT key was disabled/soft-deleted and removed from /tmp; evidence directory secret scan passed."
+}

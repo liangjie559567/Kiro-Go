@@ -1,0 +1,2 @@
+WARN  2026/05/21 11:06:52 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:08:28 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}

@@ -1,0 +1,6 @@
+ id |                      name                      |  status  | deleted 
+----+------------------------------------------------+----------+---------
+ 13 | uat-kiro-go-opus47-bestpractice-20260521192943 | inactive | t
+(1 row)
+
+UPDATE 1

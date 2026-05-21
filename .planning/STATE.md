@@ -1,25 +1,42 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: Opus 4.7 Sustainable Health
+status: executing
+stopped_at: v1.1 roadmap created and ready for Phase 4 planning
+last_updated: "2026-05-21T06:56:56.000Z"
+last_activity: 2026-05-21
+progress:
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 13
+  completed_plans: 13
+  percent: 100
+---
+
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-20)
+See: .planning/PROJECT.md (updated 2026-05-21)
 
-**Core value:** Claude Code through Kiro-Go should behave like the official Anthropic API while routing Kiro accounts correctly enough that one account's 429 never poisons the whole downstream path.
-**Current focus:** Milestone automated execution complete; human validation remains for live UAT/screenshots
+**Core value:** sub2api should be able to call Opus 4.7 through Kiro-Go continuously whenever at least one real Kiro account remains viable, and Kiro-Go must report accurate degraded/blocked state when upstream capacity or account pool health makes success impossible.
+**Current focus:** Phase 07 — observability-latest-code-uat-and-acceptance-evidence
 
 ## Current Position
 
-Phase: 3 of 3 (C - Kiro Ecosystem Operations)
-Plan: 3 of 3 in current phase
-Status: Automated implementation complete; human validation needed
-Last activity: 2026-05-20 - `$gsd-autonomous --all` completed Phase 1/2/3 automated artifacts, code, docs, and tests.
+Phase: 07 (observability-latest-code-uat-and-acceptance-evidence) — COMPLETE
+Plan: 2 of 2
+Status: Complete
+Last activity: 2026-05-21
 
-Progress: [##########] 100% automated
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+
+- Total plans completed: 12
 - Average duration: ~30 min
 - Total execution time: ~4.5 hours
 
@@ -30,10 +47,15 @@ Progress: [##########] 100% automated
 | Phase 1 | 3/3 | ~85 min | ~28 min |
 | Phase 2 | 3/3 | ~95 min | ~32 min |
 | Phase 3 | 3/3 | ~90 min | ~30 min |
+| Phase 4 | 5/5 | ~87 min | ~17 min |
+| Phase 5 | 3/3 | ~45 min | ~15 min |
+| Phase 6 | 3/3 | ~35 min | ~12 min |
+| Phase 7 | 2/2 | ~30 min | ~15 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02, 02-03, 03-01, 03-02, 03-03
-- Trend: Automated implementation complete; validation blockers are environment/live-evidence only
+
+- Last 5 plans: 06-01, 06-02, 06-03, 07-01, 07-02
+- Trend: Phase 7 acceptance evidence API and repeatable UAT manifest contract are complete.
 
 ## Accumulated Context
 
@@ -42,23 +64,22 @@ Progress: [##########] 100% automated
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Use coarse A -> B -> C phases: official Claude Code compatibility, high-availability account pool/sub2api routing, then Kiro ecosystem operations.
-- Require screenshot/API/database/log evidence alignment before marking live UAT PASS.
-- Treat one account's temporary limit as per-account by default, not global risk-group state.
-- Historical sub2api 10x10 PASS evidence is regression context; latest-code final PASS requires rerun.
-- Kiro-Go observes Claude Code MCP/WebSearch traffic but does not host local MCP servers.
+- Continue phase numbering from the previous baseline; v1.1 starts at Phase 4.
+- Use coarse v1.1 phases: Kiro-Go readiness truth, sub2api readiness integration, upstream error/CLI diagnostics, then observability and UAT evidence.
+- Map every v1.1 requirement exactly once: RDY to Phase 4, S2A to Phase 5, ERR/CLI to Phase 6, OBS/UAT to Phase 7.
+- Historical sub2api 10x10 PASS evidence is regression context only; latest-code final PASS requires rerun.
+- Stable fallback or transport-level HTTP 200 must not count as real Opus 4.7 model success.
 
 ### Pending Todos
 
-- Run Phase 1 live UAT with `KIRO_GO_BASE_URL`, `KIRO_GO_API_KEY`, and `KIRO_GO_ADMIN_PASSWORD`.
-- Rerun Phase 2 `/www/sub2api` Opus 4.7 10x10 stream and non-stream against latest code.
-- Capture Phase 3 Admin screenshots and live WebSearch/MCP diagnostic evidence.
+- Run the Phase 7 live UAT bundle when runtime readiness is `healthy` or `degraded` with `safeConcurrency > 0`.
+- Keep runtime secrets, `data/config.json`, CLI token stores, and recovery candidates out of planning and diagnostics.
 
 ### Blockers/Concerns
 
-- Live Kiro upstream can still return real 429s; planning should distinguish correct gateway behavior from external upstream exhaustion.
-- Runtime secret files must remain out of research and planning artifacts.
-- No live service credentials were used during automated execution, so live UAT/screenshot gates remain human-needed.
+- Live Kiro upstream can still return real 429s; implementation must separate correct gateway behavior from external upstream exhaustion.
+- The host shell does not show `kiro` in PATH, while deployment expects Kiro CLI in the runtime container; diagnostics need configurable CLI path and clear unavailable state.
+- Full generation PASS requires screenshot, API, log, database, response header, and sub2api evidence alignment; blocked readiness must be recorded as blocked-capacity PASS or upstream-capacity blocked, not generation PASS.
 
 ## Deferred Items
 
@@ -68,6 +89,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-20 15:40
-Stopped at: GSD project initialized and ready for `$gsd-plan-phase 1`
+Last session: 2026-05-21
+Stopped at: Phase 04 complete; ready for Phase 05
 Resume file: None

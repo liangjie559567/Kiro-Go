@@ -1,223 +1,233 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-05-15
+**Analysis Date:** 2026-05-21
 
 ## Directory Layout
 
 ```text
 Kiro-Go/
-├── main.go                 # Service bootstrap and HTTP server startup
-├── go.mod                  # Go module definition (`kiro-go`, Go 1.21)
-├── go.sum                  # Go dependency checksums
-├── Dockerfile              # Container image build
-├── docker-compose.yml      # Local/container deployment
-├── README.md               # English project usage docs
-├── README_CN.md            # Chinese project usage docs
-├── version.json            # Release/version metadata
-├── auth/                   # AWS/Kiro authentication flows and auth HTTP clients
-├── config/                 # JSON-backed config schema and persistence
-├── logger/                 # Lightweight leveled logger
-├── pool/                   # Account pool, routing, health/cooldown state
-├── proxy/                  # Core HTTP handler, translators, Kiro clients, retry logic
-├── web/                    # Admin panel static frontend
-├── data/                   # Runtime config data; contains secrets, do not inspect contents
-├── docs/                   # Planning/spec/UAT documentation
-├── recovery/               # Recovery artifacts; may contain account data, do not inspect contents
-├── .github/workflows/      # GitHub Actions workflows
-├── .planning/codebase/     # Generated codebase maps
-└── .worktrees/             # Local git worktrees; exclude from primary scans
+├── main.go                     # Process entrypoint and HTTP server lifecycle
+├── go.mod                      # Go module definition (`kiro-go`)
+├── Dockerfile                  # Container build for the Go service
+├── docker-compose.yml          # Local/container runtime wiring
+├── auth/                       # Token refresh and login/import flows
+├── config/                     # Persistent JSON configuration and account model
+├── logger/                     # Lightweight leveled logger
+├── pool/                       # Account scheduling, cooldowns, breakers, health
+├── proxy/                      # HTTP handler, protocol translation, Kiro clients, observability
+├── proxy/testdata/             # JSON fixtures for proxy compatibility tests
+├── web/                        # Single-file admin UI
+├── docs/                       # Compatibility/readiness docs and matrices
+├── data/                       # Runtime config storage, not source code
+├── recovery/                   # Local recovery artifacts, not application source
+├── .github/workflows/          # Docker image CI workflow
+└── .planning/                  # GSD planning and codebase map artifacts
 ```
 
 ## Directory Purposes
 
-**Root:**
-- Purpose: Buildable Go module and service entry point.
-- Contains: `main.go`, `go.mod`, `go.sum`, deployment files, README files, release metadata.
-- Key files: `main.go`, `go.mod`, `Dockerfile`, `docker-compose.yml`, `README.md`.
-
 **`auth/`:**
-- Purpose: Authentication and token-management integrations for Kiro/AWS accounts.
-- Contains: IAM SSO PKCE login, Builder ID device login, SSO token import, credentials import, token refresh, proxy-aware auth HTTP clients.
-- Key files: `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`, `auth/oidc.go`, `auth/http_client.go`.
+- Purpose: Implement authentication flows used to obtain or refresh Kiro/AWS tokens.
+- Contains: OIDC/social refresh, IAM SSO helpers, Builder ID flow, SSO token parsing, proxy-aware auth HTTP clients.
+- Key files: `auth/oidc.go`, `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`, `auth/http_client.go`.
 
 **`config/`:**
-- Purpose: Persistent application configuration, account schema, settings, validation, and JSON storage.
-- Contains: `Config`, `Account`, typed settings structs, defaulting/normalization, update/accessor functions, tests.
+- Purpose: Own persisted application configuration and account records.
+- Contains: `Config` and `Account` types, default values, normalization, validation, getters/setters, JSON file persistence.
 - Key files: `config/config.go`, `config/config_test.go`.
 
 **`logger/`:**
-- Purpose: Shared leveled logging wrapper around Go `log`.
-- Contains: Level parsing, level state, output redirection for tests, formatted logging functions.
+- Purpose: Provide the process-wide leveled logger.
+- Contains: Level parsing, environment override, level-specific log functions.
 - Key files: `logger/logger.go`.
 
 **`pool/`:**
-- Purpose: Account routing and runtime account health state.
-- Contains: `AccountPool`, weighted account list construction, selection methods, cooldown/failure state, model support cache, stats updates, tests.
-- Key files: `pool/account.go`, `pool/account_test.go`.
+- Purpose: Convert persisted accounts into runtime routing state.
+- Contains: Account weighting, load-balance strategy, cooldown maps, failure classification, runtime health, model circuit breakers, sticky account selection.
+- Key files: `pool/account.go`, `pool/breaker.go`, `pool/account_test.go`, `pool/breaker_test.go`.
 
 **`proxy/`:**
-- Purpose: Main backend application layer.
-- Contains: HTTP handler/router, public API orchestration, admin API, Claude/OpenAI translators, Kiro upstream clients, headers, account refresh, health checks, prompt cache tracking, model-specific admission gates, token estimation, tests.
-- Key files: `proxy/handler.go`, `proxy/translator.go`, `proxy/kiro.go`, `proxy/kiro_api.go`, `proxy/kiro_headers.go`, `proxy/account_refresh.go`, `proxy/account_health.go`, `proxy/cache_tracker.go`, `proxy/opus_gate.go`, `proxy/token_estimator.go`.
+- Purpose: Main application package for HTTP routing, public API compatibility, Kiro upstream calls, admin API, background operations, and observability.
+- Contains: `Handler`, route table, Claude/OpenAI/Kiro DTOs, translators, Kiro streaming/REST clients, payload guards, token estimation, request logs, admission gates, readiness diagnostics.
+- Key files: `proxy/handler.go`, `proxy/translator.go`, `proxy/kiro.go`, `proxy/kiro_api.go`, `proxy/kiro_headers.go`, `proxy/request_log.go`, `proxy/ecosystem_ops.go`.
+
+**`proxy/testdata/`:**
+- Purpose: Store stable JSON fixtures for proxy tests.
+- Contains: Claude Code wire request and tool-reference sample payloads.
+- Key files: `proxy/testdata/claude_code_2_1_143_wire_request.json`, `proxy/testdata/claude_code_tool_reference_message.json`.
 
 **`web/`:**
-- Purpose: Static admin frontend served by the Go backend.
-- Contains: Single HTML page with embedded or linked admin UI assets.
+- Purpose: Admin panel served by the Go handler.
+- Contains: One self-contained HTML file with CSS and JavaScript.
 - Key files: `web/index.html`.
 
 **`docs/`:**
-- Purpose: Project planning and workflow documentation.
-- Contains: Superpowers/GSD specs, plans, and UAT artifacts.
-- Key files: `docs/superpowers/specs/*`, `docs/superpowers/plans/*`, `docs/superpowers/uat/*`.
+- Purpose: Human-readable and machine-readable compatibility/readiness documentation.
+- Contains: Claude Code compatibility matrix, Kiro HA matrix, ecosystem operations matrix, UAT evidence under `docs/superpowers/`.
+- Key files: `docs/claude-code-compatibility-matrix.md`, `docs/claude-code-compatibility-matrix.json`, `docs/kiro-ha-compatibility-matrix.md`, `docs/kiro-ecosystem-operations.md`.
 
 **`data/`:**
-- Purpose: Runtime persistence directory.
-- Contains: `data/config.json` by default.
-- Key files: `data/config.json` exists and may contain secrets; do not read or quote contents.
+- Purpose: Runtime storage for config and account credentials.
+- Contains: `data/config.json` at runtime by default.
+- Key files: Do not read or quote contents from `data/config.json`; treat it as secret-bearing runtime state.
 
-**`recovery/`:**
-- Purpose: Local recovery artifacts for configuration/account restoration.
-- Contains: JSON/text recovery candidates and snapshots.
-- Key files: `recovery/*.json`, `recovery/candidates/*.json`; treat as sensitive account data and avoid content inspection.
+**`.github/workflows/`:**
+- Purpose: CI workflow definitions.
+- Contains: Docker workflow.
+- Key files: `.github/workflows/docker.yml`.
 
-**`.planning/codebase/`:**
-- Purpose: Generated GSD codebase intelligence documents.
-- Contains: Architecture and structure docs for planning agents.
-- Key files: `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STRUCTURE.md`.
-
-**`.worktrees/`:**
-- Purpose: Local git worktree storage.
-- Contains: Alternate checkout(s), including `.worktrees/merge-upstream-1.0.8`.
-- Key files: Exclude from normal codebase analysis unless explicitly scoped.
+**`.planning/`:**
+- Purpose: GSD project context, roadmap, phase plans, and generated codebase maps.
+- Contains: Project documents and `.planning/codebase/` analysis docs.
+- Key files: `.planning/PROJECT.md`, `.planning/ROADMAP.md`, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STRUCTURE.md`.
 
 ## Key File Locations
 
 **Entry Points:**
-- `main.go`: Process entry point; initializes config/logger/pool/handler and starts HTTP server.
-- `proxy/handler.go`: Runtime HTTP entry point through `Handler.ServeHTTP()`.
-- `web/index.html`: Browser entry point for the admin UI.
+- `main.go`: Process startup, config initialization, handler creation, graceful shutdown.
+- `proxy/handler.go`: HTTP entrypoint via `Handler.ServeHTTP`.
+- `web/index.html`: Browser admin UI entrypoint served at `/admin`.
+- `Dockerfile`: Container image build entrypoint.
 
 **Configuration:**
-- `config/config.go`: Config schema, defaults, validation, getters/updaters, JSON load/save.
-- `data/config.json`: Runtime config file path created/used by default; contains account credentials and tokens.
-- `go.mod`: Module path and dependency declaration.
-- `Dockerfile`: Container build instructions.
-- `docker-compose.yml`: Compose deployment wiring; inspect carefully because compose files can contain sensitive environment values.
+- `config/config.go`: Source of config schema, defaults, validation, and persistence behavior.
+- `data/config.json`: Runtime config file created/loaded by default; secret-bearing and not safe to inspect in docs.
+- `docker-compose.yml`: Local container settings and volumes.
+- `.github/workflows/docker.yml`: Docker build/publish automation.
+- `version.json`: Release/version metadata consumed by project tooling or packaging.
 
 **Core Logic:**
-- `proxy/handler.go`: API/admin route dispatch, request orchestration, retries, token refresh, stats, background jobs.
-- `proxy/translator.go`: Claude/OpenAI schema conversion and response construction.
-- `proxy/kiro.go`: Kiro streaming request types, endpoint definitions, HTTP clients, event-stream handling.
-- `proxy/kiro_api.go`: Kiro REST calls for usage, user info, profiles, and model lists.
-- `pool/account.go`: Account scheduling and failure/cooldown state.
-- `auth/oidc.go`: OAuth refresh path used before upstream requests.
-- `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`: Admin account import/login flows.
+- `proxy/handler.go`: Route table, request orchestration, admin API, background jobs, API-compatible errors.
+- `proxy/translator.go`: Claude/OpenAI/Kiro type definitions and conversion functions.
+- `proxy/kiro.go`: Kiro streaming generation client and endpoint fallback.
+- `proxy/kiro_api.go`: Kiro REST operations for usage, users, models, profiles.
+- `proxy/kiro_headers.go`: Kiro-compatible headers and user-agent construction.
+- `pool/account.go`: Account routing and runtime health.
+- `pool/breaker.go`: Per-account/model breaker and sticky session state.
+- `auth/oidc.go`: Token refresh for OIDC/social auth.
+
+**Operations and Observability:**
+- `proxy/request_log.go`: Request log entry schema, in-memory store, stats APIs.
+- `proxy/request_classifier.go`: Interactive/subagent/background request classification.
+- `proxy/ecosystem_ops.go`: Admin diagnostics, scheduler preview, fleet readiness, web-search diagnostics.
+- `proxy/account_refresh.go`: Auto-refresh status and batch helpers.
+- `proxy/account_health.go`: Health-check status and batch helpers.
+- `logger/logger.go`: Leveled process logging.
+
+**Compatibility and Capacity:**
+- `proxy/anthropic_envelope.go`: Anthropic envelope and Claude Code metadata parsing.
+- `proxy/claude_sse_writer.go`: Claude SSE event writer.
+- `proxy/opus_gate.go`: Model admission gates and pressure tracking.
+- `proxy/claude_code_concurrency_governor.go`: Per-session Claude Code concurrency limits.
+- `proxy/content_continuity.go`: Stable downstream/content continuity helpers.
+- `proxy/payload_guard.go`: Kiro payload size and tool schema trimming.
+- `proxy/cache_tracker.go`: Prompt cache usage estimation.
+- `proxy/token_estimator.go`: Token estimates for count-tokens and logs.
 
 **Testing:**
-- `config/config_test.go`: Config defaulting, validation, and health field persistence tests.
-- `pool/account_test.go`: Account routing, overage, cooldown, failure classification, model selection tests.
-- `proxy/handler_test.go`: Handler validation, retry behavior, admission gate, admin config, health/model cache tests.
-- `proxy/translator_test.go`: Claude/OpenAI conversion and conversation ID behavior tests.
-- `proxy/kiro_api_test.go`: Kiro API helper behavior and event stream parsing tests.
-- `proxy/*_test.go`: Co-located package tests.
-
-**Generated/Runtime Data:**
-- `data/config.json`: Runtime state and secrets; do not inspect contents.
-- `recovery/`: Recovery snapshots/candidates; treat as sensitive.
-- `sub2api-playwright-blocked.png`, `kiro-playwright-blocked-20260515.png`: Local screenshot artifacts.
+- `main_test.go`: Server construction and shutdown behavior.
+- `config/config_test.go`: Config defaults, normalization, validation, persistence behavior.
+- `auth/http_client_test.go`: Auth HTTP client/proxy behavior.
+- `pool/*_test.go`: Pool selection and breaker behavior.
+- `proxy/*_test.go`: Handler, translator, Kiro API, headers, admission, logging, compatibility, and diagnostics behavior.
+- `proxy/testdata/*.json`: Test fixtures for Claude Code wire compatibility.
 
 ## Naming Conventions
 
 **Files:**
-- Go implementation files use lowercase snake_case for multiword package files: `proxy/account_refresh.go`, `proxy/cache_tracker.go`, `proxy/kiro_headers.go`.
-- Tests are co-located with implementation and use `_test.go`: `proxy/handler_test.go`, `pool/account_test.go`.
-- Package directories are short lowercase names: `auth`, `config`, `logger`, `pool`, `proxy`, `web`.
-- Static frontend uses `web/index.html`.
+- Use lowercase package-oriented Go files: `proxy/handler.go`, `proxy/translator.go`, `pool/account.go`.
+- Use focused suffixes for specialized proxy helpers: `proxy/request_log.go`, `proxy/request_classifier.go`, `proxy/claude_sse_writer.go`.
+- Co-locate tests with implementation and name them `*_test.go`: `proxy/handler_test.go`, `config/config_test.go`.
+- Store static JSON fixtures under `proxy/testdata/` with descriptive snake-case names.
+- Keep docs as lowercase/kebab-case Markdown/JSON under `docs/`.
 
 **Directories:**
-- One Go package per top-level directory for core backend packages.
-- Keep runtime data under `data/` and recovery artifacts under `recovery/`.
-- Keep generated planning/codebase intelligence under `.planning/codebase/`.
-- Keep local alternate checkouts under `.worktrees/` and exclude them from normal implementation searches.
+- Use top-level package directories for Go packages: `auth/`, `config/`, `logger/`, `pool/`, `proxy/`.
+- Use `web/` only for static admin assets.
+- Use `docs/` for committed documentation and compatibility matrices.
+- Use `.planning/codebase/` for generated mapper documents.
 
 ## Where to Add New Code
 
-**New Public API Route:**
-- Primary code: Add route matching in `Handler.ServeHTTP()` in `proxy/handler.go`.
-- Handler implementation: Add method near related handlers in `proxy/handler.go`.
-- Tests: Add focused tests in `proxy/handler_test.go` or a new `proxy/<feature>_test.go`.
+**New Public API Endpoint:**
+- Primary code: Add route case and handler method in `proxy/handler.go`.
+- Request/response conversion: Add DTOs and conversion helpers in `proxy/translator.go` when the endpoint uses Claude/OpenAI/Kiro protocol shapes.
+- Tests: Add focused cases to `proxy/handler_test.go` and translator cases to `proxy/translator_test.go`.
 
-**New Admin API Route:**
-- Primary code: Add route case in `handleAdminAPI()` in `proxy/handler.go`.
-- Handler implementation: Add `api...` method near existing admin methods in `proxy/handler.go`.
-- Frontend integration: Update `web/index.html`.
-- Tests: Add tests in `proxy/handler_test.go`.
-
-**New Claude/OpenAI Translation Behavior:**
-- Primary code: Update DTOs or conversion helpers in `proxy/translator.go`.
-- Token estimate adjustments: Update `proxy/token_estimator.go`.
-- Tests: Add cases in `proxy/translator_test.go` and handler tests when HTTP behavior changes.
-
-**New Kiro Streaming Upstream Behavior:**
-- Primary code: Add endpoint/client/event-stream logic in `proxy/kiro.go`.
-- Header changes: Add or update helpers in `proxy/kiro_headers.go`.
-- Tests: Add cases in `proxy/kiro_test.go` or `proxy/kiro_headers_test.go`.
+**New Admin API Endpoint:**
+- Primary code: Add authenticated route case in `handleAdminAPI` inside `proxy/handler.go`.
+- UI integration: Add JavaScript/UI controls in `web/index.html`.
+- Tests: Add route/auth/response coverage to `proxy/handler_test.go` or domain-specific `proxy/*_test.go`.
 
 **New Kiro REST Operation:**
-- Primary code: Add function and response types in `proxy/kiro_api.go`.
-- Route orchestration: Call it from `proxy/handler.go` or refresh/health code.
-- Tests: Add cases in `proxy/kiro_api_test.go`.
+- Implementation: Add function to `proxy/kiro_api.go`.
+- Headers/proxy: Use existing helpers from `proxy/kiro_headers.go` and `proxy/kiro.go`.
+- Tests: Add coverage in `proxy/kiro_api_test.go`.
 
-**New Account Routing Rule:**
-- Primary code: Update `pool/account.go`.
-- Handler integration: Use pool methods from `proxy/handler.go`; do not duplicate scheduling.
-- Tests: Add cases in `pool/account_test.go` and handler retry tests where behavior crosses HTTP boundaries.
+**New Kiro Streaming Behavior:**
+- Implementation: Add endpoint/wire behavior in `proxy/kiro.go`.
+- Header behavior: Add or adjust helpers in `proxy/kiro_headers.go`.
+- Tests: Add coverage in `proxy/kiro_test.go` and `proxy/kiro_headers_test.go`.
 
-**New Persistent Setting:**
-- Primary code: Add field to `config.Config` in `config/config.go`.
-- Accessors: Add `Get...()` and `Update...()` functions in `config/config.go`.
-- Admin API: Add GET/POST handling in `proxy/handler.go`.
-- Frontend: Update `web/index.html`.
-- Tests: Add config normalization/validation tests in `config/config_test.go` and admin API tests in `proxy/handler_test.go`.
+**New Protocol Translation Feature:**
+- Implementation: Add DTO fields and conversion logic in `proxy/translator.go`.
+- Payload safety: Update `proxy/payload_guard.go` if the new feature affects payload size, tool schemas, or history compaction.
+- Tests: Add coverage in `proxy/translator_test.go` and handler integration coverage in `proxy/handler_test.go`.
 
-**New Authentication Flow:**
-- Primary code: Add flow-specific implementation in `auth/`.
-- Admin API: Add route and orchestration in `proxy/handler.go`.
-- Config persistence: Store account fields through `config.Account` in `config/config.go`.
-- Tests: Add unit tests in `auth/*_test.go` where possible and handler tests for admin API behavior.
+**New Account Routing Strategy:**
+- Implementation: Add runtime behavior to `pool/account.go`.
+- Config: Add persisted setting, defaults, normalization, and validation in `config/config.go`.
+- Admin API/UI: Add settings route handling in `proxy/handler.go` and controls in `web/index.html`.
+- Tests: Add `pool/account_test.go`, `config/config_test.go`, and handler tests as needed.
+
+**New Auth Flow:**
+- Implementation: Add provider-specific code under `auth/`.
+- Admin API: Wire start/poll/import/complete endpoints in `proxy/handler.go`.
+- Config impact: Store only necessary fields in `config.Account` within `config/config.go`.
+- Tests: Add auth package tests and admin handler tests.
+
+**New Observability Field:**
+- Implementation: Add field to `RequestLogEntry` and updater helpers in `proxy/request_log.go`.
+- Route usage: Call updater from `proxy/handler.go` or related proxy helper.
+- Admin/UI: Display from `/admin/api/request-logs` in `web/index.html` if user-facing.
+- Tests: Add coverage in `proxy/request_log_test.go` and relevant handler tests.
 
 **Utilities:**
-- Shared logging: Use `logger/logger.go`.
-- Shared backend helpers tightly coupled to proxy behavior: Place in `proxy/<topic>.go`.
-- Cross-package account/config helpers: Prefer `config/config.go` or `pool/account.go` based on ownership.
+- Shared helper for config/account/runtime behavior: place in the owning package (`config/`, `pool/`, or `proxy/`), not a generic utility package.
+- Logging helper: extend `logger/logger.go` only when it is process-wide logging behavior.
 
 ## Special Directories
 
 **`data/`:**
-- Purpose: Runtime persistence.
+- Purpose: Runtime config and account credential storage.
 - Generated: Yes.
-- Committed: A `data/config.json` file is present in the working tree, but contents are sensitive and should not be read or quoted.
+- Committed: Directory may exist locally; secret-bearing contents should not be documented or inspected.
 
 **`recovery/`:**
-- Purpose: Local config/account recovery artifacts.
+- Purpose: Local recovery/candidate artifacts.
 - Generated: Yes.
-- Committed: Present in the working tree; treat contents as sensitive.
+- Committed: Treat as local operational data, not application source.
 
-**`.planning/`:**
-- Purpose: GSD planning and codebase intelligence artifacts.
+**`.uat-backups/`:**
+- Purpose: Local UAT backup captures.
 - Generated: Yes.
-- Committed: Project-dependent; generated maps live in `.planning/codebase/`.
+- Committed: No source code should be added here.
 
 **`.worktrees/`:**
-- Purpose: Local alternate git checkouts.
+- Purpose: Local git worktrees for parallel development.
 - Generated: Yes.
-- Committed: No; exclude from code scans unless explicitly scoped.
+- Committed: No. Do not treat files under `.worktrees/` as part of the primary source tree map.
 
-**`.github/workflows/`:**
-- Purpose: CI/CD workflow definitions.
+**`docs/superpowers/`:**
+- Purpose: UAT reports, screenshots, scripts, and evidence from external workflow tooling.
+- Generated: Mixed.
+- Committed: Some artifacts are committed; add new product docs to top-level `docs/` unless the artifact is specifically UAT evidence.
+
+**`proxy/testdata/`:**
+- Purpose: Test fixtures loaded by proxy tests.
 - Generated: No.
 - Committed: Yes.
 
 ---
 
-*Structure analysis: 2026-05-15*
+*Structure analysis: 2026-05-21*

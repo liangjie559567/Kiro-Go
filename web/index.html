@@ -1233,6 +1233,7 @@
         </div>
         <div id="tabApi" class="tab-content hidden">
             <div id="claude-code-readiness"></div>
+            <div id="kiro-cli-diagnostics"></div>
             <div id="claude-code-model-readiness"></div>
             <div id="fleet-readiness"></div>
             <div id="websearch-diagnostics"></div>
@@ -1364,6 +1365,7 @@
                 'settings.autoRefreshYes': '是',
                 'settings.autoRefreshNo': '否',
                 'settings.autoRefreshSkipped': '已跳过',
+                'settings.autoRefreshQuietSkipped': '静默模式跳过',
                 'settings.saveAutoRefresh': '保存自动刷新设置',
                 'settings.healthCheck': '账号健康检测',
                 'settings.healthCheckEnabled': '启用定时健康检测',
@@ -1717,6 +1719,7 @@
                 'settings.autoRefreshYes': 'Yes',
                 'settings.autoRefreshNo': 'No',
                 'settings.autoRefreshSkipped': 'Skipped',
+                'settings.autoRefreshQuietSkipped': 'Quiet-mode skipped',
                 'settings.saveAutoRefresh': 'Save Auto Refresh Settings',
                 'settings.healthCheck': 'Account Health Check',
                 'settings.healthCheckEnabled': 'Enable scheduled health checks',
@@ -2152,6 +2155,7 @@
             document.getElementById('modelsEndpoint').textContent = baseUrl + '/v1/models';
             document.getElementById('statsEndpoint').textContent = baseUrl + '/v1/stats';
             loadClaudeCodeReadiness();
+            loadKiroCLIDiagnostics();
             loadClaudeCodeModelReadiness();
             loadFleetReadiness();
             loadWebSearchDiagnostics();
@@ -2893,7 +2897,8 @@
             const results = [
                 formatAutoRefreshResultValue(t('stats.success'), status.lastSuccess),
                 formatAutoRefreshResultValue(t('stats.failed'), status.lastFailed),
-                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkipped)
+                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkippedCount || status.lastSkipped),
+                formatAutoRefreshResultValue(t('settings.autoRefreshQuietSkipped'), status.lastQuietSkipped)
             ].filter(Boolean);
             document.getElementById('autoRefreshLastResult').textContent = results.length ? results.join(', ') : '-';
         }
@@ -2951,7 +2956,8 @@
                 formatAutoRefreshResultValue(t('stats.success'), status.lastSuccess),
                 formatAutoRefreshResultValue(t('stats.failed'), status.lastFailed),
                 formatAutoRefreshResultValue(t('settings.healthCheckDisabled'), status.lastDisabled),
-                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkipped)
+                formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkippedCount || status.lastSkipped),
+                formatAutoRefreshResultValue(t('settings.autoRefreshQuietSkipped'), status.lastQuietSkipped)
             ].filter(Boolean);
             document.getElementById('healthCheckLastResult').textContent = results.length ? results.join(', ') : '-';
         }
@@ -3099,35 +3105,62 @@
         }
         async function loadFleetReadiness() {
             if (!password) return;
+            const el = document.getElementById('fleet-readiness');
+            if (!el) return;
             try {
                 const resp = await fetch('/admin/api/fleet/readiness?model=claude-opus-4-7', { headers: { 'X-Admin-Password': password } });
                 const data = await resp.json();
-                const el = document.getElementById('fleet-readiness');
-                if (!el) return;
+                if (!resp.ok || !data) {
+                    el.innerHTML = '<div class="card"><div style="color:#64748b">Fleet readiness unavailable</div></div>';
+                    return;
+                }
                 const s = data.summary || {};
                 const autoRefresh = data.autoRefresh || {};
                 const healthCheck = data.healthCheck || {};
-                const notes = Array.isArray(data.notes) ? data.notes : [];
+                const reasonCodes = Array.isArray(data.reasonCodes) ? data.reasonCodes : [];
+                const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+                const statusClass = data.status === 'healthy' ? 'badge-success' : (data.status === 'blocked' ? 'badge-error' : 'badge-warning');
+                const formatCodes = function(codes) {
+                    if (!Array.isArray(codes) || codes.length === 0) return '-';
+                    return codes.map(function(code) { return escapeHtml(code); }).join(' ');
+                };
+                const metric = function(label, value) {
+                    return '<div style="min-width:0"><div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:2px">' + escapeHtml(label) + '</div><div style="font-size:13px;color:#334155;overflow-wrap:anywhere">' + value + '</div></div>';
+                };
+                const contentSuccessText = [
+                    'requests ' + String(data.recentContentRequests || 0),
+                    'rate ' + String(Math.round(Number(data.contentSuccessRate || 0) * 100)) + '%'
+                ].join(' · ');
+                const accountRows = accounts.slice(0, 6).map(function(account) {
+                    const health = account.runtimeHealth || {};
+                    const latest = account.latestContentSuccessAt ? new Date(account.latestContentSuccessAt).toLocaleString() : '-';
+                    const models = Array.isArray(account.modelsCached) ? account.modelsCached.slice(0, 3).join(', ') : '-';
+                    return '<div style="border-top:1px solid #e2e8f0;padding-top:8px;margin-top:8px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:12px;color:#475569;min-width:0">' +
+                        '<span style="overflow-wrap:anywhere">' + escapeHtml(account.id || '-') + '<br><small>' + escapeHtml(account.email || '-') + '</small></span>' +
+                        '<span>Eligible: ' + escapeHtml(account.eligible ? 'yes' : 'no') + '<br><small>' + formatCodes(account.reasonCodes) + '</small></span>' +
+                        '<span>Model cache: ' + escapeHtml(account.modelListed ? 'listed' : 'not listed') + '<br><small>' + escapeHtml(models) + '</small></span>' +
+                        '<span>Runtime health: ' + escapeHtml(String(health.score || 0)) + '<br><small>conn ' + escapeHtml(String(health.activeConnections || 0)) + ' · lat ' + escapeHtml(String(health.avgLatencyMS || 0)) + 'ms</small></span>' +
+                        '<span>Real content success<br><small>' + escapeHtml(latest) + '</small></span>' +
+                        '</div>';
+                }).join('');
                 el.innerHTML = '<div class="card">' +
                     '<div class="card-header"><span class="card-title">Opus 4.7 fleet health</span><button class="btn btn-sm btn-secondary" onclick="loadFleetReadiness()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
                     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;font-size:12px;color:#475569">' +
-                    '<span>Status: ' + escapeHtml(data.status || '-') + '</span>' +
-                    '<span>Circuit: ' + escapeHtml(data.circuitState || '-') + '</span>' +
-                    '<span>Retry after: ' + escapeHtml(String(data.retryAfterSeconds || 0)) + 's</span>' +
-                    '<span>Safe concurrency: ' + escapeHtml(String(data.safeConcurrency || 0)) + '</span>' +
-                    '<span>In flight: ' + escapeHtml(String(data.currentInFlight || 0)) + '</span>' +
-                    '<span>Schedulable: ' + escapeHtml(String(data.locallySchedulableAccounts || 0)) + '</span>' +
-                    '<span>Total: ' + escapeHtml(String(s.total || 0)) + '</span>' +
-                    '<span>Enabled: ' + escapeHtml(String(s.enabled || 0)) + '</span>' +
-                    '<span>Cooling: ' + escapeHtml(String(s.coolingDown || 0)) + '</span>' +
-                    '<span>Temporary limited: ' + escapeHtml(String(data.temporaryLimitedAccounts || 0)) + '</span>' +
-                    '<span>Quota: ' + escapeHtml(String(s.quotaBlocked || 0)) + '</span>' +
-                    '<span>Quiet skips: ' + escapeHtml(String(autoRefresh.lastQuietSkipped || 0)) + ' / ' + escapeHtml(String(healthCheck.lastQuietSkipped || 0)) + '</span>' +
+                    metric('Contract', escapeHtml(data.contractVersion || '-')) +
+                    metric('Status', '<span class="badge ' + statusClass + '">' + escapeHtml(data.status || '-') + '</span>') +
+                    metric('Safe concurrency', escapeHtml(String(data.safeConcurrency || 0)) + ' / ' + escapeHtml(String(data.admissionEffectiveConcurrency || 0)) + ' · local ' + escapeHtml(String(data.locallySchedulableAccounts || 0))) +
+                    metric('Retry after', escapeHtml(String(data.retryAfterSeconds || 0)) + 's') +
+                    metric('Reasons', formatCodes(reasonCodes)) +
+                    metric('Real content success', escapeHtml(contentSuccessText)) +
+                    metric('Stable fallbacks', escapeHtml(String(data.recentStableFallbacks || 0)) + ' · empty ' + escapeHtml(String(data.recentEmptyCompletions || 0))) +
+                    metric('Action', escapeHtml(data.recommendedAction || '-')) +
                     '</div>' +
-                    '<div style="font-size:12px;color:#64748b;margin-top:8px">Strategy: ' + escapeHtml(data.strategy || '-') + ' · Model: ' + escapeHtml(data.mappedModel || data.model || '-') + ' · Last pressure: ' + escapeHtml(data.lastPressureReason || '-') + '</div>' +
-                    '<div style="font-size:12px;color:#64748b;margin-top:6px">' + escapeHtml(notes.join(' | ') || 'sub2api can use this contract to route, queue, or back off Opus 4.7 traffic.') + '</div>' +
+                    '<div style="font-size:12px;color:#64748b;margin-top:8px;overflow-wrap:anywhere">Strategy: ' + escapeHtml(data.strategy || '-') + ' · Model: ' + escapeHtml(data.mappedModel || data.model || '-') + ' · Circuit: ' + escapeHtml(data.circuitState || '-') + ' · In flight: ' + escapeHtml(String(data.currentInFlight || 0)) + ' · Total: ' + escapeHtml(String(s.total || 0)) + ' · Enabled: ' + escapeHtml(String(s.enabled || 0)) + ' · Cooling: ' + escapeHtml(String(s.coolingDown || 0)) + ' · Temporary limited: ' + escapeHtml(String(data.temporaryLimitedAccounts || 0)) + ' · Quota: ' + escapeHtml(String(s.quotaBlocked || 0)) + ' · Model breaker: ' + escapeHtml(String(data.modelBreakerBlockedAccounts || 0)) + ' · Quiet skips: ' + escapeHtml(String(autoRefresh.lastQuietSkipped || 0)) + ' / ' + escapeHtml(String(healthCheck.lastQuietSkipped || 0)) + ' · Last pressure: ' + escapeHtml(data.lastPressureReason || '-') + '</div>' +
+                    (accountRows ? '<div style="margin-top:8px">' + accountRows + '</div>' : '') +
                     '</div>';
-            } catch (e) { }
+            } catch (e) {
+                el.innerHTML = '<div class="card"><div style="color:#64748b">Fleet readiness unavailable</div></div>';
+            }
         }
         async function loadWebSearchDiagnostics() {
             if (!password) return;
@@ -3153,6 +3186,37 @@
                     '</tbody></table>' +
                     '</div>';
             } catch (e) { }
+        }
+        async function loadKiroCLIDiagnostics() {
+            if (!password) return;
+            try {
+                const resp = await fetch('/admin/api/kiro-cli/diagnostics', { headers: { 'X-Admin-Password': password } });
+                const data = await resp.json();
+                const el = document.getElementById('kiro-cli-diagnostics');
+                if (!el) return;
+                const home = data.home || {};
+                const opus = data.opus47ModelState || {};
+                const latest = data.latest || {};
+                const statusClass = data.available ? 'badge-success' : 'badge-warning';
+                const latestText = latest.command
+                    ? [latest.command, latest.status || '-', latest.reason || '', (latest.durationMs || 0) + 'ms'].filter(Boolean).join(' · ')
+                    : '-';
+                el.innerHTML = '<div class="card">' +
+                    '<div class="card-header"><span class="card-title">Kiro CLI diagnostics</span><button class="btn btn-sm btn-secondary" onclick="loadKiroCLIDiagnostics()">' + escapeHtml(t('requestLogs.refresh')) + '</button></div>' +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:12px;color:#475569">' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">Path</div><div style="overflow-wrap:anywhere">' + escapeHtml(data.cliPath || '-') + '</div></div>' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">Availability</div><span class="badge ' + statusClass + '">' + escapeHtml(data.available ? 'available' : 'unavailable') + '</span></div>' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">Version</div><div style="overflow-wrap:anywhere">' + escapeHtml(data.version || '-') + '</div></div>' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">CLI home</div><div>' + escapeHtml(home.configured ? (home.present ? 'present' : 'configured') : 'unset') + '</div></div>' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">Command router</div><div>' + escapeHtml(data.commandRouter || 'unknown') + '</div></div>' +
+                    '<div><div style="font-size:11px;font-weight:600;color:#64748b">Opus 4.7 model list</div><div>' + escapeHtml(opus.state || 'unknown') + '</div></div>' +
+                    '</div>' +
+                    '<div style="font-size:12px;color:#64748b;margin-top:8px;overflow-wrap:anywhere">Latest: ' + escapeHtml(latestText) + '</div>' +
+                    '</div>';
+            } catch (e) {
+                const el = document.getElementById('kiro-cli-diagnostics');
+                if (el) el.innerHTML = '<div class="card"><div style="color:#64748b">Kiro CLI diagnostics unavailable</div></div>';
+            }
         }
         function renderClaudeCodeReadiness(data) {
             if (!data) return '<div class="card"><div style="color:#64748b">Claude Code readiness: unavailable</div></div>';
@@ -3284,7 +3348,22 @@
                     if (typeof value === 'object') return JSON.stringify(value);
                     return String(value);
                 };
-                const reliability = [
+                const endpoint = String(log.endpoint || '');
+                const isCountTokens = endpoint === '/v1/messages/count_tokens' || endpoint === '/messages/count_tokens';
+                const isLocalRequest = isCountTokens || endpoint === '/v1/models' || endpoint === '/models' || endpoint === '/health';
+                const requestMode = isCountTokens
+                    ? 'count_tokens:' + compactValue(log.countTokensMode || 'estimated')
+                    : compactValue(endpoint || '-');
+                const reliability = isLocalRequest ? [
+                    'local:' + requestMode,
+                    'q:' + (log.queueWaitMs || 0) + 'ms',
+                    'admit:-',
+                    'limit:-',
+                    'pressure:-',
+                    'ft:n/a',
+                    'try:0',
+                    'tool:n/a'
+                ].join(' ') : [
                     'q:' + (log.queueWaitMs || 0) + 'ms',
                     'admit:' + compactValue(log.admissionWaitMs) + 'ms',
                     'limit:' + compactValue(log.effectiveConcurrentLimit),
@@ -3293,12 +3372,21 @@
                     'try:' + (log.attempts || 1),
                     'tool:' + (log.toolUseCount || 0)
                 ].join(' ');
-                const routing = [
+                const routing = isLocalRequest ? [
+                    'endpoint:' + compactValue(endpoint),
+                    'mode:' + requestMode,
+                    'route:local',
+                    'upstream:none'
+                ].join(' ') : [
                     'route:' + compactValue(log.routingDecision),
                     'strategy:' + compactValue(log.routingStrategy),
                     'pressure:' + compactValue(log.routingPressure)
                 ].join(' ');
-                const health = [
+                const health = isLocalRequest && !log.accountId ? [
+                    'local request',
+                    'no upstream account',
+                    'no account health'
+                ].join(' · ') : [
                     'h:' + (log.accountHealthScore || 0),
                     'conn:' + (log.accountActiveConnections || 0),
                     'lat:' + (log.accountAvgLatencyMs || 0) + 'ms',
@@ -3324,9 +3412,12 @@
                     'suppressed:' + compactValue(log.suppressedToolUseNames)
                 ].join(' ');
                 const accountText = [log.accountId || '-', log.region || ''].filter(Boolean).join(' / ');
+                const modelText = isLocalRequest
+                    ? escapeHtml(log.model || '-') + '<br><small style="color:#64748b">' + escapeHtml(requestMode) + '</small>'
+                    : escapeHtml(log.model || '-');
                 return '<tr style="border-bottom:1px solid #f1f5f9">' +
                     '<td style="padding:8px;white-space:nowrap">' + escapeHtml(ts) + '</td>' +
-                    '<td style="padding:8px" title="' + escapeHtml(routing) + '">' + escapeHtml(log.model || '-') + '<br><small style="color:#64748b">' + escapeHtml(routing) + '</small></td>' +
+                    '<td style="padding:8px" title="' + escapeHtml(routing) + '">' + modelText + '<br><small style="color:#64748b">' + escapeHtml(routing) + '</small></td>' +
                     '<td style="padding:8px" title="' + escapeHtml(health) + '">' + escapeHtml(accountText) + '<br><small style="color:#64748b">' + escapeHtml(health) + '</small></td>' +
                     '<td style="padding:8px;color:' + statusColor + '">' + (log.statusCode || '-') + '</td>' +
                     '<td style="padding:8px" title="' + escapeHtml(reliability + ' | ' + toolBudget + ' | ' + payloadMeta) + '">' + escapeHtml(latencyText) + '<br><small style="color:#64748b">' + escapeHtml(reliability) + '</small><br><small style="color:#64748b">' + escapeHtml(payloadMeta) + '</small></td>' +

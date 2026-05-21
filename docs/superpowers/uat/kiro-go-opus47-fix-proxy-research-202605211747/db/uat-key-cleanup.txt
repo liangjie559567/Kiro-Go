@@ -1,0 +1,6 @@
+ id |                name                 |  status  | soft_deleted 
+----+-------------------------------------+----------+--------------
+  9 | kiro-go-opus47-fix-uat-202605211747 | disabled | t
+(1 row)
+
+UPDATE 1

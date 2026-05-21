@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kiro-Go Phase 7 Evidence Manifest",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "verdict",
+    "readiness",
+    "nonStream",
+    "stream",
+    "blockedCapacity",
+    "artifacts",
+    "redaction"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "phase7-evidence.1"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "BLOCKED_CAPACITY_PASS",
+        "BLOCKED_BY_UPSTREAM_CAPACITY",
+        "BLOCKED_BY_ENV",
+        "FAIL"
+      ]
+    },
+    "readiness": {
+      "type": "object",
+      "required": ["status", "safeConcurrency"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["healthy", "degraded", "blocked"]
+        },
+        "safeConcurrency": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retryAfterSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "nonStream": {
+      "$ref": "#/$defs/generationRun"
+    },
+    "stream": {
+      "$ref": "#/$defs/generationRun"
+    },
+    "blockedCapacity": {
+      "type": "object",
+      "properties": {
+        "verified": {"type": "boolean"},
+        "retryAfterPresent": {"type": "boolean"},
+        "noPermanentAccountPoisoning": {"type": "boolean"}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "required": [
+        "fleetReadiness",
+        "acceptanceEvidence",
+        "requestLogs",
+        "sub2apiReadinessDecisions",
+        "sub2apiUsageLogs",
+        "sub2apiOpsErrors",
+        "sub2apiAccountSchedulingState",
+        "screenshots",
+        "consoleSummary",
+        "redactionReport"
+      ]
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["checked", "leaksDetected"],
+      "properties": {
+        "checked": {"type": "boolean"},
+        "leaksDetected": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "generationRun": {
+      "type": "object",
+      "required": [
+        "attempted",
+        "httpSuccesses",
+        "realContentSuccesses",
+        "stableFallbackSuccesses"
+      ],
+      "properties": {
+        "attempted": {"type": "integer", "minimum": 0},
+        "httpSuccesses": {"type": "integer", "minimum": 0},
+        "realContentSuccesses": {"type": "integer", "minimum": 0},
+        "stableFallbackSuccesses": {"type": "integer", "minimum": 0},
+        "replayAfterContentViolations": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-05-21T07:41:12.163Z",
+  "registration": {
+    "httpStatus": 200,
+    "ok": true,
+    "code": 0,
+    "message": "success",
+    "userId": 4,
+    "emailMasked": "kiro***@example.test",
+    "role": "user",
+    "status": "active"
+  },
+  "keyCreation": {
+    "httpStatus": 404,
+    "ok": false,
+    "keyPresentInResponse": false
+  },
+  "keyCreationRetry": {
+    "endpoint": "/api/v1/keys",
+    "httpStatus": 200,
+    "ok": true,
+    "code": 0,
+    "message": "success",
+    "keyId": 5,
+    "keyName": "kiro-go-phase7-uat-1779349291949",
+    "keyStatus": "active",
+    "keyPresentInResponse": true
+  }
+}

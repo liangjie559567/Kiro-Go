@@ -1,0 +1,26 @@
+Total messages: 3 (Errors: 0, Warnings: 0)
+Returning 19 messages for level "warning"
+
+[ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/status:0
+[ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/fleet/readiness?model=claude-opus-4-7:0
+[ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/acceptance-evidence?model=claude-opus-4-7:0
+[ERROR] Failed to load resource: the server responded with a status of 404 () @ https://kiro.cgtall.com/admin/api/acceptance-evidence?model=claude-opus-4-7:0
+[ERROR] Failed to load resource: the server responded with a status of 502 () @ https://kiro.cgtall.com/admin/api/status:0
+[ERROR] Failed to load resource: the server responded with a status of 502 () @ https://kiro.cgtall.com/admin/api/accounts:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8080/api/health:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8080/api/status:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8080/api/readiness:0
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8080/api/stats:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8080/admin/api/status:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8080/admin/api/stats:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8080/admin/api/fleet/readiness?model=claude-opus-4-7:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8080/admin/api/request-stats:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8080/admin/api/status:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8080/admin/api/accounts:0
+[ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8080/admin/api/auto-refresh:0
+Unexpected token '<', "<html>
+<h"... is not valid JSON
+TypeError: Failed to fetch
+    at loadStats (http://127.0.0.1:8080/admin:2164:31)
+    at refreshVisibleData (http://127.0.0.1:8080/admin:3928:32)
+    at refreshDashboardData (http://127.0.0.1:8080/admin:3937:19)

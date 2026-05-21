@@ -1,0 +1,23 @@
+{"index":2,"mode":"non-stream","ok":true,"httpStatus":200,"durationMs":3619,"safeHeaders":{"content-type":"application/json; charset=utf-8","x-request-id":"b0eacdab-890c-44a5-93cd-008407839d5c, req_9f6a1908-de8b-4ca2-bfb0-0c6612b083ba"},"bodyType":"message","responseModel":"claude-opus-4.7","usage":{"input_tokens":5932,"output_tokens":12},"contentNonEmpty":true,"markerPresent":true,"errorType":null,"errorMessage":null,"outputPreview":"KIRO_GO_SUB2API_UAT_NON-STREAM_002"}
+{"index":3,"mode":"non-stream","ok":true,"httpStatus":200,"durationMs":4608,"safeHeaders":{"content-type":"application/json; charset=utf-8","x-request-id":"ea28abf6-7409-4089-b4ab-0dcf5a59942a, req_31abf34a-acf9-4ffd-ba5c-44acbbbbdb26"},"bodyType":"message","responseModel":"claude-opus-4.7","usage":{"input_tokens":5932,"output_tokens":12},"contentNonEmpty":true,"markerPresent":true,"errorType":null,"errorMessage":null,"outputPreview":"KIRO_GO_SUB2API_UAT_NON-STREAM_003"}
+{"index":0,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120002,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":1,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120003,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":4,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120004,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":5,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120003,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":6,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120005,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":7,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120008,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":8,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120011,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":9,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120010,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":10,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":11,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120001,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":12,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120001,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":13,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":14,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":15,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":16,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120001,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":17,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":18,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":119999,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":19,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120002,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":23,"mode":"non-stream","ok":true,"httpStatus":200,"durationMs":1587,"safeHeaders":{"content-type":"application/json; charset=utf-8","x-request-id":"043df4bb-b951-4ddf-8d21-bbe4d28e1981, req_ba07ddc7-97d2-47d6-afd6-b07804e622a9"},"bodyType":"message","responseModel":"claude-opus-4.7","usage":{"input_tokens":5932,"output_tokens":12},"contentNonEmpty":true,"markerPresent":true,"errorType":null,"errorMessage":null,"outputPreview":"KIRO_GO_SUB2API_UAT_NON-STREAM_023"}
+{"index":20,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120000,"errorType":"AbortError","errorMessage":"This operation was aborted"}
+{"index":21,"mode":"non-stream","ok":false,"httpStatus":0,"durationMs":120002,"errorType":"AbortError","errorMessage":"This operation was aborted"}

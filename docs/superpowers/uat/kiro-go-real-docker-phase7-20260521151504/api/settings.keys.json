@@ -1,0 +1,13 @@
+{
+  "topLevelKeys": [
+    "allowOverUsage",
+    "apiKey",
+    "clientApiKeys",
+    "clientIPAllowlist",
+    "host",
+    "modelAdmission",
+    "modelMappings",
+    "port",
+    "requireApiKey"
+  ]
+}

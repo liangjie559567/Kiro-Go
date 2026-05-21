@@ -113,6 +113,24 @@ func computeNextRunAt(now time.Time, settings config.AutoRefreshConfig) int64 {
 	return now.Add(time.Duration(interval) * time.Minute).Unix()
 }
 
+func autoRefreshDelay(now time.Time, settings config.AutoRefreshConfig, nextRunAt int64) time.Duration {
+	if !settings.Enabled {
+		return time.Minute
+	}
+	if nextRunAt > 0 {
+		delay := time.Unix(nextRunAt, 0).Sub(now)
+		if delay > 0 {
+			return delay
+		}
+		return 0
+	}
+	interval := settings.IntervalMinutes
+	if interval == 0 {
+		interval = config.AutoRefreshDefaultIntervalMinutes
+	}
+	return time.Duration(interval) * time.Minute
+}
+
 func (h *Handler) tryBeginAutoRefresh(startedAt int64) bool {
 	h.autoRefreshMu.Lock()
 	defer h.autoRefreshMu.Unlock()

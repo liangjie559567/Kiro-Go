@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+type structuredFailure struct {
+	err    string
+	reason FailureReason
+}
+
+func (s structuredFailure) Error() string {
+	return s.err
+}
+
+func (s structuredFailure) FailureReason() FailureReason {
+	return s.reason
+}
+
 func TestOverageAccountsAreSkippedByDefault(t *testing.T) {
 	p := &AccountPool{}
 	normal := config.Account{ID: "normal"}
@@ -77,6 +90,35 @@ func TestClassifyFailureReason(t *testing.T) {
 		if got := ClassifyFailureReason(tc.err); got != tc.want {
 			t.Fatalf("%s: got %v want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestClassifyFailureReasonPrefersStructuredReason(t *testing.T) {
+	err := structuredFailure{
+		err:    "HTTP 429 from Kiro IDE: generic rate limit text",
+		reason: FailureReasonModelCapacity,
+	}
+
+	if got := ClassifyFailureReason(err); got != FailureReasonModelCapacity {
+		t.Fatalf("got %v want %v", got, FailureReasonModelCapacity)
+	}
+}
+
+func TestTemporaryLimitSingleAccountCooldownIsNotBurstRetryScale(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		accounts:      []config.Account{{ID: "acct-1", Enabled: true}},
+		totalAccounts: 1,
+	}
+
+	p.RecordFailure("acct-1", FailureReasonTemporaryLimited)
+
+	got := p.GetAllAccounts()[0]
+	remaining := time.Until(time.Unix(got.CooldownUntil, 0))
+	if remaining < 55*time.Second || remaining > 65*time.Second {
+		t.Fatalf("temporary limit cooldown = %s, want around 60s", remaining)
 	}
 }
 
@@ -163,16 +205,16 @@ func TestRecordFailureUntilSuspiciousTemporaryLimitUsesAdaptiveFloor(t *testing.
 		t.Fatalf("expected temporary_limited reason, got %q", got.LastFailureReason)
 	}
 	remaining := got.CooldownUntil - time.Now().Unix()
-	if remaining < 2 || remaining > 5 {
-		t.Fatalf("expected first single-account suspicious temporary limit cooldown around 3s, got %ds", remaining)
+	if remaining < 55 || remaining > 65 {
+		t.Fatalf("expected first single-account suspicious temporary limit cooldown around 60s, got %ds", remaining)
 	}
 
 	p.RecordFailureUntil("acct-1", FailureReasonTemporaryLimited, shortRetryAfter)
 
 	got = p.GetAllAccounts()[0]
 	remaining = got.CooldownUntil - time.Now().Unix()
-	if remaining < 5 || remaining > 8 {
-		t.Fatalf("expected second single-account suspicious temporary limit cooldown around 6s, got %ds", remaining)
+	if remaining < 115 || remaining > 125 {
+		t.Fatalf("expected second single-account suspicious temporary limit cooldown around 120s, got %ds", remaining)
 	}
 }
 
@@ -840,6 +882,175 @@ func TestBeginNextForModelSessionExceptSkipsBreakerOpenAccount(t *testing.T) {
 	}
 	if acc.ID != "acct-2" {
 		t.Fatalf("expected acct-2 after breaker-open sticky escape, got %q", acc.ID)
+	}
+}
+
+func TestModelContentSuccessRecordsLatestTimestampPerAccountAndModel(t *testing.T) {
+	p := &AccountPool{}
+	older := time.Now().Add(-2 * time.Minute).Truncate(time.Millisecond)
+	newer := time.Now().Add(-time.Minute).Truncate(time.Millisecond)
+
+	p.RecordModelContentSuccess("acct-1", " claude-opus-4.7 ", newer)
+	p.RecordModelContentSuccess("acct-1", "CLAUDE-OPUS-4.7", older)
+	p.RecordModelContentSuccess("acct-2", "claude-opus-4.7", older)
+	p.RecordModelContentSuccess("acct-1", "claude-sonnet-4.5", older)
+	p.RecordModelContentSuccess("", "claude-opus-4.7", newer)
+	p.RecordModelContentSuccess("acct-1", "", newer)
+	p.RecordModelContentSuccess("acct-1", "claude-opus-4.7", time.Time{})
+
+	got, ok := p.ModelContentSuccess("acct-1", "claude-opus-4.7")
+	if !ok {
+		t.Fatalf("expected content-success evidence")
+	}
+	if !got.Equal(newer) {
+		t.Fatalf("expected latest timestamp %s, got %s", newer, got)
+	}
+	if got, ok := p.ModelContentSuccess("acct-2", "claude-opus-4.7"); !ok || !got.Equal(older) {
+		t.Fatalf("expected isolated acct-2 timestamp %s, got %s ok=%v", older, got, ok)
+	}
+	if got, ok := p.ModelContentSuccess("acct-1", "claude-sonnet-4.5"); !ok || !got.Equal(older) {
+		t.Fatalf("expected isolated model timestamp %s, got %s ok=%v", older, got, ok)
+	}
+	if _, ok := p.ModelContentSuccess("", "claude-opus-4.7"); ok {
+		t.Fatalf("did not expect blank account evidence")
+	}
+}
+
+func TestBeginNextForModelPrefersFresherContentSuccessForEligibleAccounts(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{ID: "stale", Enabled: true},
+			{ID: "fresh", Enabled: true},
+		},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetModelList("stale", []string{"claude-opus-4.7"})
+	p.SetModelList("fresh", []string{"claude-opus-4.7"})
+	p.RecordModelContentSuccess("stale", "claude-opus-4.7", time.Now().Add(-10*time.Minute))
+	p.RecordModelContentSuccess("fresh", "claude-opus-4.7", time.Now().Add(-time.Minute))
+
+	got := p.GetNextForModel("claude-opus-4.7")
+	if got == nil {
+		t.Fatalf("expected account")
+	}
+	if got.ID != "fresh" {
+		t.Fatalf("expected fresher content-success account, got %q", got.ID)
+	}
+}
+
+func TestBeginNextForModelContentSuccessDoesNotOverrideEligibilityBlockers(t *testing.T) {
+	tests := []struct {
+		name  string
+		block func(*AccountPool)
+	}{
+		{
+			name: "disabled",
+			block: func(p *AccountPool) {
+				p.accounts[0].Enabled = false
+			},
+		},
+		{
+			name: "cooldown",
+			block: func(p *AccountPool) {
+				p.RecordFailureUntil("fresh", FailureReasonRateLimited, time.Now().Add(time.Minute))
+			},
+		},
+		{
+			name: "breaker",
+			block: func(p *AccountPool) {
+				p.RecordModelFailure("fresh", "claude-opus-4.7", FailureReasonRateLimited, time.Now().Add(time.Minute))
+			},
+		},
+		{
+			name: "token expiry without refresh token",
+			block: func(p *AccountPool) {
+				p.accounts[0].ExpiresAt = time.Now().Unix() + tokenRefreshSkewSeconds - 1
+			},
+		},
+		{
+			name: "usage limit",
+			block: func(p *AccountPool) {
+				p.accounts[0].UsageCurrent = 10
+				p.accounts[0].UsageLimit = 10
+			},
+		},
+		{
+			name: "model not listed",
+			block: func(p *AccountPool) {
+				p.SetModelList("fresh", []string{"claude-sonnet-4.5"})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &AccountPool{
+				cooldowns:     make(map[string]time.Time),
+				errorCounts:   make(map[string]int),
+				failures:      make(map[string]FailureReason),
+				modelLists:    make(map[string]map[string]bool),
+				runtimeHealth: make(map[string]*runtimeHealthState),
+				breakers:      newModelBreakerState(),
+				accounts: []config.Account{
+					{ID: "fresh", Enabled: true},
+					{ID: "fallback", Enabled: true},
+				},
+				totalAccounts: 2,
+				currentIndex:  ^uint64(0),
+			}
+			p.SetModelList("fresh", []string{"claude-opus-4.7"})
+			p.SetModelList("fallback", []string{"claude-opus-4.7"})
+			p.RecordModelContentSuccess("fresh", "claude-opus-4.7", time.Now())
+			tt.block(p)
+
+			got := p.GetNextForModel("claude-opus-4.7")
+			if got == nil {
+				t.Fatalf("expected fallback account")
+			}
+			if got.ID != "fallback" {
+				t.Fatalf("expected eligibility blocker to skip fresh account, got %q", got.ID)
+			}
+		})
+	}
+}
+
+func TestBeginNextForModelAllowsRefreshableExpiredToken(t *testing.T) {
+	p := &AccountPool{
+		cooldowns:     make(map[string]time.Time),
+		errorCounts:   make(map[string]int),
+		failures:      make(map[string]FailureReason),
+		modelLists:    make(map[string]map[string]bool),
+		runtimeHealth: make(map[string]*runtimeHealthState),
+		breakers:      newModelBreakerState(),
+		accounts: []config.Account{
+			{
+				ID:           "refreshable",
+				Enabled:      true,
+				RefreshToken: "refresh-token",
+				ExpiresAt:    time.Now().Unix() + tokenRefreshSkewSeconds - 1,
+			},
+			{ID: "fallback", Enabled: true},
+		},
+		totalAccounts: 2,
+		currentIndex:  ^uint64(0),
+	}
+	p.SetModelList("refreshable", []string{"claude-opus-4.7"})
+	p.SetModelList("fallback", []string{"claude-opus-4.7"})
+	p.RecordModelContentSuccess("refreshable", "claude-opus-4.7", time.Now())
+
+	got := p.GetNextForModel("claude-opus-4.7")
+	if got == nil {
+		t.Fatalf("expected refreshable account")
+	}
+	if got.ID != "refreshable" {
+		t.Fatalf("expected refreshable account to remain schedulable, got %q", got.ID)
 	}
 }
 

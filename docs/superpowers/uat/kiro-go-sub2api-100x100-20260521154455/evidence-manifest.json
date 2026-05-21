@@ -1,0 +1,184 @@
+{
+  "runId": "kiro-go-sub2api-100x100-20260521154455",
+  "checkedAt": "2026-05-21T15:54:00+08:00",
+  "verdict": "FAIL",
+  "pass": false,
+  "reason": "sub2api path precheck passed, but the required 100/100 non-stream pressure run failed with only 3 passed out of 23 completed records; 100/100 stream run was not executed after the non-stream gate failed.",
+  "followUpFix": {
+    "status": "APPLIED_TO_VALIDATION_HARNESS",
+    "artifact": "run-sub2api-100x100.js",
+    "summary": "The runner now reads Kiro-Go fleet readiness before the full 100x100 run, writes api/readiness-before-run.json, reduces concurrency to safeConcurrency/admissionEffectiveConcurrency unless FIXED_CONCURRENCY=1 is set, and blocks the run when readiness reports an open circuit with retryAfterSeconds.",
+    "doesNotChangeVerdict": true,
+    "researchInputs": [
+      "https://github.com/jwadow/kiro-gateway",
+      "https://github.com/zeoak9297/KiroSwitchManager"
+    ]
+  },
+  "scope": {
+    "route": "client -> sub2api http://127.0.0.1:18080/v1/messages -> Kiro-Go http://kiro-go:8080/v1/messages",
+    "requestedModel": "claude-opus-4-7",
+    "requiredNonStreamSuccesses": 100,
+    "requiredStreamSuccesses": 100,
+    "browserTool": "Playwright-MCP"
+  },
+  "checks": {
+    "dockerServices": {
+      "status": "PASS",
+      "evidence": "Final docker ps check reported kiro-go-kiro-go-1, sub2api, sub2api-postgres, and sub2api-redis as healthy."
+    },
+    "kiroHealth": {
+      "status": "PASS",
+      "artifact": "api/kiro-health.json",
+      "observed": {
+        "status": "ok",
+        "version": "1.0.8"
+      }
+    },
+    "sub2apiHealth": {
+      "status": "PASS",
+      "artifact": "api/sub2api-health.json",
+      "observed": {
+        "status": "ok"
+      }
+    },
+    "precheckNonStream": {
+      "status": "PASS",
+      "artifact": "api/precheck.json",
+      "observed": {
+        "httpStatus": 200,
+        "responseModel": "claude-opus-4.7",
+        "markerPresent": true
+      }
+    },
+    "precheckStream": {
+      "status": "PASS",
+      "artifact": "api/precheck.json",
+      "observed": {
+        "httpStatus": 200,
+        "contentType": "text/event-stream",
+        "messageStart": true,
+        "messageStop": true,
+        "markerPresent": true
+      }
+    },
+    "nonStream100": {
+      "status": "FAIL",
+      "artifacts": [
+        "api/non-stream-partial-summary.json",
+        "request-results/non-stream.jsonl"
+      ],
+      "observed": {
+        "completedRecords": 23,
+        "passed": 3,
+        "failed": 20,
+        "statusCounts": {
+          "0": 20,
+          "200": 3
+        },
+        "primaryErrorType": "AbortError",
+        "approxFailedDurationMs": 120000
+      }
+    },
+    "stream100": {
+      "status": "NOT_RUN",
+      "reason": "The stream pressure batch was intentionally not run after the non-stream 100/100 gate failed."
+    },
+    "kiroFleetReadiness": {
+      "status": "FAIL_EVIDENCE_CONFIRMED",
+      "artifact": "api/kiro-fleet_readiness_model_claude-opus-4-7.json",
+      "observed": {
+        "status": "degraded",
+        "safeConcurrency": 1,
+        "reasonCodes": [
+          "admission_pressure"
+        ],
+        "lastPressureReason": "rate_limited_or_model_capacity",
+        "circuitState": "half_open",
+        "eligibleAccounts": 25
+      }
+    },
+    "kiroAcceptanceEvidence": {
+      "status": "FAIL_EVIDENCE_CONFIRMED",
+      "artifact": "api/kiro-acceptance_evidence_model_claude-opus-4-7.json",
+      "observed": {
+        "recentOpus47Logs": 38,
+        "contentSuccessCount": 8,
+        "stableFallbackCount": 0,
+        "latestRequiredCoverage": {
+          "attemptTrace": false,
+          "contentSuccessEvidence": false,
+          "selectedAccount": false
+        }
+      }
+    },
+    "sub2apiDatabase": {
+      "status": "PASS_FOR_FAILURE_CORRELATION",
+      "artifact": "sub2api/db-evidence-after-abort.json",
+      "observed": {
+        "usageRowsInWindow": 6,
+        "opsErrorSummary": [
+          {
+            "errorType": "rate_limit_error",
+            "statusCode": 429,
+            "count": 1,
+            "requestPath": "/v1/messages",
+            "upstreamEndpoint": "/v1/responses"
+          },
+          {
+            "errorType": "upstream_error",
+            "statusCode": 502,
+            "count": 30,
+            "requestPath": "/v1/messages",
+            "upstreamEndpoint": "/v1/messages"
+          }
+        ]
+      }
+    },
+    "logs": {
+      "status": "PASS_FOR_FAILURE_CORRELATION",
+      "artifacts": [
+        "logs/kiro-go-tail-after-100x100-abort.log",
+        "logs/sub2api-tail-after-100x100-abort.log"
+      ],
+      "observed": [
+        "Kiro-Go log contains repeated Opus 4.7 upstream 429 capacity responses.",
+        "sub2api log evidence and database evidence align with upstream 502/context-cancel style failures."
+      ]
+    },
+    "playwrightScreenshots": {
+      "status": "PASS_FOR_FAILURE_EVIDENCE_NOT_UAT_PASS",
+      "artifacts": [
+        "screenshots/kiro-admin-api-100x100-fail.png",
+        "screenshots/sub2api-login-100x100-fail.png"
+      ],
+      "observed": {
+        "kiroAdmin": "Live admin page shows request/success/failure counters and Opus 4.7 degraded/limited health state.",
+        "sub2apiFrontend": "Frontend is reachable but only at the login page; post-login flows were not visually validated."
+      }
+    }
+  },
+  "artifacts": {
+    "runner": "run-sub2api-100x100.js",
+    "readinessBeforeRun": "api/readiness-before-run.json",
+    "precheck": "api/precheck.json",
+    "nonStreamPartialSummary": "api/non-stream-partial-summary.json",
+    "nonStreamJsonl": "request-results/non-stream.jsonl",
+    "kiroHealth": "api/kiro-health.json",
+    "sub2apiHealth": "api/sub2api-health.json",
+    "kiroStatus": "api/kiro-status.json",
+    "kiroFleetReadiness": "api/kiro-fleet_readiness_model_claude-opus-4-7.json",
+    "kiroAcceptanceEvidence": "api/kiro-acceptance_evidence_model_claude-opus-4-7.json",
+    "kiroRequestLogs": "api/kiro-request-logs_limit_120.json",
+    "kiroRequestStats": "api/kiro-request-stats.json",
+    "dbEvidence": "sub2api/db-evidence-after-abort.json",
+    "kiroLogTail": "logs/kiro-go-tail-after-100x100-abort.log",
+    "sub2apiLogTail": "logs/sub2api-tail-after-100x100-abort.log",
+    "kiroAdminScreenshot": "screenshots/kiro-admin-api-100x100-fail.png",
+    "sub2apiLoginScreenshot": "screenshots/sub2api-login-100x100-fail.png",
+    "uatResult": "UAT-RESULT.md"
+  },
+  "security": {
+    "apiKeyPersisted": false,
+    "notes": "Runner reads the API key from stdin. Evidence files should not contain the user-provided raw key."
+  }
+}

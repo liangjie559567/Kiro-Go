@@ -1,0 +1,11 @@
+[      53ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[      53ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[      53ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[   31198ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/status:0
+[   31200ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/fleet/readiness?model=claude-opus-4-7:0
+[   31201ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/acceptance-evidence?model=claude-opus-4-7:0
+[   65054ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://kiro.cgtall.com/admin/api/acceptance-evidence?model=claude-opus-4-7:0
+[ 1550037ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://kiro.cgtall.com/admin/api/status:0
+[ 1550039ms] [ERROR] Failed to load resource: the server responded with a status of 502 () @ https://kiro.cgtall.com/admin/api/accounts:0
+[ 1550040ms] Unexpected token '<', "<html>
+<h"... is not valid JSON

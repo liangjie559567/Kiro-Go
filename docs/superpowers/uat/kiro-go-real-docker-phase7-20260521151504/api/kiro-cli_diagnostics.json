@@ -1,0 +1,40 @@
+{
+  "allowlisted": [
+    "version",
+    "whoami",
+    "doctor",
+    "diagnostic",
+    "chat --list-models",
+    "settings list"
+  ],
+  "audit": null,
+  "available": true,
+  "cliPath": "/usr/local/bin/kiro-cli",
+  "cliPathSource": "kiro-cli",
+  "commandRouter": "unknown",
+  "home": {
+    "configured": true,
+    "present": false
+  },
+  "latest": {
+    "command": "version",
+    "args": [
+      "--version"
+    ],
+    "status": "ok",
+    "exitStatus": 0,
+    "durationMs": 3,
+    "output": "kiro-cli 2.4.0",
+    "redacted": true,
+    "startedAt": "2026-05-21T07:19:25.086778883Z",
+    "finishedAt": "2026-05-21T07:19:25.090519597Z"
+  },
+  "opus47ModelState": {
+    "evidence": "",
+    "source": "",
+    "state": "unknown",
+    "timestamp": "2026-05-21T07:19:25.086763133Z"
+  },
+  "readOnly": true,
+  "version": "kiro-cli 2.4.0"
+}

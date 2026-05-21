@@ -1,245 +1,196 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-05-15
+**Analysis Date:** 2026-05-21
 
 ## Tech Debt
 
 **Monolithic proxy handler:**
-- Issue: `proxy/handler.go` contains routing, request validation, admin APIs, account operations, model cache management, streaming conversion, retry behavior, stats, and static file serving in one 4,223-line file.
-- Files: `proxy/handler.go`, `proxy/translator.go`, `web/index.html`
-- Impact: Small changes to one workflow create broad regression risk across unrelated API, admin, streaming, and model-routing behavior. Reviewers must reason about shared globals such as `opus47AdmissionGate`, `ensureValidTokenForHealthCheck`, `sleepForOpusCapacityRetry`, and handler state in `proxy/handler.go`.
-- Fix approach: Split by responsibility using existing package boundaries: move admin endpoints to `proxy/admin_*.go`, OpenAI handlers to `proxy/openai_handler.go`, Claude handlers to `proxy/claude_handler.go`, model cache code to `proxy/model_cache.go`, and shared retry/account helpers to focused files. Keep `Handler` as the HTTP composition point in `proxy/handler.go`.
+- Issue: `proxy/handler.go` is the central HTTP router, admin API, request translator coordinator, retry loop owner, model cache manager, token refresh coordinator, background scheduler, and compatibility/readiness API implementation.
+- Files: `proxy/handler.go`, `proxy/translator.go`, `proxy/kiro.go`, `proxy/request_log.go`
+- Impact: Local changes have a large blast radius. Adding endpoints, compatibility behavior, or routing policy in `proxy/handler.go` requires understanding unrelated state such as account health, model admission, stable fallback, request logs, and OpenAI Responses sessions.
+- Fix approach: Move coherent groups out of `proxy/handler.go`: admin account APIs, client generation endpoints, readiness/compatibility endpoints, token refresh, and background jobs. Keep `Handler` as composition and routing glue.
 
-**Single-file admin frontend:**
-- Issue: `web/index.html` combines all HTML, CSS, JavaScript, translations, admin state, account rendering, credential import, proxy settings, prompt filter settings, and polling in one 3,435-line file.
-- Files: `web/index.html`
-- Impact: UI changes are hard to review and easy to break because DOM rendering, translation keys, fetch calls, and state mutation are tightly coupled. String-built UI also increases escaping mistakes.
-- Fix approach: Keep the no-build static deployment model if desired, but separate concerns into committed static files: `web/index.html`, `web/styles.css`, `web/i18n.js`, `web/api.js`, and focused modules such as `web/accounts.js`, `web/settings.js`, and `web/auth.js`. Serve them through the existing `/admin/` static path in `proxy/handler.go`.
+**Global mutable runtime gates:**
+- Issue: Admission and continuity controls are package-level globals, including `opus47AdmissionGate`, `modelAdmissionGate`, and `contentContinuityGateGlobal`.
+- Files: `proxy/handler.go`, `proxy/opus_gate.go`, `proxy/content_continuity.go`
+- Impact: Tests and handlers share mutable process-wide state. Reconfiguration in one request or test can affect other concurrent requests, other `Handler` instances, and later tests.
+- Fix approach: Store admission gates and content-continuity gates on `Handler`; update them through handler methods under one lock. Avoid direct package global mutation from config update paths.
 
-**JSON file as transactional data store:**
-- Issue: Runtime configuration, admin password, API key, account tokens, token refreshes, usage counters, health state, and prompt filters share one JSON file.
-- Files: `config/config.go`, `data/config.json`, `main.go`
-- Impact: Frequent request/stat updates call `Save()` and rewrite the full config file. A crash during `os.WriteFile` can leave a truncated config. Runtime counters and secrets have the same persistence and backup lifecycle.
-- Fix approach: Replace `Save()` in `config/config.go` with atomic write-rename behavior and split volatile counters from credential/config data. Use a temp file in the same directory, `fsync`, then `rename`; add a corruption recovery test in `config/config_test.go`.
+**Compatibility modes are emulated or estimated in important places:**
+- Issue: Anthropic count-tokens uses local estimation, `max_tokens=0` is locally shaped, assistant prefill is emulated, and fine-grained tool streaming is a gateway reconstruction rather than proven upstream parity.
+- Files: `proxy/handler.go`, `proxy/token_estimator.go`, `proxy/claude_sse_writer.go`, `docs/claude-code-compatibility-matrix.md`
+- Impact: Claude Code compatibility can pass local tests while still diverging from official Anthropic behavior on billing, cache warmup, stream granularity, and assistant prefill semantics.
+- Fix approach: Keep compatibility/readiness outputs explicit about `estimated`, `local_zero_output`, `emulated_text_prefill`, and `kiro_go_chunked_complete_input`. Add upstream-backed evidence before marking official parity as pass.
 
-**Silent no-op updates for missing records:**
-- Issue: Update/delete helpers return `nil` when an account ID is not found.
-- Files: `config/config.go`
-- Impact: Callers cannot distinguish successful updates from missing records. Admin and background workflows can report success while no account changed.
-- Fix approach: Return an explicit `ErrAccountNotFound` from `UpdateAccount`, `DeleteAccount`, `UpdateAccountToken`, `UpdateAccountStats`, `UpdateAccountInfo`, `UpdateAccountProfileArn`, and `UpdateAccountHealth`; map that to 404 in admin handlers in `proxy/handler.go`.
+**Runtime config is the persistence layer:**
+- Issue: Credentials, account health, stats, model mappings, and admin/client access settings all persist through a single JSON config file.
+- Files: `config/config.go`, `data/config.json`, `.gitignore`
+- Impact: Every settings or runtime stats write rewrites the same file. This couples secrets, mutable health state, counters, and operator config, increasing write contention and recovery risk.
+- Fix approach: Split credential storage, runtime health, request stats, and operator settings. Use atomic file replacement or a small embedded database for high-churn runtime state.
 
 ## Known Bugs
 
-**Settings saves clear unrelated settings:**
-- Symptoms: `saveOverUsageConfig()` posts only `allowOverUsage`, and `changePassword()` posts only `password`; `apiUpdateSettings()` always calls `config.UpdateSettings(req.ApiKey, req.RequireApiKey, req.Password)`, so omitted `apiKey` becomes empty and omitted `requireApiKey` becomes false.
-- Files: `web/index.html`, `proxy/handler.go`, `config/config.go`
-- Trigger: Save over-usage settings or change the admin password from the Settings tab after enabling API-key enforcement.
-- Workaround: Re-save API key settings after changing over-usage or password.
+**Race in concurrent token refresh:**
+- Symptoms: `go test -race ./...` reports data races between token refresh writers and readers.
+- Files: `proxy/handler.go`, `pool/account.go`, `proxy/handler_test.go`
+- Trigger: `TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount` runs concurrent calls to `ensureValidToken`; `pool.AccountPool.UpdateToken` writes account fields while `Handler.syncLatestAccountToken` copies fields into another account pointer.
+- Workaround: Normal `go test ./...` passes, but race-enabled validation fails. Do not treat token refresh concurrency as race-clean until this is fixed.
 
-**Admin status reads unprotected handler fields:**
-- Symptoms: `/admin/api/status` reads `h.totalRequests`, `h.successRequests`, `h.failedRequests`, `h.totalTokens`, and `h.totalCredits` directly instead of using atomics and `getCredits()`.
+**Race in model admission pressure state:**
+- Symptoms: `go test -race ./...` reports a race between queue-timeout pressure writes and routing/readiness reads.
+- Files: `proxy/opus_gate.go`, `proxy/handler.go`, `proxy/handler_test.go`
+- Trigger: `TestHandleClaudeStreamOpus47CapacityLimitNeverReturnsEmptyBodyUnderConcurrency` concurrently records queue timeout pressure and reads `hasPressure` for routing decision logging.
+- Workaround: Normal tests pass, but production concurrency can observe inconsistent pressure state. Keep admission pressure updates and reads behind the same lock.
+
+**Request bodies are read without server-side size limits on core endpoints:**
+- Symptoms: Large client bodies are fully read or decoded before payload guard limits run.
 - Files: `proxy/handler.go`
-- Trigger: Admin polling during concurrent request handling.
-- Workaround: Use `/v1/stats` or `/admin/api/stats`, which read counters through atomics and the credits lock.
-
-**Pool can deadlock through lock inversion:**
-- Symptoms: `pool.AccountPool.RecordSuccess`, `clearExpiredCooldownsLocked`, `RecordFailure`, and `RecordFailureUntil` hold `p.mu` and call config persistence helpers. `config.Load()` holds `cfgLock` and can call `pool.Reload()` through normal handler startup/reload flows. The code has both `pool -> config` and `config -> pool` call paths.
-- Files: `pool/account.go`, `config/config.go`, `proxy/handler.go`
-- Trigger: Concurrent account routing failures/successes while admin updates or reloads account configuration.
-- Workaround: Avoid high-concurrency admin account edits during heavy traffic.
-
-**Global singleton pool leaks across tests and config reinitialization:**
-- Symptoms: `pool.GetPool()` is guarded by `sync.Once` and keeps the same `AccountPool` instance across `config.Init()` calls. Tests reinitialize config in many packages but share pool singleton state unless they explicitly reload or construct a local pool.
-- Files: `pool/account.go`, `proxy/handler_test.go`, `pool/account_test.go`, `config/config_test.go`
-- Trigger: New tests that depend on pristine global pool state or run in parallel.
-- Workaround: Avoid `t.Parallel()` for tests touching `config.Init()` or `pool.GetPool()`; prefer local `&pool.AccountPool{}` where possible.
+- Trigger: `handleClaudeMessagesInternal` and `handleOpenAIChat` call `io.ReadAll(r.Body)`; `handleOpenAIResponses` decodes directly from `r.Body`; admin JSON endpoints decode bodies without `http.MaxBytesReader`.
+- Workaround: Put a reverse proxy/body-size limit in front of the service. In code, wrap all JSON endpoints with `http.MaxBytesReader` before reading or decoding.
 
 ## Security Considerations
 
-**Default externally bound admin service with default password:**
-- Risk: A new config binds to `0.0.0.0`, uses admin password `changeme`, and disables API-key enforcement by default.
+**Insecure-by-default public binding and auth settings:**
+- Risk: First-run defaults bind the service to all interfaces, use admin password `changeme`, and do not require client API keys.
 - Files: `config/config.go`, `main.go`, `docker-compose.yml`, `README.md`
-- Current mitigation: `ADMIN_PASSWORD` can override the admin password; config files are written with mode `0600`.
-- Recommendations: Bind to `127.0.0.1` by default outside Docker, require `ADMIN_PASSWORD` or first-run password initialization when host is `0.0.0.0`, and warn/refuse startup when the password remains `changeme`.
+- Current mitigation: `README.md` tells operators to set `ADMIN_PASSWORD`; `config.Save` writes the JSON config with `0600` permissions.
+- Recommendations: Require an explicit admin password on first startup when `Host` is not loopback. Default `RequireApiKey` to true for non-local binds and make `docker-compose.yml` set `ADMIN_PASSWORD` through deployment secrets.
 
-**Permissive CORS across all routes:**
-- Risk: `ServeHTTP` sets `Access-Control-Allow-Origin: *` and broad methods/headers for admin and API routes. Combined with password-in-localStorage admin auth, a malicious page can make cross-origin requests if it can obtain or influence the password/header context.
-- Files: `proxy/handler.go`, `web/index.html`
-- Current mitigation: Admin APIs require `X-Admin-Password` or `admin_password` cookie; browser clients cannot read localStorage across origins.
-- Recommendations: Scope CORS to API routes only, make allowed origins configurable, and avoid enabling credential-bearing admin calls from arbitrary origins.
-
-**Admin password stored in browser localStorage:**
-- Risk: The admin password is persisted in `localStorage` for 72 hours and sent as `X-Admin-Password` on every admin request. Any script injection in the admin page can read it.
+**Admin password is stored in browser localStorage and sent on every request:**
+- Risk: Any script execution in the admin origin can read the admin password, and every admin API call carries it in `X-Admin-Password`.
 - Files: `web/index.html`, `proxy/handler.go`
-- Current mitigation: Admin page responses include `Cache-Control: no-store`; account emails are masked by default in UI privacy mode.
-- Recommendations: Replace localStorage password storage with a server-issued, HttpOnly, SameSite session cookie and CSRF token. Avoid accepting raw password cookies in `handleAdminAPI`.
+- Current mitigation: The browser clears localStorage after 72 hours and the backend accepts the password through a header or cookie.
+- Recommendations: Replace localStorage password persistence with an HttpOnly, Secure, SameSite session cookie. Add CSRF protection for state-changing admin endpoints.
 
-**Credential-bearing admin endpoints return secrets:**
-- Risk: `/admin/api/accounts/{id}/full` returns `accessToken`, `refreshToken`, and `clientSecret`; `/admin/api/export` returns account credentials for selected or all accounts.
-- Files: `proxy/handler.go`, `web/index.html`
-- Current mitigation: Endpoints require the admin password and list APIs hide token values.
-- Recommendations: Keep export behind a distinct confirmation and short-lived session re-authentication. Redact secrets by default in account detail and require an explicit reveal action with audit logging.
+**Credentials are persisted and exported in plaintext:**
+- Risk: Access tokens, refresh tokens, client IDs, and client secrets are stored in config JSON and exported from the admin API.
+- Files: `config/config.go`, `proxy/handler.go`, `data/config.json`
+- Current mitigation: `config.Save` uses `0600` file permissions; list endpoints hide token values.
+- Recommendations: Encrypt credentials at rest or support OS/key-management backed secret storage. Make full credential export require a separate confirmation or one-time export token, and audit export events.
 
-**API key exposed back to admin UI:**
-- Risk: `/admin/api/settings` returns the configured API key, and the UI writes it into a text input.
-- Files: `proxy/handler.go`, `web/index.html`, `config/config.go`
-- Current mitigation: Settings endpoint requires the admin password.
-- Recommendations: Store a hash of the API key and return only a presence/fingerprint indicator. Generate one-time display values only when rotating keys.
+**Wildcard CORS is applied globally:**
+- Risk: `Access-Control-Allow-Origin: *` and broad allowed headers are sent for API and admin routes.
+- Files: `proxy/handler.go`
+- Current mitigation: Admin APIs require `X-Admin-Password`; client APIs can require API keys.
+- Recommendations: Scope CORS to configured origins, especially for `/admin/api/*`. Avoid wildcard CORS when admin credentials are accepted from browser-controlled storage.
 
-**Debug logs can contain prompt and tool payload data:**
-- Risk: `CallKiroAPI` logs the full upstream request payload at debug level. Payloads include user prompts, tool schemas, conversation history, and potentially sensitive prompt content.
-- Files: `proxy/kiro.go`, `logger/logger.go`, `config/config.go`
-- Current mitigation: Default log level is `info`.
-- Recommendations: Redact or summarize payload logs, and keep full payload dumps behind a separate explicit unsafe diagnostic flag.
-
-**Unescaped admin UI rendering:**
-- Risk: Many fields from accounts, upstream model responses, prompt rules, and error messages are inserted with `innerHTML` string concatenation. The file has an `escapeHtml()` helper, but account list and prompt-rule rendering do not consistently use it.
-- Files: `web/index.html`
-- Current mitigation: Most displayed values originate from admin-controlled configuration or upstream service metadata.
-- Recommendations: Use DOM APIs or centralized escaping for every dynamic value. Treat account email, nickname, provider, proxy URL, ban reason, model ID, prompt rule fields, and upstream errors as untrusted.
-
-**Committed runtime data directories:**
-- Risk: `data/config.json` exists in the working tree and `recovery/` contains many recovered config snapshots. These paths are likely to contain OAuth tokens, refresh tokens, client secrets, account emails, and API keys.
-- Files: `data/config.json`, `recovery/`, `.gitignore`
-- Current mitigation: `data/` and `recovery/` are untracked in the current worktree; `Save()` writes config as `0600`.
-- Recommendations: Add `data/`, `recovery/`, screenshots with operational data, and generated config snapshots to `.gitignore`. Keep recovery artifacts outside the repository or encrypt them.
+**Settings APIs expose API keys back to the admin client:**
+- Risk: Admin settings and Claude Code compatibility endpoints return client API keys or environment snippets containing keys.
+- Files: `proxy/handler.go`
+- Current mitigation: Endpoints are admin-password protected.
+- Recommendations: Mask API keys in normal GET responses and provide explicit rotate/copy flows for sensitive values.
 
 ## Performance Bottlenecks
 
-**Full-config write amplification:**
-- Problem: Stats, account health, token refreshes, account info refreshes, prompt settings, and admin settings all rewrite the full JSON config file.
-- Files: `config/config.go`, `proxy/handler.go`, `pool/account.go`, `proxy/account_refresh.go`
-- Cause: `Save()` serializes the entire `Config` object and writes it on each mutation.
-- Improvement path: Debounce non-critical stats writes, persist counters separately, batch background account updates, and introduce atomic file writes or a small embedded database for account state.
+**High-churn config writes:**
+- Problem: Runtime stats, account stats, health state, token updates, and settings all call `Save`, rewriting the full config JSON.
+- Files: `config/config.go`, `proxy/handler.go`, `pool/account.go`
+- Cause: Config is used for both stable settings and frequently changing runtime state.
+- Improvement path: Batch or debounce runtime stats writes, separate runtime state from secret/config state, and use atomic writes to a dedicated state file or database.
 
-**Model cache refresh is synchronous and serial:**
-- Problem: `refreshModelsCache()` walks enabled accounts one by one and calls token refresh/model list APIs before `/v1/models` can use fresh data.
-- Files: `proxy/handler.go`, `proxy/kiro_api.go`
-- Cause: The cache refresh runs inline and each account can hit 30-second REST timeouts.
-- Improvement path: Refresh models in a bounded worker pool, return stale cache while refresh is in progress, and expose per-account refresh status.
+**Request log ring buffer uses slice shifting:**
+- Problem: Once the in-memory request log reaches capacity, every append shifts the full slice.
+- Files: `proxy/request_log.go`
+- Cause: `requestLogStore.Add` copies `entries[1:]` into `entries[0:]` at capacity.
+- Improvement path: Replace with a circular buffer. Preserve `List(limit)` newest-first behavior so admin APIs stay compatible.
 
-**Weighted pool duplicates account structs:**
-- Problem: `AccountPool.Reload()` expands account weight by appending full `config.Account` structs multiple times.
-- Files: `pool/account.go`, `config/config.go`
-- Cause: Weighted routing is implemented by duplicating account values rather than storing account references or schedule entries.
-- Improvement path: Store compact schedule entries with account IDs and weight metadata; keep a single account record per ID.
+**Model refresh can run synchronously on `/models`:**
+- Problem: A cold `/v1/models` or `/models` request can trigger `refreshModelsCache` before returning.
+- Files: `proxy/handler.go`
+- Cause: `handleModels` refreshes cache inline when `cachedModels` is empty.
+- Improvement path: Serve fallback models immediately and refresh asynchronously, or bound the refresh with a short context deadline.
 
-**Proxy client cache has no eviction:**
-- Problem: Per-account and global proxy URLs create cached `http.Client` instances in `sync.Map` without deletion.
-- Files: `proxy/kiro.go`, `auth/http_client.go`
-- Cause: `proxyClientCache` and `authProxyClientCache` are append-only by proxy URL.
-- Improvement path: Clear cache entries on proxy updates, bound cache size, or key clients by account ID and replace them when account proxy settings change.
+**Stable continuity waits can hold requests for up to minutes:**
+- Problem: Opus 4.7 continuity defaults allow waits up to 120 seconds and queue depth up to 300.
+- Files: `config/config.go`, `proxy/content_continuity.go`, `proxy/handler.go`
+- Cause: Defaults prioritize preserving downstream success during upstream capacity pressure.
+- Improvement path: Keep these values configurable per deployment and expose queue depth/age metrics. Use lower defaults for interactive clients unless a downstream explicitly opts into long waits.
 
 ## Fragile Areas
 
-**Streaming protocol conversion:**
-- Files: `proxy/handler.go`, `proxy/kiro.go`, `proxy/translator.go`, `proxy/handler_test.go`, `proxy/kiro_test.go`, `proxy/translator_test.go`
-- Why fragile: Streaming state tracks text buffers, reasoning-source precedence, thinking tags, OpenAI chunk formats, tool-call chunks, token estimates, retries, and explicit error chunks. Small ordering changes can produce empty streams or malformed chunks.
-- Safe modification: Add focused tests for each streaming shape before editing: normal text, reasoning events, `<thinking>` tags, omitted thinking, tool calls, upstream error before first chunk, upstream error after first chunk, and high-concurrency Opus 4.7 behavior.
-- Test coverage: Strong coverage exists for several Opus 4.7, thinking, and translator cases, but no browser/EventSource client test validates full wire-format streaming through `ServeHTTP`.
+**Token refresh and account pool synchronization:**
+- Files: `proxy/handler.go`, `pool/account.go`, `config/config.go`
+- Why fragile: Token state exists in request-local account copies, the account pool, and persisted config. Race testing already catches unsynchronized field access around refresh.
+- Safe modification: Treat account structs as immutable snapshots outside pool locks. Return copied token snapshots from pool methods and update all refresh paths under a single synchronization contract.
+- Test coverage: Unit tests cover coalescing behavior, but `go test -race ./...` fails.
 
-**Account health and routing state:**
-- Files: `pool/account.go`, `proxy/account_health.go`, `proxy/account_refresh.go`, `proxy/handler.go`, `config/config.go`
-- Why fragile: State is split across in-memory pool maps, duplicated weighted account structs, persisted account fields, async refresh goroutines, and admin-triggered updates.
-- Safe modification: Keep routing decisions in `pool/account.go`; keep persistence in `config/config.go`; avoid calling config writes while holding pool locks. Add race tests for success/failure recording plus admin reloads.
-- Test coverage: Unit tests cover cooldown selection, failure classification, auto refresh, health check, and admin config endpoints. Race detector execution is not configured in the repo.
+**Admission pressure and Opus 4.7 routing:**
+- Files: `proxy/opus_gate.go`, `proxy/handler.go`, `proxy/account_health.go`, `pool/account.go`
+- Why fragile: Routing depends on model capacity classification, temporary account limits, circuit pressure score, queue timeouts, stable fallback, and request logging. Race testing catches unsynchronized pressure state.
+- Safe modification: Keep account-health failures, model-capacity pressure, and temporary-limit cooldowns separated. Add race tests around any new admission fields.
+- Test coverage: Many unit tests cover behavior, but race-enabled test suite fails.
 
-**External Kiro/AWS compatibility surface:**
-- Files: `proxy/kiro.go`, `proxy/kiro_headers.go`, `proxy/kiro_api.go`, `auth/iam_sso.go`, `auth/builderid.go`, `auth/oidc.go`, `auth/sso_token.go`
-- Why fragile: Endpoint URLs, headers, event stream event names, OIDC payload shapes, and model list formats are hard-coded against external services.
-- Safe modification: Isolate request/response fixtures in tests for each upstream endpoint and add compatibility tests before changing headers, auth payloads, or event names.
-- Test coverage: Header format, rate-limit parsing, profile ARN resolution, and auth HTTP clients have tests; real upstream contract coverage is documented manually in `docs/superpowers/uat/`.
+**Payload guard and Claude Code tool compatibility:**
+- Files: `proxy/payload_guard.go`, `proxy/translator.go`, `proxy/claude_sse_writer.go`, `proxy/request_log.go`
+- Why fragile: The gateway trims tools, relocates descriptions, compacts tool-result history, suppresses invalid tool use, and emits synthetic Anthropic stream events. Small changes can break client tool loops while still returning HTTP 200.
+- Safe modification: Update request-log metadata and compatibility matrix entries whenever payload transformations change. Add fixture tests for Claude Code wire requests.
+- Test coverage: Extensive tests exist in `proxy/payload_guard_test.go`, `proxy/translator_test.go`, and `proxy/claude_sse_writer_test.go`; upstream parity remains partially unproven.
 
-**Prompt filtering with user-provided regex:**
-- Files: `config/config.go`, `proxy/translator.go`, `web/index.html`
-- Why fragile: Admin-defined regex rules alter system prompts before upstream requests. Invalid or expensive regex patterns can break requests or create high CPU cost if applied to large prompts.
-- Safe modification: Validate regex rules at save time in `config.UpdatePromptFilterConfig`, cap pattern length and rule count, and fail closed with a clear admin validation error.
-- Test coverage: Prompt filter persistence and regex validation coverage is not visible in the current test set.
+**OpenAI Responses session reconstruction:**
+- Files: `proxy/handler.go`
+- Why fragile: Previous response state is kept in an in-memory map capped at 128 sessions with a one-hour TTL. Restarts or cache pruning lose chain context.
+- Safe modification: Keep response session semantics best-effort unless persistent session storage is added. Avoid assuming `previous_response_id` is durable across process restarts.
+- Test coverage: Unit tests cover restore and pruning behavior, but no persistence or multi-instance coverage exists.
 
 ## Scaling Limits
 
-**Single process, single config file:**
-- Current capacity: One process owns one `data/config.json` file and in-memory singleton pool.
-- Limit: Multiple replicas or processes writing the same config file can lose updates or corrupt state. Request counters and cooldown state are local to one process.
-- Scaling path: Use an external state store or a leader-owned persistence service for accounts, cooldowns, stats, and token refresh locks.
+**Single-process in-memory state:**
+- Current capacity: Request logs are capped at 5,000 entries, OpenAI Responses sessions at 128, and model/request caches live in one process.
+- Limit: Multiple instances do not share request logs, previous response sessions, model cache, admission state, or in-flight token refresh coalescing.
+- Scaling path: Externalize runtime coordination to shared storage or keep deployments single-instance behind a process supervisor.
 
-**Global token refresh lock:**
-- Current capacity: `Handler.ensureValidToken()` serializes all token refreshes through one `tokenRefreshMu`.
-- Limit: Many expiring accounts refresh one at a time, delaying requests even when accounts are independent.
-- Scaling path: Use per-account locks keyed by account ID.
-
-**Opus 4.7 gate is global and hard-coded:**
-- Current capacity: `opus47AdmissionGate` is initialized with fixed concurrency `2` and queue size `200`.
-- Limit: The limit does not adapt to account count, deployment size, observed upstream capacity, or configured model availability.
-- Scaling path: Make model admission limits configurable and account-aware, and expose queue depth/status in admin stats.
+**Default long queues can amplify upstream pressure:**
+- Current capacity: Content continuity defaults allow 300 queued waits for supported models; model admission defaults are driven by config.
+- Limit: Under upstream temporary limits, long waits can consume server goroutines and client connections.
+- Scaling path: Add explicit queue metrics, enforce per-client limits, and make stable fallback/continuity opt-in per downstream API key.
 
 ## Dependencies at Risk
 
-**Go 1.21 baseline:**
-- Risk: The Docker builder and `go.mod` use Go 1.21.
-- Impact: The project misses newer standard-library fixes, tooling defaults, and runtime improvements.
-- Migration plan: Validate with a newer Go toolchain, update `go.mod`, `Dockerfile`, and CI/test documentation together.
-
-**Unpinned runtime image:**
-- Risk: `Dockerfile` uses `alpine:latest`.
-- Impact: Builds can change behavior as Alpine latest moves, and production images are not reproducible.
-- Migration plan: Pin Alpine to a specific supported version and refresh deliberately.
-
-**External protocol dependency without generated clients:**
-- Risk: Kiro/AWS request contracts are handwritten in `proxy/kiro.go`, `proxy/kiro_headers.go`, `proxy/kiro_api.go`, and `auth/*.go`.
-- Impact: Upstream schema or header changes can silently break runtime behavior.
-- Migration plan: Keep high-signal fixtures from real responses, add contract tests for parsing and header generation, and centralize version/header constants.
+**Very small dependency surface with old Go target:**
+- Risk: `go.mod` targets Go 1.21 while local validation ran under Go 1.22; Docker builds from `golang:1.21-alpine`.
+- Impact: Race behavior and standard-library HTTP/runtime behavior should be validated against the production builder version, not just the local toolchain.
+- Migration plan: Pin and test one Go version in CI and Docker. Upgrade `go.mod` and Docker builder together when adopting a newer runtime.
 
 ## Missing Critical Features
 
-**No CSRF/session model for admin:**
-- Problem: Admin auth is a raw shared password sent as a custom header or cookie.
-- Blocks: Safer browser admin exposure, least-privilege admin operations, and auditability.
+**No first-run setup gate:**
+- Problem: The app can start with `changeme`, public bind, and optional client API keys.
+- Blocks: Safe internet-facing deployments without an external reverse proxy and secret-management wrapper.
 
-**No automated CI configuration detected:**
-- Problem: Tests pass locally with `go test ./...`, but no CI workflow file is visible in the scanned tree.
-- Blocks: Automatic regression detection for PRs, dependency updates, and race/security checks.
+**No durable audit trail for sensitive admin actions:**
+- Problem: Credential import, full account export, settings changes, request-log clearing, and account deletes are not written to a durable audit log.
+- Blocks: Operational forensics after accidental credential export or malicious admin access.
 
-**No backup/restore workflow for config:**
-- Problem: Config corruption protection and structured backups are not implemented around `data/config.json`.
-- Blocks: Safe operation with many accounts and frequent background writes.
-
-**No request body size limits:**
-- Problem: Handlers decode request bodies directly with `json.NewDecoder(r.Body)` and admin credential import accepts batch input without an explicit size cap.
-- Blocks: Predictable memory usage under malformed or abusive requests.
+**No built-in secret encryption or rotation workflow:**
+- Problem: Refresh tokens and client secrets are plain JSON fields and rotation is manual through admin APIs.
+- Blocks: Meeting stricter secret-handling requirements for shared deployments.
 
 ## Test Coverage Gaps
 
-**Security behavior:**
-- What's not tested: Default password refusal/warning, CORS policy, admin session handling, API key redaction, account secret export guardrails, and XSS escaping in admin-rendered fields.
-- Files: `proxy/handler.go`, `web/index.html`, `config/config.go`
-- Risk: Security regressions can ship while `go test ./...` passes.
+**Race-clean concurrency coverage:**
+- What's not tested: The suite is not race-clean for token refresh and model admission pressure paths.
+- Files: `proxy/handler.go`, `pool/account.go`, `proxy/opus_gate.go`
+- Risk: Data races can produce inconsistent token state, stale routing decisions, or corrupted pressure counters under load.
 - Priority: High
 
-**Race detector coverage:**
-- What's not tested: Concurrent admin updates, token refresh, pool reloads, request stats, cooldown persistence, and background refresh scheduling under `go test -race`.
-- Files: `pool/account.go`, `proxy/handler.go`, `config/config.go`, `proxy/account_refresh.go`, `proxy/account_health.go`
-- Risk: Data races or deadlocks appear only under production concurrency.
+**Body-size and abuse tests:**
+- What's not tested: Oversized request bodies for generation and admin endpoints.
+- Files: `proxy/handler.go`
+- Risk: A client can force memory growth before payload guards reject or trim.
 - Priority: High
 
-**Config durability:**
-- What's not tested: Partial writes, invalid JSON recovery, permission failures, concurrent saves, and missing-account update errors.
-- Files: `config/config.go`, `config/config_test.go`
-- Risk: A crash or disk issue can lose all account credentials.
-- Priority: High
-
-**Admin frontend behavior:**
-- What's not tested: Browser login/session behavior, settings forms preserving unrelated values, account rendering escaping, export/reveal flows, proxy URL editing, prompt filter editing, and mobile layout.
-- Files: `web/index.html`, `proxy/handler_test.go`
-- Risk: UI regressions and client-side security bugs are missed by backend-only tests.
+**Browser/admin security tests:**
+- What's not tested: Admin session storage behavior, CSRF behavior, CORS scoping, and masking of sensitive settings.
+- Files: `web/index.html`, `proxy/handler.go`
+- Risk: Admin credentials and API keys are easier to exfiltrate if the admin origin is compromised.
 - Priority: Medium
 
-**Real upstream compatibility:**
-- What's not tested: Automated live or recorded contract validation for Kiro streaming events, model list responses, OIDC flows, Builder ID polling, and SSO token imports.
-- Files: `proxy/kiro.go`, `proxy/kiro_api.go`, `auth/iam_sso.go`, `auth/builderid.go`, `auth/oidc.go`, `auth/sso_token.go`
-- Risk: Upstream changes can break auth or generation paths without local test failures.
+**Live upstream parity evidence:**
+- What's not tested: Official upstream parity for count-tokens, max-token-zero cache warmup, assistant prefill, and fine-grained partial tool streaming.
+- Files: `docs/claude-code-compatibility-matrix.md`, `proxy/handler.go`, `proxy/claude_sse_writer.go`
+- Risk: Local compatibility can drift from official Anthropic behavior.
 - Priority: Medium
 
 ---
 
-*Concerns audit: 2026-05-15*
+*Concerns audit: 2026-05-21*

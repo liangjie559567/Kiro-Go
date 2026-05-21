@@ -1,0 +1,4 @@
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[     161ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://kiro.cgtall.com/admin:0
+[  548743ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://kiro.cgtall.com/admin/api/fleet/readiness?model=claude-opus-4-7:0

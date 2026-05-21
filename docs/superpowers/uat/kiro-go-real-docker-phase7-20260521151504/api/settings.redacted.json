@@ -1,0 +1,26 @@
+{
+  "allowOverUsage": true,
+  "apiKey": "[REDACTED]",
+  "clientApiKeys": "[REDACTED]",
+  "clientIPAllowlist": null,
+  "host": "0.0.0.0",
+  "modelAdmission": {
+    "default": {
+      "maxConcurrent": 16,
+      "maxWaiting": 300
+    },
+    "models": {
+      "claude-opus-4.7": {
+        "maxConcurrent": 10,
+        "maxWaiting": 300
+      },
+      "claude-sonnet-4.5": {
+        "maxConcurrent": 8,
+        "maxWaiting": 300
+      }
+    }
+  },
+  "modelMappings": null,
+  "port": 8080,
+  "requireApiKey": "[REDACTED]"
+}

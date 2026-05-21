@@ -1,0 +1,24 @@
+{
+  "settings": {
+    "enabled": true,
+    "intervalMinutes": 30,
+    "scope": "all"
+  },
+  "status": {
+    "running": false,
+    "lastStartedAt": 1779358819,
+    "lastFinishedAt": 1779358842,
+    "nextRunAt": 1779360642,
+    "lastSuccess": 24,
+    "lastFailed": 0,
+    "lastSkipped": false,
+    "lastSkippedCount": 0,
+    "lastQuietSkipped": 0
+  },
+  "ui": {
+    "running": "否",
+    "lastRun": "5/21/2026, 6:20:42 PM",
+    "nextRun": "5/21/2026, 6:50:42 PM",
+    "lastResult": "成功: 24, 失败: 0, 静默模式跳过: 0"
+  }
+}

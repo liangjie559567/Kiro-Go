@@ -1,0 +1,1537 @@
+{
+  "status": {
+    "status": 200,
+    "body": {
+      "accounts": 24,
+      "available": 20,
+      "failedRequests": 9516,
+      "successRequests": 6993,
+      "totalCredits": 1982.6843140801618,
+      "totalRequests": 16509,
+      "totalTokens": 226114605,
+      "uptime": 90
+    }
+  },
+  "compat": {
+    "status": 200,
+    "body": {
+      "baseUrl": "http://127.0.0.1:8080",
+      "capabilities": {
+        "adaptiveModelAdmission": true,
+        "anthropicMessages": true,
+        "countTokens": true,
+        "fineGrainedToolStreaming": true,
+        "modelAdmission": true,
+        "models": true,
+        "openAIChat": true,
+        "openAIResponses": true,
+        "promptCacheControl": true,
+        "promptCaching": true,
+        "requestLogs": true,
+        "streaming": true,
+        "thinking": true,
+        "toolReferences": true,
+        "toolSearch": true,
+        "toolUse": true,
+        "vision": true,
+        "webSearch": true,
+        "webSearch20260209": true
+      },
+      "endpoints": [
+        "/v1/messages",
+        "/v1/messages/count_tokens",
+        "/v1/models",
+        "/v1/chat/completions",
+        "/v1/responses",
+        "/v1/stats"
+      ],
+      "environment": {
+        "ANTHROPIC_API_KEY": "[REDACTED_API_KEY]",
+        "ANTHROPIC_AUTH_TOKEN": "[REDACTED_API_KEY]",
+        "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+        "CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING": "1",
+        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+        "ENABLE_TOOL_SEARCH": "true"
+      },
+      "modelAdmission": {
+        "default": {
+          "maxConcurrent": 16,
+          "maxWaiting": 300
+        },
+        "models": {
+          "claude-opus-4.7": {
+            "maxConcurrent": 10,
+            "maxWaiting": 300
+          },
+          "claude-sonnet-4.5": {
+            "maxConcurrent": 8,
+            "maxWaiting": 300
+          }
+        }
+      },
+      "sub2apiNotes": [
+        "Keep sub2api user/account concurrency above expected Claude Code parallelism so requests are not rejected before reaching Kiro-Go.",
+        "For local production validation, preserve the existing sub2api upstream base_url and API key; this endpoint is informational only.",
+        "Use Kiro-Go request logs to separate downstream admission failures from upstream Kiro errors."
+      ]
+    }
+  },
+  "readiness": {
+    "status": 200,
+    "body": {
+      "capabilities": {
+        "assistantPrefill": {
+          "claudeCodeCompatibility": {
+            "mode": "emulated_text_prefill",
+            "proof": "text prefill conversion is implemented",
+            "status": "EMULATED_PASS"
+          },
+          "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+          "evidence": {
+            "mode": "emulated_text_prefill",
+            "proof": "no recent assistant text prefill request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "emulated_text_prefill",
+            "proof": "native upstream prefill is not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "countTokens": {
+          "claudeCodeCompatibility": {
+            "mode": "estimated",
+            "proof": "count_tokens endpoint is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible estimated token counting; official exact count is not proven",
+          "evidence": {
+            "mode": "estimated",
+            "proof": "no recent count_tokens request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "estimated",
+            "proof": "no upstream exact count_tokens evidence",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "fineGrainedToolStreaming": {
+          "claudeCodeCompatibility": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "Anthropic SSE input_json_delta writer is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+          "evidence": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "no recent fine-grained tool stream in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "upstream partial tool input deltas are not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "maxTokensZero": {
+          "claudeCodeCompatibility": {
+            "mode": "local_zero_output",
+            "proof": "local zero-output response shape is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible zero-output response; official cache warmup is not proven",
+          "evidence": {
+            "mode": "local_zero_output",
+            "proof": "no recent max_tokens=0 request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "local_zero_output",
+            "proof": "no upstream cache warmup evidence",
+            "status": "BLOCKED_BY_UPSTREAM"
+          },
+          "status": "PARTIAL"
+        },
+        "messages": {
+          "detail": "/v1/messages is implemented",
+          "status": "PASS"
+        },
+        "opus47AdaptiveAdmission": {
+          "detail": "Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency",
+          "status": "PASS"
+        },
+        "toolReference": {
+          "detail": "tool_reference is accepted and materialized when relevant",
+          "status": "PASS"
+        },
+        "toolSchemaValidation": {
+          "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+          "status": "PASS"
+        }
+      },
+      "examples": [],
+      "lastSeen": "",
+      "recentAdmissionPressure": false,
+      "recentClaudeCode": false,
+      "recentContextReminders": [],
+      "recentFineGrainedToolStreaming": false,
+      "recentMCPTools": false,
+      "recentOrphanedToolResults": false,
+      "recentParentAgents": false,
+      "recentResponsesRestore": false,
+      "recentSuppressedToolUses": false,
+      "recentToolReferences": false,
+      "recentToolResultImages": false,
+      "recentToolResultTurns": false,
+      "recentToolTrimming": false,
+      "recentUnsupportedBlocks": false
+    }
+  },
+  "modelReadiness": {
+    "status": 200,
+    "body": {
+      "accounts": [
+        {
+          "cooldownRemainingSeconds": 52,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": false,
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 53,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": false,
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 56,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": false,
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 57,
+          "cooldownSource": "account",
+          "coolingDown": true,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": false,
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "lastFailureReason": "temporary_limited",
+          "listsModel": true,
+          "reason": "temporary limited account cooling down",
+          "schedulable": false
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "c***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "l***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "v***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "w***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "s***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "w***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "m***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "r***@gmail.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "h***@googlzr.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "f***@googlzr.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "i***@googlzr.com",
+          "enabled": true,
+          "healthy": true,
+          "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        }
+      ],
+      "admissionPressure": {
+        "active": true,
+        "activeRequests": 1,
+        "circuitState": "open",
+        "effectiveMaxConcurrent": 1,
+        "expiresInMs": 330,
+        "lastPressureAt": "2026-05-21T10:40:14.63794005Z",
+        "lastPressureReason": "rate_limited_or_model_capacity",
+        "maxConcurrent": 10,
+        "model": "claude-opus-4-7",
+        "queueDepth": 0,
+        "recentCapacityErrors": 4,
+        "recentQueueTimeouts": 0,
+        "recentSuccesses": 0,
+        "reducedConcurrency": true,
+        "retryAfterSeconds": 1,
+        "score": 6
+      },
+      "capabilities": {
+        "thinking": true,
+        "toolUse": true,
+        "vision": true,
+        "webSearch": true
+      },
+      "listedByGateway": true,
+      "mappedModel": "claude-opus-4.7",
+      "reason": "model listed by Kiro-Go model cache",
+      "requestedModel": "claude-opus-4-7",
+      "routingReason": "schedulable accounts available",
+      "summary": {
+        "accountsEvaluated": 24,
+        "generationBlocked": 4,
+        "locallySchedulable": 20,
+        "modelListed": true,
+        "riskGroupCoolingDown": 0
+      },
+      "thinking": false,
+      "thinkingVariant": false
+    }
+  },
+  "fleetReadiness": {
+    "status": 200,
+    "body": {
+      "accounts": [
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "i***@googlzr.com",
+          "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "glm-5",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "v***@gmail.com",
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "qwen3-coder-next",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "f***@googlzr.com",
+          "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "s***@gmail.com",
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "glm-5",
+            "claude-opus-4.6",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "auto"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "qwen3-coder-next",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "auto",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "claude-opus-4.6",
+            "claude-opus-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-opus-4.6",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "auto",
+            "minimax-m2.5",
+            "claude-sonnet-4.6"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "h***@googlzr.com",
+          "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.6",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "glm-5",
+            "claude-sonnet-4.6",
+            "claude-opus-4.7",
+            "claude-sonnet-4.5",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "auto",
+            "claude-opus-4.6",
+            "claude-sonnet-4.6",
+            "claude-opus-4.7",
+            "claude-haiku-4.5",
+            "glm-5",
+            "minimax-m2.5",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.5",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "claude-opus-4.7",
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "auto",
+            "claude-opus-4.6",
+            "glm-5",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "glm-5",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "claude-haiku-4.5",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "deepseek-3.2"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "w***@gmail.com",
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "glm-5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "m***@gmail.com",
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.7",
+            "claude-opus-4.6",
+            "claude-haiku-4.5",
+            "glm-5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "w***@gmail.com",
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4",
+            "claude-opus-4.7",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "glm-5",
+            "auto",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "claude-opus-4.6",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "claude-opus-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.6",
+            "claude-sonnet-4",
+            "claude-sonnet-4.5",
+            "qwen3-coder-next",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "glm-5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "c***@gmail.com",
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.5",
+            "glm-5",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.7",
+            "deepseek-3.2",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "l***@gmail.com",
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "auto",
+            "claude-opus-4.6",
+            "deepseek-3.2",
+            "glm-5",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5",
+            "auto",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.5",
+            "claude-sonnet-4.5",
+            "claude-haiku-4.5",
+            "minimax-m2.1",
+            "deepseek-3.2",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "claude-opus-4.6",
+            "qwen3-coder-next"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "r***@gmail.com",
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "lastFailureReason": "unknown",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.5",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "glm-5",
+            "claude-haiku-4.5",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "minimax-m2.1"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 0,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 0,
+            "score": 100
+          },
+          "weight": 2
+        },
+        {
+          "cooldownRemainingSeconds": 54,
+          "cooldownRetryAt": "2026-05-21T10:41:10.536459107Z",
+          "coolingDown": true,
+          "eligible": false,
+          "email": "r***@gmail.com",
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "lastFailureReason": "temporary_limited",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-21T10:40:13.536273899Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.5",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "qwen3-coder-next",
+            "claude-opus-4.5",
+            "claude-opus-4.6",
+            "claude-sonnet-4.6",
+            "auto",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "glm-5",
+            "claude-opus-4.7"
+          ],
+          "reason": "cooling_down",
+          "reasonCodes": [
+            "cooling_down"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 1779360010,
+            "score": 0
+          },
+          "weight": 2
+        },
+        {
+          "cooldownRemainingSeconds": 53,
+          "cooldownRetryAt": "2026-05-21T10:41:09.752814285Z",
+          "coolingDown": true,
+          "eligible": false,
+          "email": "r***@gmail.com",
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "lastFailureReason": "temporary_limited",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-21T10:40:12.752460739Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "auto",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "minimax-m2.1",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "claude-opus-4.7"
+          ],
+          "reason": "cooling_down",
+          "reasonCodes": [
+            "cooling_down"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 1779360009,
+            "score": 0
+          },
+          "weight": 2
+        },
+        {
+          "cooldownRemainingSeconds": 58,
+          "cooldownRetryAt": "2026-05-21T10:41:14.637945481Z",
+          "coolingDown": true,
+          "eligible": false,
+          "email": "r***@gmail.com",
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "lastFailureReason": "temporary_limited",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-21T10:40:17.637731767Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "glm-5",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5",
+            "claude-haiku-4.5",
+            "qwen3-coder-next",
+            "auto",
+            "claude-opus-4.5",
+            "claude-sonnet-4"
+          ],
+          "reason": "cooling_down",
+          "reasonCodes": [
+            "cooling_down",
+            "model_breaker_open"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 1779360014,
+            "score": 0
+          },
+          "weight": 2
+        },
+        {
+          "cooldownRemainingSeconds": 57,
+          "cooldownRetryAt": "2026-05-21T10:41:13.442202059Z",
+          "coolingDown": true,
+          "eligible": false,
+          "email": "r***@gmail.com",
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "lastFailureReason": "temporary_limited",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-21T10:40:16.440860704Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "claude-opus-4.6",
+            "qwen3-coder-next",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "auto",
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "glm-5",
+            "claude-opus-4.7"
+          ],
+          "reason": "cooling_down",
+          "reasonCodes": [
+            "cooling_down"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 0,
+            "avgLatencyMs": 0,
+            "lastUpdatedAt": 1779360013,
+            "score": 0
+          },
+          "weight": 2
+        }
+      ],
+      "admissionEffectiveConcurrency": 1,
+      "admissionPressureScore": 6,
+      "authBlockedAccounts": 0,
+      "autoRefresh": {
+        "running": false,
+        "lastStartedAt": 0,
+        "lastFinishedAt": 0,
+        "nextRunAt": 1779361741,
+        "lastSuccess": 0,
+        "lastFailed": 0,
+        "lastSkipped": false,
+        "lastSkippedCount": 0,
+        "lastQuietSkipped": 0
+      },
+      "circuitState": "open",
+      "contentSuccessRate": 1,
+      "contractVersion": "opus-4.7-readiness.1",
+      "coolingDownAccounts": 4,
+      "currentInFlight": 1,
+      "enabledAccounts": 24,
+      "healthCheck": {
+        "running": false,
+        "lastStartedAt": 0,
+        "lastFinishedAt": 0,
+        "nextRunAt": 1779360227,
+        "lastSuccess": 0,
+        "lastFailed": 0,
+        "lastDisabled": 0,
+        "lastSkipped": false,
+        "lastSkippedCount": 0,
+        "lastQuietSkipped": 0
+      },
+      "lastPressureAt": "2026-05-21T10:40:14.63794005Z",
+      "lastPressureReason": "rate_limited_or_model_capacity",
+      "locallySchedulableAccounts": 20,
+      "mappedModel": "claude-opus-4.7",
+      "model": "claude-opus-4-7",
+      "modelBreakerBlockedAccounts": 1,
+      "modelListedAccounts": 24,
+      "notes": [
+        "sub2api should not send new Opus 4.7 calls until retryAfterSeconds or schedulable capacity recovers",
+        "model circuit is open due to recent upstream pressure",
+        "some accounts are cooling down and must not be probed aggressively"
+      ],
+      "quotaBlockedAccounts": 0,
+      "reasonCodes": [
+        "admission_circuit_open",
+        "cooling_down",
+        "model_breaker_open"
+      ],
+      "recentContentRequests": 0,
+      "recentEmptyCompletions": 0,
+      "recentStableFallbacks": 0,
+      "recommendedAction": "retry_after_or_wait_for_recovery",
+      "recommendedQueueWaitSeconds": 120,
+      "requestedModel": "claude-opus-4-7",
+      "retryAfterSeconds": 1,
+      "safeConcurrency": 0,
+      "status": "blocked",
+      "strategy": "health",
+      "summary": {
+        "authBlocked": 0,
+        "coolingDown": 4,
+        "disabled": 0,
+        "eligible": 20,
+        "enabled": 24,
+        "modelBreakerOpen": 1,
+        "modelNotListed": 0,
+        "quotaBlocked": 0,
+        "total": 24
+      },
+      "temporaryLimitedAccounts": 4
+    }
+  },
+  "requestLogs": {
+    "status": 200,
+    "body": {
+      "logs": []
+    }
+  }
+}

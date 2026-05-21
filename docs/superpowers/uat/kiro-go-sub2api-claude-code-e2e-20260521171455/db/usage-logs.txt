@@ -1,0 +1,5 @@
+  id   |          created_at           | api_key_id | account_id | group_id |       model       |  requested_model  |  upstream_model   | stream | duration_ms | first_token_ms | inbound_endpoint | upstream_endpoint |                request_id                
+-------+-------------------------------+------------+------------+----------+-------------------+-------------------+-------------------+--------+-------------+----------------+------------------+-------------------+------------------------------------------
+ 86546 | 2026-05-21 17:15:00.135086+08 |          6 |         24 |        1 | claude-sonnet-4-6 | claude-sonnet-4-6 | claude-sonnet-4.6 | t      |        2492 |           2491 | /v1/messages     | /v1/messages      | req_0f88e5ba-9f55-47be-a458-1b7450cae6ca
+ 86545 | 2026-05-21 17:14:57.614728+08 |          6 |         24 |        1 | claude-sonnet-4-6 | claude-sonnet-4-6 | claude-sonnet-4.6 | f      |        2410 |                | /v1/messages     | /v1/messages      | req_45cacce4-e377-4090-b417-35134fa31ab8
+

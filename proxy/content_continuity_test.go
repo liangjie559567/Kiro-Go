@@ -66,7 +66,7 @@ func TestContentContinuityGateRejectsWhenQueueFull(t *testing.T) {
 	}
 }
 
-func TestStableContentContinuityIgnoresOpusRequestBudgetDeadline(t *testing.T) {
+func TestStableContentContinuityCanRespectOpusRequestBudgetDeadline(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -81,8 +81,25 @@ func TestStableContentContinuityIgnoresOpusRequestBudgetDeadline(t *testing.T) {
 	if got != 2*time.Second {
 		t.Fatalf("stable wait = %s, want configured 2s", got)
 	}
-	deadlineLimited := contentContinuityWaitDuration("claude-opus-4.7", time.Now().Add(20*time.Millisecond))
-	if deadlineLimited >= got {
+	deadlineLimited := stableContentContinuityWaitDurationUntil("claude-opus-4.7", time.Now().Add(20*time.Millisecond))
+	if deadlineLimited <= 0 || deadlineLimited >= got {
 		t.Fatalf("deadline-limited wait = %s, expected below stable wait %s", deadlineLimited, got)
+	}
+}
+
+func TestStableContentContinuityCapsDefaultOpusWaitForClaudeCode(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 120
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	got := stableContentContinuityWaitDurationUntil("claude-opus-4.7", time.Now().Add(4*time.Minute))
+	if got != maxStableClaudeCapacityWait {
+		t.Fatalf("stable opus wait = %s, want cap %s", got, maxStableClaudeCapacityWait)
 	}
 }

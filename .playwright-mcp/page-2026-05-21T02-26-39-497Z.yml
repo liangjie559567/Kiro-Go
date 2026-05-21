@@ -1,0 +1,478 @@
+- generic [ref=e16]:
+  - generic [ref=e17]:
+    - heading "Kiro-Go" [level=1] [ref=e18]:
+      - img [ref=e19]
+      - text: Kiro-Go
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - button "中文" [ref=e23] [cursor=pointer]
+        - button "EN" [ref=e24] [cursor=pointer]
+      - generic [ref=e25]: 运行中
+      - generic [ref=e26] [cursor=pointer]: v1.0.8
+      - button "退出登录" [ref=e27] [cursor=pointer]
+  - generic [ref=e28]:
+    - generic [ref=e29]:
+      - generic [ref=e30]: "27"
+      - generic [ref=e31]: 账号
+    - generic [ref=e32]:
+      - generic [ref=e33]: "16082"
+      - generic [ref=e34]: 请求
+    - generic [ref=e35]:
+      - generic [ref=e36]: "6699"
+      - generic [ref=e37]: 成功
+    - generic [ref=e38]:
+      - generic [ref=e39]: "9383"
+      - generic [ref=e40]: 失败
+    - generic [ref=e41]:
+      - generic [ref=e42]: 221.0M
+      - generic [ref=e43]: Tokens
+    - generic [ref=e44]:
+      - generic [ref=e45]: "1940.5"
+      - generic [ref=e46]: Credits
+  - generic [ref=e47]:
+    - generic [ref=e48] [cursor=pointer]: 账号
+    - generic [ref=e49] [cursor=pointer]: 设置
+    - generic [ref=e50] [cursor=pointer]: API
+  - generic [ref=e1928]:
+    - generic [ref=e1929]:
+      - generic [ref=e1931]: API 设置
+      - generic [ref=e1933]:
+        - generic [ref=e1934]:
+          - checkbox "启用 API Key 验证" [checked]
+        - generic [ref=e1936]: 启用 API Key 验证
+      - generic [ref=e1937]:
+        - generic [ref=e1938]: API Key
+        - generic [ref=e1939]:
+          - textbox "留空则不验证" [ref=e1940]: sk-REDACTED
+          - button "随机生成" [ref=e1941] [cursor=pointer]
+      - generic [ref=e1942]:
+        - generic [ref=e1943]: 客户端 API Keys
+        - 'textbox "每行一个 Key；以 #disabled# 开头可临时禁用" [ref=e1944]'
+        - generic [ref=e1945]: "兼容旧 API Key。开启验证后，任意未禁用 Key 都可用于 Authorization: Bearer。"
+      - generic [ref=e1946]:
+        - generic [ref=e1947]: 来源 IP 白名单
+        - textbox "留空不限制 127.0.0.1 10.0.0.0/8" [ref=e1948]:
+          - /placeholder: "留空不限制\n127.0.0.1\n10.0.0.0/8"
+        - generic [ref=e1949]: 留空保持现有开放行为。直连本机用 127.0.0.1；Docker 下游需加入容器 IP 或 Docker 网段。
+      - generic [ref=e1950]:
+        - generic [ref=e1951]: 模型映射规则
+        - textbox "my-opus => claude-opus-4.7 my-balanced => claude-sonnet-4.6, claude-opus-4.7" [ref=e1952]:
+          - /placeholder: "my-opus => claude-opus-4.7\nmy-balanced => claude-sonnet-4.6, claude-opus-4.7"
+        - generic [ref=e1953]: 格式：源模型 => 目标模型1,目标模型2。多个目标按轮询映射。
+      - button "保存设置" [ref=e1954] [cursor=pointer]
+    - generic [ref=e1955]:
+      - generic [ref=e1957]: 自动刷新账号
+      - generic [ref=e1959]:
+        - generic [ref=e1960]:
+          - checkbox "启用自动刷新" [checked]
+        - generic [ref=e1962]: 启用自动刷新
+      - generic [ref=e1963]:
+        - generic [ref=e1964]: 刷新间隔（分钟）
+        - spinbutton [ref=e1965]: "5"
+        - generic [ref=e1966]: 范围 5-1440 分钟，管理页面关闭后仍会在后端执行
+      - generic [ref=e1967]:
+        - generic [ref=e1968]: 刷新范围
+        - combobox [ref=e1969]:
+          - option "仅启用账号"
+          - option "所有账号" [selected]
+      - generic [ref=e1970]:
+        - generic [ref=e1971]: "正在运行: 否"
+        - generic [ref=e1972]: "上次执行: -"
+        - generic [ref=e1973]: "下次执行: 5/21/2026, 10:27:34 AM"
+        - generic [ref=e1974]: "上次结果: 成功: 0, 失败: 0"
+      - button "保存自动刷新设置" [ref=e1975] [cursor=pointer]
+    - generic [ref=e1976]:
+      - generic [ref=e1978]: 账号健康检测
+      - generic [ref=e1980]:
+        - generic [ref=e1981]:
+          - checkbox "启用定时健康检测" [checked]
+        - generic [ref=e1983]: 启用定时健康检测
+      - generic [ref=e1984]:
+        - generic [ref=e1985]: 检测间隔（分钟）
+        - spinbutton [ref=e1986]: "5"
+        - generic [ref=e1987]: 范围 5-1440 分钟，仅检测启用账号；通过加载可用模型判断账号健康状态
+      - generic [ref=e1989]:
+        - generic [ref=e1990]:
+          - checkbox "检测失败时自动禁用账号" [checked]
+        - generic [ref=e1992]: 检测失败时自动禁用账号
+      - generic [ref=e1993]:
+        - generic [ref=e1994]: "正在运行: 否"
+        - generic [ref=e1995]: "上次执行: -"
+        - generic [ref=e1996]: "下次执行: 5/21/2026, 10:27:25 AM"
+        - generic [ref=e1997]: "上次结果: 成功: 0, 失败: 0, 已禁用: 0"
+      - button "保存健康检测设置" [ref=e1998] [cursor=pointer]
+    - generic [ref=e1999]:
+      - generic [ref=e2001]: 用量控制
+      - generic [ref=e2002]:
+        - generic [ref=e2003]:
+          - generic [ref=e2004]:
+            - checkbox "允许超额使用" [checked]
+          - generic [ref=e2006]: 允许超额使用
+        - generic [ref=e2007]: 开启后，即使账号额度用尽也会继续使用该账号处理请求，不再因余额不足而报错
+      - button "保存设置" [ref=e2008] [cursor=pointer]
+    - generic [ref=e2009]:
+      - generic [ref=e2011]: Thinking 模式设置
+      - generic [ref=e2012]:
+        - generic [ref=e2013]: 触发后缀
+        - textbox "-thinking" [ref=e2014]
+        - generic [ref=e2015]: 模型名称加此后缀即启用思考模式，如 claude-sonnet-4.5-thinking
+      - generic [ref=e2016]:
+        - generic [ref=e2017]: OpenAI API 输出格式
+        - combobox [ref=e2018]:
+          - option "reasoning_content (DeepSeek)"
+          - option "<thinking> (Claude)"
+          - option "<think> (OpenAI)" [selected]
+      - generic [ref=e2019]:
+        - generic [ref=e2020]: Claude API 输出格式
+        - combobox [ref=e2021]:
+          - option "<thinking> (Claude)" [selected]
+          - option "<think> (OpenAI)"
+          - option "直接输出 (无标签)"
+      - button "保存 Thinking 设置" [ref=e2022] [cursor=pointer]
+    - generic [ref=e2023]:
+      - generic [ref=e2025]: Kiro 端点设置
+      - generic [ref=e2026]:
+        - generic [ref=e2027]: 首选端点
+        - combobox [ref=e2028]:
+          - option "自动选择" [selected]
+          - option "Kiro IDE"
+          - option "CodeWhisperer"
+          - option "AmazonQ"
+        - generic [ref=e2029]: 选择首选端点，自动选择模式下会根据可用性自动选择端点
+      - generic [ref=e2030]:
+        - generic [ref=e2031] [cursor=pointer]:
+          - checkbox "端点不可用时自动切换" [checked] [ref=e2032]
+          - generic [ref=e2033]: 端点不可用时自动切换
+        - generic [ref=e2034]: 关闭后，仅使用选定的端点，不会自动切换到其他端点
+      - button "保存端点设置" [ref=e2035] [cursor=pointer]
+    - generic [ref=e2036]:
+      - generic [ref=e2038]: 账号调度策略
+      - generic [ref=e2039]:
+        - generic [ref=e2040]: 调度策略
+        - combobox [ref=e2041]:
+          - option "健康优先" [selected]
+          - option "最少连接"
+          - option "轮询"
+        - generic [ref=e2042]: 健康优先会综合连接数、成功率和延迟；最少连接适合压测；轮询保留权重顺序。
+      - button "保存调度策略" [ref=e2043] [cursor=pointer]
+    - generic [ref=e2044]:
+      - generic [ref=e2046]: 管理密码
+      - generic [ref=e2047]:
+        - generic [ref=e2048]: 新密码
+        - textbox "输入新密码" [ref=e2049]
+      - button "修改密码" [ref=e2050] [cursor=pointer]
+    - generic [ref=e2051]:
+      - generic [ref=e2053]: 出站代理设置
+      - generic [ref=e2054]:
+        - generic [ref=e2055]: 代理类型
+        - combobox [ref=e2056]:
+          - option "直连（不使用代理）" [selected]
+          - option "SOCKS5"
+          - option "HTTP"
+      - button "保存代理设置" [ref=e2057] [cursor=pointer]
+    - generic [ref=e2058]:
+      - generic [ref=e2060]: System Prompt 过滤
+      - generic [ref=e2061]:
+        - generic [ref=e2062]: 内置过滤器
+        - generic [ref=e2063]:
+          - generic [ref=e2064]:
+            - generic [ref=e2065]:
+              - generic [ref=e2066]:
+                - checkbox "替换 Claude Code CLI 系统提示" [checked]
+              - generic [ref=e2068]: 替换 Claude Code CLI 系统提示
+            - generic [ref=e2069]: 检测到 Claude Code 内置系统提示时，替换为精简的后端提示词，避免泄露大量 CLI 指令到请求体。
+          - generic [ref=e2070]:
+            - generic [ref=e2071]:
+              - generic [ref=e2072]:
+                - checkbox "过滤环境噪音行" [checked]
+              - generic [ref=e2074]: 过滤环境噪音行
+            - generic [ref=e2075]: 移除系统提示中注入的环境变量、Git 状态、最近提交等噪音内容。
+          - generic [ref=e2076]:
+            - generic [ref=e2077]:
+              - generic [ref=e2078]:
+                - checkbox "移除边界标记" [checked]
+              - generic [ref=e2080]: 移除边界标记
+            - generic [ref=e2081]: 移除 --- SYSTEM PROMPT --- / --- END SYSTEM PROMPT --- 等边界标记行。
+      - generic [ref=e2082]:
+        - generic [ref=e2083]: 自定义过滤规则
+        - generic [ref=e2084]: 暂无自定义规则
+        - generic [ref=e2085]:
+          - button "+ 正则替换规则" [ref=e2086] [cursor=pointer]
+          - button "+ 行级过滤规则" [ref=e2087] [cursor=pointer]
+      - button "保存过滤设置" [ref=e2088] [cursor=pointer]
+    - generic [ref=e2089]:
+      - generic [ref=e2091]: 统计
+      - button "重置统计" [ref=e2092] [cursor=pointer]
+    - generic [ref=e2093]:
+      - generic [ref=e2094]:
+        - generic [ref=e2095]: 最近请求日志
+        - generic [ref=e2096]:
+          - button "刷新" [ref=e2097] [cursor=pointer]
+          - button "清空" [ref=e2098] [cursor=pointer]
+      - generic [ref=e2099]: 总数 17，成功 17，失败 0，平均耗时 12284ms，输入 216.5K，输出 3.1K
+      - table [ref=e2101]:
+        - rowgroup [ref=e2102]:
+          - row "时间 模型 账号/区域 状态 耗时 Tokens 错误" [ref=e2103]:
+            - columnheader "时间" [ref=e2104]
+            - columnheader "模型" [ref=e2105]
+            - columnheader "账号/区域" [ref=e2106]
+            - columnheader "状态" [ref=e2107]
+            - columnheader "耗时" [ref=e2108]
+            - columnheader "Tokens" [ref=e2109]
+            - columnheader "错误" [ref=e2110]
+        - rowgroup [ref=e2111]:
+          - row "5/21/2026, 10:26:28 AM claude-opus-4.7 route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=60 pressure=false strategy:health pressure:- 50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1 h:60 conn:1 lat:5808ms ok/fail:1/0 200 6330ms q:0ms admit:-ms limit:1 pressure:6 ft:5223ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 28484 / 172 -" [ref=e2112]:
+            - cell "5/21/2026, 10:26:28 AM" [ref=e2113]
+            - cell "claude-opus-4.7 route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=60 pressure=false strategy:health pressure:-" [ref=e2114]:
+              - text: claude-opus-4.7
+              - text: route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=60 pressure=false strategy:health pressure:-
+            - cell "50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1 h:60 conn:1 lat:5808ms ok/fail:1/0" [ref=e2115]:
+              - text: 50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1
+              - text: h:60 conn:1 lat:5808ms ok/fail:1/0
+            - cell "200" [ref=e2116]
+            - cell "6330ms q:0ms admit:-ms limit:1 pressure:6 ft:5223ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2117]:
+              - text: 6330ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:5223ms try:1 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "28484 / 172" [ref=e2118]
+            - cell "-" [ref=e2119]
+          - row "5/21/2026, 10:25:51 AM claude-opus-4.7 route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:- 50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 37021ms q:0ms admit:-ms limit:2 pressure:6 ft:5056ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 21979 / 192 -" [ref=e2120]:
+            - cell "5/21/2026, 10:25:51 AM" [ref=e2121]
+            - cell "claude-opus-4.7 route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-" [ref=e2122]:
+              - text: claude-opus-4.7
+              - text: route:selected account=50eaa97f-5fcd-47ed-8625-ef08b47df9b3 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-
+            - cell "50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2123]:
+              - text: 50eaa97f-5fcd-47ed-8625-ef08b47df9b3 / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2124]
+            - cell "37021ms q:0ms admit:-ms limit:2 pressure:6 ft:5056ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2125]:
+              - text: 37021ms
+              - text: q:0ms admit:-ms limit:2 pressure:6 ft:5056ms try:1 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "21979 / 192" [ref=e2126]
+            - cell "-" [ref=e2127]
+          - row "5/21/2026, 10:25:51 AM claude-opus-4-7 route:- strategy:- pressure:- - h:0 conn:0 lat:0ms ok/fail:0/0 200 0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 0 / 0 -" [ref=e2128]:
+            - cell "5/21/2026, 10:25:51 AM" [ref=e2129]
+            - cell "claude-opus-4-7 route:- strategy:- pressure:-" [ref=e2130]:
+              - text: claude-opus-4-7
+              - text: route:- strategy:- pressure:-
+            - cell "- h:0 conn:0 lat:0ms ok/fail:0/0" [ref=e2131]:
+              - text: "-"
+              - text: h:0 conn:0 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2132]
+            - cell "0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2133]:
+              - text: 0ms
+              - text: q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0
+              - text: shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "0 / 0" [ref=e2134]
+            - cell "-" [ref=e2135]
+          - row "5/21/2026, 10:25:42 AM claude-opus-4.7 route:selected account=ed9239cb-65ef-4970-941c-1d716127c8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true ed9239cb-65ef-4970-941c-1d716127c8cd / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 8386ms q:0ms admit:-ms limit:1 pressure:6 ft:4056ms try:4 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 16508 / 77 -" [ref=e2136]:
+            - cell "5/21/2026, 10:25:42 AM" [ref=e2137]
+            - cell "claude-opus-4.7 route:selected account=ed9239cb-65ef-4970-941c-1d716127c8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2138]:
+              - text: claude-opus-4.7
+              - text: route:selected account=ed9239cb-65ef-4970-941c-1d716127c8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "ed9239cb-65ef-4970-941c-1d716127c8cd / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2139]:
+              - text: ed9239cb-65ef-4970-941c-1d716127c8cd / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2140]
+            - cell "8386ms q:0ms admit:-ms limit:1 pressure:6 ft:4056ms try:4 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2141]:
+              - text: 8386ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:4056ms try:4 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "16508 / 77" [ref=e2142]
+            - cell "-" [ref=e2143]
+          - row "5/21/2026, 10:25:32 AM claude-opus-4.7 route:selected account=2980ad67-e95f-498f-a774-9e420b3f6f2f model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true 2980ad67-e95f-498f-a774-9e420b3f6f2f / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 9848ms q:0ms admit:-ms limit:1 pressure:6 ft:6105ms try:2 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 12786 / 286 -" [ref=e2144]:
+            - cell "5/21/2026, 10:25:32 AM" [ref=e2145]
+            - cell "claude-opus-4.7 route:selected account=2980ad67-e95f-498f-a774-9e420b3f6f2f model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2146]:
+              - text: claude-opus-4.7
+              - text: route:selected account=2980ad67-e95f-498f-a774-9e420b3f6f2f model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "2980ad67-e95f-498f-a774-9e420b3f6f2f / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2147]:
+              - text: 2980ad67-e95f-498f-a774-9e420b3f6f2f / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2148]
+            - cell "9848ms q:0ms admit:-ms limit:1 pressure:6 ft:6105ms try:2 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2149]:
+              - text: 9848ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:6105ms try:2 tool:1
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "12786 / 286" [ref=e2150]
+            - cell "-" [ref=e2151]
+          - row "5/21/2026, 10:25:20 AM claude-opus-4.7 route:selected account=61a48fab-58c1-49b0-957a-b4caf88b51d0 model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true 61a48fab-58c1-49b0-957a-b4caf88b51d0 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 11184ms q:0ms admit:-ms limit:1 pressure:6 ft:8204ms try:2 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 26218 / 240 -" [ref=e2152]:
+            - cell "5/21/2026, 10:25:20 AM" [ref=e2153]
+            - cell "claude-opus-4.7 route:selected account=61a48fab-58c1-49b0-957a-b4caf88b51d0 model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2154]:
+              - text: claude-opus-4.7
+              - text: route:selected account=61a48fab-58c1-49b0-957a-b4caf88b51d0 model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "61a48fab-58c1-49b0-957a-b4caf88b51d0 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2155]:
+              - text: 61a48fab-58c1-49b0-957a-b4caf88b51d0 / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2156]
+            - cell "11184ms q:0ms admit:-ms limit:1 pressure:6 ft:8204ms try:2 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2157]:
+              - text: 11184ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:8204ms try:2 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "26218 / 240" [ref=e2158]
+            - cell "-" [ref=e2159]
+          - row "5/21/2026, 10:25:19 AM claude-opus-4-7 route:- strategy:- pressure:- - h:0 conn:0 lat:0ms ok/fail:0/0 200 0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 0 / 0 -" [ref=e2160]:
+            - cell "5/21/2026, 10:25:19 AM" [ref=e2161]
+            - cell "claude-opus-4-7 route:- strategy:- pressure:-" [ref=e2162]:
+              - text: claude-opus-4-7
+              - text: route:- strategy:- pressure:-
+            - cell "- h:0 conn:0 lat:0ms ok/fail:0/0" [ref=e2163]:
+              - text: "-"
+              - text: h:0 conn:0 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2164]
+            - cell "0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2165]:
+              - text: 0ms
+              - text: q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0
+              - text: shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "0 / 0" [ref=e2166]
+            - cell "-" [ref=e2167]
+          - row "5/21/2026, 10:25:11 AM claude-opus-4.7 route:selected account=54a00e6f-a582-4083-a197-ea2a1a0cb847 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true 54a00e6f-a582-4083-a197-ea2a1a0cb847 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 8300ms q:0ms admit:-ms limit:1 pressure:6 ft:5355ms try:3 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 16439 / 81 -" [ref=e2168]:
+            - cell "5/21/2026, 10:25:11 AM" [ref=e2169]
+            - cell "claude-opus-4.7 route:selected account=54a00e6f-a582-4083-a197-ea2a1a0cb847 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2170]:
+              - text: claude-opus-4.7
+              - text: route:selected account=54a00e6f-a582-4083-a197-ea2a1a0cb847 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "54a00e6f-a582-4083-a197-ea2a1a0cb847 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2171]:
+              - text: 54a00e6f-a582-4083-a197-ea2a1a0cb847 / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2172]
+            - cell "8300ms q:0ms admit:-ms limit:1 pressure:6 ft:5355ms try:3 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2173]:
+              - text: 8300ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:5355ms try:3 tool:1
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "16439 / 81" [ref=e2174]
+            - cell "-" [ref=e2175]
+          - row "5/21/2026, 10:24:27 AM claude-opus-4.7 route:selected account=71cf722d-a7b0-49a1-9998-bef22a11cf45 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true 71cf722d-a7b0-49a1-9998-bef22a11cf45 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 7790ms q:0ms admit:-ms limit:1 pressure:6 ft:4860ms try:3 tool:0 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 20597 / 50 -" [ref=e2176]:
+            - cell "5/21/2026, 10:24:27 AM" [ref=e2177]
+            - cell "claude-opus-4.7 route:selected account=71cf722d-a7b0-49a1-9998-bef22a11cf45 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2178]:
+              - text: claude-opus-4.7
+              - text: route:selected account=71cf722d-a7b0-49a1-9998-bef22a11cf45 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "71cf722d-a7b0-49a1-9998-bef22a11cf45 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2179]:
+              - text: 71cf722d-a7b0-49a1-9998-bef22a11cf45 / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2180]
+            - cell "7790ms q:0ms admit:-ms limit:1 pressure:6 ft:4860ms try:3 tool:0 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2181]:
+              - text: 7790ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:4860ms try:3 tool:0
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "20597 / 50" [ref=e2182]
+            - cell "-" [ref=e2183]
+          - row "5/21/2026, 10:24:20 AM claude-opus-4.7 route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=80 pressure=true strategy:health pressure:true 6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1 h:80 conn:1 lat:1242ms ok/fail:1/0 200 7043ms q:0ms admit:-ms limit:1 pressure:6 ft:5285ms try:2 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 21021 / 282 -" [ref=e2184]:
+            - cell "5/21/2026, 10:24:20 AM" [ref=e2185]
+            - cell "claude-opus-4.7 route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=80 pressure=true strategy:health pressure:true" [ref=e2186]:
+              - text: claude-opus-4.7
+              - text: route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-opus-4.7 region=us-east-1 attempt=2 strategy=health active=1 score=80 pressure=true strategy:health pressure:true
+            - cell "6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1 h:80 conn:1 lat:1242ms ok/fail:1/0" [ref=e2187]:
+              - text: 6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1
+              - text: h:80 conn:1 lat:1242ms ok/fail:1/0
+            - cell "200" [ref=e2188]
+            - cell "7043ms q:0ms admit:-ms limit:1 pressure:6 ft:5285ms try:2 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2189]:
+              - text: 7043ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:5285ms try:2 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "21021 / 282" [ref=e2190]
+            - cell "-" [ref=e2191]
+          - row "5/21/2026, 10:24:06 AM claude-opus-4.7 route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=50 pressure=false strategy:health pressure:- b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1 h:50 conn:1 lat:7689ms ok/fail:1/0 200 13318ms q:0ms admit:-ms limit:1 pressure:6 ft:5166ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 31708 / 1601 -" [ref=e2192]:
+            - cell "5/21/2026, 10:24:06 AM" [ref=e2193]
+            - cell "claude-opus-4.7 route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=50 pressure=false strategy:health pressure:-" [ref=e2194]:
+              - text: claude-opus-4.7
+              - text: route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=1 strategy=health active=1 score=50 pressure=false strategy:health pressure:-
+            - cell "b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1 h:50 conn:1 lat:7689ms ok/fail:1/0" [ref=e2195]:
+              - text: b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1
+              - text: h:50 conn:1 lat:7689ms ok/fail:1/0
+            - cell "200" [ref=e2196]
+            - cell "13318ms q:0ms admit:-ms limit:1 pressure:6 ft:5166ms try:1 tool:1 shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2197]:
+              - text: 13318ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:5166ms try:1 tool:1
+              - text: shape:tool_result ctx:system,language defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "31708 / 1601" [ref=e2198]
+            - cell "-" [ref=e2199]
+          - row "5/21/2026, 10:24:09 AM claude-haiku-4.5 route:selected account=125bd142-5218-45d9-8748-3e29a775050b model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:- 125bd142-5218-45d9-8748-3e29a775050b / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 1555ms q:0ms admit:-ms limit:16 pressure:- ft:1455ms try:1 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 4131 / 10 -" [ref=e2200]:
+            - cell "5/21/2026, 10:24:09 AM" [ref=e2201]
+            - cell "claude-haiku-4.5 route:selected account=125bd142-5218-45d9-8748-3e29a775050b model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-" [ref=e2202]:
+              - text: claude-haiku-4.5
+              - text: route:selected account=125bd142-5218-45d9-8748-3e29a775050b model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-
+            - cell "125bd142-5218-45d9-8748-3e29a775050b / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2203]:
+              - text: 125bd142-5218-45d9-8748-3e29a775050b / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2204]
+            - cell "1555ms q:0ms admit:-ms limit:16 pressure:- ft:1455ms try:1 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2205]:
+              - text: 1555ms
+              - text: q:0ms admit:-ms limit:16 pressure:- ft:1455ms try:1 tool:0
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "4131 / 10" [ref=e2206]
+            - cell "-" [ref=e2207]
+          - row "5/21/2026, 10:24:09 AM claude-haiku-4.5 route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:- 6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 1243ms q:0ms admit:-ms limit:16 pressure:- ft:1148ms try:1 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 4131 / 10 -" [ref=e2208]:
+            - cell "5/21/2026, 10:24:09 AM" [ref=e2209]
+            - cell "claude-haiku-4.5 route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-" [ref=e2210]:
+              - text: claude-haiku-4.5
+              - text: route:selected account=6f572596-acd3-4e06-947a-4dd11424d4df model=claude-haiku-4.5 region=us-east-1 attempt=1 strategy=health active=1 score=85 pressure=false strategy:health pressure:-
+            - cell "6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2211]:
+              - text: 6f572596-acd3-4e06-947a-4dd11424d4df / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2212]
+            - cell "1243ms q:0ms admit:-ms limit:16 pressure:- ft:1148ms try:1 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2213]:
+              - text: 1243ms
+              - text: q:0ms admit:-ms limit:16 pressure:- ft:1148ms try:1 tool:0
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "4131 / 10" [ref=e2214]
+            - cell "-" [ref=e2215]
+          - row "5/21/2026, 10:23:56 AM claude-opus-4.7 route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 10194ms q:0ms admit:-ms limit:1 pressure:6 ft:6923ms try:3 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 12461 / 113 -" [ref=e2216]:
+            - cell "5/21/2026, 10:23:56 AM" [ref=e2217]
+            - cell "claude-opus-4.7 route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2218]:
+              - text: claude-opus-4.7
+              - text: route:selected account=b96e50b4-e443-47ea-ac2b-568537eab945 model=claude-opus-4.7 region=us-east-1 attempt=3 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2219]:
+              - text: b96e50b4-e443-47ea-ac2b-568537eab945 / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2220]
+            - cell "10194ms q:0ms admit:-ms limit:1 pressure:6 ft:6923ms try:3 tool:1 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2221]:
+              - text: 10194ms
+              - text: q:0ms admit:-ms limit:1 pressure:6 ft:6923ms try:3 tool:1
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "12461 / 113" [ref=e2222]
+            - cell "-" [ref=e2223]
+          - row "5/21/2026, 10:22:25 AM claude-opus-4.7 route:selected account=f4454cf1-1b38-4fed-ad1d-076795f4d8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true f4454cf1-1b38-4fed-ad1d-076795f4d8cd / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0 200 86627ms q:0ms admit:-ms limit:10 pressure:- ft:0ms try:4 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 0 / 0 -" [ref=e2224]:
+            - cell "5/21/2026, 10:22:25 AM" [ref=e2225]
+            - cell "claude-opus-4.7 route:selected account=f4454cf1-1b38-4fed-ad1d-076795f4d8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true" [ref=e2226]:
+              - text: claude-opus-4.7
+              - text: route:selected account=f4454cf1-1b38-4fed-ad1d-076795f4d8cd model=claude-opus-4.7 region=us-east-1 attempt=4 strategy=health active=1 score=85 pressure=true strategy:health pressure:true
+            - cell "f4454cf1-1b38-4fed-ad1d-076795f4d8cd / us-east-1 h:85 conn:1 lat:0ms ok/fail:0/0" [ref=e2227]:
+              - text: f4454cf1-1b38-4fed-ad1d-076795f4d8cd / us-east-1
+              - text: h:85 conn:1 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2228]
+            - cell "86627ms q:0ms admit:-ms limit:10 pressure:- ft:0ms try:4 tool:0 shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2229]:
+              - text: 86627ms
+              - text: q:0ms admit:-ms limit:10 pressure:- ft:0ms try:4 tool:0
+              - text: shape:text ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "0 / 0" [ref=e2230]
+            - cell "-" [ref=e2231]
+          - row "5/21/2026, 10:23:26 AM claude-sonnet-4.5 route:- strategy:- pressure:- - h:0 conn:0 lat:0ms ok/fail:0/0 200 0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 0 / 0 -" [ref=e2232]:
+            - cell "5/21/2026, 10:23:26 AM" [ref=e2233]
+            - cell "claude-sonnet-4.5 route:- strategy:- pressure:-" [ref=e2234]:
+              - text: claude-sonnet-4.5
+              - text: route:- strategy:- pressure:-
+            - cell "- h:0 conn:0 lat:0ms ok/fail:0/0" [ref=e2235]:
+              - text: "-"
+              - text: h:0 conn:0 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2236]
+            - cell "0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2237]:
+              - text: 0ms
+              - text: q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0
+              - text: shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "0 / 0" [ref=e2238]
+            - cell "-" [ref=e2239]
+          - row "5/21/2026, 10:23:26 AM - route:- strategy:- pressure:- - h:0 conn:0 lat:0ms ok/fail:0/0 200 0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:- 0 / 0 -" [ref=e2240]:
+            - cell "5/21/2026, 10:23:26 AM" [ref=e2241]
+            - cell "- route:- strategy:- pressure:-" [ref=e2242]:
+              - text: "-"
+              - text: route:- strategy:- pressure:-
+            - cell "- h:0 conn:0 lat:0ms ok/fail:0/0" [ref=e2243]:
+              - text: "-"
+              - text: h:0 conn:0 lat:0ms ok/fail:0/0
+            - cell "200" [ref=e2244]
+            - cell "0ms q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0 shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-" [ref=e2245]:
+              - text: 0ms
+              - text: q:0ms admit:-ms limit:- pressure:- ft:0ms try:1 tool:0
+              - text: shape:- ctx:- defer:- mat:- pairs:- results:- parent:- orphans:- tri:- fg:- suppressed:-
+            - cell "0 / 0" [ref=e2246]
+            - cell "-" [ref=e2247]

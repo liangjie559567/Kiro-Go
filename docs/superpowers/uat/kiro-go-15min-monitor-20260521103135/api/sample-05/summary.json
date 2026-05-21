@@ -1,0 +1,29 @@
+{
+  "sample": "05",
+  "timestamp": "2026-05-21T10:36:52+08:00",
+  "health": {
+    "status": "ok",
+    "uptime": 867,
+    "version": "1.0.8"
+  },
+  "uptime": 867,
+  "totalRequests": 16094,
+  "successRequests": 6704,
+  "failedRequests": 9390,
+  "fleet": {
+    "status": "blocked",
+    "safeConcurrency": 0,
+    "circuitState": "half_open",
+    "locallySchedulableAccounts": 0,
+    "coolingDownAccounts": 0,
+    "temporaryLimitedAccounts": 0,
+    "lastPressureReason": "rate_limited_or_model_capacity"
+  },
+  "db": {
+    "accounts_count": 27,
+    "enabled_accounts": 27,
+    "cooling_accounts": 0,
+    "temporary_limited": 0,
+    "config_mtime": "2026-05-21 10:36:25.030884587 +0800"
+  }
+}

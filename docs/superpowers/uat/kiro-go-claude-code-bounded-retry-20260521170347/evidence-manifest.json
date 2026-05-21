@@ -1,0 +1,98 @@
+{
+  "runId": "kiro-go-claude-code-bounded-retry-20260521170347",
+  "checkedAt": "2026-05-21T17:04:00+08:00",
+  "verdict": "FIX_VERIFIED_NOT_100X100_PASS",
+  "pass": true,
+  "pressurePass": false,
+  "reason": "Claude-format StableDownstream retry/wait paths are now bounded and return complete stable fallback responses after the configured wait window. This verifies the infinite-retry fix but does not pass the full 100/100 pressure UAT.",
+  "checks": {
+    "focusedBoundedRetryTests": {
+      "status": "PASS",
+      "command": "go test ./proxy -run 'Stable.*Bounded|Stable.*DoesNotLoop|Stable.*Fallback|Stable.*OpenCircuit|TestStableClaudeStreamCapacityWaitSendsPingBeforeMessageStart|TestHandleOpenAIResponsesModelCapacityRecordsModelBreaker' -count=1"
+    },
+    "broaderTests": {
+      "status": "PASS",
+      "command": "go test ./pool ./proxy"
+    },
+    "tokenRefreshIsolation": {
+      "status": "PASS",
+      "command": "go test ./proxy -run 'TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount|TestEnsureValidTokenRefreshesDifferentAccountsInParallel' -count=5"
+    },
+    "dockerRebuild": {
+      "status": "PASS",
+      "command": "docker compose up -d --build kiro-go"
+    },
+    "kiroHealth": {
+      "status": "PASS",
+      "artifact": "api/kiro-health.json",
+      "observed": {
+        "status": "ok",
+        "version": "1.0.8"
+      }
+    },
+    "sub2apiHealth": {
+      "status": "PASS",
+      "artifact": "api/sub2api-health.json",
+      "observed": {
+        "status": "ok"
+      }
+    },
+    "dockerComposePs": {
+      "status": "PASS",
+      "artifact": "logs/docker-compose-ps.txt",
+      "observed": "kiro-go container healthy"
+    },
+    "playwrightAdminScreenshot": {
+      "status": "PASS_FOR_UI_REACHABILITY",
+      "artifact": "screenshots/kiro-go-claude-code-bounded-retry-admin-202605211704.png",
+      "observed": {
+        "page": "Kiro-Go admin dashboard",
+        "status": "运行中",
+        "version": "v1.0.8",
+        "accounts": 25,
+        "requests": 16184,
+        "successes": 6743,
+        "failures": 9441,
+        "tokens": "222.8M",
+        "credits": "1960.3"
+      }
+    },
+    "browserApi": {
+      "status": "PASS_FOR_EVIDENCE_COLLECTION",
+      "artifact": "api/kiro-go-claude-code-bounded-retry-browser-api-202605211704.json",
+      "observed": {
+        "fleetReadinessStatus": "degraded",
+        "fleetCircuitState": "closed",
+        "fleetSafeConcurrency": 10,
+        "fleetReasonCodes": [
+          "healthy"
+        ]
+      }
+    },
+    "openSourceResearch": {
+      "status": "COMPLETED",
+      "artifact": "research/open-source-research-summary.md",
+      "sources": [
+        "https://github.com/jwadow/kiro-gateway",
+        "https://github.com/zeoak9297/KiroSwitchManager",
+        "https://github.com/chaogei/Kiro-account-manager"
+      ]
+    }
+  },
+  "artifacts": {
+    "uatResult": "UAT-RESULT.md",
+    "manifest": "evidence-manifest.json",
+    "researchSummary": "research/open-source-research-summary.md",
+    "browserApi": "api/kiro-go-claude-code-bounded-retry-browser-api-202605211704.json",
+    "kiroHealth": "api/kiro-health.json",
+    "sub2apiHealth": "api/sub2api-health.json",
+    "dockerComposePs": "logs/docker-compose-ps.txt",
+    "kiroLogTail": "logs/kiro-go-tail-after-rebuild.log",
+    "adminScreenshot": "screenshots/kiro-go-claude-code-bounded-retry-admin-202605211704.png"
+  },
+  "security": {
+    "apiKeyPersistedInArtifacts": false,
+    "adminPasswordPersistedInArtifacts": false,
+    "secretFilesRead": false
+  }
+}

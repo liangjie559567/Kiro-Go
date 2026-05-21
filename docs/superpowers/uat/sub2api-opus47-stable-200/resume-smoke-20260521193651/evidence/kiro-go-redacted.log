@@ -1,0 +1,26 @@
+INFO  2026/05/21 11:22:08 [ModelAdmission] default=16/300 models=2 legacyOpus47=10/300
+INFO  2026/05/21 11:22:08 Kiro-Go starting on http://0.0.0.0:8080 (log level: info)
+INFO  2026/05/21 11:22:08 Admin panel: http://0.0.0.0:8080/admin
+INFO  2026/05/21 11:22:08 Claude API: http://0.0.0.0:8080/v1/messages
+INFO  2026/05/21 11:22:08 OpenAI API: http://0.0.0.0:8080/v1/chat/completions
+WARN  2026/05/21 11:22:27 [ModelsCache] Skip rrahmanifyllii@gmail.com token refresh failed: refresh failed: 429 {"message":"Too many requests. Please try again later."}
+INFO  2026/05/21 11:22:40 [ModelsCache] Cached 13 models
+WARN  2026/05/21 11:23:52 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:23:53 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:24:00 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:27:08 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 11:29:08 [KiroAPI] Endpoint Kiro IDE returned account temporary-limit 429: {"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.9458c4e8-f001-70ab-a16a-8ae4dbcd533d) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.","reason":null}
+WARN  2026/05/21 11:31:49 [KiroAPI] Endpoint Kiro IDE returned account temporary-limit 429: {"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.24f814f8-a0a1-70b2-792d-54ef5b8c65f1) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.","reason":null}
+WARN  2026/05/21 11:31:50 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+INFO  2026/05/21 11:32:17 [HealthCheck] Completed: success=23 failed=0 disabled=0 skipped=1
+WARN  2026/05/21 11:32:31 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:35:19 [KiroAPI] Endpoint Kiro IDE returned account temporary-limit 429: {"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account (d-9067c98495.14689468-20b1-70ad-c889-99b1fbfea923) can send a request to Kiro while we investigate. If you need assistance, please contact support at https://app.kiro.dev/account/usage?support_form.","reason":null}
+WARN  2026/05/21 11:35:27 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:35:27 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:35:50 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:37:15 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:37:16 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:37:17 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 11:37:50 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:37:50 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 11:38:41 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}

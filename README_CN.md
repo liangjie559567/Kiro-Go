@@ -69,6 +69,14 @@ mkdir -p data
 docker-compose up -d
 ```
 
+Docker 镜像内置官方 Kiro CLI。可在容器内验证：
+
+```bash
+docker compose exec kiro-go kiro-cli --version
+```
+
+Kiro CLI 状态保存在 `/app/data/kiro-cli`（使用本 Compose 文件时对应 `./data/kiro-cli`）。不要把本机 Kiro token 烘焙进镜像。
+
 打开管理面板：
 
 ```text
@@ -100,6 +108,8 @@ ADMIN_PASSWORD=your_secure_password ./kiro-go
 ```
 
 默认配置文件为 `data/config.json`。Docker 部署时请挂载或备份 `/app/data`。
+
+运行镜像还会安装 `kiro-cli` 和 `kiro` 别名。手动 `docker run` 时如果需要持久化 CLI 状态，请挂载 `/app/data` 并设置 `KIRO_CLI_HOME=/app/data/kiro-cli`。
 
 ## 基础使用
 
@@ -203,7 +213,7 @@ Web 管理面板和 `/admin/api/*` 支持：
 
 - 账号 CRUD、批量启用/禁用/刷新、账号测试、账号导出。
 - IAM Identity Center 登录、Builder ID 登录、SSO token 导入、credentials JSON 导入。
-- `POST /admin/api/auth/credentials/validate` dry-run 凭证校验。
+- `POST /admin/api/*` 下的 credentials validate dry-run 凭证校验。
 - 单账号或全账号模型缓存刷新。
 - 账号 diagnostics、scheduler preview、fleet readiness、WebSearch diagnostics、Claude Code compat/readiness/model-readiness、admission pressure。
 - API Key、客户端 IP 白名单、模型映射、模型准入、超额使用、自动刷新、健康检查、负载均衡、端点偏好、代理、thinking、prompt filter 等设置。

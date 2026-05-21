@@ -1,0 +1,18 @@
+{
+  "statusCode": 200,
+  "body": {
+    "statusCode": 200,
+    "status": "degraded",
+    "circuitState": "half_open",
+    "safeConcurrency": 1,
+    "retryAfterSeconds": 0,
+    "reasonCodes": [
+      "admission_pressure"
+    ],
+    "locallySchedulableAccounts": 24,
+    "modelBreakerBlockedAccounts": 0,
+    "coolingDownAccounts": 0,
+    "temporaryLimitedAccounts": 0,
+    "lastPressureReason": "service_unavailable"
+  }
+}

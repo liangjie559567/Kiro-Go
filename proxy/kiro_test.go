@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"kiro-go/config"
@@ -11,6 +12,19 @@ import (
 	"testing"
 	"time"
 )
+
+type blockingReadCloser struct {
+	ctx context.Context
+}
+
+func (b *blockingReadCloser) Read([]byte) (int, error) {
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
+}
+
+func (b *blockingReadCloser) Close() error {
+	return nil
+}
 
 func TestNormalizeChunkBasicProgression(t *testing.T) {
 	prev := ""
@@ -229,6 +243,53 @@ func TestCallKiroAPIDoesNotMutateFinalizedProfileArn(t *testing.T) {
 	}
 	if capturedProfileArn != nil {
 		t.Fatalf("expected serialized request to omit profileArn, got %#v", capturedProfileArn)
+	}
+}
+
+func TestCallKiroAPITimesOutWhenHTTP200HasNoFirstEvent(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	oldTimeout := kiroFirstEventTimeout
+	kiroFirstEventTimeout = 20 * time.Millisecond
+	t.Cleanup(func() {
+		kiroFirstEventTimeout = oldTimeout
+		InitKiroHttpClient("")
+	})
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       &blockingReadCloser{ctx: req.Context()},
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.6",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	startedAt := time.Now()
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected first event timeout")
+	}
+	if !strings.Contains(err.Error(), "upstream first event timeout") {
+		t.Fatalf("expected first event timeout error, got %q", err.Error())
+	}
+	if elapsed := time.Since(startedAt); elapsed > time.Second {
+		t.Fatalf("expected first event timeout to return promptly, took %s", elapsed)
 	}
 }
 
@@ -487,6 +548,51 @@ func TestCallKiroAPIReturnsRateLimitResetFromRetryAfter(t *testing.T) {
 	resetAt := rlErr.RateLimitResetAt()
 	if resetAt.Before(start.Add(1500*time.Millisecond)) || resetAt.After(start.Add(3*time.Second)) {
 		t.Fatalf("expected reset near 2s from start, got %s", resetAt.Sub(start))
+	}
+}
+
+func TestCallKiroAPIReturnsRateLimitResetFromRetryAfterMS(t *testing.T) {
+	if err := config.Init(t.TempDir() + "/config.json"); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			header := make(http.Header)
+			header.Set("retry-after-ms", "1500")
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"rate limited"}`)),
+				Header:     header,
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	payload := ClaudeToKiro(&ClaudeRequest{
+		Model:     "claude-sonnet-4.5",
+		MaxTokens: 16,
+		Messages:  []ClaudeMessage{{Role: "user", Content: "hi"}},
+	}, false)
+
+	start := time.Now()
+	err := CallKiroAPI(&config.Account{AccessToken: "token", ProfileArn: "arn:aws:codewhisperer:profile/test"}, payload, &KiroStreamCallback{})
+	if err == nil {
+		t.Fatalf("expected 429 error")
+	}
+	rlErr, ok := err.(interface{ RateLimitResetAt() time.Time })
+	if !ok {
+		t.Fatalf("expected rate limit reset error, got %T", err)
+	}
+	resetAt := rlErr.RateLimitResetAt()
+	if resetAt.Before(start.Add(time.Second)) || resetAt.After(start.Add(2500*time.Millisecond)) {
+		t.Fatalf("expected reset near 1.5s from start, got %s", resetAt.Sub(start))
 	}
 }
 

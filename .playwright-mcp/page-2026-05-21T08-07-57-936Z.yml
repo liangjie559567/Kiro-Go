@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - button "中文" [ref=e6] [cursor=pointer]
+    - button "EN" [ref=e7] [cursor=pointer]
+  - heading "Kiro-Go" [level=1] [ref=e8]:
+    - img [ref=e9]
+    - text: Kiro-Go
+  - paragraph [ref=e11]: 请输入管理密码登录
+  - generic [ref=e12]:
+    - generic [ref=e13]: 管理密码
+    - textbox "输入密码" [ref=e14]
+  - button "登录" [ref=e15] [cursor=pointer]

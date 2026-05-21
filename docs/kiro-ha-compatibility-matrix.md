@@ -16,7 +16,7 @@ Machine-readable source: [`docs/kiro-ha-compatibility-matrix.json`](./kiro-ha-co
 | HA-04 | Admission and scheduler observability | `opus_gate`, readiness, request logs | PASS (`model_pressure_gate_and_pool_health`) | HISTORICAL_PASS (`pre_current_change_uat`) | admission tests; model readiness tests; sub2api Opus UAT |
 | HA-05 | Background throttling | auto-refresh and health-check workers | PASS (`overlap_guard_and_cooldown_skip`) | NOT_REQUIRED (`worker_unit_contract`) | auto-refresh/health-check selection tests; skipped-count status |
 | HA-06 | sub2api retryability semantics | exhausted-pool responses and headers | PASS (`retryable_exhausted_pool_semantics`) | HISTORICAL_PASS (`pre_current_change_uat`) | no-available-account tests; sub2api logs and DB evidence |
-| HA-07 | Real 10x10 sub2api Opus 4.7 UAT | `/www/sub2api` black-box | HUMAN_NEEDED (`latest_code_live_uat`) | HISTORICAL_PASS (`pre_current_change_uat`) | `sub2api-kiro-opus47-account-lb-20260520144855/UAT-RESULT.md` |
+| HA-07 | Real 10x10 sub2api Opus 4.7 UAT | `/www/sub2api` black-box | HUMAN_NEEDED (`latest_code_live_uat`) | HISTORICAL_PASS (`pre_current_change_uat`) | `docs/superpowers/uat/sub2api-kiro-opus47-account-lb-20260520144855/UAT-RESULT.md` |
 | HA-08 | sub2api Opus 4.7 stable downstream status | `StableDownstream` generation contract | HUMAN_NEEDED (`latest_code_live_uat`) | REQUIRED | `docs/superpowers/uat/sub2api-opus47-stable-200/run-stable-200-uat.js` |
 
 ## PASS Rules

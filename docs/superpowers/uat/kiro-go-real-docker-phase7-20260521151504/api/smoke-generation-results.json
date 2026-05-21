@@ -1,0 +1,287 @@
+{
+  "generatedAt": "2026-05-21T07:29:57.464Z",
+  "model": "claude-opus-4-7",
+  "requests": [
+    {
+      "kind": "non-stream",
+      "httpStatus": 200,
+      "ok": true,
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "req_0efdc4b6-dde3-4627-9d06-7b8be79a96c3"
+      },
+      "bodyType": "message",
+      "responseModel": "claude-opus-4.7",
+      "usage": {
+        "input_tokens": 5916,
+        "output_tokens": 5
+      },
+      "contentNonEmpty": true,
+      "expectedMarkerPresent": true,
+      "outputPreview": "KIRO_GO_UAT_OK"
+    },
+    {
+      "kind": "stream",
+      "httpStatus": 200,
+      "ok": true,
+      "safeHeaders": {
+        "content-type": "text/event-stream; charset=utf-8",
+        "x-request-id": "req_6df5187e-2e86-443e-97cb-897364fe2cd0"
+      },
+      "eventCount": 6,
+      "errorEvent": "",
+      "contentNonEmpty": true,
+      "expectedMarkerPresent": true,
+      "outputPreview": "KIRO_GO_UAT_OK"
+    }
+  ],
+  "requestLogsSummary": {
+    "count": 3,
+    "entries": [
+      {
+        "requestId": "fb9c849d-c7bc-4c6b-b3ae-fdcaf6d81a20",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4.7",
+        "stream": true,
+        "statusCode": 200,
+        "outcome": "success",
+        "contentSuccess": true,
+        "accountIdPresent": true,
+        "attemptTraceCount": 8,
+        "outputTokens": 5,
+        "durationMs": 5530
+      },
+      {
+        "requestId": "dc63acfa-eee3-4567-965e-b46dcb559999",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4.7",
+        "stream": false,
+        "statusCode": 200,
+        "outcome": "success",
+        "contentSuccess": true,
+        "accountIdPresent": true,
+        "attemptTraceCount": 8,
+        "outputTokens": 5,
+        "durationMs": 5114
+      },
+      {
+        "requestId": "44bdcc19-4cfb-4469-bef8-9dc2f494540a",
+        "endpoint": "/v1/messages",
+        "model": "claude-opus-4.7",
+        "stream": true,
+        "statusCode": 200,
+        "outcome": "success",
+        "contentSuccess": true,
+        "accountIdPresent": true,
+        "attemptTraceCount": 8,
+        "outputTokens": 30,
+        "durationMs": 4094
+      }
+    ]
+  },
+  "requestStats": {
+    "averageDurationMs": 4912,
+    "byEndpoint": {
+      "/v1/messages": {
+        "total": 3,
+        "success": 3,
+        "failed": 0,
+        "averageDurationMs": 4912,
+        "inputTokens": 17741,
+        "outputTokens": 40,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "queueWaitMs": 0,
+        "maxQueueWaitMs": 0,
+        "firstTokenMs": 7397,
+        "maxFirstTokenMs": 2951,
+        "attempts": 12,
+        "toolUseCount": 0
+      }
+    },
+    "byModel": {
+      "claude-opus-4.7": {
+        "total": 3,
+        "success": 3,
+        "failed": 0,
+        "averageDurationMs": 4912,
+        "inputTokens": 17741,
+        "outputTokens": 40,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "queueWaitMs": 0,
+        "maxQueueWaitMs": 0,
+        "firstTokenMs": 7397,
+        "maxFirstTokenMs": 2951,
+        "attempts": 12,
+        "toolUseCount": 0
+      }
+    },
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0,
+    "failed": 0,
+    "inputTokens": 17741,
+    "outputTokens": 40,
+    "success": 3,
+    "total": 3
+  },
+  "acceptanceSummary": {
+    "requestLogEvidence": {
+      "contentSuccessCount": 3,
+      "latest": {
+        "accountId": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+        "admissionCircuitState": "half_open",
+        "admissionPressureReason": "rate_limited_or_model_capacity",
+        "admissionPressureScore": 6,
+        "admissionReadinessStatus": "degraded",
+        "admissionRetryAfterSeconds": 0,
+        "admissionSafeConcurrency": 2,
+        "attemptTrace": [
+          {
+            "attempt": 1,
+            "accountId": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "selected",
+            "circuitState": "half_open",
+            "timestamp": "2026-05-21T07:30:02.596383698Z"
+          },
+          {
+            "attempt": 1,
+            "accountId": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "failure",
+            "reason": "model_capacity",
+            "retryAfterSeconds": 3,
+            "durationMs": 1342,
+            "timestamp": "2026-05-21T07:30:03.938577618Z"
+          },
+          {
+            "attempt": 2,
+            "accountId": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "selected",
+            "circuitState": "open",
+            "timestamp": "2026-05-21T07:30:03.938839732Z"
+          },
+          {
+            "attempt": 2,
+            "accountId": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "failure",
+            "reason": "model_capacity",
+            "retryAfterSeconds": 3,
+            "durationMs": 666,
+            "timestamp": "2026-05-21T07:30:04.605565923Z"
+          },
+          {
+            "attempt": 3,
+            "accountId": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "selected",
+            "circuitState": "open",
+            "timestamp": "2026-05-21T07:30:04.605699223Z"
+          },
+          {
+            "attempt": 3,
+            "accountId": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "failure",
+            "reason": "model_capacity",
+            "retryAfterSeconds": 3,
+            "durationMs": 890,
+            "timestamp": "2026-05-21T07:30:05.496425011Z"
+          },
+          {
+            "attempt": 4,
+            "accountId": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "selected",
+            "circuitState": "open",
+            "timestamp": "2026-05-21T07:30:05.496583619Z"
+          },
+          {
+            "attempt": 4,
+            "accountId": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+            "model": "claude-opus-4.7",
+            "region": "us-east-1",
+            "event": "success",
+            "durationMs": 2627,
+            "timestamp": "2026-05-21T07:30:08.124421615Z"
+          }
+        ],
+        "attempts": 4,
+        "contentFailureReason": "",
+        "contentSuccess": true,
+        "contentSuccessEvidence": "output_tokens",
+        "durationMs": 5530,
+        "effectiveConcurrentLimit": 2,
+        "effectiveModel": "claude-opus-4.7",
+        "endpoint": "/v1/messages",
+        "error": "",
+        "errorType": "",
+        "outcome": "success",
+        "region": "us-east-1",
+        "requestId": "fb9c849d-c7bc-4c6b-b3ae-fdcaf6d81a20",
+        "requestedModel": "claude-opus-4-7",
+        "stableDownstreamFallback": false,
+        "stableFallbackReason": "",
+        "statusCode": 200,
+        "stream": true,
+        "timestamp": "2026-05-21T07:30:02.594941537Z",
+        "upstreamContentTokens": 5
+      },
+      "latestRequiredCoverage": {
+        "admissionCircuitState": true,
+        "admissionPressureReason": true,
+        "admissionReadinessStatus": true,
+        "admissionRetryAfterSeconds": true,
+        "admissionSafeConcurrency": true,
+        "attemptTrace": true,
+        "contentSuccessEvidence": true,
+        "effectiveModel": true,
+        "fallbackState": true,
+        "latencyStatusError": true,
+        "requestedModel": true,
+        "selectedAccount": true
+      },
+      "model": "claude-opus-4.7",
+      "recentOpus47Logs": 3,
+      "recentWindowSeconds": 1800,
+      "requiredFields": [
+        "requestedModel",
+        "effectiveModel",
+        "admissionReadinessStatus",
+        "admissionSafeConcurrency",
+        "admissionRetryAfterSeconds",
+        "admissionCircuitState",
+        "admissionPressureReason",
+        "selectedAccount",
+        "attemptTrace",
+        "fallbackState",
+        "contentSuccessEvidence",
+        "latencyStatusError"
+      ],
+      "stableFallbackCount": 0,
+      "totalOpus47Logs": 3,
+      "verdict": "latest_real_content_success"
+    },
+    "fleetReadiness": {
+      "status": "blocked",
+      "safeConcurrency": 0,
+      "retryAfterSeconds": 1,
+      "reasonCodes": [
+        "admission_circuit_open",
+        "model_breaker_open"
+      ],
+      "locallySchedulableAccounts": 24,
+      "enabledAccounts": 25
+    }
+  }
+}

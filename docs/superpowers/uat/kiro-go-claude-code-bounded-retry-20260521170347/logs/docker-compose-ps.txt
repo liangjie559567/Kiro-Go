@@ -1,0 +1,2 @@
+NAME                IMAGE             COMMAND       SERVICE   CREATED              STATUS                        PORTS
+kiro-go-kiro-go-1   kiro-go-kiro-go   "./kiro-go"   kiro-go   About a minute ago   Up About a minute (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp

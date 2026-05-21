@@ -1,0 +1,14 @@
+{
+  "status": "degraded",
+  "safeConcurrency": 1,
+  "circuitState": "half_open",
+  "enabledAccounts": 27,
+  "locallySchedulableAccounts": 20,
+  "coolingDownAccounts": 3,
+  "temporaryLimitedAccounts": 3,
+  "lastPressureReason": "rate_limited_or_model_capacity",
+  "notes": [
+    "sub2api should queue or limit Opus 4.7 calls to safeConcurrency",
+    "some accounts are cooling down and must not be probed aggressively"
+  ]
+}

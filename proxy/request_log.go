@@ -55,6 +55,13 @@ type RequestLogEntry struct {
 	ClaudeCodeVersionPresent            bool                      `json:"claudeCodeVersionPresent,omitempty"`
 	Opus47ThinkingNormalized            bool                      `json:"opus47ThinkingNormalized,omitempty"`
 	Opus47SamplingDropped               bool                      `json:"opus47SamplingDropped,omitempty"`
+	RequestedModel                      string                    `json:"requestedModel,omitempty"`
+	EffectiveModel                      string                    `json:"effectiveModel,omitempty"`
+	AdmissionReadinessStatus            string                    `json:"admissionReadinessStatus,omitempty"`
+	AdmissionSafeConcurrency            int                       `json:"admissionSafeConcurrency,omitempty"`
+	AdmissionRetryAfterSeconds          int                       `json:"admissionRetryAfterSeconds,omitempty"`
+	AdmissionCircuitState               string                    `json:"admissionCircuitState,omitempty"`
+	AdmissionPressureReason             string                    `json:"admissionPressureReason,omitempty"`
 	OpusCircuitState                    string                    `json:"opusCircuitState,omitempty"`
 	OpusRetryAfterSeconds               int                       `json:"opusRetryAfterSeconds,omitempty"`
 	OpusRequestBudgetMs                 int64                     `json:"opusRequestBudgetMs,omitempty"`
@@ -111,6 +118,7 @@ type RequestLogEntry struct {
 	StableFallbackReason                string                    `json:"stableFallbackReason,omitempty"`
 	SuppressedDownstreamStatus          int                       `json:"suppressedDownstreamStatus,omitempty"`
 	ContentSuccess                      bool                      `json:"contentSuccess,omitempty"`
+	ContentSuccessEvidence              string                    `json:"contentSuccessEvidence,omitempty"`
 	ContentFailureReason                string                    `json:"contentFailureReason,omitempty"`
 	UpstreamContentTokens               int                       `json:"upstreamContentTokens,omitempty"`
 	StableFallbackFinal                 bool                      `json:"stableFallbackFinal,omitempty"`
@@ -364,7 +372,12 @@ func updateRequestLogMetadata(r *http.Request, model string, stream bool) {
 	}
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
+	model = strings.TrimSpace(model)
+	if ctx.entry.RequestedModel == "" && model != "" {
+		ctx.entry.RequestedModel = model
+	}
 	ctx.entry.Model = model
+	ctx.entry.EffectiveModel = model
 	ctx.entry.Stream = stream
 }
 
@@ -409,6 +422,43 @@ func updateRequestLogOpus47Normalization(r *http.Request, meta opus47Normalizati
 	defer ctx.mu.Unlock()
 	ctx.entry.Opus47ThinkingNormalized = meta.ThinkingNormalized
 	ctx.entry.Opus47SamplingDropped = meta.SamplingDropped
+}
+
+func updateRequestLogAdmissionEvidence(r *http.Request, effectiveModel string, evidence map[string]interface{}) {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.entry.EffectiveModel = strings.TrimSpace(effectiveModel)
+	if status, ok := evidence["status"].(string); ok {
+		ctx.entry.AdmissionReadinessStatus = strings.TrimSpace(status)
+	}
+	ctx.entry.AdmissionSafeConcurrency = intFromEvidence(evidence["safeConcurrency"])
+	ctx.entry.AdmissionRetryAfterSeconds = intFromEvidence(evidence["retryAfterSeconds"])
+	if state, ok := evidence["circuitState"].(string); ok {
+		ctx.entry.AdmissionCircuitState = strings.TrimSpace(state)
+	}
+	if reason, ok := evidence["lastPressureReason"].(string); ok {
+		ctx.entry.AdmissionPressureReason = strings.TrimSpace(reason)
+	}
+}
+
+func intFromEvidence(value interface{}) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case json.Number:
+		i, _ := v.Int64()
+		return int(i)
+	default:
+		return 0
+	}
 }
 
 func rawHasKey(raw map[string]json.RawMessage, key string) bool {
@@ -752,25 +802,48 @@ func updateRequestLogCapacityRetryCount(r *http.Request, count int) {
 	ctx.entry.CapacityRetryCount = count
 }
 
-func markRequestLogContentSuccess(entry *RequestLogEntry, tokens int) {
+func markRequestLogContentSuccess(entry *RequestLogEntry, tokens int, evidence ...string) {
 	if entry == nil {
 		return
 	}
 	entry.ContentSuccess = true
 	entry.ContentFailureReason = ""
+	if len(evidence) > 0 {
+		entry.ContentSuccessEvidence = strings.TrimSpace(evidence[0])
+	}
 	if tokens > 0 {
 		entry.UpstreamContentTokens = tokens
 	}
 }
 
-func updateRequestLogContentSuccess(r *http.Request, tokens int) {
+func realContentSuccessTokenCount(outputTokens, structuredOutputCount int, textParts ...string) int {
+	tokens, _ := realContentSuccessEvidence(outputTokens, structuredOutputCount, textParts...)
+	return tokens
+}
+
+func realContentSuccessEvidence(outputTokens, structuredOutputCount int, textParts ...string) (int, string) {
+	if outputTokens > 0 {
+		return outputTokens, "output_tokens"
+	}
+	if structuredOutputCount > 0 {
+		return 1, "structured_output"
+	}
+	for _, part := range textParts {
+		if strings.TrimSpace(part) != "" {
+			return 1, "text_delta"
+		}
+	}
+	return 0, ""
+}
+
+func updateRequestLogContentSuccess(r *http.Request, tokens int, evidence ...string) {
 	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
 	if ctx == nil {
 		return
 	}
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
-	markRequestLogContentSuccess(&ctx.entry, tokens)
+	markRequestLogContentSuccess(&ctx.entry, tokens, evidence...)
 }
 
 func markRequestLogContentFailure(entry *RequestLogEntry, reason string) {
@@ -778,6 +851,7 @@ func markRequestLogContentFailure(entry *RequestLogEntry, reason string) {
 		return
 	}
 	entry.ContentSuccess = false
+	entry.ContentSuccessEvidence = ""
 	entry.ContentFailureReason = strings.TrimSpace(reason)
 }
 

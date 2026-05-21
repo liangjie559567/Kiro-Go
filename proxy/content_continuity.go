@@ -58,16 +58,37 @@ func contentContinuityWaitDuration(model string, deadline time.Time) time.Durati
 }
 
 func stableContentContinuityWaitDuration(model string) time.Duration {
+	return stableContentContinuityWaitDurationUntil(model, time.Time{})
+}
+
+func stableContentContinuityWaitDurationUntil(model string, deadline time.Time) time.Duration {
 	cfg := config.Get()
+	wait := time.Duration(0)
+	stableOpus47 := isOpus47Model(model)
 	if cfg == nil || !cfg.ContentContinuity.SupportsModel(model) {
-		if isOpus47Model(model) {
-			return minStableClaudeCapacityWait
+		if stableOpus47 {
+			wait = minStableClaudeCapacityWait
 		}
+	} else {
+		wait = time.Duration(cfg.ContentContinuity.MaxQueueWaitSeconds) * time.Second
+		if wait <= 0 {
+			wait = minStableClaudeCapacityWait
+		}
+	}
+	if wait <= 0 {
 		return 0
 	}
-	wait := time.Duration(cfg.ContentContinuity.MaxQueueWaitSeconds) * time.Second
-	if wait <= 0 {
-		return minStableClaudeCapacityWait
+	if stableOpus47 && maxStableClaudeCapacityWait > 0 && wait > maxStableClaudeCapacityWait {
+		wait = maxStableClaudeCapacityWait
+	}
+	if !deadline.IsZero() {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return 0
+		}
+		if remaining < wait {
+			wait = remaining
+		}
 	}
 	return wait
 }

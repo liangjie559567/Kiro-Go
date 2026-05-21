@@ -1,0 +1,1308 @@
+- generic [ref=e16]:
+  - generic [ref=e17]:
+    - heading "Kiro-Go" [level=1] [ref=e18]:
+      - img [ref=e19]
+      - text: Kiro-Go
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - button "中文" [ref=e23] [cursor=pointer]
+        - button "EN" [ref=e24] [cursor=pointer]
+      - generic [ref=e25]: 运行中
+      - generic [ref=e26] [cursor=pointer]: v1.0.8
+      - button "退出登录" [ref=e27] [cursor=pointer]
+  - generic [ref=e28]:
+    - generic [ref=e29]:
+      - generic [ref=e30]: "25"
+      - generic [ref=e31]: 账号
+    - generic [ref=e32]:
+      - generic [ref=e33]: "16162"
+      - generic [ref=e34]: 请求
+    - generic [ref=e35]:
+      - generic [ref=e36]: "6726"
+      - generic [ref=e37]: 成功
+    - generic [ref=e38]:
+      - generic [ref=e39]: "9436"
+      - generic [ref=e40]: 失败
+    - generic [ref=e41]:
+      - generic [ref=e42]: 222.7M
+      - generic [ref=e43]: Tokens
+    - generic [ref=e44]:
+      - generic [ref=e45]: "1959.8"
+      - generic [ref=e46]: Credits
+  - generic [ref=e47]:
+    - generic [ref=e48] [cursor=pointer]: 账号
+    - generic [ref=e49] [cursor=pointer]: 设置
+    - generic [ref=e50] [cursor=pointer]: API
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]: 账号列表
+      - generic [ref=e55]:
+        - generic [ref=e56] [cursor=pointer]:
+          - generic [ref=e57]: 隐私模式
+          - generic [ref=e58]:
+            - checkbox [checked]
+        - button "导出" [ref=e60] [cursor=pointer]
+        - button "刷新模型缓存" [ref=e61] [cursor=pointer]
+        - button "添加账号" [ref=e62] [cursor=pointer]
+    - generic [ref=e63]:
+      - generic [ref=e64] [cursor=pointer]:
+        - checkbox "全选" [ref=e65]
+        - generic [ref=e66]: 全选
+      - generic [ref=e68]:
+        - textbox "搜索邮箱/昵称..." [ref=e69]
+        - combobox [ref=e70] [cursor=pointer]:
+          - option "全部" [selected]
+          - option "已启用"
+          - option "已禁用"
+          - option "已封禁"
+    - generic [ref=e71]:
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - checkbox [ref=e75] [cursor=pointer]
+            - generic [ref=e76]:
+              - generic [ref=e77]: ro***@gm***.com
+              - generic [ref=e78]:
+                - generic [ref=e79]: PRO
+                - generic [ref=e80]: W:3
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e81]: 风险组:25
+                - generic [ref=e82]: Google
+                - generic [ref=e83]: 正常
+                - generic [ref=e84]: 已启用
+          - generic [ref=e85]:
+            - button "刷新" [ref=e86] [cursor=pointer]:
+              - img [ref=e87]
+            - button "详情" [ref=e90] [cursor=pointer]:
+              - img [ref=e91]
+            - button "复制 JSON" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+            - button "禁用" [ref=e98] [cursor=pointer]
+            - button "测试" [ref=e99] [cursor=pointer]
+            - button "删除" [ref=e100] [cursor=pointer]
+        - generic [ref=e101]:
+          - generic [ref=e102]: 主配额
+          - generic [ref=e105]:
+            - generic [ref=e106]: 295.0 / 1000
+            - generic [ref=e107]: 29.5%
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: "1158"
+            - generic [ref=e111]: 请求
+          - generic [ref=e112]:
+            - generic [ref=e113]: 36.0M
+            - generic [ref=e114]: Tokens
+          - generic [ref=e115]:
+            - generic [ref=e116]: "295.0"
+            - generic [ref=e117]: Credits
+          - generic [ref=e118]:
+            - generic [ref=e119]: 54分钟
+            - generic [ref=e120]: 到期
+          - generic [ref=e121]:
+            - combobox [ref=e123] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2"
+              - option "3" [selected]
+              - option "4"
+              - option "5"
+            - generic [ref=e124]: 权重
+      - generic [ref=e125]:
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - checkbox [ref=e128] [cursor=pointer]
+            - generic [ref=e129]:
+              - generic [ref=e130]: ro***@gm***.com
+              - generic [ref=e131]:
+                - generic [ref=e132]: PRO
+                - generic [ref=e133]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e134]: 风险组:25
+                - generic [ref=e135]: Google
+                - generic [ref=e136]: 正常
+                - generic [ref=e137]: 已启用
+          - generic [ref=e138]:
+            - button "刷新" [ref=e139] [cursor=pointer]:
+              - img [ref=e140]
+            - button "详情" [ref=e143] [cursor=pointer]:
+              - img [ref=e144]
+            - button "复制 JSON" [ref=e147] [cursor=pointer]:
+              - img [ref=e148]
+            - button "禁用" [ref=e151] [cursor=pointer]
+            - button "测试" [ref=e152] [cursor=pointer]
+            - button "删除" [ref=e153] [cursor=pointer]
+        - generic [ref=e154]:
+          - generic [ref=e155]: 主配额
+          - generic [ref=e158]:
+            - generic [ref=e159]: 251.0 / 1000
+            - generic [ref=e160]: 25.1%
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - generic [ref=e163]: "1155"
+            - generic [ref=e164]: 请求
+          - generic [ref=e165]:
+            - generic [ref=e166]: 27.9M
+            - generic [ref=e167]: Tokens
+          - generic [ref=e168]:
+            - generic [ref=e169]: "251.2"
+            - generic [ref=e170]: Credits
+          - generic [ref=e171]:
+            - generic [ref=e172]: 54分钟
+            - generic [ref=e173]: 到期
+          - generic [ref=e174]:
+            - combobox [ref=e176] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e177]: 权重
+      - generic [ref=e178]:
+        - generic [ref=e179]:
+          - generic [ref=e180]:
+            - checkbox [ref=e181] [cursor=pointer]
+            - generic [ref=e182]:
+              - generic [ref=e183]: ro***@gm***.com
+              - generic [ref=e184]:
+                - generic [ref=e185]: PRO
+                - generic [ref=e186]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e187]: 风险组:25
+                - generic [ref=e188]: Google
+                - generic [ref=e189]: 正常
+                - generic [ref=e190]: 已启用
+          - generic [ref=e191]:
+            - button "刷新" [ref=e192] [cursor=pointer]:
+              - img [ref=e193]
+            - button "详情" [ref=e196] [cursor=pointer]:
+              - img [ref=e197]
+            - button "复制 JSON" [ref=e200] [cursor=pointer]:
+              - img [ref=e201]
+            - button "禁用" [ref=e204] [cursor=pointer]
+            - button "测试" [ref=e205] [cursor=pointer]
+            - button "删除" [ref=e206] [cursor=pointer]
+        - generic [ref=e207]:
+          - generic [ref=e208]: 主配额
+          - generic [ref=e211]:
+            - generic [ref=e212]: 285.0 / 1000
+            - generic [ref=e213]: 28.5%
+        - generic [ref=e214]:
+          - generic [ref=e215]:
+            - generic [ref=e216]: "1508"
+            - generic [ref=e217]: 请求
+          - generic [ref=e218]:
+            - generic [ref=e219]: 32.3M
+            - generic [ref=e220]: Tokens
+          - generic [ref=e221]:
+            - generic [ref=e222]: "285.0"
+            - generic [ref=e223]: Credits
+          - generic [ref=e224]:
+            - generic [ref=e225]: 54分钟
+            - generic [ref=e226]: 到期
+          - generic [ref=e227]:
+            - combobox [ref=e229] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e230]: 权重
+      - generic [ref=e231]:
+        - generic [ref=e232]:
+          - generic [ref=e233]:
+            - checkbox [ref=e234] [cursor=pointer]
+            - generic [ref=e235]:
+              - generic [ref=e236]: ru***@gm***.com
+              - generic [ref=e237]:
+                - generic [ref=e238]: PRO
+                - generic [ref=e239]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e240]: 风险组:25
+                - generic [ref=e241]: Google
+                - generic [ref=e242]: 正常
+                - generic [ref=e243]: 已启用
+          - generic [ref=e244]:
+            - button "刷新" [ref=e245] [cursor=pointer]:
+              - img [ref=e246]
+            - button "详情" [ref=e249] [cursor=pointer]:
+              - img [ref=e250]
+            - button "复制 JSON" [ref=e253] [cursor=pointer]:
+              - img [ref=e254]
+            - button "禁用" [ref=e257] [cursor=pointer]
+            - button "测试" [ref=e258] [cursor=pointer]
+            - button "删除" [ref=e259] [cursor=pointer]
+        - generic [ref=e260]:
+          - generic [ref=e261]: 主配额
+          - generic [ref=e264]:
+            - generic [ref=e265]: 222.0 / 1000
+            - generic [ref=e266]: 22.2%
+        - generic [ref=e267]:
+          - generic [ref=e268]:
+            - generic [ref=e269]: "1336"
+            - generic [ref=e270]: 请求
+          - generic [ref=e271]:
+            - generic [ref=e272]: 23.3M
+            - generic [ref=e273]: Tokens
+          - generic [ref=e274]:
+            - generic [ref=e275]: "222.7"
+            - generic [ref=e276]: Credits
+          - generic [ref=e277]:
+            - generic [ref=e278]: 54分钟
+            - generic [ref=e279]: 到期
+          - generic [ref=e280]:
+            - combobox [ref=e282] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e283]: 权重
+      - generic [ref=e284]:
+        - generic [ref=e285]:
+          - generic [ref=e286]:
+            - checkbox [ref=e287] [cursor=pointer]
+            - generic [ref=e288]:
+              - generic [ref=e289]: ro***@gm***.com
+              - generic [ref=e290]:
+                - generic [ref=e291]: PRO
+                - generic [ref=e292]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e293]: 风险组:25
+                - generic [ref=e294]: Google
+                - generic [ref=e295]: 正常
+                - generic [ref=e296]: 已启用
+          - generic [ref=e297]:
+            - button "刷新" [ref=e298] [cursor=pointer]:
+              - img [ref=e299]
+            - button "详情" [ref=e302] [cursor=pointer]:
+              - img [ref=e303]
+            - button "复制 JSON" [ref=e306] [cursor=pointer]:
+              - img [ref=e307]
+            - button "禁用" [ref=e310] [cursor=pointer]
+            - button "测试" [ref=e311] [cursor=pointer]
+            - button "删除" [ref=e312] [cursor=pointer]
+        - generic [ref=e313]:
+          - generic [ref=e314]: 主配额
+          - generic [ref=e317]:
+            - generic [ref=e318]: 196.0 / 1000
+            - generic [ref=e319]: 19.6%
+        - generic [ref=e320]:
+          - generic [ref=e321]:
+            - generic [ref=e322]: "995"
+            - generic [ref=e323]: 请求
+          - generic [ref=e324]:
+            - generic [ref=e325]: 21.1M
+            - generic [ref=e326]: Tokens
+          - generic [ref=e327]:
+            - generic [ref=e328]: "196.7"
+            - generic [ref=e329]: Credits
+          - generic [ref=e330]:
+            - generic [ref=e331]: 54分钟
+            - generic [ref=e332]: 到期
+          - generic [ref=e333]:
+            - combobox [ref=e335] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e336]: 权重
+      - generic [ref=e337]:
+        - generic [ref=e338]:
+          - generic [ref=e339]:
+            - checkbox [ref=e340] [cursor=pointer]
+            - generic [ref=e341]:
+              - generic [ref=e342]: ch***@gm***.com
+              - generic [ref=e343]:
+                - generic [ref=e344]: PRO
+                - generic [ref=e345]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e346]: 风险组:25
+                - generic [ref=e347]: Google
+                - generic [ref=e348]: 正常
+                - generic [ref=e349]: 已启用
+          - generic [ref=e350]:
+            - button "刷新" [ref=e351] [cursor=pointer]:
+              - img [ref=e352]
+            - button "详情" [ref=e355] [cursor=pointer]:
+              - img [ref=e356]
+            - button "复制 JSON" [ref=e359] [cursor=pointer]:
+              - img [ref=e360]
+            - button "禁用" [ref=e363] [cursor=pointer]
+            - button "测试" [ref=e364] [cursor=pointer]
+            - button "删除" [ref=e365] [cursor=pointer]
+        - generic [ref=e366]:
+          - generic [ref=e367]: 主配额
+          - generic [ref=e370]:
+            - generic [ref=e371]: 158.0 / 1000
+            - generic [ref=e372]: 15.8%
+        - generic [ref=e373]:
+          - generic [ref=e374]:
+            - generic [ref=e375]: "1163"
+            - generic [ref=e376]: 请求
+          - generic [ref=e377]:
+            - generic [ref=e378]: 17.4M
+            - generic [ref=e379]: Tokens
+          - generic [ref=e380]:
+            - generic [ref=e381]: "158.3"
+            - generic [ref=e382]: Credits
+          - generic [ref=e383]:
+            - generic [ref=e384]: 54分钟
+            - generic [ref=e385]: 到期
+          - generic [ref=e386]:
+            - combobox [ref=e388] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e389]: 权重
+      - generic [ref=e390]:
+        - generic [ref=e391]:
+          - generic [ref=e392]:
+            - checkbox [ref=e393] [cursor=pointer]
+            - generic [ref=e394]:
+              - generic [ref=e395]: le***@gm***.com
+              - generic [ref=e396]:
+                - generic [ref=e397]: PRO
+                - generic [ref=e398]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e399]: 风险组:25
+                - generic [ref=e400]: Google
+                - generic [ref=e401]: 正常
+                - generic [ref=e402]: 已启用
+          - generic [ref=e403]:
+            - button "刷新" [ref=e404] [cursor=pointer]:
+              - img [ref=e405]
+            - button "详情" [ref=e408] [cursor=pointer]:
+              - img [ref=e409]
+            - button "复制 JSON" [ref=e412] [cursor=pointer]:
+              - img [ref=e413]
+            - button "禁用" [ref=e416] [cursor=pointer]
+            - button "测试" [ref=e417] [cursor=pointer]
+            - button "删除" [ref=e418] [cursor=pointer]
+        - generic [ref=e419]:
+          - generic [ref=e420]: 主配额
+          - generic [ref=e423]:
+            - generic [ref=e424]: 142.0 / 1000
+            - generic [ref=e425]: 14.2%
+        - generic [ref=e426]:
+          - generic [ref=e427]:
+            - generic [ref=e428]: "677"
+            - generic [ref=e429]: 请求
+          - generic [ref=e430]:
+            - generic [ref=e431]: 17.6M
+            - generic [ref=e432]: Tokens
+          - generic [ref=e433]:
+            - generic [ref=e434]: "142.5"
+            - generic [ref=e435]: Credits
+          - generic [ref=e436]:
+            - generic [ref=e437]: 54分钟
+            - generic [ref=e438]: 到期
+          - generic [ref=e439]:
+            - combobox [ref=e441] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e442]: 权重
+      - generic [ref=e443]:
+        - generic [ref=e444]:
+          - generic [ref=e445]:
+            - checkbox [ref=e446] [cursor=pointer]
+            - generic [ref=e447]:
+              - generic [ref=e448]: vi***@gm***.com
+              - generic [ref=e449]:
+                - generic [ref=e450]: PRO
+                - generic [ref=e451]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e452]: 风险组:25
+                - generic [ref=e453]: Google
+                - generic [ref=e454]: 正常
+                - generic [ref=e455]: 已启用
+          - generic [ref=e456]:
+            - button "刷新" [ref=e457] [cursor=pointer]:
+              - img [ref=e458]
+            - button "详情" [ref=e461] [cursor=pointer]:
+              - img [ref=e462]
+            - button "复制 JSON" [ref=e465] [cursor=pointer]:
+              - img [ref=e466]
+            - button "禁用" [ref=e469] [cursor=pointer]
+            - button "测试" [ref=e470] [cursor=pointer]
+            - button "删除" [ref=e471] [cursor=pointer]
+        - generic [ref=e472]:
+          - generic [ref=e473]: 主配额
+          - generic [ref=e476]:
+            - generic [ref=e477]: 179.0 / 1000
+            - generic [ref=e478]: 17.9%
+        - generic [ref=e479]:
+          - generic [ref=e480]:
+            - generic [ref=e481]: "1142"
+            - generic [ref=e482]: 请求
+          - generic [ref=e483]:
+            - generic [ref=e484]: 21.9M
+            - generic [ref=e485]: Tokens
+          - generic [ref=e486]:
+            - generic [ref=e487]: "178.8"
+            - generic [ref=e488]: Credits
+          - generic [ref=e489]:
+            - generic [ref=e490]: 55分钟
+            - generic [ref=e491]: 到期
+          - generic [ref=e492]:
+            - combobox [ref=e494] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e495]: 权重
+      - generic [ref=e496]:
+        - generic [ref=e497]:
+          - generic [ref=e498]:
+            - checkbox [ref=e499] [cursor=pointer]
+            - generic [ref=e500]:
+              - generic [ref=e501]: wa***@gm***.com
+              - generic [ref=e502]:
+                - generic [ref=e503]: PRO
+                - generic [ref=e504]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e505]: 风险组:25
+                - generic [ref=e506]: Google
+                - generic [ref=e507]: 正常
+                - generic [ref=e508]: 已启用
+          - generic [ref=e509]:
+            - button "刷新" [ref=e510] [cursor=pointer]:
+              - img [ref=e511]
+            - button "详情" [ref=e514] [cursor=pointer]:
+              - img [ref=e515]
+            - button "复制 JSON" [ref=e518] [cursor=pointer]:
+              - img [ref=e519]
+            - button "禁用" [ref=e522] [cursor=pointer]
+            - button "测试" [ref=e523] [cursor=pointer]
+            - button "删除" [ref=e524] [cursor=pointer]
+        - generic [ref=e525]:
+          - generic [ref=e526]: 主配额
+          - generic [ref=e529]:
+            - generic [ref=e530]: 147.0 / 1000
+            - generic [ref=e531]: 14.7%
+        - generic [ref=e532]:
+          - generic [ref=e533]:
+            - generic [ref=e534]: "1138"
+            - generic [ref=e535]: 请求
+          - generic [ref=e536]:
+            - generic [ref=e537]: 18.2M
+            - generic [ref=e538]: Tokens
+          - generic [ref=e539]:
+            - generic [ref=e540]: "147.3"
+            - generic [ref=e541]: Credits
+          - generic [ref=e542]:
+            - generic [ref=e543]: 55分钟
+            - generic [ref=e544]: 到期
+          - generic [ref=e545]:
+            - combobox [ref=e547] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e548]: 权重
+      - generic [ref=e549]:
+        - generic [ref=e550]:
+          - generic [ref=e551]:
+            - checkbox [ref=e552] [cursor=pointer]
+            - generic [ref=e553]:
+              - generic [ref=e554]: sf***@gm***.com
+              - generic [ref=e555]:
+                - generic [ref=e556]: PRO
+                - generic [ref=e557]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e558]: 风险组:25
+                - generic [ref=e559]: Google
+                - generic [ref=e560]: 正常
+                - generic [ref=e561]: 已启用
+          - generic [ref=e562]:
+            - button "刷新" [ref=e563] [cursor=pointer]:
+              - img [ref=e564]
+            - button "详情" [ref=e567] [cursor=pointer]:
+              - img [ref=e568]
+            - button "复制 JSON" [ref=e571] [cursor=pointer]:
+              - img [ref=e572]
+            - button "禁用" [ref=e575] [cursor=pointer]
+            - button "测试" [ref=e576] [cursor=pointer]
+            - button "删除" [ref=e577] [cursor=pointer]
+        - generic [ref=e578]:
+          - generic [ref=e579]: 主配额
+          - generic [ref=e582]:
+            - generic [ref=e583]: 144.0 / 1000
+            - generic [ref=e584]: 14.4%
+        - generic [ref=e585]:
+          - generic [ref=e586]:
+            - generic [ref=e587]: "984"
+            - generic [ref=e588]: 请求
+          - generic [ref=e589]:
+            - generic [ref=e590]: 17.5M
+            - generic [ref=e591]: Tokens
+          - generic [ref=e592]:
+            - generic [ref=e593]: "144.2"
+            - generic [ref=e594]: Credits
+          - generic [ref=e595]:
+            - generic [ref=e596]: 54分钟
+            - generic [ref=e597]: 到期
+          - generic [ref=e598]:
+            - combobox [ref=e600] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e601]: 权重
+      - generic [ref=e602]:
+        - generic [ref=e603]:
+          - generic [ref=e604]:
+            - checkbox [ref=e605] [cursor=pointer]
+            - generic [ref=e606]:
+              - generic [ref=e607]: wa***@gm***.com
+              - generic [ref=e608]:
+                - generic [ref=e609]: PRO
+                - generic [ref=e610]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e611]: 风险组:25
+                - generic [ref=e612]: Google
+                - generic [ref=e613]: 正常
+                - generic [ref=e614]: 已启用
+          - generic [ref=e615]:
+            - button "刷新" [ref=e616] [cursor=pointer]:
+              - img [ref=e617]
+            - button "详情" [ref=e620] [cursor=pointer]:
+              - img [ref=e621]
+            - button "复制 JSON" [ref=e624] [cursor=pointer]:
+              - img [ref=e625]
+            - button "禁用" [ref=e628] [cursor=pointer]
+            - button "测试" [ref=e629] [cursor=pointer]
+            - button "删除" [ref=e630] [cursor=pointer]
+        - generic [ref=e631]:
+          - generic [ref=e632]: 主配额
+          - generic [ref=e635]:
+            - generic [ref=e636]: 100.0 / 1000
+            - generic [ref=e637]: 10.0%
+        - generic [ref=e638]:
+          - generic [ref=e639]:
+            - generic [ref=e640]: "711"
+            - generic [ref=e641]: 请求
+          - generic [ref=e642]:
+            - generic [ref=e643]: 11.7M
+            - generic [ref=e644]: Tokens
+          - generic [ref=e645]:
+            - generic [ref=e646]: "100.6"
+            - generic [ref=e647]: Credits
+          - generic [ref=e648]:
+            - generic [ref=e649]: 54分钟
+            - generic [ref=e650]: 到期
+          - generic [ref=e651]:
+            - combobox [ref=e653] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e654]: 权重
+      - generic [ref=e655]:
+        - generic [ref=e656]:
+          - generic [ref=e657]:
+            - checkbox [ref=e658] [cursor=pointer]
+            - generic [ref=e659]:
+              - generic [ref=e660]: ma***@gm***.com
+              - generic [ref=e661]:
+                - generic [ref=e662]: PRO
+                - generic [ref=e663]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e664]: 风险组:25
+                - generic [ref=e665]: Google
+                - generic [ref=e666]: 正常
+                - generic [ref=e667]: 已启用
+          - generic [ref=e668]:
+            - button "刷新" [ref=e669] [cursor=pointer]:
+              - img [ref=e670]
+            - button "详情" [ref=e673] [cursor=pointer]:
+              - img [ref=e674]
+            - button "复制 JSON" [ref=e677] [cursor=pointer]:
+              - img [ref=e678]
+            - button "禁用" [ref=e681] [cursor=pointer]
+            - button "测试" [ref=e682] [cursor=pointer]
+            - button "删除" [ref=e683] [cursor=pointer]
+        - generic [ref=e684]:
+          - generic [ref=e685]: 主配额
+          - generic [ref=e688]:
+            - generic [ref=e689]: 138.0 / 1000
+            - generic [ref=e690]: 13.8%
+        - generic [ref=e691]:
+          - generic [ref=e692]:
+            - generic [ref=e693]: "872"
+            - generic [ref=e694]: 请求
+          - generic [ref=e695]:
+            - generic [ref=e696]: 15.2M
+            - generic [ref=e697]: Tokens
+          - generic [ref=e698]:
+            - generic [ref=e699]: "138.4"
+            - generic [ref=e700]: Credits
+          - generic [ref=e701]:
+            - generic [ref=e702]: 54分钟
+            - generic [ref=e703]: 到期
+          - generic [ref=e704]:
+            - combobox [ref=e706] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e707]: 权重
+      - generic [ref=e708]:
+        - generic [ref=e709]:
+          - generic [ref=e710]:
+            - checkbox [ref=e711] [cursor=pointer]
+            - generic [ref=e712]:
+              - generic [ref=e713]: ro***@gm***.com
+              - generic [ref=e714]:
+                - generic [ref=e715]: PRO
+                - generic [ref=e716]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e717]: 风险组:25
+                - generic [ref=e718]: Google
+                - generic [ref=e719]: 正常
+                - generic [ref=e720]: 已启用
+          - generic [ref=e721]:
+            - button "刷新" [ref=e722] [cursor=pointer]:
+              - img [ref=e723]
+            - button "详情" [ref=e726] [cursor=pointer]:
+              - img [ref=e727]
+            - button "复制 JSON" [ref=e730] [cursor=pointer]:
+              - img [ref=e731]
+            - button "禁用" [ref=e734] [cursor=pointer]
+            - button "测试" [ref=e735] [cursor=pointer]
+            - button "删除" [ref=e736] [cursor=pointer]
+        - generic [ref=e737]:
+          - generic [ref=e738]: 主配额
+          - generic [ref=e741]:
+            - generic [ref=e742]: 57.0 / 1000
+            - generic [ref=e743]: 5.7%
+        - generic [ref=e744]:
+          - generic [ref=e745]:
+            - generic [ref=e746]: "752"
+            - generic [ref=e747]: 请求
+          - generic [ref=e748]:
+            - generic [ref=e749]: 7.5M
+            - generic [ref=e750]: Tokens
+          - generic [ref=e751]:
+            - generic [ref=e752]: "57.0"
+            - generic [ref=e753]: Credits
+          - generic [ref=e754]:
+            - generic [ref=e755]: 54分钟
+            - generic [ref=e756]: 到期
+          - generic [ref=e757]:
+            - combobox [ref=e759] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e760]: 权重
+      - generic [ref=e761]:
+        - generic [ref=e762]:
+          - generic [ref=e763]:
+            - checkbox [ref=e764] [cursor=pointer]
+            - generic [ref=e765]:
+              - generic [ref=e766]: rr***@gm***.com
+              - generic [ref=e767]:
+                - generic [ref=e768]: PRO
+                - generic [ref=e769]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e770]: 风险组:25
+                - generic [ref=e771]: Google
+                - generic [ref=e772]: 正常
+                - generic [ref=e773]: 已启用
+          - generic [ref=e774]:
+            - button "刷新" [ref=e775] [cursor=pointer]:
+              - img [ref=e776]
+            - button "详情" [ref=e779] [cursor=pointer]:
+              - img [ref=e780]
+            - button "复制 JSON" [ref=e783] [cursor=pointer]:
+              - img [ref=e784]
+            - button "禁用" [ref=e787] [cursor=pointer]
+            - button "测试" [ref=e788] [cursor=pointer]
+            - button "删除" [ref=e789] [cursor=pointer]
+        - generic [ref=e790]:
+          - generic [ref=e791]: 主配额
+          - generic [ref=e794]:
+            - generic [ref=e795]: 46.0 / 1000
+            - generic [ref=e796]: 4.6%
+        - generic [ref=e797]:
+          - generic [ref=e798]:
+            - generic [ref=e799]: "555"
+            - generic [ref=e800]: 请求
+          - generic [ref=e801]:
+            - generic [ref=e802]: 6.5M
+            - generic [ref=e803]: Tokens
+          - generic [ref=e804]:
+            - generic [ref=e805]: "46.6"
+            - generic [ref=e806]: Credits
+          - generic [ref=e807]:
+            - generic [ref=e808]: 54分钟
+            - generic [ref=e809]: 到期
+          - generic [ref=e810]:
+            - combobox [ref=e812] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e813]: 权重
+      - generic [ref=e814]:
+        - generic [ref=e815]:
+          - generic [ref=e816]:
+            - checkbox [ref=e817] [cursor=pointer]
+            - generic [ref=e818]:
+              - generic [ref=e819]: ru***@gm***.com
+              - generic [ref=e820]:
+                - generic [ref=e821]: PRO
+                - generic [ref=e822]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e823]: 风险组:25
+                - generic [ref=e824]: Google
+                - generic [ref=e825]: 正常
+                - generic [ref=e826]: 已启用
+          - generic [ref=e827]:
+            - button "刷新" [ref=e828] [cursor=pointer]:
+              - img [ref=e829]
+            - button "详情" [ref=e832] [cursor=pointer]:
+              - img [ref=e833]
+            - button "复制 JSON" [ref=e836] [cursor=pointer]:
+              - img [ref=e837]
+            - button "禁用" [ref=e840] [cursor=pointer]
+            - button "测试" [ref=e841] [cursor=pointer]
+            - button "删除" [ref=e842] [cursor=pointer]
+        - generic [ref=e843]:
+          - generic [ref=e844]: 主配额
+          - generic [ref=e847]:
+            - generic [ref=e848]: 50.0 / 1000
+            - generic [ref=e849]: 5.0%
+        - generic [ref=e850]:
+          - generic [ref=e851]:
+            - generic [ref=e852]: "778"
+            - generic [ref=e853]: 请求
+          - generic [ref=e854]:
+            - generic [ref=e855]: 7.5M
+            - generic [ref=e856]: Tokens
+          - generic [ref=e857]:
+            - generic [ref=e858]: "50.9"
+            - generic [ref=e859]: Credits
+          - generic [ref=e860]:
+            - generic [ref=e861]: 54分钟
+            - generic [ref=e862]: 到期
+          - generic [ref=e863]:
+            - combobox [ref=e865] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e866]: 权重
+      - generic [ref=e867]:
+        - generic [ref=e868]:
+          - generic [ref=e869]:
+            - checkbox [ref=e870] [cursor=pointer]
+            - generic [ref=e871]:
+              - generic [ref=e872]: ro***@gm***.com
+              - generic [ref=e873]:
+                - generic [ref=e874]: PRO
+                - generic [ref=e875]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e876]: 风险组:25
+                - generic [ref=e877]: Google
+                - generic [ref=e878]: 正常
+                - generic [ref=e879]: 已启用
+          - generic [ref=e880]:
+            - button "刷新" [ref=e881] [cursor=pointer]:
+              - img [ref=e882]
+            - button "详情" [ref=e885] [cursor=pointer]:
+              - img [ref=e886]
+            - button "复制 JSON" [ref=e889] [cursor=pointer]:
+              - img [ref=e890]
+            - button "禁用" [ref=e893] [cursor=pointer]
+            - button "测试" [ref=e894] [cursor=pointer]
+            - button "删除" [ref=e895] [cursor=pointer]
+        - generic [ref=e896]:
+          - generic [ref=e897]: 主配额
+          - generic [ref=e900]:
+            - generic [ref=e901]: 49.0 / 1000
+            - generic [ref=e902]: 4.9%
+        - generic [ref=e903]:
+          - generic [ref=e904]:
+            - generic [ref=e905]: "739"
+            - generic [ref=e906]: 请求
+          - generic [ref=e907]:
+            - generic [ref=e908]: 6.4M
+            - generic [ref=e909]: Tokens
+          - generic [ref=e910]:
+            - generic [ref=e911]: "49.7"
+            - generic [ref=e912]: Credits
+          - generic [ref=e913]:
+            - generic [ref=e914]: 54分钟
+            - generic [ref=e915]: 到期
+          - generic [ref=e916]:
+            - combobox [ref=e918] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e919]: 权重
+      - generic [ref=e920]:
+        - generic [ref=e921]:
+          - generic [ref=e922]:
+            - checkbox [ref=e923] [cursor=pointer]
+            - generic [ref=e924]:
+              - generic [ref=e925]: ru***@gm***.com
+              - generic [ref=e926]:
+                - generic [ref=e927]: PRO
+                - generic [ref=e928]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e929]: 风险组:25
+                - generic [ref=e930]: Google
+                - generic [ref=e931]: 正常
+                - generic [ref=e932]: 已启用
+          - generic [ref=e933]:
+            - button "刷新" [ref=e934] [cursor=pointer]:
+              - img [ref=e935]
+            - button "详情" [ref=e938] [cursor=pointer]:
+              - img [ref=e939]
+            - button "复制 JSON" [ref=e942] [cursor=pointer]:
+              - img [ref=e943]
+            - button "禁用" [ref=e946] [cursor=pointer]
+            - button "测试" [ref=e947] [cursor=pointer]
+            - button "删除" [ref=e948] [cursor=pointer]
+        - generic [ref=e949]:
+          - generic [ref=e950]: 主配额
+          - generic [ref=e953]:
+            - generic [ref=e954]: 27.0 / 1000
+            - generic [ref=e955]: 2.7%
+        - generic [ref=e956]:
+          - generic [ref=e957]:
+            - generic [ref=e958]: "90"
+            - generic [ref=e959]: 请求
+          - generic [ref=e960]:
+            - generic [ref=e961]: 3.7M
+            - generic [ref=e962]: Tokens
+          - generic [ref=e963]:
+            - generic [ref=e964]: "27.3"
+            - generic [ref=e965]: Credits
+          - generic [ref=e966]:
+            - generic [ref=e967]: 54分钟
+            - generic [ref=e968]: 到期
+          - generic [ref=e969]:
+            - combobox [ref=e971] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e972]: 权重
+      - generic [ref=e973]:
+        - generic [ref=e974]:
+          - generic [ref=e975]:
+            - checkbox [ref=e976] [cursor=pointer]
+            - generic [ref=e977]:
+              - generic [ref=e978]: ru***@gm***.com
+              - generic [ref=e979]:
+                - generic [ref=e980]: PRO
+                - generic [ref=e981]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e982]: 风险组:25
+                - generic [ref=e983]: Google
+                - generic [ref=e984]: 正常
+                - generic [ref=e985]: 已启用
+          - generic [ref=e986]:
+            - button "刷新" [ref=e987] [cursor=pointer]:
+              - img [ref=e988]
+            - button "详情" [ref=e991] [cursor=pointer]:
+              - img [ref=e992]
+            - button "复制 JSON" [ref=e995] [cursor=pointer]:
+              - img [ref=e996]
+            - button "禁用" [ref=e999] [cursor=pointer]
+            - button "测试" [ref=e1000] [cursor=pointer]
+            - button "删除" [ref=e1001] [cursor=pointer]
+        - generic [ref=e1002]:
+          - generic [ref=e1003]: 主配额
+          - generic [ref=e1006]:
+            - generic [ref=e1007]: 26.0 / 1000
+            - generic [ref=e1008]: 2.6%
+        - generic [ref=e1009]:
+          - generic [ref=e1010]:
+            - generic [ref=e1011]: "100"
+            - generic [ref=e1012]: 请求
+          - generic [ref=e1013]:
+            - generic [ref=e1014]: 4.0M
+            - generic [ref=e1015]: Tokens
+          - generic [ref=e1016]:
+            - generic [ref=e1017]: "26.1"
+            - generic [ref=e1018]: Credits
+          - generic [ref=e1019]:
+            - generic [ref=e1020]: 54分钟
+            - generic [ref=e1021]: 到期
+          - generic [ref=e1022]:
+            - combobox [ref=e1024] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1025]: 权重
+      - generic [ref=e1026]:
+        - generic [ref=e1027]:
+          - generic [ref=e1028]:
+            - checkbox [ref=e1029] [cursor=pointer]
+            - generic [ref=e1030]:
+              - generic [ref=e1031]: ro***@gm***.com
+              - generic [ref=e1032]:
+                - generic [ref=e1033]: PRO
+                - generic [ref=e1034]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1035]: 风险组:25
+                - generic [ref=e1036]: Google
+                - generic [ref=e1037]: 正常
+                - generic [ref=e1038]: 已启用
+          - generic [ref=e1039]:
+            - button "刷新" [ref=e1040] [cursor=pointer]:
+              - img [ref=e1041]
+            - button "详情" [ref=e1044] [cursor=pointer]:
+              - img [ref=e1045]
+            - button "复制 JSON" [ref=e1048] [cursor=pointer]:
+              - img [ref=e1049]
+            - button "禁用" [ref=e1052] [cursor=pointer]
+            - button "测试" [ref=e1053] [cursor=pointer]
+            - button "删除" [ref=e1054] [cursor=pointer]
+        - generic [ref=e1055]:
+          - generic [ref=e1056]: 主配额
+          - generic [ref=e1059]:
+            - generic [ref=e1060]: 25.0 / 1000
+            - generic [ref=e1061]: 2.5%
+        - generic [ref=e1062]:
+          - generic [ref=e1063]:
+            - generic [ref=e1064]: "109"
+            - generic [ref=e1065]: 请求
+          - generic [ref=e1066]:
+            - generic [ref=e1067]: 3.1M
+            - generic [ref=e1068]: Tokens
+          - generic [ref=e1069]:
+            - generic [ref=e1070]: "25.1"
+            - generic [ref=e1071]: Credits
+          - generic [ref=e1072]:
+            - generic [ref=e1073]: 54分钟
+            - generic [ref=e1074]: 到期
+          - generic [ref=e1075]:
+            - combobox [ref=e1077] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1078]: 权重
+      - generic [ref=e1079]:
+        - generic [ref=e1080]:
+          - generic [ref=e1081]:
+            - checkbox [ref=e1082] [cursor=pointer]
+            - generic [ref=e1083]:
+              - generic [ref=e1084]: ru***@gm***.com
+              - generic [ref=e1085]:
+                - generic [ref=e1086]: PRO
+                - generic [ref=e1087]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1088]: 风险组:25
+                - generic [ref=e1089]: Google
+                - generic [ref=e1090]: 正常
+                - generic [ref=e1091]: 已启用
+          - generic [ref=e1092]:
+            - button "刷新" [ref=e1093] [cursor=pointer]:
+              - img [ref=e1094]
+            - button "详情" [ref=e1097] [cursor=pointer]:
+              - img [ref=e1098]
+            - button "复制 JSON" [ref=e1101] [cursor=pointer]:
+              - img [ref=e1102]
+            - button "禁用" [ref=e1105] [cursor=pointer]
+            - button "测试" [ref=e1106] [cursor=pointer]
+            - button "删除" [ref=e1107] [cursor=pointer]
+        - generic [ref=e1108]:
+          - generic [ref=e1109]: 主配额
+          - generic [ref=e1112]:
+            - generic [ref=e1113]: 26.0 / 1000
+            - generic [ref=e1114]: 2.6%
+        - generic [ref=e1115]:
+          - generic [ref=e1116]:
+            - generic [ref=e1117]: "57"
+            - generic [ref=e1118]: 请求
+          - generic [ref=e1119]:
+            - generic [ref=e1120]: 2.9M
+            - generic [ref=e1121]: Tokens
+          - generic [ref=e1122]:
+            - generic [ref=e1123]: "26.7"
+            - generic [ref=e1124]: Credits
+          - generic [ref=e1125]:
+            - generic [ref=e1126]: 54分钟
+            - generic [ref=e1127]: 到期
+          - generic [ref=e1128]:
+            - combobox [ref=e1130] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1131]: 权重
+      - generic [ref=e1132]:
+        - generic [ref=e1133]:
+          - generic [ref=e1134]:
+            - checkbox [ref=e1135] [cursor=pointer]
+            - generic [ref=e1136]:
+              - generic [ref=e1137]: ro***@gm***.com
+              - generic [ref=e1138]:
+                - generic [ref=e1139]: PRO
+                - generic [ref=e1140]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1141]: 风险组:25
+                - generic [ref=e1142]: Google
+                - generic [ref=e1143]: 正常
+                - generic [ref=e1144]: 已启用
+          - generic [ref=e1145]:
+            - button "刷新" [ref=e1146] [cursor=pointer]:
+              - img [ref=e1147]
+            - button "详情" [ref=e1150] [cursor=pointer]:
+              - img [ref=e1151]
+            - button "复制 JSON" [ref=e1154] [cursor=pointer]:
+              - img [ref=e1155]
+            - button "禁用" [ref=e1158] [cursor=pointer]
+            - button "测试" [ref=e1159] [cursor=pointer]
+            - button "删除" [ref=e1160] [cursor=pointer]
+        - generic [ref=e1161]:
+          - generic [ref=e1162]: 主配额
+          - generic [ref=e1165]:
+            - generic [ref=e1166]: 27.0 / 1000
+            - generic [ref=e1167]: 2.7%
+        - generic [ref=e1168]:
+          - generic [ref=e1169]:
+            - generic [ref=e1170]: "62"
+            - generic [ref=e1171]: 请求
+          - generic [ref=e1172]:
+            - generic [ref=e1173]: 2.9M
+            - generic [ref=e1174]: Tokens
+          - generic [ref=e1175]:
+            - generic [ref=e1176]: "27.3"
+            - generic [ref=e1177]: Credits
+          - generic [ref=e1178]:
+            - generic [ref=e1179]: 54分钟
+            - generic [ref=e1180]: 到期
+          - generic [ref=e1181]:
+            - combobox [ref=e1183] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1184]: 权重
+      - generic [ref=e1185]:
+        - generic [ref=e1186]:
+          - generic [ref=e1187]:
+            - checkbox [ref=e1188] [cursor=pointer]
+            - generic [ref=e1189]:
+              - generic [ref=e1190]: cv***@go***.com
+              - generic [ref=e1191]:
+                - generic [ref=e1192]: PRO
+                - generic [ref=e1193]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1194]: 风险组:25
+                - generic [ref=e1195]: Google
+                - generic [ref=e1196]: 正常
+                - generic [ref=e1197]: 已启用
+          - generic [ref=e1198]:
+            - button "刷新" [ref=e1199] [cursor=pointer]:
+              - img [ref=e1200]
+            - button "详情" [ref=e1203] [cursor=pointer]:
+              - img [ref=e1204]
+            - button "复制 JSON" [ref=e1207] [cursor=pointer]:
+              - img [ref=e1208]
+            - button "禁用" [ref=e1211] [cursor=pointer]
+            - button "测试" [ref=e1212] [cursor=pointer]
+            - button "删除" [ref=e1213] [cursor=pointer]
+        - generic [ref=e1214]:
+          - generic [ref=e1215]: 主配额
+          - generic [ref=e1218]:
+            - generic [ref=e1219]: 268.0 / 1000
+            - generic [ref=e1220]: 26.8%
+        - generic [ref=e1221]:
+          - generic [ref=e1222]:
+            - generic [ref=e1223]: "200"
+            - generic [ref=e1224]: 请求
+          - generic [ref=e1225]:
+            - generic [ref=e1226]: 30.7M
+            - generic [ref=e1227]: Tokens
+          - generic [ref=e1228]:
+            - generic [ref=e1229]: "268.5"
+            - generic [ref=e1230]: Credits
+          - generic [ref=e1231]:
+            - generic [ref=e1232]: 54分钟
+            - generic [ref=e1233]: 到期
+          - generic [ref=e1234]:
+            - combobox [ref=e1236] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1237]: 权重
+      - generic [ref=e1238]:
+        - generic [ref=e1239]:
+          - generic [ref=e1240]:
+            - checkbox [ref=e1241] [cursor=pointer]
+            - generic [ref=e1242]:
+              - generic [ref=e1243]: ha***@go***.com
+              - generic [ref=e1244]:
+                - generic [ref=e1245]: PRO
+                - generic [ref=e1246]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1247]: 风险组:25
+                - generic [ref=e1248]: Google
+                - generic [ref=e1249]: 正常
+                - generic [ref=e1250]: 已启用
+          - generic [ref=e1251]:
+            - button "刷新" [ref=e1252] [cursor=pointer]:
+              - img [ref=e1253]
+            - button "详情" [ref=e1256] [cursor=pointer]:
+              - img [ref=e1257]
+            - button "复制 JSON" [ref=e1260] [cursor=pointer]:
+              - img [ref=e1261]
+            - button "禁用" [ref=e1264] [cursor=pointer]
+            - button "测试" [ref=e1265] [cursor=pointer]
+            - button "删除" [ref=e1266] [cursor=pointer]
+        - generic [ref=e1267]:
+          - generic [ref=e1268]: 主配额
+          - generic [ref=e1271]:
+            - generic [ref=e1272]: 26.0 / 1000
+            - generic [ref=e1273]: 2.6%
+        - generic [ref=e1274]:
+          - generic [ref=e1275]:
+            - generic [ref=e1276]: "37"
+            - generic [ref=e1277]: 请求
+          - generic [ref=e1278]:
+            - generic [ref=e1279]: 2.2M
+            - generic [ref=e1280]: Tokens
+          - generic [ref=e1281]:
+            - generic [ref=e1282]: "26.6"
+            - generic [ref=e1283]: Credits
+          - generic [ref=e1284]:
+            - generic [ref=e1285]: 54分钟
+            - generic [ref=e1286]: 到期
+          - generic [ref=e1287]:
+            - combobox [ref=e1289] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1290]: 权重
+      - generic [ref=e1291]:
+        - generic [ref=e1292]:
+          - generic [ref=e1293]:
+            - checkbox [ref=e1294] [cursor=pointer]
+            - generic [ref=e1295]:
+              - generic [ref=e1296]: fe***@go***.com
+              - generic [ref=e1297]:
+                - generic [ref=e1298]: PRO
+                - generic [ref=e1299]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1300]: 风险组:25
+                - generic [ref=e1301]: Google
+                - generic [ref=e1302]: 正常
+                - generic [ref=e1303]: 已启用
+          - generic [ref=e1304]:
+            - button "刷新" [ref=e1305] [cursor=pointer]:
+              - img [ref=e1306]
+            - button "详情" [ref=e1309] [cursor=pointer]:
+              - img [ref=e1310]
+            - button "复制 JSON" [ref=e1313] [cursor=pointer]:
+              - img [ref=e1314]
+            - button "禁用" [ref=e1317] [cursor=pointer]
+            - button "测试" [ref=e1318] [cursor=pointer]
+            - button "删除" [ref=e1319] [cursor=pointer]
+        - generic [ref=e1320]:
+          - generic [ref=e1321]: 主配额
+          - generic [ref=e1324]:
+            - generic [ref=e1325]: 44.0 / 1000
+            - generic [ref=e1326]: 4.4%
+        - generic [ref=e1327]:
+          - generic [ref=e1328]:
+            - generic [ref=e1329]: "56"
+            - generic [ref=e1330]: 请求
+          - generic [ref=e1331]:
+            - generic [ref=e1332]: 4.2M
+            - generic [ref=e1333]: Tokens
+          - generic [ref=e1334]:
+            - generic [ref=e1335]: "44.9"
+            - generic [ref=e1336]: Credits
+          - generic [ref=e1337]:
+            - generic [ref=e1338]: 54分钟
+            - generic [ref=e1339]: 到期
+          - generic [ref=e1340]:
+            - combobox [ref=e1342] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1343]: 权重
+      - generic [ref=e1344]:
+        - generic [ref=e1345]:
+          - generic [ref=e1346]:
+            - checkbox [ref=e1347] [cursor=pointer]
+            - generic [ref=e1348]:
+              - generic [ref=e1349]: iq***@go***.com
+              - generic [ref=e1350]:
+                - generic [ref=e1351]: PRO
+                - generic [ref=e1352]: W:2
+                - generic "profile:arn:aws:codewhisperer:us-east-1:699475941385:profile/EHGA3GRVQMUK" [ref=e1353]: 风险组:25
+                - generic [ref=e1354]: Google
+                - generic [ref=e1355]: 正常
+                - generic [ref=e1356]: 已启用
+          - generic [ref=e1357]:
+            - button "刷新" [ref=e1358] [cursor=pointer]:
+              - img [ref=e1359]
+            - button "详情" [ref=e1362] [cursor=pointer]:
+              - img [ref=e1363]
+            - button "复制 JSON" [ref=e1366] [cursor=pointer]:
+              - img [ref=e1367]
+            - button "禁用" [ref=e1370] [cursor=pointer]
+            - button "测试" [ref=e1371] [cursor=pointer]
+            - button "删除" [ref=e1372] [cursor=pointer]
+        - generic [ref=e1373]:
+          - generic [ref=e1374]: 主配额
+          - generic [ref=e1377]:
+            - generic [ref=e1378]: 9.0 / 1000
+            - generic [ref=e1379]: 0.9%
+        - generic [ref=e1380]:
+          - generic [ref=e1381]:
+            - generic [ref=e1382]: "16"
+            - generic [ref=e1383]: 请求
+          - generic [ref=e1384]:
+            - generic [ref=e1385]: 749.5K
+            - generic [ref=e1386]: Tokens
+          - generic [ref=e1387]:
+            - generic [ref=e1388]: "9.1"
+            - generic [ref=e1389]: Credits
+          - generic [ref=e1390]:
+            - generic [ref=e1391]: 54分钟
+            - generic [ref=e1392]: 到期
+          - generic [ref=e1393]:
+            - combobox [ref=e1395] [cursor=pointer]:
+              - option "0"
+              - option "1"
+              - option "2" [selected]
+              - option "3"
+              - option "4"
+              - option "5"
+            - generic [ref=e1396]: 权重

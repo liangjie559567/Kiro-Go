@@ -1,0 +1,26 @@
+{
+  "verdict": "PASS",
+  "model": "claude-opus-4-7",
+  "requestedConcurrency": 1,
+  "effectiveConcurrency": 1,
+  "summaries": [
+    {
+      "name": "non-stream",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": []
+    },
+    {
+      "name": "stream",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "forbidden_statuses": 0,
+      "content_failures": 0,
+      "failures": []
+    }
+  ]
+}

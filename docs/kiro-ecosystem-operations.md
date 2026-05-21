@@ -7,7 +7,7 @@ This document describes the operator-facing Admin/API workflows for managing Kir
 
 ## Credential Validation
 
-Use `POST /admin/api/auth/credentials/validate` with `X-Admin-Password`.
+Use the credentials validate route under `/admin/api/*` with `X-Admin-Password`.
 
 Example:
 

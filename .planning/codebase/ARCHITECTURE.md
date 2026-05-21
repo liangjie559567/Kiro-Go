@@ -1,280 +1,271 @@
-<!-- refreshed: 2026-05-15 -->
+<!-- refreshed: 2026-05-21 -->
 # Architecture
 
-**Analysis Date:** 2026-05-15
+**Analysis Date:** 2026-05-21
 
 ## System Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    HTTP Service Process                      │
-│                         `main.go`                            │
+│                    HTTP Proxy Process                       │
+│                     `main.go`                               │
 ├──────────────────┬──────────────────┬───────────────────────┤
-│ Claude API       │ OpenAI API       │ Admin/Web API          │
-│ `/v1/messages`   │ `/v1/chat/...`   │ `/admin`, `/admin/api` │
-│ `proxy/handler.go` │ `proxy/handler.go` │ `proxy/handler.go`  │
+│  Client APIs     │  Admin UI/API    │ Background Jobs       │
+│ `proxy/handler.go`│ `web/index.html` │ `proxy/handler.go`    │
 └────────┬─────────┴────────┬─────────┴──────────┬────────────┘
          │                  │                    │
          ▼                  ▼                    ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                Translation and Routing Layer                 │
-│ `proxy/translator.go`, `proxy/handler.go`, `pool/account.go` │
+│          Translation, Routing, Admission, Observability      │
+│ `proxy/translator.go`, `proxy/request_log.go`,               │
+│ `proxy/opus_gate.go`, `proxy/claude_code_concurrency_governor.go` │
 └────────┬──────────────────┬────────────────────┬────────────┘
          │                  │                    │
          ▼                  ▼                    ▼
-┌──────────────────┐ ┌──────────────────┐ ┌───────────────────┐
-│ Kiro Upstream    │ │ Config Store     │ │ Auth Providers    │
-│ `proxy/kiro.go`  │ │ `config/config.go` │ │ `auth/*.go`      │
-│ `proxy/kiro_api.go` │ `data/config.json` │ AWS OIDC/Kiro    │
-└──────────────────┘ └──────────────────┘ └───────────────────┘
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐
+│ Account Pool    │ │ Persistent Config│ │ Auth Clients        │
+│ `pool/account.go`│ │ `config/config.go`│ │ `auth/*.go`         │
+└────────┬────────┘ └────────┬────────┘ └─────────┬───────────┘
+         │                   │                    │
+         ▼                   ▼                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Kiro / CodeWhisperer / Amazon Q upstream APIs                │
+│ `proxy/kiro.go`, `proxy/kiro_api.go`, `proxy/kiro_headers.go` │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Responsibilities
 
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| Process bootstrap | Resolve config path, initialize config/logger/account pool/handler, start `http.ListenAndServe`. | `main.go` |
-| HTTP router and orchestration | Dispatch public API, admin API, health/stats routes; manage request validation, retries, token refresh, response streaming, background workers. | `proxy/handler.go` |
-| Protocol translation | Convert Claude/OpenAI request and response shapes to/from Kiro payloads, model aliases, thinking mode, tools, images, prompt filters. | `proxy/translator.go` |
-| Kiro streaming client | Build Kiro request payload types, HTTP clients, proxy-aware transports, endpoint fallback, AWS event-stream parsing callbacks. | `proxy/kiro.go` |
-| Kiro REST client | Fetch usage limits, user info, available models, profile ARN, and account metadata. | `proxy/kiro_api.go` |
-| Account pool | Maintain weighted round-robin account selection, model support cache, cooldowns, failure classification, per-account stats. | `pool/account.go` |
-| Persistent config | Own JSON-backed runtime configuration, account records, settings, stats, prompt filters, thinking settings, proxy settings. | `config/config.go` |
-| Authentication flows | Start/complete AWS IAM SSO, Builder ID device auth, SSO token import, credentials import, OAuth token refresh. | `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`, `auth/oidc.go` |
-| Logging | Provide lightweight leveled logging configured at startup. | `logger/logger.go` |
-| Admin frontend | Single-page admin panel served by the Go handler. | `web/index.html` |
+| Process bootstrap | Loads config, initializes logger and account pool, creates the handler, starts HTTP server with graceful shutdown | `main.go` |
+| HTTP handler | Owns request routing, CORS, client auth, generation endpoints, admin API, background refresh, health checks, stats persistence | `proxy/handler.go` |
+| Request translation | Converts Anthropic Claude and OpenAI payloads to Kiro payloads, then converts Kiro outputs back to Claude/OpenAI response shapes | `proxy/translator.go` |
+| Kiro streaming client | Sends generation payloads to ordered Kiro/CodeWhisperer/Amazon Q streaming endpoints with fallback and Kiro-compatible headers | `proxy/kiro.go`, `proxy/kiro_headers.go` |
+| Kiro REST client | Reads usage limits, user info, available models, profiles, and readiness metadata | `proxy/kiro_api.go` |
+| Account pool | Maintains enabled account routing state, weighted selection, cooldowns, model breakers, runtime health, and load-balance strategy | `pool/account.go`, `pool/breaker.go` |
+| Persistent config | Stores accounts, credentials, client access, feature toggles, admission settings, proxy settings, prompt filters, and stats in JSON | `config/config.go` |
+| Authentication | Refreshes OIDC/social tokens and supports IAM SSO, Builder ID, and SSO token imports | `auth/oidc.go`, `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go` |
+| Admin frontend | Single-file HTML/CSS/JS admin panel served by the Go handler | `web/index.html` |
+| Observability | In-memory request logs, request classification, compatibility/readiness status, and leveled logging | `proxy/request_log.go`, `proxy/request_classifier.go`, `logger/logger.go` |
 
 ## Pattern Overview
 
-**Overall:** Single-binary layered proxy with package-level singletons and handler-centered orchestration.
+**Overall:** Modular monolith reverse proxy with package-level subsystems and in-process state.
 
 **Key Characteristics:**
-- Use the standard library `net/http` `Handler` pattern; `proxy.Handler` implements `ServeHTTP` in `proxy/handler.go`.
-- Keep persistent application state in `config.Config`, protected by package-level `sync.RWMutex` in `config/config.go`.
-- Keep runtime routing state in the global `pool.AccountPool` singleton from `pool.GetPool()` in `pool/account.go`.
-- Place upstream protocol and response shape logic in the `proxy` package instead of adding separate service packages.
-- Start background workers from `proxy.NewHandler()` for model cache refresh, auto-refresh, health checks, and stats persistence.
+- Use one `http.Handler` implementation in `proxy/handler.go` as the application controller.
+- Keep protocol adaptation in `proxy/translator.go`; do not put Claude/OpenAI/Kiro shape conversion in `main.go`, `pool/`, or `auth/`.
+- Use package-level singletons for persistent configuration (`config/config.go`) and account routing (`pool/account.go`).
+- Keep upstream Kiro wire behavior in `proxy/kiro.go`, `proxy/kiro_api.go`, and `proxy/kiro_headers.go`.
+- Add tests beside the package they exercise, using `*_test.go` files such as `proxy/handler_test.go` and `pool/account_test.go`.
 
 ## Layers
 
 **Bootstrap Layer:**
-- Purpose: Assemble the process and bind the HTTP server.
+- Purpose: Process startup, config path resolution, environment overrides, server lifecycle.
 - Location: `main.go`
-- Contains: Config path resolution, data directory creation, config initialization, logger initialization, admin password env override, account pool warm-up, handler construction.
-- Depends on: `config`, `logger`, `pool`, `proxy`, Go `net/http`.
-- Used by: The compiled `kiro-go` executable and Docker entrypoint.
+- Contains: `main`, `newHTTPServer`, `runHTTPServerWithGracefulShutdown`.
+- Depends on: `config`, `logger`, `pool`, `proxy`, Go standard library.
+- Used by: The compiled `kiro-go` process.
 
 **HTTP/API Layer:**
-- Purpose: Route incoming requests and enforce API/admin authentication.
+- Purpose: Route inbound HTTP requests, enforce client access, return API-compatible errors, serve admin UI.
 - Location: `proxy/handler.go`
-- Contains: `Handler`, `NewHandler()`, `ServeHTTP()`, public Claude/OpenAI endpoints, admin API endpoints, health/stats endpoints, SSE response writers.
-- Depends on: `config`, `pool`, `auth`, `logger`, translator/client helpers in the same `proxy` package.
-- Used by: `main.go`.
+- Contains: `Handler`, `NewHandler`, `ServeHTTP`, `handleClaudeMessages`, `handleOpenAIChat`, `handleOpenAIResponses`, `handleAdminAPI`.
+- Depends on: `config`, `pool`, `auth`, `logger`, translator and Kiro client helpers in `proxy/`.
+- Used by: `main.go` through `proxy.NewHandler()`.
 
 **Translation Layer:**
-- Purpose: Normalize client-facing Claude/OpenAI schemas into Kiro payloads and translate Kiro output back to client-compatible responses.
-- Location: `proxy/translator.go`
-- Contains: `ClaudeRequest`, `OpenAIRequest`, `ClaudeToKiro()`, `OpenAIToKiro()`, response builders, model mapping, prompt filter application, tool/image conversion.
-- Depends on: `config`, `github.com/google/uuid`, standard JSON/string/time helpers.
-- Used by: `proxy/handler.go`.
+- Purpose: Map public API contracts to Kiro conversation state and map Kiro streaming/non-streaming results back to public contracts.
+- Location: `proxy/translator.go`, `proxy/anthropic_envelope.go`, `proxy/payload_guard.go`, `proxy/token_estimator.go`
+- Contains: `ClaudeRequest`, `OpenAIRequest`, `KiroPayload`, `ClaudeToKiro`, `OpenAIToKiro`, `KiroToClaudeResponse`, `KiroToOpenAIResponse`, request envelope parsing, payload trimming, token estimates.
+- Depends on: `config`, standard JSON/string/time packages, UUID generation.
+- Used by: `proxy/handler.go` generation paths.
 
 **Upstream Client Layer:**
-- Purpose: Call Kiro/Amazon Q/CodeWhisperer streaming and REST APIs.
+- Purpose: Execute outbound calls to Kiro streaming and REST APIs with endpoint fallback, per-account proxy handling, and Kiro header construction.
 - Location: `proxy/kiro.go`, `proxy/kiro_api.go`, `proxy/kiro_headers.go`
-- Contains: `KiroPayload`, stream callback types, endpoint definitions, proxy-aware HTTP clients, REST account/model/profile functions, Kiro header construction.
-- Depends on: `config`, `auth`, `logger`, Go HTTP client.
-- Used by: `proxy/handler.go`, `proxy/account_refresh.go`, health/model cache jobs.
+- Contains: `CallKiroAPIWithContext`, `ListAvailableModels`, `GetUsageLimits`, `GetUserInfo`, `ResolveProfileArn`.
+- Depends on: `config.Account`, `auth.RefreshToken`, `logger`, HTTP client stores.
+- Used by: `proxy/handler.go`, background jobs, account diagnostics.
 
-**State Layer:**
-- Purpose: Store and expose persistent configuration plus runtime account scheduling state.
-- Location: `config/config.go`, `pool/account.go`
-- Contains: `Config`, `Account`, settings accessors/updaters, JSON persistence, `AccountPool`, weighted selection, cooldown state, model support cache.
-- Depends on: Standard library synchronization, filesystem, JSON.
-- Used by: `main.go`, `proxy/*`, `auth/*`.
+**Account Routing Layer:**
+- Purpose: Select accounts, track runtime health, apply cooldowns, model circuit breakers, sticky sessions, and load-balancing strategies.
+- Location: `pool/account.go`, `pool/breaker.go`
+- Contains: `AccountPool`, `GetPool`, `Reload`, `GetNextForModelExcept`, `ClassifyFailureReason`, model breaker state.
+- Depends on: `config` for persisted accounts and load-balance settings.
+- Used by: `proxy.Handler` request retry loops and admin diagnostics.
 
-**Auth Layer:**
-- Purpose: Implement token acquisition and refresh for all supported account import flows.
-- Location: `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`, `auth/oidc.go`, `auth/http_client.go`
-- Contains: AWS IAM SSO PKCE flow, Builder ID device flow, bearer token import, credentials parsing, token refresh, auth HTTP clients.
-- Depends on: `config`, Go HTTP/crypto packages.
-- Used by: Admin API methods and `Handler.ensureValidToken()` in `proxy/handler.go`.
+**Configuration Layer:**
+- Purpose: Normalize, validate, persist, and expose application configuration and account records.
+- Location: `config/config.go`
+- Contains: `Config`, `Account`, `Init`, getters/setters, normalization and validation functions.
+- Depends on: filesystem JSON storage and `sync.RWMutex`.
+- Used by: all runtime packages except `logger`.
 
-**Frontend Asset Layer:**
-- Purpose: Provide the admin UI served directly by the backend.
-- Location: `web/index.html`
-- Contains: Static HTML/CSS/JS admin panel.
-- Depends on: `/admin/api/*` routes in `proxy/handler.go`.
-- Used by: `serveAdminPage()` and `serveStaticFile()` in `proxy/handler.go`.
+**Authentication Layer:**
+- Purpose: Refresh access tokens and import/complete login flows.
+- Location: `auth/oidc.go`, `auth/iam_sso.go`, `auth/builderid.go`, `auth/sso_token.go`, `auth/http_client.go`
+- Contains: `RefreshToken`, IAM SSO flow helpers, Builder ID polling, SSO token parsing, proxy-aware auth HTTP clients.
+- Depends on: `config` for proxy URL and account credentials.
+- Used by: `proxy/handler.go`, `proxy/kiro_api.go`.
 
 ## Data Flow
 
-### Claude Request Path
+### Primary Claude Messages Request Path
 
-1. `main.main()` initializes config, logger, pool, and `proxy.NewHandler()` before starting `http.ListenAndServe` (`main.go:28`).
-2. `Handler.ServeHTTP()` matches `/v1/messages`, validates API key when required, and calls `handleClaudeMessages()` (`proxy/handler.go:584`).
-3. `handleClaudeMessagesInternal()` reads JSON, validates the Claude request, resolves thinking mode, estimates tokens, and calls `ClaudeToKiro()` (`proxy/handler.go:1022`, `proxy/translator.go:179`).
-4. `handleClaudeWithAccountRetry()` selects accounts using `h.pool.GetNextForModelExcept()`, refreshes tokens with `ensureValidToken()`, computes prompt cache usage, and delegates to stream/non-stream attempt handlers (`proxy/handler.go:1400`, `pool/account.go:248`, `proxy/handler.go:2715`).
-5. Kiro streaming/non-stream helpers call upstream endpoints through proxy-aware clients and Kiro payload/callback types (`proxy/kiro.go:42`, `proxy/kiro.go:164`).
-6. Handler response builders emit Claude-compatible JSON or SSE and update handler stats plus account stats (`proxy/handler.go`, `pool/account.go`).
+1. Process starts, loads `data/config.json` or `CONFIG_PATH`, initializes config/logger/pool, creates `proxy.Handler` (`main.go:34`).
+2. `proxy.NewHandler()` applies proxy/admission settings, restores persisted stats, creates request log/cache/governor state, and starts background goroutines (`proxy/handler.go:1048`).
+3. `Handler.ServeHTTP` routes `/v1/messages`, `/messages`, and `/anthropic/v1/messages` after API key/IP checks (`proxy/handler.go:1358`).
+4. `handleClaudeMessagesInternal` reads the body, parses Anthropic envelope metadata, records request classification, normalizes Opus 4.7 requests, validates request shape and tool names (`proxy/handler.go:1870`).
+5. `ClaudeToKiro` builds Kiro conversation state, history, current user message, tool schemas, images, tool results, and Kiro metadata (`proxy/translator.go:258`).
+6. `handleClaudeWithAccountRetry` selects accounts through `pool.AccountPool`, applies admission/governor controls, refreshes tokens if needed, and attempts upstream calls (`proxy/handler.go:2404`).
+7. `CallKiroAPIWithContext` orders Kiro/CodeWhisperer/Amazon Q endpoints, finalizes profile ARN, builds Kiro headers, sends the request, and retries/falls back on endpoint failures (`proxy/kiro.go:1412`).
+8. Kiro output is converted back into Claude response blocks by `KiroToClaudeResponse` or streamed through `claudeSSEWriter` (`proxy/translator.go:1771`, `proxy/claude_sse_writer.go`).
+9. Request logs, counters, account success/failure, and persisted stats are updated by `proxy/request_log.go`, `proxy/handler.go`, and `pool/account.go`.
 
-### OpenAI Request Path
+### OpenAI Chat/Responses Path
 
-1. `Handler.ServeHTTP()` matches `/v1/chat/completions`, validates API key when required, and calls `handleOpenAIChat()` (`proxy/handler.go:617`, `proxy/handler.go:2202`).
-2. The OpenAI request is validated, model/thinking mode is resolved, and `OpenAIToKiro()` converts messages/tools/images into a `KiroPayload` (`proxy/translator.go:935`).
-3. `handleOpenAIWithAccountRetry()` performs the same account selection, token refresh, Opus 4.7 admission, retry, and stream/non-stream split as the Claude path (`proxy/handler.go:1481`).
-4. Kiro output is converted to OpenAI-compatible responses using response builders in `proxy/translator.go`.
+1. `Handler.ServeHTTP` routes `/v1/chat/completions`, `/chat/completions`, `/v1/responses`, and `/responses` to OpenAI handlers (`proxy/handler.go:1396`, `proxy/handler.go:1402`).
+2. OpenAI request bodies are parsed and classified in `handleOpenAIChat` / `handleOpenAIResponses` (`proxy/handler.go:3839`, `proxy/handler.go:3885`).
+3. `OpenAIToKiro` maps OpenAI system/user/assistant/tool messages into Kiro payload shape (`proxy/translator.go:2104`).
+4. The handler uses the same account retry and Kiro upstream path as Claude requests (`proxy/handler.go:2585`, `proxy/handler.go:3935`).
+5. Responses are returned via `KiroToOpenAIResponse` or OpenAI-compatible streaming writers (`proxy/translator.go:2656`).
 
-### Admin Account Flow
+### Admin and Operations Path
 
-1. `Handler.ServeHTTP()` routes `/admin/api/*` to `handleAdminAPI()` (`proxy/handler.go:633`).
-2. `handleAdminAPI()` checks `X-Admin-Password` or `admin_password` cookie against `config.GetPassword()` (`proxy/handler.go:2759`).
-3. Auth endpoints call `auth.StartIamSsoLogin()`, `auth.CompleteIamSsoLogin()`, `auth.StartBuilderIdLogin()`, `auth.PollBuilderIdAuth()`, or import helpers (`proxy/handler.go:2811`, `auth/iam_sso.go:43`, `auth/builderid.go:31`).
-4. Account changes are persisted through `config.AddAccount()`, `config.UpdateAccount()`, `config.DeleteAccount()`, and then the account pool is reloaded where needed (`config/config.go`, `pool/account.go:98`).
+1. `Handler.ServeHTTP` serves `/admin` from `web/index.html` and routes `/admin/api/*` to `handleAdminAPI` (`proxy/handler.go:1418`, `proxy/handler.go:1420`).
+2. `handleAdminAPI` authenticates with `X-Admin-Password` or `admin_password` cookie, then dispatches accounts, auth, settings, status, readiness, request logs, and export routes (`proxy/handler.go:5188`).
+3. Account and setting mutations call `config` update functions, then reload `pool.AccountPool` when routing inputs change (`config/config.go`, `pool/account.go`).
+4. Diagnostics and readiness endpoints combine persisted account data, runtime pool state, model lists, request logs, and Kiro REST probes (`proxy/ecosystem_ops.go`, `proxy/request_log.go`, `proxy/kiro_api.go`).
 
-### Background Maintenance Flow
+### Background Refresh and Health Flow
 
-1. `NewHandler()` starts `backgroundRefresh()`, `backgroundHealthCheck()`, and `backgroundStatsSaver()` goroutines (`proxy/handler.go:324`).
-2. `backgroundRefresh()` periodically runs `runAutoRefresh()` and `refreshModelsCache()` (`proxy/handler.go:351`).
-3. `runAutoRefresh()` selects configured accounts, calls `refreshAccountData()`, reloads the pool, and updates refresh status (`proxy/handler.go:426`, `proxy/account_refresh.go`).
-4. `backgroundHealthCheck()` periodically calls `runHealthCheck()`; unhealthy accounts can be disabled and persisted (`proxy/handler.go:454`).
-5. `backgroundStatsSaver()` persists aggregate stats back to `data/config.json` through `config.UpdateStats()` (`proxy/handler.go:2020`, `config/config.go`).
+1. `NewHandler` starts `backgroundRefresh`, `backgroundHealthCheck`, and `backgroundStatsSaver` goroutines (`proxy/handler.go:1071`).
+2. `backgroundRefresh` periodically refreshes account data and model cache according to `config.AutoRefreshConfig` (`proxy/handler.go:1098`).
+3. `backgroundHealthCheck` probes token validity and available models, optionally disabling unhealthy accounts (`proxy/handler.go:1209`).
+4. `backgroundStatsSaver` persists process counters into config storage every 30 seconds (`proxy/handler.go:3537`).
 
 **State Management:**
-- Persistent state lives in `data/config.json` by default and is accessed through package-level functions in `config/config.go`.
-- Runtime account scheduling state lives in the `pool.AccountPool` singleton, with mutex-protected cooldowns, model cache, and weighted account list in `pool/account.go`.
-- Per-handler runtime stats and caches live on `proxy.Handler`, using atomics, mutexes, and background goroutines in `proxy/handler.go`.
-- Auth login sessions are in-memory package-level maps protected by mutexes in `auth/iam_sso.go` and `auth/builderid.go`.
+- Persistent state is a JSON config file controlled by `config.Init` and `cfgLock` in `config/config.go`.
+- Runtime account selection state is in the singleton `pool.AccountPool` guarded by `sync.RWMutex` in `pool/account.go`.
+- Per-process request logs, prompt cache, admission gates, response sessions, and counters live on `proxy.Handler` in `proxy/handler.go`.
+- HTTP client stores for Kiro and auth are atomic pointers with proxy-specific caches in `proxy/kiro.go` and `auth/http_client.go`.
 
 ## Key Abstractions
 
 **`proxy.Handler`:**
-- Purpose: HTTP router plus orchestration boundary for public API, admin API, retries, stats, and background jobs.
+- Purpose: Application controller and in-memory runtime holder.
 - Examples: `proxy/handler.go`
-- Pattern: Stateful `http.Handler` with internal goroutines and shared dependencies.
+- Pattern: Single `http.Handler` with method-based route handlers and background goroutines.
 
 **`config.Config` and `config.Account`:**
-- Purpose: Canonical persisted shape for service settings, account credentials, account health, and usage counters.
+- Purpose: Persisted application settings and account credentials/usage data.
 - Examples: `config/config.go`
-- Pattern: Package-level JSON store with exported accessor/update functions and `sync.RWMutex`.
+- Pattern: Package-level config singleton with validation, normalization, and JSON persistence.
 
 **`pool.AccountPool`:**
-- Purpose: Runtime account scheduler and health/cooldown tracker.
-- Examples: `pool/account.go`
-- Pattern: Global singleton initialized with `sync.Once`; methods protect mutable slices/maps with `sync.RWMutex`.
+- Purpose: Runtime routing model over persisted accounts.
+- Examples: `pool/account.go`, `pool/breaker.go`
+- Pattern: Singleton account scheduler with weighted routing, cooldowns, breakers, and health scores.
 
-**`proxy.KiroPayload`:**
-- Purpose: Internal upstream request shape sent to Kiro/Amazon Q/CodeWhisperer endpoints.
-- Examples: `proxy/kiro.go`, `proxy/translator.go`
-- Pattern: Shared DTO used by both Claude and OpenAI adapters.
+**Protocol DTOs:**
+- Purpose: Typed request/response shapes for Claude, OpenAI, and Kiro.
+- Examples: `proxy/translator.go`, `proxy/kiro.go`
+- Pattern: Struct-based DTOs plus explicit conversion functions.
 
-**Client Protocol DTOs:**
-- Purpose: Represent input/output schemas for Anthropic Claude and OpenAI-compatible APIs.
-- Examples: `proxy/translator.go`
-- Pattern: Structs with JSON tags and conversion helpers colocated with translation logic.
+**Admission Controls:**
+- Purpose: Protect capacity-sensitive models and Claude Code sessions from overload.
+- Examples: `proxy/opus_gate.go`, `proxy/claude_code_concurrency_governor.go`, `proxy/content_continuity.go`
+- Pattern: In-memory gates with queue limits, per-model pressure, and release callbacks.
 
-**Auth Session Records:**
-- Purpose: Track short-lived IAM SSO and Builder ID login state across admin API requests.
-- Examples: `auth/iam_sso.go`, `auth/builderid.go`
-- Pattern: Package-level map plus mutex; cleanup goroutine removes expired sessions.
+**Request Logs:**
+- Purpose: Capture routing, compatibility, payload, usage, latency, and error metadata for admin APIs.
+- Examples: `proxy/request_log.go`
+- Pattern: Bounded in-memory ring-like store on `proxy.Handler`.
 
 ## Entry Points
 
-**Executable:**
+**Process Entrypoint:**
 - Location: `main.go`
-- Triggers: `go run .`, compiled binary, Docker container command.
-- Responsibilities: Initialize all global state and start the HTTP server.
+- Triggers: Running the compiled binary or `go run .`.
+- Responsibilities: Resolve config path, create data dir, initialize packages, start server, handle shutdown.
 
-**Public Claude API:**
+**Public API Entrypoint:**
 - Location: `proxy/handler.go`
-- Triggers: `POST /v1/messages`, `POST /messages`, `POST /anthropic/v1/messages`
-- Responsibilities: Validate request/API key, translate to Kiro, route through account pool, emit Claude-compatible JSON/SSE.
+- Triggers: `ServeHTTP` requests for `/v1/messages`, `/v1/chat/completions`, `/v1/responses`, `/v1/models`, `/v1/stats`, `/health`.
+- Responsibilities: Authentication, routing, protocol-specific parsing, upstream orchestration, response formatting.
 
-**Claude Token Count API:**
-- Location: `proxy/handler.go`
-- Triggers: `POST /v1/messages/count_tokens`, `POST /messages/count_tokens`
-- Responsibilities: Estimate Claude request input tokens without upstream generation.
-
-**Public OpenAI API:**
-- Location: `proxy/handler.go`
-- Triggers: `POST /v1/chat/completions`, `POST /chat/completions`
-- Responsibilities: Validate request/API key, translate to Kiro, route through account pool, emit OpenAI-compatible JSON/SSE.
-
-**Models API:**
-- Location: `proxy/handler.go`
-- Triggers: `GET /v1/models`, `GET /models`
-- Responsibilities: Return cached or fallback model list with thinking variants and OpenAI aliases.
-
-**Admin UI:**
+**Admin Entrypoint:**
 - Location: `web/index.html`, `proxy/handler.go`
-- Triggers: `GET /admin`, `GET /admin/*`
-- Responsibilities: Serve static admin frontend and assets.
+- Triggers: Browser visits `/admin`; JS calls `/admin/api/*`.
+- Responsibilities: Account management, login/import flows, settings, readiness, request logs, diagnostics.
 
-**Admin API:**
+**Background Entrypoints:**
 - Location: `proxy/handler.go`
-- Triggers: `/admin/api/*`
-- Responsibilities: Authenticate admin password, manage accounts/settings/auth flows/stats/model refresh.
+- Triggers: Goroutines started by `NewHandler`.
+- Responsibilities: Auto refresh, health checks, model cache refresh, stats saving.
 
-**Health and Stats:**
-- Location: `proxy/handler.go`
-- Triggers: `GET /health`, `GET /`, `GET /v1/stats`
-- Responsibilities: Report process health, uptime, version, and authenticated aggregate stats.
+**Container Entrypoint:**
+- Location: `Dockerfile`, `docker-compose.yml`
+- Triggers: Docker image/container startup.
+- Responsibilities: Build and run the Go binary with data volume/config environment.
 
 ## Architectural Constraints
 
-- **Threading:** Single Go process with `net/http` goroutine-per-request behavior plus background goroutines started in `proxy.NewHandler()` for refresh, health checks, and stats persistence.
-- **Global state:** Use package-level globals in `config/config.go` (`cfg`, `cfgLock`, `cfgPath`), `pool/account.go` (`pool`, `poolOnce`), `auth/iam_sso.go` (`sessions`), `auth/builderid.go` (`builderIdSessions`), `proxy/kiro.go` (`kiroHttpStore`, `kiroRestHttpStore`, `proxyClientCache`), and `proxy/handler.go` (`opus47AdmissionGate`, injectable test variables).
-- **Circular imports:** Package dependencies are directed: `main` imports `config/logger/pool/proxy`; `proxy` imports `auth/config/logger/pool`; `pool` imports `config`; `auth` imports `config`. No circular package import is present.
-- **Persistence model:** `data/config.json` is both settings storage and account/stat persistence. Do not read or quote live `data/config.json` contents because it contains credentials/tokens.
-- **Dependency injection:** Most production dependencies are package-level functions or globals. Tests replace selected variables such as `ensureValidTokenForHealthCheck` in `proxy/handler.go`.
-- **Routing:** Routes are switch-based in `proxy/handler.go`; add new routes by extending `ServeHTTP()` for public paths or `handleAdminAPI()` for admin paths.
+- **Threading:** The service uses Go goroutines. `main.go` starts the HTTP server in one goroutine and `proxy.NewHandler()` starts background refresh, health check, and stats saver goroutines.
+- **Global state:** `config/config.go` uses package-level `cfg`, `cfgLock`, and `cfgPath`; `pool/account.go` uses package-level `pool` and `poolOnce`; `proxy/handler.go` uses package-level admission gates and test-swappable function variables; `proxy/kiro.go` and `auth/http_client.go` use atomic global HTTP client stores.
+- **Circular imports:** Package direction is one-way in source: `main` imports `config`, `logger`, `pool`, `proxy`; `proxy` imports `auth`, `config`, `logger`, `pool`; `pool` imports `config`; `auth` imports `config`; `config` imports no local package.
+- **Storage:** Runtime configuration and credentials are persisted under `data/config.json` by default. Do not read or log secret values from `data/`.
+- **Frontend packaging:** The admin UI is a single static file at `web/index.html`; backend serves it directly instead of using a separate frontend build pipeline.
+- **Route table:** Public and admin routes are switch statements in `proxy/handler.go`; route order matters for overlapping admin account paths.
 
 ## Anti-Patterns
 
-### Bypassing Config Accessors
+### Translation Logic Outside `proxy/translator.go`
 
-**What happens:** Code directly mutates or reads `config.Get()` state outside the accessor/update functions.
-**Why it's wrong:** `config.Config` is guarded by `cfgLock`, and direct mutation can skip persistence or race with background workers.
-**Do this instead:** Add or use an accessor/update function in `config/config.go`, then call it from `proxy/handler.go` or `pool/account.go`.
+**What happens:** Protocol-specific request/response mapping is added inside route handlers or upstream client functions.
+**Why it's wrong:** It mixes public API semantics with routing/retry concerns and makes compatibility tests harder to target.
+**Do this instead:** Add Claude/OpenAI/Kiro DTO and conversion behavior in `proxy/translator.go`, with handler orchestration in `proxy/handler.go`.
 
-### Duplicating Account Selection
+### Direct Config Mutation Without Reload
 
-**What happens:** Request handlers manually scan `config.GetAccounts()` to pick a serving account.
-**Why it's wrong:** Manual selection bypasses weights, cooldowns, token-expiry skipping, overage rules, and model support cache in `pool.AccountPool`.
-**Do this instead:** Use `h.pool.GetNextForModelExcept()` or related `pool.AccountPool` methods in `pool/account.go`.
+**What happens:** Account or load-balance settings are changed without reloading `pool.AccountPool`.
+**Why it's wrong:** The pool keeps weighted accounts, cooldowns, model lists, and strategy in runtime state separate from persisted config.
+**Do this instead:** Use config update helpers in `config/config.go`, then call `pool.GetPool().Reload()` or `SetStrategy` from the relevant admin handler in `proxy/handler.go`.
 
-### Adding Upstream HTTP Calls in Admin Handlers
+### Upstream Calls Without Kiro Header Helpers
 
-**What happens:** Admin route methods construct Kiro/AWS HTTP requests inline.
-**Why it's wrong:** Header construction, proxy selection, endpoint details, and REST/stream timeouts are already centralized.
-**Do this instead:** Put upstream Kiro calls in `proxy/kiro_api.go` or streaming client code in `proxy/kiro.go`; keep admin handlers in `proxy/handler.go` as orchestration.
+**What happens:** New Kiro REST/streaming calls hand-build partial headers.
+**Why it's wrong:** Kiro compatibility depends on consistent user-agent, machine id, profile ARN, auth, region, and service headers.
+**Do this instead:** Use `setKiroHeaders`, `buildStreamingHeaderValues`, and `applyKiroBaseHeaders` from `proxy/kiro_headers.go`.
 
-### Reading Runtime Secret Files in Tooling
+### Unbounded Runtime State
 
-**What happens:** Development scripts or analysis read `data/config.json`, `recovery/*.json`, or credentials-like files.
-**Why it's wrong:** The config and recovery files can contain account tokens, refresh tokens, client secrets, and credentials.
-**Do this instead:** Treat those files as persistent data stores; inspect schema in `config/config.go` and note file existence only.
+**What happens:** New request/session/cache collections grow without capacity or TTL.
+**Why it's wrong:** The proxy is a long-running process and existing stores are intentionally bounded.
+**Do this instead:** Follow `requestLogStore` capacity in `proxy/request_log.go`, OpenAI response session TTL/capacity in `proxy/handler.go`, and prompt cache TTL in `proxy/cache_tracker.go`.
 
 ## Error Handling
 
-**Strategy:** Return explicit HTTP errors at the API boundary, classify account/upstream failures for retry/cooldown behavior, and persist account health when needed.
+**Strategy:** Return client-compatible JSON/SSE errors at the public API boundary, classify upstream failures for pool health, and expose operational details through admin request logs.
 
 **Patterns:**
-- Public Claude errors use `sendClaudeError()` from `proxy/handler.go`.
-- Public OpenAI errors use `sendOpenAIError()` from `proxy/handler.go`.
-- Upstream/account failures are classified by `pool.ClassifyFailureReason()` and recorded with `recordAccountFailure()` in `proxy/handler.go`.
-- Rate-limit errors can carry a reset time through the `rateLimitResetError` interface in `proxy/handler.go` and `proxy/kiro.go`.
-- Startup failures are fatal in `main.go` using standard `log.Fatalf` before `logger.Init()` and `logger.Fatalf()` afterward.
+- Use `sendClaudeError`, `sendClaudeUpstreamError`, and `sendOpenAIError` in `proxy/handler.go` for API responses.
+- Classify upstream failures with `pool.ClassifyFailureReason` in `pool/account.go` and record account/model failures through handler helpers.
+- Preserve Anthropic request IDs via `parseAnthropicEnvelope` and `writeAnthropicRequestIDHeaders` in `proxy/anthropic_envelope.go`.
+- For admin APIs, write JSON objects with HTTP status codes directly from `proxy/handler.go`.
+- For fatal startup problems, `main.go` logs and exits.
 
 ## Cross-Cutting Concerns
 
-**Logging:** Use `logger.Debugf/Infof/Warnf/Errorf/Fatalf` from `logger/logger.go`; log level comes from `LOG_LEVEL` or config.
-
-**Validation:** Request shape validation is in `validateClaudeRequestShape()`, `validateClaudeThinkingConfig()`, and `validateOpenAIRequestShape()` in `proxy/handler.go`; config validation functions live in `config/config.go`.
-
-**Authentication:** Public API key checks are handled by `Handler.validateApiKey()` in `proxy/handler.go`; admin auth checks `X-Admin-Password` or `admin_password` cookie in `handleAdminAPI()`; upstream token refresh is in `auth/oidc.go` and `Handler.ensureValidToken()`.
-
-**Concurrency:** Use mutexes/atomics already present on `proxy.Handler`, `config`, `pool`, and auth session maps. Preserve lock boundaries and avoid calling slow upstream network operations while holding locks unless the existing function already does so.
+**Logging:** Use `logger.Debugf`, `Infof`, `Warnf`, `Errorf`, and `Fatalf` from `logger/logger.go`; log level comes from `LOG_LEVEL` or persisted config.
+**Validation:** Config validation lives in `config/config.go`; request shape, tool names, payload guard, and thinking-mode validation live in `proxy/handler.go` and `proxy/payload_guard.go`.
+**Authentication:** Client API access uses API keys and IP allowlist in `config.ClientAccessConfig`; admin API uses the configured admin password; upstream Kiro auth uses per-account OAuth tokens refreshed by `auth/oidc.go`.
+**Observability:** Request logs are collected in `proxy/request_log.go`, readiness/diagnostics in `proxy/ecosystem_ops.go`, and compatibility matrices in `docs/`.
+**Concurrency:** Use mutexes/atomics around shared state: `config.cfgLock`, `pool.AccountPool.mu`, handler mutexes, request log store locks, and admission gate locks.
 
 ---
 
-*Architecture analysis: 2026-05-15*
+*Architecture analysis: 2026-05-21*

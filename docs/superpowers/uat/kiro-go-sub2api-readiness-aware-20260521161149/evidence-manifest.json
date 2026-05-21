@@ -1,0 +1,164 @@
+{
+  "runId": "kiro-go-sub2api-readiness-aware-20260521161149",
+  "checkedAt": "2026-05-21T16:20:00+08:00",
+  "verdict": "FAIL",
+  "pass": false,
+  "reason": "Prechecks passed, but the readiness-aware non-stream run failed with 6 passed out of 7 completed records and one 180002 ms AbortError; the stream 100/100 run was not executed after the non-stream gate failed.",
+  "scope": {
+    "route": "client -> sub2api http://127.0.0.1:18080/v1/messages -> Kiro-Go http://kiro-go:8080/v1/messages",
+    "requestedModel": "claude-opus-4-7",
+    "requiredNonStreamSuccesses": 100,
+    "requiredStreamSuccesses": 100,
+    "browserTool": "Playwright-MCP",
+    "realBrowserUrl": "https://kiro.cgtall.com/admin"
+  },
+  "checks": {
+    "kiroHealth": {
+      "status": "PASS",
+      "artifact": "api/kiro-health.json",
+      "observed": {
+        "status": "ok",
+        "version": "1.0.8"
+      }
+    },
+    "sub2apiHealth": {
+      "status": "PASS",
+      "artifact": "api/sub2api-health.json",
+      "observed": {
+        "status": "ok"
+      }
+    },
+    "precheckNonStream": {
+      "status": "PASS",
+      "artifact": "api/precheck.json",
+      "observed": {
+        "httpStatus": 200,
+        "responseModel": "claude-opus-4.7",
+        "markerPresent": true
+      }
+    },
+    "precheckStream": {
+      "status": "PASS",
+      "artifact": "api/precheck.json",
+      "observed": {
+        "httpStatus": 200,
+        "contentType": "text/event-stream",
+        "messageStart": true,
+        "messageStop": true,
+        "markerPresent": true
+      }
+    },
+    "runnerReadinessBeforeRun": {
+      "status": "LIMITED",
+      "artifact": "api/readiness-before-run.json",
+      "observed": {
+        "httpStatus": 401,
+        "decision": "reduced_to_safe_concurrency",
+        "effectiveConcurrency": 1
+      }
+    },
+    "browserReadiness": {
+      "status": "FAIL_EVIDENCE_CONFIRMED",
+      "artifact": "api/kiro-real-admin-browser-api-202605211620.json",
+      "observed": {
+        "httpStatus": 200,
+        "status": "degraded",
+        "safeConcurrency": 2,
+        "admissionEffectiveConcurrency": 2,
+        "circuitState": "half_open",
+        "reasonCodes": [
+          "admission_pressure"
+        ],
+        "lastPressureReason": "rate_limited_or_model_capacity"
+      }
+    },
+    "nonStream100": {
+      "status": "FAIL",
+      "artifacts": [
+        "api/non-stream-partial-summary.json",
+        "request-results/non-stream.jsonl"
+      ],
+      "observed": {
+        "completedRecords": 7,
+        "passed": 6,
+        "failed": 1,
+        "statusCounts": {
+          "0": 1,
+          "200": 6
+        },
+        "primaryErrorType": "AbortError",
+        "failedDurationMs": 180002
+      }
+    },
+    "stream100": {
+      "status": "NOT_RUN",
+      "reason": "The stream pressure batch was intentionally not run after the non-stream gate failed."
+    },
+    "sub2apiDatabase": {
+      "status": "PASS_FOR_FAILURE_CORRELATION",
+      "artifact": "sub2api/db-evidence-after-abort.json",
+      "observed": {
+        "window": "since 2026-05-21 16:12:00+08",
+        "nonStreamUsageRows": 7,
+        "streamPrecheckUsageRows": 1,
+        "opsErrorSummary": [
+          {
+            "errorType": "upstream_error",
+            "statusCode": 502,
+            "count": 2,
+            "requestPath": "/v1/messages",
+            "upstreamEndpoint": "/v1/messages"
+          }
+        ]
+      }
+    },
+    "logs": {
+      "status": "PASS_FOR_FAILURE_CORRELATION",
+      "artifacts": [
+        "logs/kiro-go-tail-after-readiness-aware-abort.log",
+        "logs/sub2api-tail-after-readiness-aware-abort.log"
+      ],
+      "observed": [
+        "Kiro-Go log contains repeated Opus 4.7 upstream 429 capacity responses with INSUFFICIENT_MODEL_CAPACITY.",
+        "sub2api log contains upstream failure/context-canceled and 502 evidence in the same failed window."
+      ]
+    },
+    "playwrightScreenshot": {
+      "status": "PASS_FOR_EVIDENCE_VALIDITY_NOT_UAT_PASS",
+      "artifacts": [
+        "screenshots/kiro-real-admin-current-readiness-20260521.png",
+        "screenshots/kiro-real-admin-current-readiness-202605211620.png"
+      ],
+      "observed": {
+        "page": "Kiro-Go admin dashboard",
+        "accounts": "25",
+        "requests": "16173",
+        "successes": "6736",
+        "failures": "9437",
+        "tokens": "222.8M",
+        "credits": "1960.1"
+      }
+    }
+  },
+  "artifacts": {
+    "runner": "run-sub2api-100x100.js",
+    "readinessBeforeRun": "api/readiness-before-run.json",
+    "precheck": "api/precheck.json",
+    "nonStreamPartialSummary": "api/non-stream-partial-summary.json",
+    "nonStreamJsonl": "request-results/non-stream.jsonl",
+    "kiroHealth": "api/kiro-health.json",
+    "sub2apiHealth": "api/sub2api-health.json",
+    "browserAdminApi": "api/kiro-real-admin-browser-api-202605211620.json",
+    "dbEvidence": "sub2api/db-evidence-after-abort.json",
+    "kiroLogTail": "logs/kiro-go-tail-after-readiness-aware-abort.log",
+    "sub2apiLogTail": "logs/sub2api-tail-after-readiness-aware-abort.log",
+    "browserScreenshotInitial": "screenshots/kiro-real-admin-current-readiness-20260521.png",
+    "browserScreenshotLatest": "screenshots/kiro-real-admin-current-readiness-202605211620.png",
+    "uatResult": "UAT-RESULT.md"
+  },
+  "security": {
+    "apiKeyPersisted": false,
+    "adminPasswordPersisted": false,
+    "notes": "Evidence files intentionally avoid storing the raw user-provided API key or admin password."
+  }
+}

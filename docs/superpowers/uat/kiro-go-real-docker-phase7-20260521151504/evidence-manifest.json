@@ -1,0 +1,92 @@
+{
+  "runId": "kiro-go-real-docker-phase7-20260521151504",
+  "generatedAt": "2026-05-21T15:34:00+08:00",
+  "environment": {
+    "baseUrl": "http://127.0.0.1:8080",
+    "composeService": "kiro-go",
+    "container": "kiro-go-kiro-go-1",
+    "dockerHealth": "healthy",
+    "applicationHealth": {
+      "path": "/health",
+      "httpStatus": 200,
+      "body": {
+        "status": "ok",
+        "version": "1.0.8"
+      }
+    }
+  },
+  "artifacts": {
+    "api": [
+      "api/health.json",
+      "api/docker-compose-ps.json",
+      "api/status.json",
+      "api/fleet_readiness_model_claude-opus-4-7.json",
+      "api/claude-code_model-readiness_model_claude-opus-4-7.json",
+      "api/acceptance_evidence_model_claude-opus-4-7.json",
+      "api/request-logs_limit_50.json",
+      "api/request-stats.json",
+      "api/smoke-generation-results.json",
+      "api/fleet_readiness_model_claude-opus-4-7_after_smoke.json",
+      "api/acceptance_evidence_model_claude-opus-4-7_after_smoke.json",
+      "api/request-logs_limit_20_after_smoke.json",
+      "api/request-stats_after_smoke.json",
+      "api/status_after_smoke.json",
+      "api/kiro-cli_diagnostics.json",
+      "api/settings.redacted.json",
+      "api/settings.keys.json",
+      "api/redaction-report.json"
+    ],
+    "headers": [
+      "headers/health.headers",
+      "headers/status.headers",
+      "headers/fleet_readiness_model_claude-opus-4-7.headers",
+      "headers/claude-code_model-readiness_model_claude-opus-4-7.headers",
+      "headers/acceptance_evidence_model_claude-opus-4-7.headers",
+      "headers/request-logs_limit_50.headers",
+      "headers/request-stats.headers",
+      "headers/kiro-cli_diagnostics.headers"
+    ],
+    "browser": [
+      "screenshots/kiro-admin-accounts.png",
+      "screenshots/kiro-admin-api.png",
+      "screenshots/kiro-admin-api-after-smoke.png",
+      "browser/page-admin-accounts.yml",
+      "browser/page-admin-api.yml",
+      "browser/console-summary.json",
+      "browser/console-2026-05-21T07-15-39-223Z.log"
+    ],
+    "logs": [
+      "logs/kiro-go-tail.log",
+      "logs/kiro-go-tail-after-playwright.log"
+    ],
+    "storage": [
+      "db/compose-services.txt",
+      "db/container-files.txt",
+      "db/data-nonsecret-files.txt",
+      "db/data-nonsecret-inventory.txt"
+    ],
+    "sub2api": [
+      "sub2api/health-summary.json",
+      "sub2api/usage-logs-recent.json",
+      "sub2api/ops-errors-recent.json",
+      "sub2api/account-scheduling-state.json",
+      "sub2api/account-scheduling-summary.json"
+    ]
+  },
+  "checks": {
+    "dockerLatestCodeStarted": "pass",
+    "healthEndpoint": "pass",
+    "playwrightAdminAccountsScreenshot": "pass",
+    "playwrightAdminApiScreenshot": "pass",
+    "adminApiSameOriginFetch": "pass",
+    "kiroCliDiagnostics": "pass",
+    "nonSecretStorageInventory": "pass_limited",
+    "directKiroGoOpus47NonStreamSmoke": "pass",
+    "directKiroGoOpus47StreamSmoke": "pass",
+    "recentRequestLogGenerationEvidence": "pass_smoke",
+    "sub2apiHealth": "pass",
+    "sub2apiUsageAndSchedulingDbEvidence": "pass_limited_not_correlated_to_direct_smoke",
+    "fullOpus47GenerationAcceptance": "fail_not_100x100"
+  },
+  "verdict": "smoke_pass_full_100x100_fail"
+}

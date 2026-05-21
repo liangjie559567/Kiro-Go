@@ -1,0 +1,81 @@
+{
+  "runId": "kiro-go-openai-model-breaker-fix-202605211634",
+  "checkedAt": "2026-05-21T16:34:00+08:00",
+  "verdict": "FIX_VERIFIED_LOCALLY_NOT_100X100_PASS",
+  "pass": false,
+  "reason": "The OpenAI/OpenAI Responses model-capacity breaker fix is verified by tests and Docker/browser health checks, but a real post-fix 100/100 non-stream plus 100/100 stream sub2api pressure run has not passed.",
+  "fix": {
+    "summary": "OpenAI Chat and OpenAI Responses generation failures now record per-account, per-model breaker state via recordAccountModelFailure instead of only account-level failure.",
+    "filesChanged": [
+      "proxy/handler.go",
+      "proxy/handler_test.go"
+    ],
+    "testAdded": "TestHandleOpenAIResponsesModelCapacityRecordsModelBreaker"
+  },
+  "checks": {
+    "targetedTest": {
+      "status": "PASS",
+      "command": "go test ./proxy -run TestHandleOpenAIResponsesModelCapacityRecordsModelBreaker -count=1"
+    },
+    "broaderTests": {
+      "status": "PASS",
+      "command": "go test ./pool ./proxy"
+    },
+    "dockerRebuild": {
+      "status": "PASS",
+      "command": "docker compose up -d --build kiro-go",
+      "artifact": "logs/docker-compose-ps-after-rebuild.txt"
+    },
+    "kiroHealth": {
+      "status": "PASS",
+      "artifact": "api/kiro-health.json",
+      "observed": {
+        "status": "ok",
+        "version": "1.0.8"
+      }
+    },
+    "sub2apiHealth": {
+      "status": "PASS",
+      "artifact": "api/sub2api-health.json",
+      "observed": {
+        "status": "ok"
+      }
+    },
+    "playwrightScreenshot": {
+      "status": "PASS_FOR_UI_REACHABILITY_NOT_100X100_PASS",
+      "artifact": "screenshots/kiro-go-after-openai-model-breaker-fix-202605211634.png",
+      "observed": {
+        "page": "Kiro-Go admin dashboard",
+        "accounts": "25",
+        "requests": "16173",
+        "successes": "6736",
+        "failures": "9437",
+        "tokens": "222.8M",
+        "credits": "1960.1"
+      }
+    },
+    "openSourceResearch": {
+      "status": "COMPLETED_BY_SUBAGENTS",
+      "artifact": "research/open-source-research-summary.md",
+      "sources": [
+        "https://github.com/jwadow/kiro-gateway",
+        "https://github.com/zeoak9297/KiroSwitchManager"
+      ]
+    }
+  },
+  "artifacts": {
+    "uatResult": "UAT-RESULT.md",
+    "manifest": "evidence-manifest.json",
+    "researchSummary": "research/open-source-research-summary.md",
+    "kiroHealth": "api/kiro-health.json",
+    "sub2apiHealth": "api/sub2api-health.json",
+    "kiroLogTail": "logs/kiro-go-tail-after-rebuild.log",
+    "dockerComposePs": "logs/docker-compose-ps-after-rebuild.txt",
+    "browserScreenshot": "screenshots/kiro-go-after-openai-model-breaker-fix-202605211634.png"
+  },
+  "security": {
+    "apiKeyPersisted": false,
+    "adminPasswordPersisted": false,
+    "secretFilesRead": false
+  }
+}

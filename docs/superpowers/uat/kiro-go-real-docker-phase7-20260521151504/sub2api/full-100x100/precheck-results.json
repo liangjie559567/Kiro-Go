@@ -1,0 +1,37 @@
+{
+  "started": "2026-05-21T07:42:11.504Z",
+  "finishedAt": "2026-05-21T07:42:11.551Z",
+  "userId": 4,
+  "keyId": 5,
+  "requests": [
+    {
+      "stream": false,
+      "status": 403,
+      "ok": false,
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "ced73e4b-d221-45d4-899d-aa85139e34bb"
+      },
+      "bodyType": null,
+      "model": null,
+      "usage": null,
+      "contentNonEmpty": true,
+      "markerPresent": false,
+      "outputPreview": "Insufficient account balance"
+    },
+    {
+      "stream": true,
+      "status": 403,
+      "ok": false,
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "f011a725-f4f0-444c-9a2d-9c785f6cbf5e"
+      },
+      "eventCount": 1,
+      "contentNonEmpty": false,
+      "markerPresent": false,
+      "outputPreview": "",
+      "errorEvent": ""
+    }
+  ]
+}

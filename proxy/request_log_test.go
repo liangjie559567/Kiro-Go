@@ -140,6 +140,13 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	ctx, loggedReq, recorder, _ := h.beginRequestLog(httptest.NewRecorder(), req)
 
 	updateRequestLogMetadata(loggedReq, "claude-opus-4.7", false)
+	updateRequestLogAdmissionEvidence(loggedReq, "claude-opus-4.7", map[string]interface{}{
+		"status":             "degraded",
+		"safeConcurrency":    2,
+		"retryAfterSeconds":  7,
+		"circuitState":       "half_open",
+		"lastPressureReason": "model_capacity",
+	})
 	updateRequestLogUpstream(loggedReq, "acct-1", "eu-west-1", AccountRequestHealthSnapshot{
 		ActiveConnections: 2,
 		RecentFailures:    1,
@@ -179,6 +186,12 @@ func TestRequestLogMetadataCapturesAccountRegionAndTokenUsage(t *testing.T) {
 	entry := logs[0]
 	if entry.AccountID != "acct-1" || entry.Region != "eu-west-1" {
 		t.Fatalf("expected account and region metadata, got %#v", entry)
+	}
+	if entry.RequestedModel != "claude-opus-4.7" || entry.EffectiveModel != "claude-opus-4.7" {
+		t.Fatalf("expected requested/effective model evidence, got %#v", entry)
+	}
+	if entry.AdmissionReadinessStatus != "degraded" || entry.AdmissionSafeConcurrency != 2 || entry.AdmissionRetryAfterSeconds != 7 || entry.AdmissionCircuitState != "half_open" || entry.AdmissionPressureReason != "model_capacity" {
+		t.Fatalf("expected admission readiness evidence, got %#v", entry)
 	}
 	if entry.AccountActiveConnections != 2 || entry.AccountRecentFailures != 1 || entry.AccountRecentSuccesses != 9 || entry.AccountAvgLatencyMS != 345 || entry.AccountHealthScore != 87 {
 		t.Fatalf("expected account health metadata, got %#v", entry)
@@ -359,15 +372,48 @@ func TestRequestLogMarksStableFallbackAsContentFailure(t *testing.T) {
 
 func TestRequestLogMarksRealContentSuccess(t *testing.T) {
 	entry := RequestLogEntry{}
-	markRequestLogContentSuccess(&entry, 17)
+	markRequestLogContentSuccess(&entry, 17, "output_tokens")
 	if !entry.ContentSuccess {
 		t.Fatalf("expected content success")
 	}
 	if entry.UpstreamContentTokens != 17 {
 		t.Fatalf("UpstreamContentTokens = %d, want 17", entry.UpstreamContentTokens)
 	}
+	if entry.ContentSuccessEvidence != "output_tokens" {
+		t.Fatalf("ContentSuccessEvidence = %q, want output_tokens", entry.ContentSuccessEvidence)
+	}
 	if entry.ContentFailureReason != "" {
 		t.Fatalf("ContentFailureReason = %q, want empty", entry.ContentFailureReason)
+	}
+}
+
+func TestRealContentSuccessTokenCountClassifiesEvidence(t *testing.T) {
+	tests := []struct {
+		name                  string
+		outputTokens          int
+		structuredOutputCount int
+		textParts             []string
+		want                  int
+		wantEvidence          string
+	}{
+		{name: "output tokens", outputTokens: 7, want: 7, wantEvidence: "output_tokens"},
+		{name: "structured output", structuredOutputCount: 1, want: 1, wantEvidence: "structured_output"},
+		{name: "text", textParts: []string{"  real content  "}, want: 1, wantEvidence: "text_delta"},
+		{name: "reasoning text", textParts: []string{"", "  hidden reasoning  "}, want: 1, wantEvidence: "text_delta"},
+		{name: "empty completion", textParts: []string{"", "   "}, want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := realContentSuccessTokenCount(tt.outputTokens, tt.structuredOutputCount, tt.textParts...)
+			if got != tt.want {
+				t.Fatalf("realContentSuccessTokenCount() = %d, want %d", got, tt.want)
+			}
+			_, evidence := realContentSuccessEvidence(tt.outputTokens, tt.structuredOutputCount, tt.textParts...)
+			if evidence != tt.wantEvidence {
+				t.Fatalf("realContentSuccessEvidence() source = %q, want %q", evidence, tt.wantEvidence)
+			}
+		})
 	}
 }
 

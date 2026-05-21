@@ -1,0 +1,28 @@
+{
+  "statusCode": 200,
+  "body": {
+    "status": "degraded",
+    "safeConcurrency": 10,
+    "retryAfterSeconds": 0,
+    "reasonCodes": [
+      "healthy"
+    ],
+    "recentContentRequests": 0,
+    "contentSuccessRate": 1,
+    "recentStableFallbacks": 0,
+    "recentEmptyCompletions": 0,
+    "summary": {
+      "authBlocked": 0,
+      "coolingDown": 0,
+      "disabled": 0,
+      "eligible": 24,
+      "enabled": 24,
+      "modelBreakerOpen": 0,
+      "modelNotListed": 0,
+      "quotaBlocked": 0,
+      "total": 24
+    },
+    "recommendedAction": "limit_to_safe_concurrency",
+    "lastPressureReason": "degraded"
+  }
+}

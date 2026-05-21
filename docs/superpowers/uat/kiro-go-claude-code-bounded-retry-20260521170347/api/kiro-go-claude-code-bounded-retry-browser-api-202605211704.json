@@ -1,0 +1,1466 @@
+{
+  "checkedAt": "2026-05-21T09:04:25.683Z",
+  "pageUrl": "http://127.0.0.1:8080/admin",
+  "title": "Kiro-Go",
+  "passwordVariableAvailable": true,
+  "visibleTextSample": "Kiro-Go\n中文\nEN\n运行中\nv1.0.8\n退出登录\n25\n账号\n16184\n请求\n6743\n成功\n9441\n失败\n222.8M\nTokens\n1960.3\nCredits\n账号\n设置\nAPI\n账号列表\n隐私模式\n导出",
+  "api": {
+    "/admin/api/status": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "accounts": 25,
+        "available": 25,
+        "failedRequests": 9441,
+        "successRequests": 6743,
+        "totalCredits": 1960.3166855573877,
+        "totalRequests": 16184,
+        "totalTokens": "[REDACTED]",
+        "uptime": 48
+      }
+    },
+    "/admin/api/stats": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "failedRequests": 9441,
+        "successRequests": 6743,
+        "totalCredits": 1960.3166855573877,
+        "totalRequests": 16184,
+        "totalTokens": "[REDACTED]",
+        "uptime": 48
+      }
+    },
+    "/admin/api/fleet/readiness?model=claude-opus-4-7": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "accounts": [
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "i***@googlzr.com",
+            "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.7",
+              "minimax-m2.1",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "v***@gmail.com",
+            "id": "125bd142-5218-45d9-8748-3e29a775050b",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "qwen3-coder-next",
+              "claude-opus-4.7",
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "claude-sonnet-4.5",
+              "glm-5",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "f***@googlzr.com",
+            "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "qwen3-coder-next",
+              "claude-haiku-4.5",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "glm-5",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4.5",
+              "claude-opus-4.7",
+              "claude-opus-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "s***@gmail.com",
+            "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-haiku-4.5",
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "auto",
+              "deepseek-3.2",
+              "qwen3-coder-next",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "minimax-m2.1",
+              "claude-opus-4.5",
+              "minimax-m2.5",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-sonnet-4",
+              "glm-5",
+              "auto",
+              "claude-opus-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.5",
+              "minimax-m2.1",
+              "claude-opus-4.7",
+              "glm-5",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "qwen3-coder-next",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "auto",
+              "claude-sonnet-4"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "h***@googlzr.com",
+            "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "minimax-m2.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "auto",
+              "deepseek-3.2",
+              "minimax-m2.1",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "claude-sonnet-4.5",
+              "claude-opus-4.7",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "claude-opus-4.5",
+              "qwen3-coder-next",
+              "glm-5",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "minimax-m2.1",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.5",
+              "auto",
+              "glm-5",
+              "qwen3-coder-next"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "auto",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "glm-5",
+              "claude-opus-4.7",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "auto",
+              "claude-opus-4.5",
+              "glm-5",
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "w***@gmail.com",
+            "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "minimax-m2.1"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "m***@gmail.com",
+            "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-haiku-4.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-sonnet-4",
+              "deepseek-3.2",
+              "claude-opus-4.6",
+              "glm-5",
+              "qwen3-coder-next"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "w***@gmail.com",
+            "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "claude-sonnet-4",
+              "minimax-m2.1",
+              "auto",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "claude-opus-4.6",
+              "minimax-m2.5",
+              "claude-haiku-4.5",
+              "glm-5",
+              "qwen3-coder-next"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "c***@googlzr.com",
+            "id": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "auto",
+              "glm-5",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "glm-5",
+              "claude-opus-4.6",
+              "claude-opus-4.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "auto",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "deepseek-3.2",
+              "claude-opus-4.5",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "glm-5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "c***@gmail.com",
+            "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4.5",
+              "glm-5",
+              "deepseek-3.2",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "claude-opus-4.7"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "qwen3-coder-next",
+              "auto",
+              "minimax-m2.1",
+              "deepseek-3.2",
+              "claude-opus-4.5",
+              "claude-sonnet-4.6",
+              "glm-5",
+              "claude-opus-4.6"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "l***@gmail.com",
+            "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4",
+              "minimax-m2.1",
+              "glm-5",
+              "claude-opus-4.6",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "qwen3-coder-next",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-haiku-4.5",
+              "minimax-m2.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "minimax-m2.1",
+              "claude-opus-4.7",
+              "claude-sonnet-4",
+              "glm-5",
+              "qwen3-coder-next",
+              "minimax-m2.5",
+              "auto",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-opus-4.5",
+              "deepseek-3.2",
+              "claude-sonnet-4.5",
+              "claude-haiku-4.5"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-sonnet-4.6",
+              "claude-sonnet-4.5",
+              "minimax-m2.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "auto",
+              "glm-5",
+              "claude-opus-4.7",
+              "claude-opus-4.5",
+              "claude-haiku-4.5",
+              "claude-opus-4.6",
+              "claude-sonnet-4",
+              "deepseek-3.2"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.5",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "qwen3-coder-next",
+              "glm-5",
+              "auto",
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "minimax-m2.1",
+              "claude-sonnet-4.6",
+              "claude-sonnet-4",
+              "claude-opus-4.6"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-opus-4.5",
+              "claude-sonnet-4",
+              "minimax-m2.1",
+              "claude-sonnet-4.5",
+              "deepseek-3.2",
+              "claude-opus-4.7",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "claude-haiku-4.5",
+              "minimax-m2.5",
+              "glm-5",
+              "qwen3-coder-next",
+              "auto"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          },
+          {
+            "coolingDown": false,
+            "eligible": true,
+            "email": "r***@gmail.com",
+            "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+            "lastFailureReason": "unknown",
+            "modelBreakerState": "closed",
+            "modelListed": true,
+            "modelsCached": [
+              "claude-haiku-4.5",
+              "minimax-m2.1",
+              "qwen3-coder-next",
+              "claude-opus-4.6",
+              "claude-sonnet-4.6",
+              "minimax-m2.5",
+              "auto",
+              "claude-opus-4.5",
+              "deepseek-3.2",
+              "glm-5",
+              "claude-opus-4.7",
+              "claude-sonnet-4.5",
+              "claude-sonnet-4"
+            ],
+            "reason": "eligible",
+            "reasonCodes": [
+              "eligible"
+            ],
+            "runtimeHealth": {
+              "activeConnections": 0,
+              "recentFailures": 0,
+              "recentSuccesses": 0,
+              "avgLatencyMs": 0,
+              "lastUpdatedAt": 0,
+              "score": 100
+            },
+            "weight": 2
+          }
+        ],
+        "admissionEffectiveConcurrency": 10,
+        "admissionPressureScore": 0,
+        "authBlockedAccounts": 0,
+        "autoRefresh": "[REDACTED]",
+        "circuitState": "closed",
+        "contentSuccessRate": 1,
+        "contractVersion": "opus-4.7-readiness.1",
+        "coolingDownAccounts": 0,
+        "currentInFlight": 0,
+        "enabledAccounts": 25,
+        "healthCheck": {
+          "running": false,
+          "lastStartedAt": 0,
+          "lastFinishedAt": 0,
+          "nextRunAt": 1779354517,
+          "lastSuccess": 0,
+          "lastFailed": 0,
+          "lastDisabled": 0,
+          "lastSkipped": false,
+          "lastSkippedCount": 0,
+          "lastQuietSkipped": 0
+        },
+        "lastPressureAt": "0001-01-01T00:00:00Z",
+        "lastPressureReason": "degraded",
+        "locallySchedulableAccounts": 25,
+        "mappedModel": "claude-opus-4.7",
+        "model": "claude-opus-4-7",
+        "modelBreakerBlockedAccounts": 0,
+        "modelListedAccounts": 25,
+        "notes": [
+          "sub2api should queue or limit Opus 4.7 calls to safeConcurrency"
+        ],
+        "quotaBlockedAccounts": 0,
+        "reasonCodes": [
+          "healthy"
+        ],
+        "recentContentRequests": 0,
+        "recentEmptyCompletions": 0,
+        "recentStableFallbacks": 0,
+        "recommendedAction": "limit_to_safe_concurrency",
+        "recommendedQueueWaitSeconds": 120,
+        "requestedModel": "claude-opus-4-7",
+        "retryAfterSeconds": 0,
+        "safeConcurrency": 10,
+        "status": "degraded",
+        "strategy": "health",
+        "summary": {
+          "authBlocked": 0,
+          "coolingDown": 0,
+          "disabled": 0,
+          "eligible": 25,
+          "enabled": 25,
+          "modelBreakerOpen": 0,
+          "modelNotListed": 0,
+          "quotaBlocked": 0,
+          "total": 25
+        },
+        "temporaryLimitedAccounts": 0
+      }
+    },
+    "/admin/api/claude-code/readiness": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "capabilities": {
+          "assistantPrefill": {
+            "claudeCodeCompatibility": {
+              "mode": "emulated_text_prefill",
+              "proof": "text prefill conversion is implemented",
+              "status": "EMULATED_PASS"
+            },
+            "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+            "evidence": {
+              "mode": "emulated_text_prefill",
+              "proof": "no recent assistant text prefill request in readiness window"
+            },
+            "officialAnthropicParity": {
+              "mode": "emulated_text_prefill",
+              "proof": "native upstream prefill is not proven",
+              "status": "PARTIAL"
+            },
+            "status": "PARTIAL"
+          },
+          "countTokens": "[REDACTED]",
+          "fineGrainedToolStreaming": {
+            "claudeCodeCompatibility": {
+              "mode": "kiro_go_chunked_complete_input",
+              "proof": "Anthropic SSE input_json_delta writer is implemented",
+              "status": "PASS"
+            },
+            "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+            "evidence": {
+              "mode": "kiro_go_chunked_complete_input",
+              "proof": "no recent fine-grained tool stream in readiness window"
+            },
+            "officialAnthropicParity": {
+              "mode": "kiro_go_chunked_complete_input",
+              "proof": "upstream partial tool input deltas are not proven",
+              "status": "PARTIAL"
+            },
+            "status": "PARTIAL"
+          },
+          "maxTokensZero": "[REDACTED]",
+          "messages": {
+            "detail": "/v1/messages is implemented",
+            "status": "PASS"
+          },
+          "opus47AdaptiveAdmission": {
+            "detail": "Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency",
+            "status": "PASS"
+          },
+          "toolReference": {
+            "detail": "tool_reference is accepted and materialized when relevant",
+            "status": "PASS"
+          },
+          "toolSchemaValidation": {
+            "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+            "status": "PASS"
+          }
+        },
+        "examples": [],
+        "lastSeen": "",
+        "recentAdmissionPressure": false,
+        "recentClaudeCode": false,
+        "recentContextReminders": [],
+        "recentFineGrainedToolStreaming": false,
+        "recentMCPTools": false,
+        "recentOrphanedToolResults": false,
+        "recentParentAgents": false,
+        "recentResponsesRestore": false,
+        "recentSuppressedToolUses": false,
+        "recentToolReferences": false,
+        "recentToolResultImages": false,
+        "recentToolResultTurns": false,
+        "recentToolTrimming": false,
+        "recentUnsupportedBlocks": false
+      }
+    },
+    "/admin/api/claude-code/model-readiness?model=claude-opus-4-7": {
+      "status": 200,
+      "ok": true,
+      "contentType": "application/json; charset=utf-8",
+      "body": {
+        "accounts": [
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "c***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "l***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "v***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "125bd142-5218-45d9-8748-3e29a775050b",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "w***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "s***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "w***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "m***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "r***@gmail.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "c***@googlzr.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "7a532394-03f0-4b11-8f2c-b59ec0429b1a",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "h***@googlzr.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "50eaa97f-5fcd-47ed-8625-ef08b47df9b3",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "f***@googlzr.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "15c0ae96-03fa-4e8f-8dcb-2184d7b9fd18",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          },
+          {
+            "cooldownRemainingSeconds": 0,
+            "cooldownSource": "account",
+            "coolingDown": false,
+            "email": "i***@googlzr.com",
+            "enabled": true,
+            "healthy": true,
+            "id": "0e052dc1-fb75-4b8e-8f4c-ef5ecd083ae4",
+            "lastFailureReason": "unknown",
+            "listsModel": true,
+            "reason": "schedulable",
+            "schedulable": true
+          }
+        ],
+        "admissionPressure": {
+          "active": false,
+          "model": "claude-opus-4-7"
+        },
+        "capabilities": {
+          "thinking": true,
+          "toolUse": true,
+          "vision": true,
+          "webSearch": true
+        },
+        "listedByGateway": true,
+        "mappedModel": "claude-opus-4.7",
+        "reason": "model listed by Kiro-Go model cache",
+        "requestedModel": "claude-opus-4-7",
+        "routingReason": "schedulable accounts available",
+        "summary": {
+          "accountsEvaluated": 25,
+          "generationBlocked": 0,
+          "locallySchedulable": 25,
+          "modelListed": true,
+          "riskGroupCoolingDown": 0
+        },
+        "thinking": false,
+        "thinkingVariant": false
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+WARN  2026/05/21 02:37:25 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 02:37:34 [AutoRefresh] Skipped expensive refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 02:37:34 [ModelsCache] Skipped refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 02:42:25 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 02:42:34 [AutoRefresh] Skipped expensive refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 02:42:34 [ModelsCache] Skipped refresh while Opus 4.7 quiet mode is active

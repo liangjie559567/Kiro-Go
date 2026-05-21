@@ -1,0 +1,57 @@
+{
+  "accounts_count": 27,
+  "enabled_accounts": 27,
+  "requireApiKey": true,
+  "stableDownstream": {
+    "enabled": true,
+    "sub2apiCompatible": true,
+    "models": [
+      "claude-opus-4.7"
+    ]
+  },
+  "contentContinuity": {
+    "enabled": true,
+    "models": [
+      "claude-opus-4.7"
+    ],
+    "maxQueueWaitSeconds": 120,
+    "maxQueueDepth": 300,
+    "minContentTokens": 1,
+    "streamHeartbeatSeconds": 10
+  },
+  "modelAdmission": {
+    "default": {
+      "maxConcurrent": 16,
+      "maxWaiting": 300
+    },
+    "models": {
+      "claude-opus-4.7": {
+        "maxConcurrent": 10,
+        "maxWaiting": 300
+      },
+      "claude-sonnet-4.5": {
+        "maxConcurrent": 8,
+        "maxWaiting": 300
+      }
+    }
+  },
+  "claudeCodeGovernor": {
+    "enabled": false,
+    "models": [
+      "claude-opus-4.7"
+    ],
+    "interactiveReservedPerSession": 1,
+    "subagentMaxConcurrentPerSession": 2,
+    "backgroundMaxConcurrent": 1,
+    "queueMaxDepth": 300,
+    "interactiveMaxWaitSeconds": 120,
+    "subagentMaxWaitSeconds": 90,
+    "backgroundMaxWaitSeconds": 15
+  },
+  "preferredEndpoint": "auto",
+  "endpointFallback": true,
+  "loadBalance": {
+    "strategy": "health"
+  },
+  "proxyConfigured": false
+}

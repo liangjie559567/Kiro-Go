@@ -1,0 +1,1 @@
+6|kiro-go-sub2api-claude-code-uat-20260521|disabled|t

@@ -1,0 +1,1 @@
+{"pressure":[{"model":"claude-opus-4-7","score":6,"active":false,"reducedConcurrency":false,"circuitState":"half_open","lastPressureReason":"rate_limited_or_model_capacity","lastPressureAt":"2026-05-21T02:30:27.526034544Z","expiresAt":"2026-05-21T02:30:30.525847081Z","maxConcurrent":10,"effectiveMaxConcurrent":1,"activeRequests":1,"recentCapacityErrors":32,"recentSuccesses":15}]}

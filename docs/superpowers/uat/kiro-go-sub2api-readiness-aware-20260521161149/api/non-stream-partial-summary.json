@@ -1,0 +1,20 @@
+{
+  "total": 7,
+  "passed": 6,
+  "failed": 1,
+  "statusCounts": {
+    "0": 1,
+    "200": 6
+  },
+  "firstFailures": [
+    {
+      "index": 0,
+      "mode": "non-stream",
+      "ok": false,
+      "httpStatus": 0,
+      "durationMs": 180002,
+      "errorType": "AbortError",
+      "errorMessage": "This operation was aborted"
+    }
+  ]
+}

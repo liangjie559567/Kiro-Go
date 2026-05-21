@@ -1,0 +1,59 @@
+{
+  "startedAt": "2026-05-21T08:12:48.196Z",
+  "finishedAt": "2026-05-21T08:12:51.559Z",
+  "concurrencyDecision": {
+    "requestedConcurrency": 10,
+    "effectiveConcurrency": 1,
+    "fixedConcurrency": false,
+    "safeConcurrency": 0,
+    "readinessStatus": "",
+    "circuitState": "",
+    "retryAfterSeconds": 0,
+    "reasonCodes": [],
+    "blocked": false,
+    "decision": "reduced_to_safe_concurrency"
+  },
+  "precheck": [
+    {
+      "index": 999,
+      "mode": "non-stream",
+      "ok": true,
+      "httpStatus": 200,
+      "durationMs": 1723,
+      "safeHeaders": {
+        "content-type": "application/json; charset=utf-8",
+        "x-request-id": "6b1e5484-63f6-491e-ab99-2a041aa67144, req_3eafacae-90e5-4b5c-9ab3-3b1322eee4af"
+      },
+      "bodyType": "message",
+      "responseModel": "claude-opus-4.7",
+      "usage": {
+        "input_tokens": 5932,
+        "output_tokens": 12
+      },
+      "contentNonEmpty": true,
+      "markerPresent": true,
+      "errorType": null,
+      "errorMessage": null,
+      "outputPreview": "KIRO_GO_SUB2API_UAT_NON-STREAM_999"
+    },
+    {
+      "index": 999,
+      "mode": "stream",
+      "ok": true,
+      "httpStatus": 200,
+      "durationMs": 1607,
+      "safeHeaders": {
+        "content-type": "text/event-stream",
+        "x-request-id": "req_2462a6c7-4990-4265-bc0e-79b8070405c2"
+      },
+      "eventCount": 7,
+      "messageStart": true,
+      "messageStop": true,
+      "contentNonEmpty": true,
+      "markerPresent": true,
+      "replayAfterContent": false,
+      "errorEvent": "",
+      "outputPreview": "KIRO_GO_SUB2API_UAT_STREAM_999"
+    }
+  ]
+}

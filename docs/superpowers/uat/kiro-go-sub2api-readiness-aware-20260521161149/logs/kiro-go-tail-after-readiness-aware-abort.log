@@ -1,0 +1,47 @@
+WARN  2026/05/21 07:59:53 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:01:37 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:01:43 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:01:52 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+INFO  2026/05/21 08:02:23 [AutoRefresh] Refreshed rosanaliliana297@gmail.com: PRO 295.0/1000.0
+INFO  2026/05/21 08:02:24 [AutoRefresh] Refreshed robyjoao97@gmail.com: PRO 251.0/1000.0
+INFO  2026/05/21 08:02:25 [AutoRefresh] Refreshed royeracosta379@gmail.com: PRO 285.0/1000.0
+INFO  2026/05/21 08:02:26 [AutoRefresh] Refreshed rubiahernandez412@gmail.com: PRO 222.0/1000.0
+INFO  2026/05/21 08:02:27 [AutoRefresh] Refreshed royalbrewes39@gmail.com: PRO 196.0/1000.0
+INFO  2026/05/21 08:02:28 [AutoRefresh] Refreshed chungweisogra@gmail.com: PRO 158.0/1000.0
+INFO  2026/05/21 08:02:29 [AutoRefresh] Refreshed leethaditi@gmail.com: PRO 142.0/1000.0
+WARN  2026/05/21 08:02:30 [AdminAPI] Failed to refresh vilchespancho17@gmail.com: refresh failed: 429 {"message":"Too many requests. Please try again later."}
+WARN  2026/05/21 08:02:30 [AdminAPI] Failed to refresh wayanobbie88bet@gmail.com: refresh failed: 429 {"message":"Too many requests. Please try again later."}
+INFO  2026/05/21 08:02:31 [AutoRefresh] Refreshed sfmsamfasfasfsafa@gmail.com: PRO 144.0/1000.0
+INFO  2026/05/21 08:02:33 [AutoRefresh] Refreshed wayanbagiana74@gmail.com: PRO 100.0/1000.0
+INFO  2026/05/21 08:02:34 [AutoRefresh] Refreshed madelineyasmincanas@gmail.com: PRO 138.0/1000.0
+INFO  2026/05/21 08:02:35 [AutoRefresh] Refreshed roviraomar789@gmail.com: PRO 57.0/1000.0
+INFO  2026/05/21 08:02:36 [AutoRefresh] Refreshed rrahmanifyllii@gmail.com: PRO 46.0/1000.0
+INFO  2026/05/21 08:02:37 [AutoRefresh] Refreshed rubendanila460@gmail.com: PRO 50.0/1000.0
+INFO  2026/05/21 08:02:38 [AutoRefresh] Refreshed rosariobarnhill507@gmail.com: PRO 49.0/1000.0
+INFO  2026/05/21 08:02:40 [AutoRefresh] Refreshed rubengometty398@gmail.com: PRO 27.0/1000.0
+INFO  2026/05/21 08:02:41 [AutoRefresh] Refreshed ruifont69@gmail.com: PRO 26.0/1000.0
+INFO  2026/05/21 08:02:42 [AutoRefresh] Refreshed rowdysvithekar859@gmail.com: PRO 25.0/1000.0
+INFO  2026/05/21 08:02:43 [AutoRefresh] Refreshed rubanarsenij211@gmail.com: PRO 26.0/1000.0
+INFO  2026/05/21 08:02:44 [AutoRefresh] Refreshed roxyyocom418@gmail.com: PRO 27.0/1000.0
+INFO  2026/05/21 08:02:45 [AutoRefresh] Refreshed cvxxegplfip43o@googlzr.com: PRO 268.0/1000.0
+INFO  2026/05/21 08:02:46 [AutoRefresh] Refreshed haj8osxli8k@googlzr.com: PRO 26.0/1000.0
+INFO  2026/05/21 08:02:48 [AutoRefresh] Refreshed fezxxdko3fstlk@googlzr.com: PRO 44.0/1000.0
+INFO  2026/05/21 08:02:49 [AutoRefresh] Refreshed iqtcef6skfp@googlzr.com: PRO 9.0/1000.0
+INFO  2026/05/21 08:04:02 [AutoRefresh] Refreshed vilchespancho17@gmail.com: PRO 179.0/1000.0
+INFO  2026/05/21 08:04:05 [AutoRefresh] Refreshed wayanobbie88bet@gmail.com: PRO 147.0/1000.0
+WARN  2026/05/21 08:04:53 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:09:53 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:10:18 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:12:52 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:12:52 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:12:53 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:12:54 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:14:34 [ModelsCache] Skipped refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:14:43 [AutoRefresh] Skipped expensive refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:14:43 [ModelsCache] Skipped refresh while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:14:53 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+WARN  2026/05/21 08:15:55 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:15:56 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:16:04 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:16:04 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}
+WARN  2026/05/21 08:16:05 [KiroAPI] Endpoint Kiro IDE returned Opus 4.7 429: {"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}

@@ -67,6 +67,7 @@ func TestStableDownstreamClaudeNoAccountsReturnsHTTP200(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -92,6 +93,7 @@ func TestStableDownstreamClaudeStreamFallbackStartsHTTP200SSE(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -125,6 +127,7 @@ func TestStableClaudeFallbackMarksContentFailure(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(httptest.NewRecorder(), req)
 
@@ -148,16 +151,16 @@ func TestStableClaudeFallbackMarksContentFailure(t *testing.T) {
 }
 
 func TestContentSuccessTokenCountTreatsStructuredOutputAsContent(t *testing.T) {
-	if got := contentSuccessTokenCount(0, 1); got != 1 {
+	if got := realContentSuccessTokenCount(0, 1); got != 1 {
 		t.Fatalf("structured output tokens = %d, want 1", got)
 	}
-	if got := contentSuccessTokenCount(0, 0, "  real content  "); got != 1 {
+	if got := realContentSuccessTokenCount(0, 0, "  real content  "); got != 1 {
 		t.Fatalf("text output tokens = %d, want 1", got)
 	}
-	if got := contentSuccessTokenCount(7, 0); got != 7 {
+	if got := realContentSuccessTokenCount(7, 0); got != 7 {
 		t.Fatalf("estimated tokens = %d, want 7", got)
 	}
-	if got := contentSuccessTokenCount(0, 0, "   "); got != 0 {
+	if got := realContentSuccessTokenCount(0, 0, "   "); got != 0 {
 		t.Fatalf("blank output tokens = %d, want 0", got)
 	}
 }
@@ -203,6 +206,7 @@ func TestStableDownstreamOpenAINoAccountsReturnsHTTP200(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	r.Header.Set("User-Agent", "sub2api/1.0")
@@ -228,6 +232,7 @@ func TestStableDownstreamOpenAIResponsesNoAccountsReturnsHTTP200(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
 	r.Header.Set("User-Agent", "sub2api/1.0")
@@ -348,7 +353,15 @@ func TestEnsureValidTokenCoalescesConcurrentRefreshesPerAccount(t *testing.T) {
 	var authCalls int32
 	authHttpClientStore.Store(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			atomic.AddInt32(&authCalls, 1)
+			var payload struct {
+				RefreshToken string `json:"refreshToken"`
+			}
+			if req.Body != nil {
+				_ = json.NewDecoder(req.Body).Decode(&payload)
+			}
+			if payload.RefreshToken == account.RefreshToken {
+				atomic.AddInt32(&authCalls, 1)
+			}
 			time.Sleep(25 * time.Millisecond)
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -689,6 +702,161 @@ func TestHandleOpenAIResponsesReturnsResponsesObject(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("expected async account stats update to complete")
+}
+
+func TestHandlersRecordModelContentSuccessForRealContent(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		body     string
+		account  string
+	}{
+		{
+			name:     "claude messages non-stream",
+			endpoint: "/v1/messages",
+			body:     `{"model":"claude-opus-4.7","stream":false,"max_tokens":16,"messages":[{"role":"user","content":"say ok"}]}`,
+			account:  "acct-content-claude",
+		},
+		{
+			name:     "openai chat stream",
+			endpoint: "/v1/chat/completions",
+			body:     `{"model":"claude-opus-4.7","stream":true,"max_tokens":16,"messages":[{"role":"user","content":"say ok"}]}`,
+			account:  "acct-content-chat-stream",
+		},
+		{
+			name:     "openai responses non-stream",
+			endpoint: "/v1/responses",
+			body:     `{"model":"claude-opus-4.7","input":"say ok","max_output_tokens":16}`,
+			account:  "acct-content-responses",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+				t.Fatalf("init config: %v", err)
+			}
+			if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+				t.Fatalf("update preferred endpoint: %v", err)
+			}
+			if err := config.UpdateEndpointFallback(false); err != nil {
+				t.Fatalf("update endpoint fallback: %v", err)
+			}
+
+			p := &pool.AccountPool{}
+			h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+			if err := config.AddAccount(config.Account{
+				ID:          tt.account,
+				Enabled:     true,
+				AccessToken: "token-" + tt.account,
+				ProfileArn:  "arn:aws:codewhisperer:profile/test",
+				ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+			}); err != nil {
+				t.Fatalf("add account: %v", err)
+			}
+			p.Reload()
+
+			kiroHttpStore.Store(&http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+							{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "real content"}},
+							{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 3}}},
+						}))),
+						Header: make(http.Header),
+					}, nil
+				}),
+			})
+			t.Cleanup(func() { InitKiroHttpClient("") })
+
+			req := httptest.NewRequest(http.MethodPost, tt.endpoint, strings.NewReader(tt.body))
+			w := httptest.NewRecorder()
+
+			h.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+			}
+			if _, ok := p.ModelContentSuccess(tt.account, "claude-opus-4.7"); !ok {
+				t.Fatalf("expected model content success for %s", tt.account)
+			}
+			waitForAccountRequestCount(t, 1)
+		})
+	}
+}
+
+func TestHandlersDoNotRecordModelContentSuccessForEmptyCompletion(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-empty-content",
+		Enabled:     true,
+		AccessToken: "token-empty-content",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "   "}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 7, "outputTokens": 0}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"claude-opus-4.7","input":"say ok","max_output_tokens":16}`))
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if _, ok := p.ModelContentSuccess("acct-empty-content", "claude-opus-4.7"); ok {
+		t.Fatalf("empty completion must not record model content success")
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestStableFallbackDoesNotRecordModelContentSuccess(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	p.Reload()
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	w := httptest.NewRecorder()
+
+	h.sendStableClaudeFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if _, ok := p.ModelContentSuccess("acct-any", "claude-opus-4.7"); ok {
+		t.Fatalf("stable fallback must not record model content success")
+	}
 }
 
 func TestBuildOpenAIResponsesObjectRepresentsFunctionCalls(t *testing.T) {
@@ -1072,6 +1240,7 @@ func TestHandleClaudeMessagesRejectsTooLongRawToolName(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	body := `{
 		"model":"claude-sonnet-4.5",
 		"max_tokens":64,
@@ -1118,9 +1287,11 @@ func TestHandleOpenAIResponsesStreamRetriesBeforeFirstEvent(t *testing.T) {
 	p.Reload()
 
 	var attempts int
+	var tokens []string
 	kiroHttpStore.Store(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			attempts++
+			tokens = append(tokens, req.Header.Get("Authorization"))
 			if attempts == 1 {
 				return &http.Response{
 					StatusCode: http.StatusTooManyRequests,
@@ -1152,6 +1323,9 @@ func TestHandleOpenAIResponsesStreamRetriesBeforeFirstEvent(t *testing.T) {
 	if attempts != 2 {
 		t.Fatalf("expected first upstream failure then retry success, got %d attempts", attempts)
 	}
+	if len(tokens) != 2 || tokens[0] != "Bearer token-resp-stream-1" || tokens[1] != "Bearer token-resp-stream-2" {
+		t.Fatalf("expected Responses stream retry to advance accounts, got %#v", tokens)
+	}
 	bodyText := w.Body.String()
 	if strings.Contains(bodyText, "response.failed") {
 		t.Fatalf("expected retry before emitting failure event, got stream %s", bodyText)
@@ -1161,6 +1335,73 @@ func TestHandleOpenAIResponsesStreamRetriesBeforeFirstEvent(t *testing.T) {
 	}
 	waitForAccountRequestCount(t, 1)
 	waitForAccountHealthWrite(t, "acct-resp-stream-1")
+}
+
+func TestHandleOpenAIResponsesModelCapacityRecordsModelBreaker(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-responses-capacity-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-responses-capacity-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/capacity-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = time.Millisecond
+	sleepForOpusCapacityRetry = func(d time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+	})
+
+	body := strings.NewReader(`{"model":"claude-opus-4.7","input":"hello","stream":false,"max_output_tokens":1}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if len(tokens) == 0 {
+		t.Fatalf("expected upstream attempts")
+	}
+	state := p.ModelBlockState("claude-opus-4.7", time.Now())
+	if state.Blocked == 0 || state.LastReason != pool.FailureReasonModelCapacity {
+		t.Fatalf("expected Opus 4.7 model breaker to record model_capacity, got %#v", state)
+	}
+	if got := config.GetAccounts()[0].LastFailureReason; got != "" {
+		t.Fatalf("model capacity must not poison account health, got first account reason %q", got)
+	}
 }
 
 func TestHandleOpenAIResponsesNonRetryableUpstreamErrorPreservesStatusForSub2api(t *testing.T) {
@@ -1519,6 +1760,25 @@ func buildTestEventStream(t *testing.T, messages []testEventStreamMessage) []byt
 		out.Write([]byte{0, 0, 0, 0})
 	}
 	return out.Bytes()
+}
+
+type failingAfterReader struct {
+	data []byte
+	err  error
+}
+
+func (r *failingAfterReader) Read(p []byte) (int, error) {
+	if len(r.data) > 0 {
+		n := copy(p, r.data)
+		r.data = r.data[n:]
+		return n, nil
+	}
+	if r.err != nil {
+		err := r.err
+		r.err = nil
+		return 0, err
+	}
+	return 0, io.EOF
 }
 
 func buildTestEventStreamHeader(name, value string) []byte {
@@ -2384,8 +2644,8 @@ func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
 	if attempts != 4 {
 		t.Fatalf("expected four real upstream attempts, got %d attempts", attempts)
 	}
-	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
-		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != opus47BudgetExhaustedReason {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want %s", got, opus47BudgetExhaustedReason)
 	}
 	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
 		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
@@ -2414,7 +2674,7 @@ func TestHandleClaudeWaitsAndRetriesOpus47CapacityLimit(t *testing.T) {
 	}
 }
 
-func TestStableAttemptBudgetExhaustionWaitsForClientInsteadOfFallback(t *testing.T) {
+func TestStableAttemptBudgetExhaustionReturnsBoundedFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2470,7 +2730,7 @@ func TestStableAttemptBudgetExhaustionWaitsForClientInsteadOfFallback(t *testing
 		}),
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	body := strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body).WithContext(ctx)
@@ -2484,16 +2744,23 @@ func TestStableAttemptBudgetExhaustionWaitsForClientInsteadOfFallback(t *testing
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable attempt-budget wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Body.Len() != 0 {
-		t.Fatalf("Claude stable wait must not emit fallback assistant content: %s", w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	bodyText := w.Body.String()
+	if !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded stable fallback text, got: %s", bodyText)
+	}
+	if strings.Contains(bodyText, "Please retry this turn") {
+		t.Fatalf("stable fallback must not instruct Claude Code to retry the same turn: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
 	entry := logs[0]
-	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
-		t.Fatalf("did not expect attempt-budget stable fallback, got %#v", entry)
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != opus47BudgetExhaustedReason {
+		t.Fatalf("expected attempt-budget stable fallback, got %#v", entry)
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected content continuity queue wait, got %#v", entry)
@@ -2503,7 +2770,7 @@ func TestStableAttemptBudgetExhaustionWaitsForClientInsteadOfFallback(t *testing
 	}
 }
 
-func TestStableClaudeAttemptBudgetDoesNotEmitFallbackWhenClientWaits(t *testing.T) {
+func TestStableClaudeAttemptBudgetDoesNotLoopForever(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2557,7 +2824,7 @@ func TestStableClaudeAttemptBudgetDoesNotEmitFallbackWhenClientWaits(t *testing.
 		}),
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -2565,23 +2832,30 @@ func TestStableClaudeAttemptBudgetDoesNotEmitFallbackWhenClientWaits(t *testing.
 
 	h.ServeHTTP(w, req)
 
-	if strings.Contains(w.Body.String(), "Opus 4.7 upstream capacity is temporarily unavailable") {
-		t.Fatalf("Claude stable request must not receive final assistant fallback text: %s", w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	bodyText := w.Body.String()
+	if !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded stable fallback text, got: %s", bodyText)
+	}
+	if strings.Contains(bodyText, "Please retry this turn") {
+		t.Fatalf("stable fallback must not instruct Claude Code to retry the same turn: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
 	entry := logs[0]
-	if entry.StableDownstreamFallback {
-		t.Fatalf("did not expect stable fallback to be emitted for Claude Code wait path: %#v", entry)
+	if !entry.StableDownstreamFallback {
+		t.Fatalf("expected stable fallback to end Claude Code wait path: %#v", entry)
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected content continuity queue wait, got %#v", entry)
 	}
 }
 
-func TestStableClaudeNoAccountsWaitsForClientInsteadOfFallback(t *testing.T) {
+func TestStableClaudeNoAccountsReturnsBoundedFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2608,7 +2882,7 @@ func TestStableClaudeNoAccountsWaitsForClientInsteadOfFallback(t *testing.T) {
 
 	p := &pool.AccountPool{}
 	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -2621,23 +2895,27 @@ func TestStableClaudeNoAccountsWaitsForClientInsteadOfFallback(t *testing.T) {
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable no-accounts wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Body.Len() != 0 {
-		t.Fatalf("Claude no-accounts stable wait must not emit fallback assistant content: %s", w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	bodyText := w.Body.String()
+	if !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded no-accounts fallback text, got: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
 	entry := logs[0]
-	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
-		t.Fatalf("did not expect no-accounts stable fallback, got %#v", entry)
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "no_available_accounts" {
+		t.Fatalf("expected no-accounts stable fallback, got %#v", entry)
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected content continuity queue wait, got %#v", entry)
 	}
 }
 
-func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testing.T) {
+func TestStableClaudeNoAccountsStreamReturnsBoundedFallbackSSE(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -2664,7 +2942,7 @@ func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testi
 
 	p := &pool.AccountPool{}
 	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
-	ctx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":1,"stream":true,"messages":[{"role":"user","content":"hello"}]}`)).WithContext(ctx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -2681,19 +2959,22 @@ func TestStableClaudeNoAccountsStreamWaitsForClientInsteadOfFallbackSSE(t *testi
 	if !strings.Contains(body, "event: ping") {
 		t.Fatalf("Claude stream no-accounts stable wait must emit heartbeat ping: %s", body)
 	}
-	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
-		t.Fatalf("Claude stream no-accounts stable wait must not emit assistant message frames: %s", body)
+	if !strings.Contains(body, "message_start") || !strings.Contains(body, "message_stop") || !strings.Contains(body, "content_block_delta") {
+		t.Fatalf("Claude stream no-accounts stable fallback must emit a complete assistant message: %s", body)
 	}
-	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
-		t.Fatalf("Claude stream no-accounts stable wait must not emit fallback assistant text: %s", body)
+	if !strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded stream fallback text, got: %s", body)
+	}
+	if strings.Contains(body, "kiro_go_stable_fallback") || strings.Contains(body, "Please retry this turn") {
+		t.Fatalf("Claude stream stable fallback leaked internal/retry text: %s", body)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
 	}
 	entry := logs[0]
-	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
-		t.Fatalf("did not expect no-accounts stable fallback, got %#v", entry)
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "no_available_accounts" {
+		t.Fatalf("expected no-accounts stable fallback, got %#v", entry)
 	}
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected content continuity queue wait, got %#v", entry)
@@ -2745,11 +3026,14 @@ func TestStableClaudeStreamCapacityWaitSendsPingBeforeMessageStart(t *testing.T)
 	if !strings.Contains(body, "event: ping") {
 		t.Fatalf("stable stream wait must send heartbeat ping before capacity recovers, body=%q", body)
 	}
-	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
-		t.Fatalf("stable stream wait must not start or finish assistant message without real upstream content, body=%q", body)
+	if !strings.Contains(body, "message_start") || !strings.Contains(body, "message_stop") || !strings.Contains(body, "content_block_delta") {
+		t.Fatalf("stable stream wait must end with a complete bounded fallback message, body=%q", body)
 	}
-	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
-		t.Fatalf("stable stream wait must not emit fallback assistant text, body=%q", body)
+	if !strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded stream fallback text, body=%q", body)
+	}
+	if strings.Contains(body, "kiro_go_stable_fallback") || strings.Contains(body, "Please retry this turn") {
+		t.Fatalf("stable stream wait must not emit internal or retry-loop text, body=%q", body)
 	}
 }
 
@@ -2913,7 +3197,7 @@ func TestHandleClaudeWaitsForShortPoolRateLimitCooldown(t *testing.T) {
 		t.Fatalf("add account: %v", err)
 	}
 	p.Reload()
-	p.RecordFailureUntil("acct-1", pool.FailureReasonRateLimited, time.Now().Add(20*time.Millisecond))
+	p.RecordFailureUntil("acct-1", pool.FailureReasonRateLimited, time.Now().Add(200*time.Millisecond))
 
 	oldBudget := opusCapacityRetryBudget
 	oldSleep := sleepForOpusCapacityRetry
@@ -3111,8 +3395,8 @@ func TestHandleClaudeOpus47StopsAtRequestAttemptBudget(t *testing.T) {
 	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
 		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
 	}
-	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
-		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != opus47BudgetExhaustedReason {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want %s", got, opus47BudgetExhaustedReason)
 	}
 	if got := w.Header().Get("Retry-After"); got == "" {
 		t.Fatalf("expected Retry-After header")
@@ -3185,14 +3469,118 @@ func TestHandleClaudeOpus47PressureHeadersSurviveRateLimitLastError(t *testing.T
 	if *upstreamHits != 4 {
 		t.Fatalf("upstream hits = %d, want 4 attempt budget", *upstreamHits)
 	}
-	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != "attempt_budget_exhausted" {
-		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want attempt_budget_exhausted", got)
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != opus47BudgetExhaustedReason {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want %s", got, opus47BudgetExhaustedReason)
 	}
 	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
 		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
 	}
 	if got := w.Header().Get("Retry-After"); got == "" || got == "0" {
 		t.Fatalf("Retry-After = %q, want positive value", got)
+	}
+}
+
+func TestHandleOpenAIChatOpus47StopsAtRequestAttemptBudget(t *testing.T) {
+	h, upstreamHits := newOpus47RetryBudgetTestHandler(t, 8, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`))
+	})
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = 25 * time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"claude-opus-4.7","stream":false,"max_tokens":1,"messages":[{"role":"user","content":"hello"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d body=%s, want 503", w.Code, w.Body.String())
+	}
+	if *upstreamHits != defaultOpus47MaxAttempts {
+		t.Fatalf("upstream hits = %d, want %d attempt budget", *upstreamHits, defaultOpus47MaxAttempts)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != opus47BudgetExhaustedReason {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want %s", got, opus47BudgetExhaustedReason)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	failures := 0
+	for _, attempt := range logs[0].AttemptTrace {
+		if attempt.Event == "failure" {
+			failures++
+		}
+	}
+	if failures != defaultOpus47MaxAttempts {
+		t.Fatalf("failure trace count = %d, want %d; trace=%#v", failures, defaultOpus47MaxAttempts, logs[0].AttemptTrace)
+	}
+}
+
+func TestHandleOpenAIResponsesOpus47StopsAtRequestAttemptBudget(t *testing.T) {
+	h, upstreamHits := newOpus47RetryBudgetTestHandler(t, 8, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY","retry_after_seconds":0}`))
+	})
+
+	oldBudget := opusCapacityRetryBudget
+	oldSleep := sleepForOpusCapacityRetry
+	opusCapacityRetryBudget = 25 * time.Second
+	sleepForOpusCapacityRetry = func(time.Duration) {}
+	t.Cleanup(func() {
+		opusCapacityRetryBudget = oldBudget
+		sleepForOpusCapacityRetry = oldSleep
+		InitKiroHttpClient("")
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"claude-opus-4.7","stream":false,"max_output_tokens":1,"input":"hello"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d body=%s, want 503", w.Code, w.Body.String())
+	}
+	if *upstreamHits != defaultOpus47MaxAttempts {
+		t.Fatalf("upstream hits = %d, want %d attempt budget", *upstreamHits, defaultOpus47MaxAttempts)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Error-Reason"); got != opus47BudgetExhaustedReason {
+		t.Fatalf("X-Kiro-Go-Error-Reason = %q, want %s", got, opus47BudgetExhaustedReason)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Retryable = %q, want true", got)
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	failures := 0
+	for _, attempt := range logs[0].AttemptTrace {
+		if attempt.Event == "failure" {
+			failures++
+		}
+	}
+	if failures != defaultOpus47MaxAttempts {
+		t.Fatalf("failure trace count = %d, want %d; trace=%#v", failures, defaultOpus47MaxAttempts, logs[0].AttemptTrace)
 	}
 }
 
@@ -3491,7 +3879,7 @@ func TestModelAdmissionGatePressureHonorsRetryAfter(t *testing.T) {
 }
 
 func TestModelAdmissionCircuitOpensAfterRepeatedCapacityPressure(t *testing.T) {
-	now := time.Unix(1000, 0)
+	now := time.Now()
 	gate := newModelAdmissionGateSet(config.ModelAdmissionConfig{
 		Models: map[string]config.ModelAdmissionRule{
 			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
@@ -3671,7 +4059,7 @@ func TestAdminAdmissionPressureEndpointReportsActivePressure(t *testing.T) {
 	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
 		Default: config.ModelAdmissionRule{MaxConcurrent: 3, MaxWaiting: 10},
 	})
-	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.now = time.Now
 	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
 	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(2*time.Minute))
 	t.Cleanup(func() {
@@ -3733,7 +4121,7 @@ func TestAcquireAdmissionGatesStreamByDefault(t *testing.T) {
 	}
 }
 
-func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
+func TestStableAdmissionPressureReturnsBoundedFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -3744,6 +4132,7 @@ func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
 		t.Fatalf("save config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
@@ -3776,11 +4165,18 @@ func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
 		releaseReq()
 		t.Fatalf("expected admission wait to stop only after client cancellation")
 	}
-	if time.Since(start) < 900*time.Millisecond {
-		t.Fatalf("expected stable continuity wait to ignore short request budget, waited %s", time.Since(start))
+	if time.Since(start) > 250*time.Millisecond {
+		t.Fatalf("expected stable continuity wait to respect short request budget, waited %s", time.Since(start))
 	}
-	if rr.Body.Len() != 0 {
-		t.Fatalf("Claude admission pressure wait must not emit fallback assistant content: %s", rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	bodyText := rr.Body.String()
+	if !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("expected bounded admission fallback text, got: %s", bodyText)
+	}
+	if strings.Contains(bodyText, "Please retry this turn") {
+		t.Fatalf("stable fallback must not instruct Claude Code to retry the same turn: %s", bodyText)
 	}
 	h.finishRequestLog(ctx, recorder)
 
@@ -3795,12 +4191,12 @@ func TestStableAdmissionPressureWaitsForClientInsteadOfFallback(t *testing.T) {
 	if entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected positive CapacityQueueWaitMs")
 	}
-	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
-		t.Fatalf("did not expect stable admission fallback, got %#v", entry)
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "admission_pressure" {
+		t.Fatalf("expected stable admission fallback, got %#v", entry)
 	}
 }
 
-func TestStableAdmissionPressureStreamWaitSendsPingInsteadOfFallback(t *testing.T) {
+func TestStableAdmissionPressureStreamClosesWithoutAssistantFallback(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -3812,6 +4208,7 @@ func TestStableAdmissionPressureStreamWaitSendsPingInsteadOfFallback(t *testing.
 		t.Fatalf("save config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
@@ -3855,10 +4252,12 @@ func TestStableAdmissionPressureStreamWaitSendsPingInsteadOfFallback(t *testing.
 		t.Fatalf("stable admission stream wait must send heartbeat ping: %s", body)
 	}
 	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
-		t.Fatalf("stable admission stream wait must not emit assistant frames: %s", body)
+		t.Fatalf("stable admission stream must not emit assistant fallback content: %s", body)
 	}
-	if strings.Contains(body, "Opus 4.7 upstream capacity") || strings.Contains(body, "kiro_go_stable_fallback") {
-		t.Fatalf("stable admission stream wait must not emit fallback assistant text: %s", body)
+	if strings.Contains(body, "This turn has been closed by the gateway") ||
+		strings.Contains(body, "kiro_go_stable_fallback") ||
+		strings.Contains(body, "Please retry this turn") {
+		t.Fatalf("stable admission stream fallback leaked text content: %s", body)
 	}
 }
 
@@ -3867,6 +4266,7 @@ func TestStableAdmissionPressureResumesAfterCapacityBroadcast(t *testing.T) {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
 	rr := httptest.NewRecorder()
@@ -4237,9 +4637,9 @@ func TestAcquireAdmissionFastRejectsOpenOpusCircuit(t *testing.T) {
 		},
 	})
 	modelAdmissionGate.now = func() time.Time { return now }
-	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
-	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
-	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(45*time.Second))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(5*time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(5*time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(5*time.Minute))
 	t.Cleanup(func() {
 		modelAdmissionGate = oldGate
 	})
@@ -4285,7 +4685,7 @@ func TestAcquireAdmissionFastRejectsOpenOpusCircuit(t *testing.T) {
 	}
 }
 
-func TestStableOpenCircuitWaitsForClientInsteadOfFallback(t *testing.T) {
+func TestStableOpenCircuitCanRecoverAfterBoundedWait(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -4328,7 +4728,7 @@ func TestStableOpenCircuitWaitsForClientInsteadOfFallback(t *testing.T) {
 	}
 
 	h := &Handler{pool: p, requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
-	waitCtx, cancel := context.WithTimeout(context.Background(), 1100*time.Millisecond)
+	waitCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
@@ -4339,15 +4739,15 @@ func TestStableOpenCircuitWaitsForClientInsteadOfFallback(t *testing.T) {
 	release, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(30*time.Millisecond))
 	if ok {
 		release()
-		t.Fatalf("expected open-circuit wait to stop only after client cancellation")
+		t.Fatalf("expected open-circuit wait to stop at short request budget")
 	}
-	if time.Since(start) < 900*time.Millisecond {
-		t.Fatalf("expected stable continuity wait to ignore short request budget, waited %s", time.Since(start))
+	if time.Since(start) > 250*time.Millisecond {
+		t.Fatalf("expected stable continuity wait to respect short request budget, waited %s", time.Since(start))
 	}
 	h.finishRequestLog(ctx, recorder)
 
-	if rr.Body.Len() != 0 {
-		t.Fatalf("Claude open-circuit wait must not emit fallback assistant content: %s", rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected stable fallback after bounded wait, got status %d body=%s", rr.Code, rr.Body.String())
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -4357,8 +4757,8 @@ func TestStableOpenCircuitWaitsForClientInsteadOfFallback(t *testing.T) {
 	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
 		t.Fatalf("expected queued capacity wait, got %#v", entry)
 	}
-	if entry.StableDownstreamFallback || entry.StableFallbackReason != "" {
-		t.Fatalf("did not expect stable admission fallback, got %#v", entry)
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "admission_pressure" {
+		t.Fatalf("expected bounded stable fallback after open-circuit pressure, got %#v", entry)
 	}
 }
 
@@ -5430,6 +5830,351 @@ func TestHandleClaudeStreamUpstreamMalformedBeforeFirstEventReturnsJSONError(t *
 	}
 }
 
+func TestHandleClaudeStreamRetriesBeforeFirstEventOnNextAccount(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-claude-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-claude-stream-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			if len(tokens) == 1 {
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Body:       io.NopCloser(strings.NewReader(`{"message":"try again","reason":"MODEL_RATE_LIMIT"}`)),
+					Header:     make(http.Header),
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "stream recovered"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 4, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":16,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected stream retry to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 2 || tokens[0] != "Bearer token-claude-stream-1" || tokens[1] != "Bearer token-claude-stream-2" {
+		t.Fatalf("expected first account then retry on second account, got %#v", tokens)
+	}
+	if strings.Contains(w.Body.String(), "event: error") {
+		t.Fatalf("expected retry before downstream Claude SSE starts, got %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "stream recovered") || !strings.Contains(w.Body.String(), "message_stop") {
+		t.Fatalf("expected recovered Claude stream, got %s", w.Body.String())
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleOpenAIChatStreamRetriesBeforeFirstEventOnNextAccount(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-chat-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-chat-stream-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			if len(tokens) == 1 {
+				return &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Body:       io.NopCloser(strings.NewReader(`{"message":"try again","reason":"MODEL_RATE_LIMIT"}`)),
+					Header:     make(http.Header),
+				}, nil
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "stream recovered"}},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 4, "outputTokens": 2}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":16,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected stream retry to succeed, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 2 || tokens[0] != "Bearer token-chat-stream-1" || tokens[1] != "Bearer token-chat-stream-2" {
+		t.Fatalf("expected first account then retry on second account, got %#v", tokens)
+	}
+	if strings.Contains(w.Body.String(), `"error"`) {
+		t.Fatalf("expected retry before downstream OpenAI Chat SSE starts, got %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "stream recovered") || !strings.Contains(w.Body.String(), "data: [DONE]") {
+		t.Fatalf("expected recovered OpenAI Chat stream, got %s", w.Body.String())
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
+func TestHandleClaudeStreamStartedDoesNotReplayAfterContent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-claude-post-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-claude-post-stream-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	partialContent := "partial content that is intentionally long enough to flush downstream before reset"
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			stream := buildTestEventStream(t, []testEventStreamMessage{
+				{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": partialContent}},
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(&failingAfterReader{data: stream, err: errors.New("upstream stream reset")}),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":16,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected started stream to stay HTTP 200, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 1 || tokens[0] != "Bearer token-claude-post-stream-1" {
+		t.Fatalf("expected no replay after Claude stream content, got %#v", tokens)
+	}
+	if !strings.Contains(w.Body.String(), "partial content") || !strings.Contains(w.Body.String(), "event: error") {
+		t.Fatalf("expected partial Claude content followed by stream error, got %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 || len(logs[0].AttemptTrace) == 0 {
+		t.Fatalf("expected request log attempt trace, got %#v", logs)
+	}
+	if logs[0].AttemptTrace[len(logs[0].AttemptTrace)-1].Event != "failure" {
+		t.Fatalf("expected post-start stream failure in trace, got %#v", logs[0].AttemptTrace)
+	}
+}
+
+func TestHandleOpenAIChatStreamStartedDoesNotReplayAfterContent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-chat-post-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-chat-post-stream-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	partialContent := "partial content that is intentionally long enough to flush downstream before reset"
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			stream := buildTestEventStream(t, []testEventStreamMessage{
+				{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": partialContent}},
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(&failingAfterReader{data: stream, err: errors.New("upstream stream reset")}),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":16,"messages":[{"role":"user","content":"hello"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected started stream to stay HTTP 200, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 1 || tokens[0] != "Bearer token-chat-post-stream-1" {
+		t.Fatalf("expected no replay after OpenAI Chat stream content, got %#v", tokens)
+	}
+	if !strings.Contains(w.Body.String(), "partial content") || !strings.Contains(w.Body.String(), `"error"`) || !strings.Contains(w.Body.String(), "data: [DONE]") {
+		t.Fatalf("expected partial OpenAI Chat content followed by stream error, got %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 || len(logs[0].AttemptTrace) == 0 {
+		t.Fatalf("expected request log attempt trace, got %#v", logs)
+	}
+	if logs[0].AttemptTrace[len(logs[0].AttemptTrace)-1].Event != "failure" {
+		t.Fatalf("expected post-start stream failure in trace, got %#v", logs[0].AttemptTrace)
+	}
+}
+
+func TestHandleOpenAIResponsesStreamStartedDoesNotReplayAfterContent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	for i := 1; i <= 2; i++ {
+		if err := config.AddAccount(config.Account{
+			ID:          fmt.Sprintf("acct-responses-post-stream-%d", i),
+			Enabled:     true,
+			AccessToken: fmt.Sprintf("token-responses-post-stream-%d", i),
+			ProfileArn:  fmt.Sprintf("arn:aws:codewhisperer:profile/test-%d", i),
+			ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+		}); err != nil {
+			t.Fatalf("add account %d: %v", i, err)
+		}
+	}
+	p.Reload()
+
+	var tokens []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			tokens = append(tokens, req.Header.Get("Authorization"))
+			stream := buildTestEventStream(t, []testEventStreamMessage{
+				{eventType: "assistantResponseEvent", payload: map[string]interface{}{"content": "partial content"}},
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(&failingAfterReader{data: stream, err: errors.New("upstream stream reset")}),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","input":"hello","stream":true,"max_output_tokens":16}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected started stream to stay HTTP 200, got status %d body %s", w.Code, w.Body.String())
+	}
+	if len(tokens) != 1 || tokens[0] != "Bearer token-responses-post-stream-1" {
+		t.Fatalf("expected no replay after OpenAI Responses stream content, got %#v", tokens)
+	}
+	if !strings.Contains(w.Body.String(), "partial content") || !strings.Contains(w.Body.String(), "response.failed") {
+		t.Fatalf("expected partial OpenAI Responses content followed by stream failure, got %s", w.Body.String())
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 || len(logs[0].AttemptTrace) == 0 {
+		t.Fatalf("expected request log attempt trace, got %#v", logs)
+	}
+	if logs[0].AttemptTrace[len(logs[0].AttemptTrace)-1].Event != "failure" {
+		t.Fatalf("expected post-start stream failure in trace, got %#v", logs[0].AttemptTrace)
+	}
+}
+
 func TestOpenAIUpstreamErrorsPreserveRetryableStatusAndType(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -5521,7 +6266,7 @@ func TestOpus47PressureErrorsNeverReturn429(t *testing.T) {
 	}
 
 	claudeW := httptest.NewRecorder()
-	h.sendClaudeOpusPressureError(claudeW, "claude-opus-4.7", rateErr, "attempt_budget_exhausted")
+	h.sendClaudeOpusPressureError(claudeW, "claude-opus-4.7", rateErr, opus47BudgetExhaustedReason)
 	if claudeW.Code == http.StatusTooManyRequests {
 		t.Fatalf("Claude Opus pressure error must not return 429: %s", claudeW.Body.String())
 	}
@@ -5536,7 +6281,7 @@ func TestOpus47PressureErrorsNeverReturn429(t *testing.T) {
 	}
 
 	openAIW := httptest.NewRecorder()
-	h.sendOpenAIOpusPressureError(openAIW, "claude-opus-4.7", rateErr, "attempt_budget_exhausted")
+	h.sendOpenAIOpusPressureError(openAIW, "claude-opus-4.7", rateErr, opus47BudgetExhaustedReason)
 	if openAIW.Code == http.StatusTooManyRequests {
 		t.Fatalf("OpenAI Opus pressure error must not return 429: %s", openAIW.Body.String())
 	}
@@ -5548,6 +6293,51 @@ func TestOpus47PressureErrorsNeverReturn429(t *testing.T) {
 	}
 	if got := openAIW.Header().Get("X-Kiro-Go-Retryable"); got != "true" {
 		t.Fatalf("expected retryable header, got %q", got)
+	}
+}
+
+func TestOpus47OpenCircuitFastRejectHeadersMatchPressureContract(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	now := time.Unix(4000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 10},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	for i := 0; i < 6; i++ {
+		modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(time.Minute))
+	}
+	t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	for i := 0; i < defaultOpus47MaxAttempts; i++ {
+		id := fmt.Sprintf("acct-%d", i)
+		if err := config.AddAccount(config.Account{ID: id, Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"}); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p.Reload()
+	for i := 0; i < defaultOpus47MaxAttempts; i++ {
+		id := fmt.Sprintf("acct-%d", i)
+		p.SetModelList(id, []string{"claude-opus-4.7"})
+		p.RecordModelFailure(id, "claude-opus-4.7", pool.FailureReasonModelCapacity, now.Add(time.Minute))
+	}
+	h := &Handler{pool: p}
+	w := httptest.NewRecorder()
+
+	_, ok := h.acquireOpus47Admission(w, "claude-opus-4.7", false, true, now.Add(25*time.Second))
+	if ok {
+		t.Fatalf("expected open-circuit fast reject")
+	}
+	for _, header := range []string{"Retry-After", "X-Kiro-Go-Circuit-State", "X-Kiro-Go-Error-Reason", "X-Kiro-Go-Retryable", "X-Kiro-Go-Safe-Concurrency"} {
+		if got := w.Header().Get(header); got == "" {
+			t.Fatalf("expected %s header, got headers %#v body=%s", header, w.Header(), w.Body.String())
+		}
 	}
 }
 
@@ -6749,6 +7539,34 @@ func TestRecordAccountFailureModelCapacityDoesNotMarkAccountFailed(t *testing.T)
 	}
 }
 
+func TestRecordAccountFailureStructuredModelCapacityDoesNotMarkAccountFailed(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	account := config.Account{ID: "acct-structured-capacity", Email: "capacity@example.com", Enabled: true}
+	if err := config.AddAccount(account); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	h := &Handler{pool: p}
+	err := newUpstreamHTTPError(http.StatusTooManyRequests, "Kiro IDE", nil, `{"message":"I am experiencing high traffic, please try again shortly.","reason":"INSUFFICIENT_MODEL_CAPACITY"}`, time.Now())
+
+	reason := h.recordAccountModelFailure(account.ID, "claude-opus-4.7", err)
+
+	if reason != pool.FailureReasonModelCapacity {
+		t.Fatalf("expected model_capacity reason, got %q", reason)
+	}
+	got := config.GetAccounts()[0]
+	if got.LastFailureReason != "" || got.FailureCount != 0 || got.CooldownUntil != 0 {
+		t.Fatalf("expected account health to remain clean for structured model capacity, got %#v", got)
+	}
+	state := p.ModelBlockState("claude-opus-4.7", time.Now())
+	if state.LastReason != pool.FailureReasonModelCapacity {
+		t.Fatalf("expected model breaker to record model capacity, got %#v", state)
+	}
+}
+
 func TestShouldWaitAndRetryOpus47DoesNotRetrySuspiciousTemporaryLimit(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -7134,8 +7952,8 @@ func TestRecordAccountFailureSuspiciousTemporaryLimitUsesAdaptiveCooldown(t *tes
 		t.Fatalf("expected temporary_limited persisted reason, got %q", got.LastFailureReason)
 	}
 	remaining := got.CooldownUntil - time.Now().Unix()
-	if remaining < 2 || remaining > 5 {
-		t.Fatalf("expected single-account adaptive cooldown around 3s, got %ds", remaining)
+	if remaining < 55 || remaining > 65 {
+		t.Fatalf("expected single-account suspicious temporary limit cooldown around 60s, got %ds", remaining)
 	}
 	if !shouldRetryAccount(reason, 0) {
 		t.Fatalf("expected temporary_limited to try another account for the current request")

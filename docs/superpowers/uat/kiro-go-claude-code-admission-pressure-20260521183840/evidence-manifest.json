@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-05-21T18:38:40+08:00",
+  "verdicts": {
+    "codeFix": "PASS",
+    "dockerHealth": "PASS",
+    "playwrightPageRender": "PASS",
+    "realGenerationLoad": "BLOCKED_BY_UPSTREAM_CAPACITY"
+  },
+  "files": {
+    "health": "api/health.json",
+    "apiSummary": "api/playwright-api-summary.json",
+    "dockerPs": "logs/docker-compose-ps.txt",
+    "dockerLogs": "logs/kiro-go-tail.log",
+    "dashboardScreenshot": "screenshots/dashboard.png",
+    "apiScreenshot": "screenshots/api.png",
+    "console": "playwright/console.log"
+  },
+  "readiness": {
+    "model": "claude-opus-4-7",
+    "status": "blocked",
+    "safeConcurrency": 0,
+    "reasonCodes": [
+      "admission_circuit_open",
+      "cooling_down",
+      "model_breaker_open"
+    ]
+  }
+}

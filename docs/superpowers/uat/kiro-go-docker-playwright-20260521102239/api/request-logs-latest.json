@@ -1,0 +1,27 @@
+{
+  "logs": [
+    {
+      "timestamp": "2026-05-21T02:23:26.946517555Z",
+      "requestId": "4d9fc308-206a-4395-a2a2-628e00963889",
+      "method": "POST",
+      "endpoint": "/v1/messages/count_tokens",
+      "model": "claude-sonnet-4.5",
+      "priorityLane": "background",
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 0,
+      "countTokensMode": "estimated"
+    },
+    {
+      "timestamp": "2026-05-21T02:23:26.926509098Z",
+      "requestId": "e46e05fa-1c6c-4435-ab15-de88118f40f3",
+      "method": "GET",
+      "endpoint": "/v1/models",
+      "stream": false,
+      "statusCode": 200,
+      "outcome": "success",
+      "durationMs": 0
+    }
+  ]
+}

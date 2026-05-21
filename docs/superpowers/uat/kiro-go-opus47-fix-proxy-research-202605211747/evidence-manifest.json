@@ -1,0 +1,37 @@
+{
+  "date": "2026-05-21T17:54:00+08:00",
+  "verdict": "PARTIAL_PASS",
+  "scope": "claude-opus-4.7 via sub2api -> Kiro-Go after bounded stable fallback fix",
+  "code_changes": [
+    "pool/account.go",
+    "proxy/content_continuity.go",
+    "proxy/handler.go",
+    "pool/account_test.go",
+    "proxy/content_continuity_test.go",
+    "proxy/handler_test.go"
+  ],
+  "tests": {
+    "go_test": "go test ./pool ./proxy PASS"
+  },
+  "api_evidence": [
+    "api/kiro-health.json",
+    "api/sub2api-health.json",
+    "api/smoke-summary.json",
+    "api/load-5x5-summary.json"
+  ],
+  "db_evidence": [
+    "db/uat-key-created.txt",
+    "db/uat-key-cleanup.txt",
+    "db/postfix-error-aggregate.txt",
+    "db/postfix-usage-aggregate.txt"
+  ],
+  "browser_evidence": [
+    "screenshots/kiro-go-admin-after-opus47-fix-202605211746.png",
+    "screenshots/kiro-go-settings-proxy-after-opus47-fix-202605211746.png",
+    "screenshots/kiro-go-proxy-section-after-opus47-fix-202605211747.png"
+  ],
+  "research_evidence": [
+    "research/open-source-research.md"
+  ],
+  "secret_handling": "Temporary UAT key id 9 disabled/soft-deleted and local /tmp key file removed. Stored evidence contains only key id/name/hash, not the secret."
+}

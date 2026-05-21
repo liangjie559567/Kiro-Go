@@ -20,7 +20,7 @@
       "status": 200,
       "body": {
         "allowOverUsage": true,
-        "apiKey": "sk-R2BgTlrPGGiUzr8XviyPvQYIQKMaG3HC",
+        "apiKey": "sk-REDACTED",
         "clientApiKeys": null,
         "clientIPAllowlist": null,
         "host": "0.0.0.0",
@@ -9917,13 +9917,13 @@
                 "toolUseId": "tooluse_k9JglKGlAJIFoij0WGItgh",
                 "name": "Agent",
                 "reason": "input does not satisfy client tool schema",
-                "inputSummary": "{\"description\":\"Research Phase 46\",\"prompt\":\"研究 Phase 46（任务中心页面完成）实现路径。回答：\\\"要把这个 phase 规划得好，需要知道什么？\\\"\\n\\n\\u003cfiles_to_read\\u003e\\n- /www/automation/.planning/phases/46-task-center-page-completion/46-CONTEXT.md（用户决策 D-01 至 D-19 已锁定）\\n- /www/automation/.planning/phases/46-task-center-page-completion/46-UI-SPEC.md（UI 设计契约）\\n- /www/automation/.planning/REQUIREMENTS.md（UI-01..UI-05 需求定义）\\n- /www/...(truncated)"
+                "inputSummary": "{\"description\":\"Research Phase 46\",\"prompt\":\"研究 Phase 46（任务中心页面完成）实现路径。回答：\\\"要把这个 phase 规划得好，需要知道什么？\\\"\\n\\n\\u003cfiles_to_read\\u003e\\n- /www/automation/.planning/phases/46-task-REDACTED/46-CONTEXT.md（用户决策 D-01 至 D-19 已锁定）\\n- /www/automation/.planning/phases/46-task-REDACTED/46-UI-SPEC.md（UI 设计契约）\\n- /www/automation/.planning/REQUIREMENTS.md（UI-01..UI-05 需求定义）\\n- /www/...(truncated)"
               },
               {
                 "toolUseId": "tooluse_K3wfpujJgPLXSuFCHE226z",
                 "name": "Agent",
                 "reason": "input does not satisfy client tool schema",
-                "inputSummary": "{\"description\":\"Pattern map Phase 46\",\"prompt\":\"为 Phase 46（任务中心页面完成）做模式映射，产出 PATTERNS.md。\\n\\n\\u003cfiles_to_read\\u003e\\n- /www/automation/.planning/phases/46-task-center-page-completion/46-CONTEXT.md（用户决策已锁定，含目标文件清单）\\n- /www/automation/.planning/phases/46-task-center-page-completion/46-UI-SPEC.md\\n- /www/automation/.planning/codebase/ARCHITECTURE.md\\n- /www/automation/.planning/codebase/CONVENTIONS.md\\n- /www/automation/.planning/code...(truncated)"
+                "inputSummary": "{\"description\":\"Pattern map Phase 46\",\"prompt\":\"为 Phase 46（任务中心页面完成）做模式映射，产出 PATTERNS.md。\\n\\n\\u003cfiles_to_read\\u003e\\n- /www/automation/.planning/phases/46-task-REDACTED/46-CONTEXT.md（用户决策已锁定，含目标文件清单）\\n- /www/automation/.planning/phases/46-task-REDACTED/46-UI-SPEC.md\\n- /www/automation/.planning/codebase/ARCHITECTURE.md\\n- /www/automation/.planning/codebase/CONVENTIONS.md\\n- /www/automation/.planning/code...(truncated)"
               }
             ],
             "inputTokens": 34990,
@@ -12661,7 +12661,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -12784,7 +12784,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -12907,7 +12907,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13030,7 +13030,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13153,7 +13153,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13276,7 +13276,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13398,7 +13398,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13521,7 +13521,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13643,7 +13643,7 @@
               "api_key": {
                 "id": 2,
                 "user_id": 1,
-                "key": "sk-aa1c261842f2e9d59885b9b5c93aa74d653f54d3adef69942cc7e81c2277167e",
+                "key": "sk-REDACTED",
                 "name": "claude",
                 "group_id": 1,
                 "status": "active",
@@ -13766,7 +13766,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -13889,7 +13889,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14012,7 +14012,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14135,7 +14135,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14257,7 +14257,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14380,7 +14380,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14505,7 +14505,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14628,7 +14628,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14750,7 +14750,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14873,7 +14873,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",
@@ -14996,7 +14996,7 @@
               "api_key": {
                 "id": 1,
                 "user_id": 1,
-                "key": "sk-b5f7d16882ced0c67f52a86ca067328a0b6cd6d3cb79faee5f12abb67c0055c7",
+                "key": "sk-REDACTED",
                 "name": "openai",
                 "group_id": 2,
                 "status": "active",

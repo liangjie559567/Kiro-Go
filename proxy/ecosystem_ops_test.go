@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -136,6 +137,81 @@ func TestSchedulerPreviewAndFleetReadinessAreReadOnly(t *testing.T) {
 	}
 }
 
+func TestSchedulerPreviewAndFleetReadinessShareEligibilityReasonCodes(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	now := time.Now()
+	accounts := []config.Account{
+		{ID: "disabled", Email: "disabled@example.com", Enabled: false, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+		{ID: "cooldown", Email: "cooldown@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1", LastFailureReason: string(pool.FailureReasonRateLimited), CooldownUntil: now.Add(time.Minute).Unix()},
+		{ID: "breaker", Email: "breaker@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+		{ID: "token", Email: "token@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1", ExpiresAt: now.Add(time.Minute).Unix()},
+		{ID: "usage", Email: "usage@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1", UsageCurrent: 10, UsageLimit: 10},
+		{ID: "not-listed", Email: "not-listed@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+		{ID: "eligible", Email: "eligible@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+	p := &pool.AccountPool{}
+	p.Reload()
+	for _, account := range accounts {
+		p.SetModelList(account.ID, []string{"claude-opus-4.7"})
+	}
+	p.SetModelList("not-listed", []string{"claude-sonnet-4.5"})
+	p.RecordModelFailure("breaker", "claude-opus-4.7", pool.FailureReasonModelCapacity, now.Add(time.Minute))
+	p.RecordModelContentSuccess("eligible", "claude-opus-4.7", now.Add(-time.Minute))
+	h := &Handler{pool: p, requestLogs: newRequestLogStore(10)}
+
+	previewW := httptest.NewRecorder()
+	h.apiGetSchedulerPreview(previewW, httptest.NewRequest(http.MethodGet, "/admin/api/scheduler/preview?model=claude-opus-4.7", nil))
+	var preview map[string]interface{}
+	if err := json.Unmarshal(previewW.Body.Bytes(), &preview); err != nil {
+		t.Fatalf("decode preview: %v", err)
+	}
+
+	fleetW := httptest.NewRecorder()
+	h.apiGetFleetReadiness(fleetW, httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4.7", nil))
+	var fleet map[string]interface{}
+	if err := json.Unmarshal(fleetW.Body.Bytes(), &fleet); err != nil {
+		t.Fatalf("decode fleet: %v", err)
+	}
+
+	previewRows := rowsByID(preview["accounts"].([]interface{}))
+	fleetRows := rowsByID(fleet["accounts"].([]interface{}))
+	wantCodes := map[string][]string{
+		"disabled":   {"disabled"},
+		"cooldown":   {"cooling_down"},
+		"breaker":    {"model_breaker_open"},
+		"token":      {"token_expired"},
+		"usage":      {"usage_limit_reached"},
+		"not-listed": {"model_not_listed"},
+		"eligible":   {"eligible"},
+	}
+	for id, want := range wantCodes {
+		previewRow := previewRows[id]
+		fleetRow := fleetRows[id]
+		if previewRow == nil || fleetRow == nil {
+			t.Fatalf("missing row %s preview=%#v fleet=%#v", id, previewRows, fleetRows)
+		}
+		if previewRow["eligible"] != fleetRow["eligible"] {
+			t.Fatalf("%s eligible mismatch preview=%#v fleet=%#v", id, previewRow["eligible"], fleetRow["eligible"])
+		}
+		if !reflect.DeepEqual(stringSliceFromInterface(previewRow["reasonCodes"]), stringSliceFromInterface(fleetRow["reasonCodes"])) {
+			t.Fatalf("%s reasonCodes mismatch preview=%#v fleet=%#v", id, previewRow["reasonCodes"], fleetRow["reasonCodes"])
+		}
+		if got := stringSliceFromInterface(previewRow["reasonCodes"]); !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s reasonCodes = %#v, want %#v", id, got, want)
+		}
+	}
+	if fleetRows["eligible"]["latestContentSuccessModel"] != "claude-opus-4.7" {
+		t.Fatalf("expected account content success evidence on eligible row: %#v", fleetRows["eligible"])
+	}
+}
+
 func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -213,11 +289,33 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	if got, ok := body["retryAfterSeconds"].(float64); !ok || got <= 0 {
 		t.Fatalf("retryAfterSeconds = %#v, want >0", body["retryAfterSeconds"])
 	}
+	if body["lastPressureReason"] == "" {
+		t.Fatalf("lastPressureReason missing: %#v", body)
+	}
+	if body["contractVersion"] != "opus-4.7-readiness.1" {
+		t.Fatalf("contractVersion = %#v", body["contractVersion"])
+	}
+	if body["recommendedAction"] != "retry_after_or_wait_for_recovery" {
+		t.Fatalf("recommendedAction = %#v; body=%#v", body["recommendedAction"], body)
+	}
 	if _, ok := body["safeConcurrency"].(float64); !ok {
 		t.Fatalf("safeConcurrency missing: %#v", body)
 	}
+	if got := body["safeConcurrency"]; got != float64(0) {
+		t.Fatalf("safeConcurrency = %#v, want blocked zero; body=%#v", got, body)
+	}
 	if _, ok := body["locallySchedulableAccounts"].(float64); !ok {
 		t.Fatalf("locallySchedulableAccounts missing: %#v", body)
+	}
+	pressure := h.admissionPressureForModel("claude-opus-4-7")
+	if pressure["circuitState"] != "open" {
+		t.Fatalf("expected model readiness admission pressure circuit state, got %#v", pressure)
+	}
+	if retryAfter, ok := pressure["retryAfterSeconds"].(int); !ok || retryAfter <= 0 {
+		t.Fatalf("expected model readiness retry-after, got %#v", pressure)
+	}
+	if pressure["lastPressureReason"] == "" {
+		t.Fatalf("expected model readiness pressure reason, got %#v", pressure)
 	}
 
 	routeReq := httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4-7", nil)
@@ -236,11 +334,74 @@ func TestFleetReadinessIncludesOpusGovernorContract(t *testing.T) {
 	}
 }
 
+func TestFleetReadinessSafeConcurrencyFormulaForHealthyAndDegraded(t *testing.T) {
+	tests := []struct {
+		name       string
+		pressure   bool
+		wantStatus string
+	}{
+		{name: "healthy", wantStatus: "healthy"},
+		{name: "degraded", pressure: true, wantStatus: "degraded"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+				t.Fatalf("init config: %v", err)
+			}
+			oldGate := modelAdmissionGate
+			now := time.Unix(2000, 0)
+			modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+				Models: map[string]config.ModelAdmissionRule{
+					"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+				},
+			})
+			modelAdmissionGate.now = func() time.Time { return now }
+			if tt.pressure {
+				modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, time.Time{})
+			}
+			t.Cleanup(func() { modelAdmissionGate = oldGate })
+
+			p := &pool.AccountPool{}
+			h := &Handler{pool: p, requestLogs: newRequestLogStore(10)}
+			for i := 1; i <= 3; i++ {
+				id := "acct-" + string(rune('0'+i))
+				if err := config.AddAccount(config.Account{ID: id, Email: id + "@example.com", Enabled: true, AccessToken: "token", RefreshToken: "refresh", ProfileArn: "arn:profile", Region: "us-east-1"}); err != nil {
+					t.Fatalf("add account: %v", err)
+				}
+			}
+			p.Reload()
+			for _, account := range config.GetAccounts() {
+				p.SetModelList(account.ID, []string{"claude-opus-4.7"})
+			}
+
+			w := httptest.NewRecorder()
+			h.apiGetFleetReadiness(w, httptest.NewRequest(http.MethodGet, "/admin/api/fleet/readiness?model=claude-opus-4.7", nil))
+			var body map[string]interface{}
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode readiness: %v", err)
+			}
+			if body["status"] != tt.wantStatus {
+				t.Fatalf("status = %#v, want %s; body=%#v", body["status"], tt.wantStatus, body)
+			}
+			local := int(body["locallySchedulableAccounts"].(float64))
+			admission := int(body["admissionEffectiveConcurrency"].(float64))
+			wantSafe := local
+			if admission < wantSafe {
+				wantSafe = admission
+			}
+			if got := int(body["safeConcurrency"].(float64)); got != wantSafe {
+				t.Fatalf("safeConcurrency = %d, want min(%d,%d); body=%#v", got, local, admission, body)
+			}
+		})
+	}
+}
+
 func TestFleetReadinessReportsRecentContentFailures(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
 	h := NewHandler()
+	t.Cleanup(h.Close)
 	h.ensureRequestLogStore().Add(RequestLogEntry{
 		Timestamp:                  time.Now(),
 		Model:                      "claude-opus-4.7",
@@ -277,6 +438,22 @@ func TestFleetReadinessReportsRecentContentFailures(t *testing.T) {
 	}
 	if body["recommendedQueueWaitSeconds"] != float64(config.Get().ContentContinuity.MaxQueueWaitSeconds) {
 		t.Fatalf("recommendedQueueWaitSeconds = %#v, body=%#v", body["recommendedQueueWaitSeconds"], body)
+	}
+	h.ensureRequestLogStore().Add(RequestLogEntry{
+		Timestamp:             time.Now(),
+		Model:                 "claude-opus-4.7",
+		StatusCode:            http.StatusOK,
+		Outcome:               "success",
+		ContentSuccess:        true,
+		UpstreamContentTokens: 3,
+	})
+	w = httptest.NewRecorder()
+	h.apiGetFleetReadiness(w, req)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode second body: %v", err)
+	}
+	if body["recentContentRequests"] != float64(2) || body["recentStableFallbacks"] != float64(1) || body["recentEmptyCompletions"] != float64(1) || body["contentSuccessRate"] != 0.5 {
+		t.Fatalf("expected separate success/fallback/empty counters, got %#v", body)
 	}
 }
 
@@ -318,6 +495,30 @@ func TestFleetReadinessDoesNotTreatNearExpiryAccountAsSchedulable(t *testing.T) 
 	}
 }
 
+func rowsByID(rows []interface{}) map[string]map[string]interface{} {
+	out := make(map[string]map[string]interface{}, len(rows))
+	for _, raw := range rows {
+		row, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := row["id"].(string)
+		if id != "" {
+			out[id] = row
+		}
+	}
+	return out
+}
+
+func stringSliceFromInterface(raw interface{}) []string {
+	values, _ := raw.([]interface{})
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		out = append(out, value.(string))
+	}
+	return out
+}
+
 func TestFleetReadinessAccountsForModelBreakerBlocks(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -356,5 +557,8 @@ func TestFleetReadinessAccountsForModelBreakerBlocks(t *testing.T) {
 	}
 	if body["status"] != "blocked" {
 		t.Fatalf("status = %#v, want blocked; body=%#v", body["status"], body)
+	}
+	if got, ok := body["retryAfterSeconds"].(float64); !ok || got <= 0 {
+		t.Fatalf("retryAfterSeconds = %#v, want model breaker recovery hint; body=%#v", body["retryAfterSeconds"], body)
 	}
 }

@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-05-21T07:39:51.597Z",
+  "probes": [
+    {
+      "name": "no_authorization",
+      "status": 401,
+      "ok": false,
+      "safeHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "requestId": "ec520f80-d0fa-44c4-a91b-df9896f4c3d8"
+      },
+      "code": "API_KEY_REQUIRED",
+      "message": "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header"
+    },
+    {
+      "name": "placeholder_any",
+      "status": 401,
+      "ok": false,
+      "safeHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "requestId": "9165ccdd-9d11-4f2c-b8dd-7625af763738"
+      },
+      "code": "INVALID_API_KEY",
+      "message": "Invalid API key"
+    },
+    {
+      "name": "existing_anthropic_auth_token_without_value_logged",
+      "status": 401,
+      "ok": false,
+      "safeHeaders": {
+        "contentType": "application/json; charset=utf-8",
+        "requestId": "31caf8dd-aff9-4b28-8359-e6fea32a7263"
+      },
+      "code": "INVALID_API_KEY",
+      "message": "Invalid API key"
+    }
+  ]
+}

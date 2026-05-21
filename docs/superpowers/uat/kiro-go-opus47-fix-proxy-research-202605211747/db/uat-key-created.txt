@@ -1,0 +1,7 @@
+ id |                name                 | status | group_id 
+----+-------------------------------------+--------+----------
+  9 | kiro-go-opus47-fix-uat-202605211747 | active |        1
+(1 row)
+
+INSERT 0 1
+sha256=ff99fbbe9db19158bc89686574cfec7f269ba859d7ea4e3ce673b97c736e0345
