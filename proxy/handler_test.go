@@ -62,7 +62,7 @@ func TestStableDownstreamDoesNotApplyToNonOpusByDefault(t *testing.T) {
 	}
 }
 
-func TestStableDownstreamClaudeNoAccountsReturnsRetryableOverloadedError(t *testing.T) {
+func TestStableDownstreamClaudeNoAccountsReturnsAssistantTurn(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -74,17 +74,21 @@ func TestStableDownstreamClaudeNoAccountsReturnsRetryableOverloadedError(t *test
 
 	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "no_available_accounts", errors.New("No available accounts"))
 
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), `"type":"error"`) || !strings.Contains(w.Body.String(), `"type":"overloaded_error"`) {
-		t.Fatalf("stable fallback must be a retryable Anthropic error envelope: %s", w.Body.String())
+	var resp ClaudeResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode Claude response: %v body=%s", err, w.Body.String())
 	}
-	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") || strings.Contains(w.Body.String(), `"role":"assistant"`) {
-		t.Fatalf("stable fallback must not leak fallback text as assistant content: %s", w.Body.String())
+	if resp.Type != "message" || resp.Role != "assistant" || resp.StopReason != "end_turn" {
+		t.Fatalf("unexpected Claude response envelope: %#v", resp)
 	}
-	if got := w.Header().Get("Retry-After"); got == "" {
-		t.Fatalf("expected Retry-After header for Claude Code/sub2api retry")
+	if len(resp.Content) != 1 || resp.Content[0].Type != "text" || !strings.Contains(resp.Content[0].Text, "This turn has been closed by the gateway") {
+		t.Fatalf("expected stable assistant fallback text, got %#v", resp.Content)
+	}
+	if strings.Contains(w.Body.String(), `"type":"error"`) || strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("stable fallback must not surface retryable error: %s", w.Body.String())
 	}
 }
 
@@ -851,8 +855,8 @@ func TestStableFallbackDoesNotRecordModelContentSuccess(t *testing.T) {
 
 	h.sendStableClaudeFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
 
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
 	if _, ok := p.ModelContentSuccess("acct-any", "claude-opus-4.7"); ok {
 		t.Fatalf("stable fallback must not record model content success")
@@ -2744,15 +2748,15 @@ func TestStableAttemptBudgetExhaustionReturnsBoundedFallback(t *testing.T) {
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable attempt-budget wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
 	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"type":"error"`) || !strings.Contains(bodyText, `"type":"overloaded_error"`) {
-		t.Fatalf("expected retryable Anthropic overloaded error, got: %s", bodyText)
+	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
 	}
-	if strings.Contains(bodyText, `"role":"assistant"`) || strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must not close the turn with assistant content: %s", bodyText)
+	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
+		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -2832,15 +2836,15 @@ func TestStableClaudeAttemptBudgetDoesNotLoopForever(t *testing.T) {
 
 	h.ServeHTTP(w, req)
 
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
 	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"type":"error"`) || !strings.Contains(bodyText, `"type":"overloaded_error"`) {
-		t.Fatalf("expected retryable Anthropic overloaded error, got: %s", bodyText)
+	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
 	}
-	if strings.Contains(bodyText, `"role":"assistant"`) || strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must not close the turn with assistant content: %s", bodyText)
+	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
+		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -2895,12 +2899,15 @@ func TestStableClaudeNoAccountsReturnsBoundedFallback(t *testing.T) {
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable no-accounts wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
 	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"type":"error"`) || !strings.Contains(bodyText, `"type":"overloaded_error"`) {
-		t.Fatalf("expected retryable Anthropic overloaded error, got: %s", bodyText)
+	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
+	}
+	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
+		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
@@ -4170,15 +4177,15 @@ func TestStableAdmissionPressureReturnsBoundedFallback(t *testing.T) {
 	if time.Since(start) > 250*time.Millisecond {
 		t.Fatalf("expected stable continuity wait to respect short request budget, waited %s", time.Since(start))
 	}
-	if rr.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529; body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
 	}
 	bodyText := rr.Body.String()
-	if !strings.Contains(bodyText, `"type":"error"`) || !strings.Contains(bodyText, `"type":"overloaded_error"`) {
-		t.Fatalf("expected retryable Anthropic overloaded error, got: %s", bodyText)
+	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
 	}
-	if strings.Contains(bodyText, `"role":"assistant"`) || strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must not close the turn with assistant content: %s", bodyText)
+	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
+		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
 	}
 	h.finishRequestLog(ctx, recorder)
 
@@ -4428,8 +4435,8 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	h.handleClaudeMessages(loggedWriter, loggedReq)
 	h.finishRequestLog(ctx, recorder)
 
-	if w.Code != anthropicOverloadedStatus {
-		t.Fatalf("status = %d, want 529 retryable stable fallback; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 stable assistant fallback; body=%s", w.Code, w.Body.String())
 	}
 	if strings.TrimSpace(w.Body.String()) == "" {
 		t.Fatalf("expected non-empty response body")
@@ -4444,15 +4451,14 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("response body is not valid JSON: %v body=%s", err, w.Body.String())
 	}
-	if resp["type"] != "error" {
-		t.Fatalf("expected Claude retryable error fallback, got %#v", resp)
+	if resp["type"] != "message" || resp["role"] != "assistant" {
+		t.Fatalf("expected Claude assistant fallback, got %#v", resp)
 	}
-	errObj, _ := resp["error"].(map[string]interface{})
-	if errObj["type"] != "overloaded_error" {
-		t.Fatalf("expected overloaded_error fallback, got %#v", resp)
+	if strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("stable assistant fallback must not surface overloaded_error: %s", w.Body.String())
 	}
-	if strings.Contains(w.Body.String(), `"role":"assistant"`) {
-		t.Fatalf("stable rejection fallback must not be assistant content: %s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "This turn has been closed by the gateway") {
+		t.Fatalf("stable rejection fallback must close the turn with assistant content: %s", w.Body.String())
 	}
 
 	logs := h.requestLogs.List(1)
@@ -4752,8 +4758,8 @@ func TestStableOpenCircuitCanRecoverAfterBoundedWait(t *testing.T) {
 	}
 	h.finishRequestLog(ctx, recorder)
 
-	if rr.Code != anthropicOverloadedStatus {
-		t.Fatalf("expected retryable stable fallback after bounded wait, got status %d body=%s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected stable assistant fallback after bounded wait, got status %d body=%s", rr.Code, rr.Body.String())
 	}
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {

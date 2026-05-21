@@ -627,7 +627,17 @@ func (h *Handler) recordModelContentSuccessIfPresent(accountID, model string, ou
 }
 
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	h.sendStableClaudeRetryableError(w, r, model, reason, err)
+	h.sendStableClaudeAssistantFallback(w, r, model, reason, err)
+}
+
+func (h *Handler) sendStableClaudeAssistantFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	resp := KiroToClaudeResponse(stableFallbackAssistantText(reason, err), "", false, nil, 0, 0, model)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handler) sendStableClaudeRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error) {

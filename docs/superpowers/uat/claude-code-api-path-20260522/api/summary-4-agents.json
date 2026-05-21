@@ -1,0 +1,47 @@
+{
+  "runId": "claude-api-1779386038337",
+  "startedAt": "2026-05-21T17:53:58.337Z",
+  "outDir": "/root/gsd-workspaces/gsd-boundary-workflow-20260522/uat-claude-api-path/20260521175358",
+  "preReadiness": {
+    "label": "before",
+    "status": "degraded",
+    "circuitState": "half_open",
+    "reasonCodes": [
+      "admission_pressure"
+    ],
+    "safeConcurrency": 2,
+    "locallySchedulableAccounts": 15,
+    "coolingDownAccounts": 6,
+    "temporaryLimitedAccounts": 6,
+    "admissionPressureScore": 6,
+    "lastPressureReason": "rate_limited_or_model_capacity",
+    "retryAfterSeconds": 0,
+    "recommendedAction": "limit_to_safe_concurrency"
+  },
+  "postReadiness": {
+    "label": "after",
+    "status": "blocked",
+    "circuitState": "open",
+    "reasonCodes": [
+      "admission_circuit_open"
+    ],
+    "safeConcurrency": 0,
+    "locallySchedulableAccounts": 14,
+    "coolingDownAccounts": 7,
+    "temporaryLimitedAccounts": 7,
+    "admissionPressureScore": 4,
+    "lastPressureReason": "rate_limited_or_model_capacity",
+    "retryAfterSeconds": 14,
+    "recommendedAction": "retry_after_or_wait_for_recovery"
+  },
+  "agents": 4,
+  "claudeApiOk": 4,
+  "claudeApiFailed": 0,
+  "markerOk": 4,
+  "overloaded": 0,
+  "usageRows": 6,
+  "errorRows": 0,
+  "gatewayPass": true,
+  "readinessPass": false,
+  "pass": false
+}

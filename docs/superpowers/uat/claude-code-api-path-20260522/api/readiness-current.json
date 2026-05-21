@@ -1,0 +1,26 @@
+{
+  "status": "degraded",
+  "circuitState": "half_open",
+  "reasonCodes": [
+    "admission_pressure"
+  ],
+  "safeConcurrency": 1,
+  "locallySchedulableAccounts": 20,
+  "coolingDownAccounts": 1,
+  "temporaryLimitedAccounts": 1,
+  "admissionPressureScore": 5,
+  "lastPressureReason": "rate_limited_or_model_capacity",
+  "retryAfterSeconds": 0,
+  "recommendedAction": "limit_to_safe_concurrency",
+  "summary": {
+    "authBlocked": 0,
+    "coolingDown": 1,
+    "disabled": 0,
+    "eligible": 20,
+    "enabled": 21,
+    "modelBreakerOpen": 0,
+    "modelNotListed": 0,
+    "quotaBlocked": 0,
+    "total": 21
+  }
+}
