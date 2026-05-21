@@ -50,6 +50,54 @@ func TestStableDownstreamAppliesToOpus47Sub2APIClaudeRequests(t *testing.T) {
 	}
 }
 
+func TestStableDownstreamAppliesToSub2APIHeaderWithoutUserAgent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("X-Sub2API-Request", "1")
+
+	if !stableDownstreamForRequest(r, "claude-opus-4.7", true) {
+		t.Fatalf("expected stable downstream for explicit sub2api header")
+	}
+}
+
+func TestStableDownstreamAppliesToOfficialOpus47Alias(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+
+	if !stableDownstreamForRequest(r, "claude-opus-4-7", true) {
+		t.Fatalf("expected stable downstream for official dashed Opus 4.7 alias")
+	}
+}
+
+func TestStableDownstreamIgnoresBlankSub2APIHeader(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("X-Sub2API-Request", " \t ")
+
+	if stableDownstreamForRequest(r, "claude-opus-4.7", true) {
+		t.Fatalf("did not expect stable downstream for blank sub2api header")
+	}
+}
+
+func TestStableDownstreamDoesNotApplyToNonGenerationRequests(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+
+	if stableDownstreamForRequest(r, "claude-opus-4.7", false) {
+		t.Fatalf("did not expect stable downstream for non-generation request")
+	}
+}
+
 func TestStableDownstreamDoesNotApplyToNonOpusByDefault(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -89,6 +137,28 @@ func TestStableDownstreamClaudeNoAccountsReturnsAssistantTurn(t *testing.T) {
 	}
 	if strings.Contains(w.Body.String(), `"type":"error"`) || strings.Contains(w.Body.String(), `"overloaded_error"`) {
 		t.Fatalf("stable fallback must not surface retryable error: %s", w.Body.String())
+	}
+}
+
+func TestStableClaudeFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+
+	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "admission_pressure", errors.New("circuit open"))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Retry-After"); got != "" {
+		t.Fatalf("Retry-After = %q, want empty for closed assistant turn", got)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Stable-Fallback"); got != "true" {
+		t.Fatalf("X-Kiro-Go-Stable-Fallback = %q, want true", got)
 	}
 }
 
@@ -202,6 +272,27 @@ func TestNonStableOpus47RateLimitKeepsExisting503Mapping(t *testing.T) {
 	}
 	if status != http.StatusServiceUnavailable || errType != "overloaded_error" {
 		t.Fatalf("status/type = %d/%s, want 503/overloaded_error", status, errType)
+	}
+}
+
+func TestNonStableClaudeFallbackStillUsesRetryableError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	h.sendStableClaudeRetryableError(w, r, "claude-opus-4.7", "admission_pressure", errors.New("circuit open"))
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"type":"error"`) || !strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("expected retryable Anthropic error envelope: %s", w.Body.String())
+	}
+	if got := w.Header().Get("Retry-After"); got == "" {
+		t.Fatalf("expected Retry-After on retryable error")
 	}
 }
 

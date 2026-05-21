@@ -51,3 +51,28 @@ Streaming fallback still uses SSE semantics because a stream may already have st
 PASS for the Claude Code API bug: after the fix, real Claude Code calls through sub2api did not receive capacity/cooling/overloaded API errors, and sub2api did not record new `ops_error_logs` rows for those Claude Code requests.
 
 PARTIAL for capacity readiness under aggressive concurrent load: the upstream Kiro service still temporary-limits real accounts, causing Kiro-Go readiness to degrade or briefly block. That is real upstream/account pressure, not the fixed client-facing API error path.
+
+## Additional Edge Verification - 2026-05-22 02:00 CST
+
+Added focused regression coverage for:
+
+- `X-Sub2API-Request` header enables stable downstream even when User-Agent is missing.
+- Stable downstream does not apply to non-generation requests.
+- Non-streaming Claude stable fallback closes with HTTP 200 assistant `message` and does not include `Retry-After` or `overloaded_error`.
+- Explicit retryable Claude error helper still returns Anthropic `529 overloaded_error`, preserving the old behavior for paths that intentionally need retryable error semantics.
+- Official dashed Opus 4.7 model name `claude-opus-4-7` is treated the same as Kiro's dotted `claude-opus-4.7` for stable downstream and content-continuity model support.
+- Blank `X-Sub2API-Request` does not accidentally enable stable downstream.
+
+Live degraded-state smoke used current readiness `safeConcurrency=1`:
+
+- `CLAUDE_API_AGENTS=1 node verify-claude-api-path.js`
+- Result: `claudeApiOk=1/1`, `markerOk=1/1`, `overloaded=0`, `usageRows=1`, `errorRows=0`, `pass=true`.
+- Evidence: `api/summary-1-agent-degraded-safeconcurrency.json`, `db/db-evidence-1-agent-degraded-safeconcurrency.json`.
+
+Live blocked-state dashed-model smoke started with `safeConcurrency=0`:
+
+- Pre-readiness: `status=blocked`, `reasonCodes=["admission_pressure","cooling_down","no_schedulable_accounts","token_expired"]`, `safeConcurrency=0`.
+- Request model recorded by sub2api: `claude-opus-4-7`.
+- Result: `claudeApiOk=1/1`, `markerOk=1/1`, `overloaded=0`, `usageRows=1`, `errorRows=0`, `pass=true`.
+- Post-readiness recovered to `status=healthy`, `safeConcurrency=1`.
+- Evidence: `api/summary-1-agent-blocked-safeconcurrency0-dashed.json`, `db/db-evidence-1-agent-blocked-safeconcurrency0-dashed.json`.

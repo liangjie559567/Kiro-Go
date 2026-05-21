@@ -266,6 +266,9 @@ func TestStableDownstreamSupportsOpus47OnlyByDefault(t *testing.T) {
 	if !cfg.StableDownstream.SupportsModel("claude-opus-4.7") {
 		t.Fatalf("expected stable downstream to support claude-opus-4.7")
 	}
+	if !cfg.StableDownstream.SupportsModel("claude-opus-4-7") {
+		t.Fatalf("expected stable downstream to support official dashed Opus 4.7 alias")
+	}
 	if cfg.StableDownstream.SupportsModel("claude-sonnet-4.5") {
 		t.Fatalf("did not expect stable downstream to support claude-sonnet-4.5 by default")
 	}
@@ -293,6 +296,9 @@ func TestContentContinuityDefaultsEnableOpus47(t *testing.T) {
 	}
 	if !cfg.ContentContinuity.SupportsModel("claude-opus-4.7") {
 		t.Fatalf("expected content continuity to support claude-opus-4.7")
+	}
+	if !cfg.ContentContinuity.SupportsModel("claude-opus-4-7") {
+		t.Fatalf("expected content continuity to support official dashed Opus 4.7 alias")
 	}
 	if cfg.ContentContinuity.SupportsModel("claude-sonnet-4.5") {
 		t.Fatalf("did not expect content continuity to support sonnet by default")

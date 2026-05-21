@@ -174,12 +174,12 @@ type ClaudeCodeGovernorConfig struct {
 }
 
 func (c StableDownstreamConfig) SupportsModel(model string) bool {
-	model = strings.ToLower(strings.TrimSpace(model))
+	model = normalizedModelSupportKey(model)
 	if !c.Enabled || model == "" {
 		return false
 	}
 	for _, candidate := range c.Models {
-		if strings.ToLower(strings.TrimSpace(candidate)) == model {
+		if normalizedModelSupportKey(candidate) == model {
 			return true
 		}
 	}
@@ -187,16 +187,26 @@ func (c StableDownstreamConfig) SupportsModel(model string) bool {
 }
 
 func (c ContentContinuityConfig) SupportsModel(model string) bool {
-	model = strings.ToLower(strings.TrimSpace(model))
+	model = normalizedModelSupportKey(model)
 	if !c.Enabled || model == "" {
 		return false
 	}
 	for _, candidate := range c.Models {
-		if strings.ToLower(strings.TrimSpace(candidate)) == model {
+		if normalizedModelSupportKey(candidate) == model {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizedModelSupportKey(model string) string {
+	model = strings.ToLower(strings.TrimSpace(model))
+	switch strings.TrimSuffix(strings.ReplaceAll(model, ".", "-"), "-thinking") {
+	case "claude-opus-4-7":
+		return "claude-opus-4-7"
+	default:
+		return model
+	}
 }
 
 const (
