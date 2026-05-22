@@ -351,6 +351,70 @@ func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) 
 	}
 }
 
+func TestClaudeCodeDevNoAccountsReturnsRetryableErrorWithoutAssistantFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	h := &Handler{
+		pool:        &pool.AccountPool{},
+		promptCache: newPromptCacheTracker(defaultPromptCacheTTL),
+		requestLogs: newRequestLogStore(defaultRequestLogCapacity),
+	}
+	body := `{"model":"claude-opus-4.7","max_tokens":64,"messages":[{"role":"user","content":"edit src/task.js"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(body)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("expected retryable error: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"role":"assistant"`) || strings.Contains(w.Body.String(), "This turn has been closed by the gateway") {
+		t.Fatalf("dev no-account path must not return assistant fallback: %s", w.Body.String())
+	}
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].ContentSuccess {
+		t.Fatalf("fallback must not be content success: %#v", logs[0])
+	}
+	if logs[0].ContentFailureReason == "" {
+		t.Fatalf("expected content failure reason: %#v", logs[0])
+	}
+	if logs[0].RequestWorkloadClass != string(RequestWorkloadClaudeCodeDev) {
+		t.Fatalf("RequestWorkloadClass = %q, want %q", logs[0].RequestWorkloadClass, RequestWorkloadClaudeCodeDev)
+	}
+}
+
 func TestStableClaudeFallbackMarksContentFailure(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
