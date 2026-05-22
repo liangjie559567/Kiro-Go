@@ -3047,6 +3047,10 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 func (h *Handler) sendStableAdmissionFallback(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, err error) {
 	if claudeFormat {
 		if stream {
+			if isClaudeCodeDevRequest(r, model, true) {
+				h.sendStableClaudeStreamFallback(w, r, model, "admission_pressure", err)
+				return
+			}
 			h.closeStableClaudeStreamWithoutAssistant(w, r, "admission_pressure", err)
 			return
 		}

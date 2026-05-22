@@ -4534,8 +4534,17 @@ func TestStableAdmissionPressureStreamClosesWithoutAssistantFallback(t *testing.
 	defer cancel()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil).WithContext(waitCtx)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
 	rr := httptest.NewRecorder()
 	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+	updateRequestLogClassification(loggedReq, RequestClassification{
+		WorkloadClass: RequestWorkloadClaudeCodeDev,
+		Reason:        "claude_code_dev_tools",
+		SessionID:     "session-1",
+		ClaudeCode:    true,
+		Model:         "claude-opus-4.7",
+		Stream:        true,
+	})
 
 	oldGate := modelAdmissionGate
 	oldContinuity := contentContinuityGateGlobal
@@ -4571,6 +4580,9 @@ func TestStableAdmissionPressureStreamClosesWithoutAssistantFallback(t *testing.
 	body := rr.Body.String()
 	if !strings.Contains(body, "event: ping") {
 		t.Fatalf("stable admission stream wait must send heartbeat ping: %s", body)
+	}
+	if !strings.Contains(body, "event: error") || !strings.Contains(body, `"type":"overloaded_error"`) {
+		t.Fatalf("dev stable admission stream must end with retryable error: %s", body)
 	}
 	if strings.Contains(body, "message_start") || strings.Contains(body, "message_stop") || strings.Contains(body, "content_block_delta") {
 		t.Fatalf("stable admission stream must not emit assistant fallback content: %s", body)
