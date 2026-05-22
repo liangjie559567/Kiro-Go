@@ -54,6 +54,37 @@ func TestClassifyGenerationRequestSubagentFromParentHeader(t *testing.T) {
 	}
 }
 
+func TestClassifyGenerationRequestSubagentWithoutToolsKeepsSimpleWorkload(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("X-Claude-Code-Session-Id", "session-main")
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-1")
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages",
+		Claude: &ClaudeRequest{
+			Model:    "claude-opus-4.7",
+			Messages: []ClaudeMessage{{Role: "user", Content: "say ok"}},
+		},
+	})
+
+	if got.Lane != RequestLaneSubagent {
+		t.Fatalf("Lane = %q, want %q", got.Lane, RequestLaneSubagent)
+	}
+	if got.Reason != "agent_metadata" {
+		t.Fatalf("Reason = %q, want agent_metadata", got.Reason)
+	}
+	if got.WorkloadClass != RequestWorkloadClaudeCodeSimple {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadClaudeCodeSimple)
+	}
+}
+
+func TestRequestWorkloadUnknownStringValue(t *testing.T) {
+	if RequestWorkloadUnknown != "unknown" {
+		t.Fatalf("RequestWorkloadUnknown = %q, want unknown", RequestWorkloadUnknown)
+	}
+}
+
 func TestClassifyGenerationRequestBackgroundForCountTokens(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
 

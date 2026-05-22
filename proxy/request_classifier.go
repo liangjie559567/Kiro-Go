@@ -17,7 +17,7 @@ const (
 type RequestWorkloadClass string
 
 const (
-	RequestWorkloadUnknown          RequestWorkloadClass = ""
+	RequestWorkloadUnknown          RequestWorkloadClass = "unknown"
 	RequestWorkloadClaudeCodeDev    RequestWorkloadClass = "claude_code_dev"
 	RequestWorkloadClaudeCodeSimple RequestWorkloadClass = "claude_code_simple"
 	RequestWorkloadOpenAICompatible RequestWorkloadClass = "openai_compatible"
@@ -103,9 +103,6 @@ func classifyGenerationRequest(input RequestClassificationInput) RequestClassifi
 	if out.ClaudeCode {
 		out.WorkloadClass, out.Reason = classifyClaudeCodeWorkload(input)
 		if out.Lane == RequestLaneSubagent {
-			if out.WorkloadClass == RequestWorkloadClaudeCodeSimple {
-				out.WorkloadClass = RequestWorkloadClaudeCodeDev
-			}
 			out.Reason = "agent_metadata"
 		}
 		return out
