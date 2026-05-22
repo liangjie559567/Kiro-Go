@@ -4569,7 +4569,7 @@ func TestHandlerClaudeSessionGovernorRunsBeforeModelAdmission(t *testing.T) {
 	}
 }
 
-func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T) {
+func TestHandlerClaudeSessionGovernorRejectionWritesRetryableDevResponse(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -4613,8 +4613,8 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	h.handleClaudeMessages(loggedWriter, loggedReq)
 	h.finishRequestLog(ctx, recorder)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200 stable assistant fallback; body=%s", w.Code, w.Body.String())
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d retryable fallback; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
 	}
 	if strings.TrimSpace(w.Body.String()) == "" {
 		t.Fatalf("expected non-empty response body")
@@ -4625,18 +4625,12 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	if got := w.Header().Get("X-Kiro-Go-Internal-Reason"); got != "admission_pressure" {
 		t.Fatalf("X-Kiro-Go-Internal-Reason = %q, want admission_pressure", got)
 	}
-	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("response body is not valid JSON: %v body=%s", err, w.Body.String())
+	bodyText := w.Body.String()
+	if !strings.Contains(bodyText, `"type":"error"`) || !strings.Contains(bodyText, `"overloaded_error"`) {
+		t.Fatalf("expected retryable Anthropic error envelope: %s", bodyText)
 	}
-	if resp["type"] != "message" || resp["role"] != "assistant" {
-		t.Fatalf("expected Claude assistant fallback, got %#v", resp)
-	}
-	if strings.Contains(w.Body.String(), `"overloaded_error"`) {
-		t.Fatalf("stable assistant fallback must not surface overloaded_error: %s", w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "This turn has been closed by the gateway") {
-		t.Fatalf("stable rejection fallback must close the turn with assistant content: %s", w.Body.String())
+	if strings.Contains(bodyText, `"role":"assistant"`) || strings.Contains(bodyText, "This turn has been closed by the gateway") {
+		t.Fatalf("dev fallback must not emit assistant compatibility body: %s", bodyText)
 	}
 
 	logs := h.requestLogs.List(1)
@@ -4648,6 +4642,9 @@ func TestHandlerClaudeSessionGovernorRejectionWritesStableResponse(t *testing.T)
 	}
 	if !logs[0].StableDownstreamFallback {
 		t.Fatalf("expected stable fallback log entry: %#v", logs[0])
+	}
+	if logs[0].ContentSuccess {
+		t.Fatalf("expected retryable fallback to be content failure: %#v", logs[0])
 	}
 }
 
