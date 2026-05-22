@@ -27,8 +27,8 @@ func TestClassifyGenerationRequestInteractiveClaudeCodeSession(t *testing.T) {
 	if !got.ClaudeCode {
 		t.Fatalf("expected ClaudeCode true")
 	}
-	if got.Reason != "claude_code_foreground" {
-		t.Fatalf("Reason = %q, want claude_code_foreground", got.Reason)
+	if got.Reason != "claude_code_simple" {
+		t.Fatalf("Reason = %q, want claude_code_simple", got.Reason)
 	}
 }
 
@@ -64,6 +64,95 @@ func TestClassifyGenerationRequestBackgroundForCountTokens(t *testing.T) {
 
 	if got.Lane != RequestLaneBackground {
 		t.Fatalf("Lane = %q, want %q", got.Lane, RequestLaneBackground)
+	}
+}
+
+func TestClassifyGenerationRequestClaudeCodeDevFromTools(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-main")
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages",
+		Anthropic: &anthropicEnvelope{
+			SessionID: "session-main",
+			Request: ClaudeRequest{
+				Model: "claude-opus-4.7",
+				Tools: []ClaudeTool{{
+					Name:        "bash",
+					Description: "Run a shell command",
+					InputSchema: map[string]interface{}{"type": "object"},
+				}},
+			},
+		},
+	})
+
+	if got.WorkloadClass != RequestWorkloadClaudeCodeDev {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadClaudeCodeDev)
+	}
+	if got.Reason != "claude_code_dev_tools" {
+		t.Fatalf("Reason = %q, want claude_code_dev_tools", got.Reason)
+	}
+}
+
+func TestClassifyGenerationRequestClaudeCodeDevFromToolResultMessage(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "claude-cli/2.1")
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages",
+		Claude: &ClaudeRequest{
+			Model: "claude-opus-4.7",
+			Messages: []ClaudeMessage{{
+				Role: "user",
+				Content: []interface{}{
+					map[string]interface{}{"type": "tool_result", "tool_use_id": "toolu_1", "content": "ok"},
+				},
+			}},
+		},
+	})
+
+	if got.WorkloadClass != RequestWorkloadClaudeCodeDev {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadClaudeCodeDev)
+	}
+	if got.Reason != "claude_code_dev_tool_result" {
+		t.Fatalf("Reason = %q, want claude_code_dev_tool_result", got.Reason)
+	}
+}
+
+func TestClassifyGenerationRequestClaudeCodeSimpleFromUserAgentOnly(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages",
+		Claude: &ClaudeRequest{
+			Model:    "claude-opus-4.7",
+			Messages: []ClaudeMessage{{Role: "user", Content: "say ok"}},
+		},
+	})
+
+	if got.WorkloadClass != RequestWorkloadClaudeCodeSimple {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadClaudeCodeSimple)
+	}
+	if got.Reason != "claude_code_simple" {
+		t.Fatalf("Reason = %q, want claude_code_simple", got.Reason)
+	}
+}
+
+func TestClassifyGenerationRequestBackgroundWorkloadForCountTokens(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages/count_tokens", nil)
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages/count_tokens",
+	})
+
+	if got.WorkloadClass != RequestWorkloadBackground {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadBackground)
 	}
 }
 
@@ -185,8 +274,8 @@ func TestClassifyGenerationRequestClaudeCodeUserAgentOnly(t *testing.T) {
 	if got.SessionID != "" || got.AgentID != "" || got.ParentAgentID != "" {
 		t.Fatalf("expected no ids, got session=%q agent=%q parent=%q", got.SessionID, got.AgentID, got.ParentAgentID)
 	}
-	if got.Reason != "claude_code_foreground" {
-		t.Fatalf("Reason = %q, want claude_code_foreground", got.Reason)
+	if got.Reason != "claude_code_simple" {
+		t.Fatalf("Reason = %q, want claude_code_simple", got.Reason)
 	}
 }
 

@@ -96,6 +96,8 @@ type RequestLogEntry struct {
 	RoutingStrategy                     string                    `json:"routingStrategy,omitempty"`
 	RoutingPressure                     bool                      `json:"routingPressure,omitempty"`
 	PriorityLane                        string                    `json:"priorityLane,omitempty"`
+	RequestWorkloadClass                string                    `json:"requestWorkloadClass,omitempty"`
+	ClassificationReason                string                    `json:"classificationReason,omitempty"`
 	QueuePosition                       int                       `json:"queuePosition,omitempty"`
 	SessionConcurrencyWaitMs            int64                     `json:"sessionConcurrencyWaitMs,omitempty"`
 	AccountConcurrencyWaitMs            int64                     `json:"accountConcurrencyWaitMs,omitempty"`
@@ -642,6 +644,8 @@ func updateRequestLogClassification(r *http.Request, c RequestClassification) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.entry.PriorityLane = string(c.Lane)
+	ctx.entry.RequestWorkloadClass = string(c.WorkloadClass)
+	ctx.entry.ClassificationReason = strings.TrimSpace(c.Reason)
 	if strings.TrimSpace(c.SessionID) != "" {
 		ctx.entry.ClaudeCodeSessionID = strings.TrimSpace(c.SessionID)
 	}

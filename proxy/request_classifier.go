@@ -14,8 +14,19 @@ const (
 	RequestLaneBackground  RequestPriorityLane = "background"
 )
 
+type RequestWorkloadClass string
+
+const (
+	RequestWorkloadUnknown          RequestWorkloadClass = ""
+	RequestWorkloadClaudeCodeDev    RequestWorkloadClass = "claude_code_dev"
+	RequestWorkloadClaudeCodeSimple RequestWorkloadClass = "claude_code_simple"
+	RequestWorkloadOpenAICompatible RequestWorkloadClass = "openai_compatible"
+	RequestWorkloadBackground       RequestWorkloadClass = "background"
+)
+
 type RequestClassification struct {
 	Lane           RequestPriorityLane
+	WorkloadClass  RequestWorkloadClass
 	Reason         string
 	SessionID      string
 	AgentID        string
@@ -40,11 +51,12 @@ type RequestClassificationInput struct {
 
 func classifyGenerationRequest(input RequestClassificationInput) RequestClassification {
 	out := RequestClassification{
-		Lane:     RequestLaneInteractive,
-		Reason:   "default_interactive",
-		Endpoint: strings.TrimSpace(input.Endpoint),
-		Model:    strings.TrimSpace(input.Model),
-		Stream:   input.Stream,
+		Lane:          RequestLaneInteractive,
+		WorkloadClass: RequestWorkloadOpenAICompatible,
+		Reason:        "default_interactive",
+		Endpoint:      strings.TrimSpace(input.Endpoint),
+		Model:         strings.TrimSpace(input.Model),
+		Stream:        input.Stream,
 	}
 	if out.Endpoint == "" && input.Request != nil {
 		out.Endpoint = input.Request.URL.Path
@@ -80,16 +92,23 @@ func classifyGenerationRequest(input RequestClassificationInput) RequestClassifi
 	out.ClaudeCode = out.SessionID != "" || out.AgentID != "" || out.ParentAgentID != "" || requestUserAgentLooksClaudeCode(input.Request)
 	if isBackgroundEndpoint(out.Endpoint) {
 		out.Lane = RequestLaneBackground
+		out.WorkloadClass = RequestWorkloadBackground
 		out.Reason = "background_endpoint"
 		return out
 	}
 	if out.AgentID != "" || out.ParentAgentID != "" {
 		out.Lane = RequestLaneSubagent
 		out.Reason = "agent_metadata"
-		return out
 	}
 	if out.ClaudeCode {
-		out.Reason = "claude_code_foreground"
+		out.WorkloadClass, out.Reason = classifyClaudeCodeWorkload(input)
+		if out.Lane == RequestLaneSubagent {
+			if out.WorkloadClass == RequestWorkloadClaudeCodeSimple {
+				out.WorkloadClass = RequestWorkloadClaudeCodeDev
+			}
+			out.Reason = "agent_metadata"
+		}
+		return out
 	}
 	return out
 }
@@ -141,6 +160,68 @@ func requestUserAgentLooksClaudeCode(r *http.Request) bool {
 	}
 	ua := strings.ToLower(r.UserAgent())
 	return strings.Contains(ua, "claude-cli") || strings.Contains(ua, "claude-code")
+}
+
+func classifyClaudeCodeWorkload(input RequestClassificationInput) (RequestWorkloadClass, string) {
+	req := input.Claude
+	if req == nil && input.Anthropic != nil {
+		req = &input.Anthropic.Request
+	}
+	if req == nil {
+		return RequestWorkloadClaudeCodeSimple, "claude_code_simple"
+	}
+	if len(req.Tools) > 0 || len(req.ToolReferences) > 0 {
+		return RequestWorkloadClaudeCodeDev, "claude_code_dev_tools"
+	}
+	if claudeMessagesContainBlockType(req.Messages, "tool_use") {
+		return RequestWorkloadClaudeCodeDev, "claude_code_dev_tool_use"
+	}
+	if claudeMessagesContainBlockType(req.Messages, "tool_result") {
+		return RequestWorkloadClaudeCodeDev, "claude_code_dev_tool_result"
+	}
+	return RequestWorkloadClaudeCodeSimple, "claude_code_simple"
+}
+
+func claudeMessagesContainBlockType(messages []ClaudeMessage, blockType string) bool {
+	for _, message := range messages {
+		if claudeContentContainsBlockType(message.Content, blockType) {
+			return true
+		}
+	}
+	return false
+}
+
+func claudeContentContainsBlockType(content interface{}, blockType string) bool {
+	raw, err := json.Marshal(content)
+	if err != nil {
+		return false
+	}
+	var decoded interface{}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return false
+	}
+	return decodedContentContainsBlockType(decoded, blockType)
+}
+
+func decodedContentContainsBlockType(value interface{}, blockType string) bool {
+	switch v := value.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if decodedContentContainsBlockType(item, blockType) {
+				return true
+			}
+		}
+	case map[string]interface{}:
+		if typ, _ := v["type"].(string); strings.EqualFold(strings.TrimSpace(typ), blockType) {
+			return true
+		}
+		for _, nested := range v {
+			if decodedContentContainsBlockType(nested, blockType) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func sessionIDFromMetadataUserID(value string) string {
