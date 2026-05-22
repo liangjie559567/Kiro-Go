@@ -289,6 +289,32 @@ func TestStableDownstreamClaudeStreamFallbackReturnsRetryableSSEError(t *testing
 	}
 }
 
+func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":64,"messages":[{"role":"user","content":"edit file"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+
+	h.sendStableClaudeStreamFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 SSE; body=%s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "message_start") || strings.Contains(body, "content_block_delta") || strings.Contains(body, "message_stop") {
+		t.Fatalf("dev stream fallback must not emit assistant message events: %s", body)
+	}
+	if !strings.Contains(body, "event: error") || !strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("expected retryable SSE error, got %s", body)
+	}
+}
+
 func TestStableClaudeFallbackMarksContentFailure(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
