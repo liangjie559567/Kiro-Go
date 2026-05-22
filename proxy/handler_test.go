@@ -5095,6 +5095,128 @@ func TestStableOpenCircuitCanRecoverAfterBoundedWait(t *testing.T) {
 	}
 }
 
+func TestStableOpenCircuitWaitsWithoutTakingHalfOpenProbeSlot(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	now := time.Unix(1000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(time.Minute))
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	rr := httptest.NewRecorder()
+	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(rr, req)
+	updateRequestLogClassification(loggedReq, RequestClassification{
+		WorkloadClass: RequestWorkloadClaudeCodeDev,
+		SessionID:     "session-1",
+		ClaudeCode:    true,
+		Model:         "claude-opus-4.7",
+	})
+
+	release, ok := h.acquireOpus47AdmissionForRequest(loggedWriter, loggedReq, "claude-opus-4.7", false, true, time.Now().Add(25*time.Millisecond))
+	if ok {
+		release()
+		t.Fatalf("expected open circuit to return retryable admission fallback")
+	}
+	h.finishRequestLog(ctx, recorder)
+
+	if rr.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d retryable fallback; body=%s", rr.Code, anthropicOverloadedStatus, rr.Body.String())
+	}
+	if got := rr.Header().Get("Retry-After"); got == "" || got == "0" {
+		t.Fatalf("Retry-After = %q, want positive", got)
+	}
+	if got := rr.Header().Get("X-Kiro-Go-Circuit-State"); got != "open" {
+		t.Fatalf("X-Kiro-Go-Circuit-State = %q, want open", got)
+	}
+	if strings.Contains(rr.Body.String(), `"role":"assistant"`) || strings.Contains(rr.Body.String(), "This turn has been closed by the gateway") {
+		t.Fatalf("dev admission fallback must not emit assistant success body: %s", rr.Body.String())
+	}
+	active, queued := modelAdmissionGate.models[normalizeAdmissionModel("claude-opus-4.7")].gate.snapshot()
+	if active != 0 || queued != 0 {
+		t.Fatalf("open circuit stable fallback should not take model gate slot, active=%d queued=%d", active, queued)
+	}
+
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected one request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected continuity wait evidence, got %#v", entry)
+	}
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != "admission_pressure" || entry.ContentSuccess {
+		t.Fatalf("expected retryable admission failure log, got %#v", entry)
+	}
+}
+
+func TestStableAdmissionPressureStreamRetryableErrorIncludesBackoffHeaders(t *testing.T) {
+	oldGate := modelAdmissionGate
+	now := time.Unix(1000, 0)
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 4, MaxWaiting: 8},
+		},
+	})
+	modelAdmissionGate.now = func() time.Time { return now }
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(time.Minute))
+	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", http.StatusTooManyRequests, time.Second, now.Add(time.Minute))
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	updateRequestLogClassification(req, RequestClassification{
+		WorkloadClass: RequestWorkloadClaudeCodeDev,
+		SessionID:     "session-1",
+		ClaudeCode:    true,
+		Model:         "claude-opus-4.7",
+		Stream:        true,
+	})
+	w := httptest.NewRecorder()
+
+	h.sendStableClaudeStreamRetryableError(w, req, "claude-opus-4.7", "admission_pressure", errors.New("circuit open"), nil)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("stream status = %d, want 200 SSE; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Retry-After"); got == "" || got == "0" {
+		t.Fatalf("Retry-After = %q, want positive", got)
+	}
+	if got := w.Header().Get("X-Kiro-Go-Circuit-State"); got != "open" {
+		t.Fatalf("X-Kiro-Go-Circuit-State = %q, want open", got)
+	}
+	if !strings.Contains(w.Body.String(), "event: error") || !strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("expected retryable SSE error, got %s", w.Body.String())
+	}
+}
+
 func TestAdminClaudeCodeCompatibilityEndpointReturnsGatewaySettings(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -8402,6 +8524,379 @@ func TestHandleClaudeTemporaryLimitFallsThroughToNextAccount(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestClaudeCodeDevTemporaryLimitProbesBoundedAccountsBeforeFallback(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 20},
+		},
+	})
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateLoadBalanceConfig(config.LoadBalanceConfig{Strategy: config.LoadBalanceStrategyRoundRobin}); err != nil {
+		t.Fatalf("update load balance strategy: %v", err)
+	}
+	accounts := []config.Account{
+		{ID: "acct-1", Email: "one@example.com", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-2", Email: "two@example.com", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-3", Email: "three@example.com", Enabled: true, AccessToken: "token-3", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetStrategy(pool.StrategyRoundRobin)
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	var seen []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","max_tokens":64,"messages":[{"role":"user","content":"edit src/task.js"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want retryable temporary-limit error; body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"type":"error"`) || !strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("temporary-limit dev fallback must surface retryable error, got: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"role":"assistant"`) || strings.Contains(w.Body.String(), "This turn has been closed by the gateway") {
+		t.Fatalf("temporary-limit dev fallback must not masquerade as assistant success: %s", w.Body.String())
+	}
+	if len(seen) != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected bounded suspicious temporary-limit probe, saw %#v", seen)
+	}
+	rows := config.GetAccounts()
+	limited := 0
+	for _, row := range rows {
+		if row.LastFailureReason == string(pool.FailureReasonTemporaryLimited) {
+			limited++
+		}
+	}
+	if limited != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected only bounded accounts to enter temporary-limit cooldown, got %d rows=%#v", limited, rows)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != string(pool.FailureReasonTemporaryLimited) {
+		t.Fatalf("expected temporary-limit stable fallback log, got %#v", entry)
+	}
+	if entry.ContentSuccess {
+		t.Fatalf("temporary-limit fallback must not be content success: %#v", entry)
+	}
+}
+
+func TestClaudeCodeSessionTemporaryLimitProbesBoundedAccountsWithoutTools(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 20},
+		},
+	})
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+	})
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateLoadBalanceConfig(config.LoadBalanceConfig{Strategy: config.LoadBalanceStrategyRoundRobin}); err != nil {
+		t.Fatalf("update load balance strategy: %v", err)
+	}
+	accounts := []config.Account{
+		{ID: "acct-1", Email: "one@example.com", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-2", Email: "two@example.com", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetStrategy(pool.StrategyRoundRobin)
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	var seen []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":64,"messages":[{"role":"user","content":"run final verification"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want SSE 200 error event; body=%s", w.Code, w.Body.String())
+	}
+	if len(seen) != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected Claude Code session temporary limit to stop after bounded probe, saw %#v", seen)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if entry.RequestWorkloadClass != string(RequestWorkloadClaudeCodeSimple) {
+		t.Fatalf("RequestWorkloadClass = %q, want simple Claude Code session", entry.RequestWorkloadClass)
+	}
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != string(pool.FailureReasonTemporaryLimited) || entry.ContentSuccess {
+		t.Fatalf("expected temporary-limit stable fallback log, got %#v", entry)
+	}
+}
+
+func TestClaudeCodeDevTemporaryLimitProbesBoundedAccountsForSonnet(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateLoadBalanceConfig(config.LoadBalanceConfig{Strategy: config.LoadBalanceStrategyRoundRobin}); err != nil {
+		t.Fatalf("update load balance strategy: %v", err)
+	}
+	accounts := []config.Account{
+		{ID: "acct-1", Email: "one@example.com", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-2", Email: "two@example.com", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-3", Email: "three@example.com", Enabled: true, AccessToken: "token-3", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetStrategy(pool.StrategyRoundRobin)
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	var seen []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-sonnet-4.6","max_tokens":64,"messages":[{"role":"user","content":"edit src/task.js"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want retryable temporary-limit error; body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"type":"error"`) || !strings.Contains(w.Body.String(), `"overloaded_error"`) {
+		t.Fatalf("temporary-limit dev fallback must surface retryable error, got: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"role":"assistant"`) || strings.Contains(w.Body.String(), "This turn has been closed by the gateway") {
+		t.Fatalf("temporary-limit dev fallback must not masquerade as assistant success: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), "Opus 4.7 upstream capacity") {
+		t.Fatalf("sonnet temporary-limit fallback must not mention Opus 4.7: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "claude-sonnet-4.6 upstream capacity") {
+		t.Fatalf("sonnet temporary-limit fallback should name requested model: %s", w.Body.String())
+	}
+	if len(seen) != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected bounded suspicious temporary-limit probe, saw %#v", seen)
+	}
+	rows := config.GetAccounts()
+	limited := 0
+	for _, row := range rows {
+		if row.LastFailureReason == string(pool.FailureReasonTemporaryLimited) {
+			limited++
+		}
+	}
+	if limited != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected only bounded accounts to enter temporary-limit cooldown, got %d rows=%#v", limited, rows)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != string(pool.FailureReasonTemporaryLimited) {
+		t.Fatalf("expected temporary-limit stable fallback log, got %#v", entry)
+	}
+	if entry.ContentSuccess {
+		t.Fatalf("temporary-limit fallback must not be content success: %#v", entry)
+	}
+}
+
+func TestClaudeCodeDevStreamTemporaryLimitClosesCleanlyWithoutRetryableError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	cfg.ContentContinuity.StreamHeartbeatSeconds = 1
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 2, MaxWaiting: 20},
+		},
+	})
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+	if err := config.UpdateLoadBalanceConfig(config.LoadBalanceConfig{Strategy: config.LoadBalanceStrategyRoundRobin}); err != nil {
+		t.Fatalf("update load balance strategy: %v", err)
+	}
+	accounts := []config.Account{
+		{ID: "acct-1", Email: "one@example.com", Enabled: true, AccessToken: "token-1", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+		{ID: "acct-2", Email: "two@example.com", Enabled: true, AccessToken: "token-2", ProfileArn: "arn:shared", ExpiresAt: time.Now().Add(time.Hour).Unix()},
+	}
+	for _, account := range accounts {
+		if err := config.AddAccount(account); err != nil {
+			t.Fatalf("add account: %v", err)
+		}
+	}
+
+	p := &pool.AccountPool{}
+	p.Reload()
+	p.SetStrategy(pool.StrategyRoundRobin)
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(5)}
+	errBody := `{"message":"Due to suspicious activity, we are imposing temporary limits on how frequently your account can send a request to Kiro while we investigate.","reason":null}`
+	var seen []string
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			seen = append(seen, req.Header.Get("Authorization"))
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(errBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":64,"messages":[{"role":"user","content":"edit src/task.js"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
+	w := httptest.NewRecorder()
+
+	start := time.Now()
+	h.ServeHTTP(w, req)
+	waited := time.Since(start)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want SSE 200 error event; body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "event: error") || strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("temporary-limit dev stream fallback must not trigger Claude Code stream-to-nonstream retry: %s", body)
+	}
+	if !strings.Contains(body, "event: message_start") || !strings.Contains(body, "event: message_stop") {
+		t.Fatalf("temporary-limit dev stream fallback must be a complete empty SSE message: %s", body)
+	}
+	if strings.Contains(body, "content_block_delta") || strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("temporary-limit dev stream fallback must not emit assistant content: %s", body)
+	}
+	if len(seen) != claudeCodeTemporaryLimitMaxAccountsPerTurn {
+		t.Fatalf("expected to stop after bounded suspicious temporary-limit probe, saw %#v", seen)
+	}
+	if waited < 900*time.Millisecond {
+		t.Fatalf("expected temporary-limit stream fallback to wait for stable capacity window, waited %s", waited)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	entry := logs[0]
+	if !entry.QueuedForCapacity || entry.CapacityQueueWaitMs <= 0 {
+		t.Fatalf("expected queued capacity evidence before temporary-limit stream fallback, got %#v", entry)
+	}
+	if !entry.StableDownstreamFallback || entry.StableFallbackReason != string(pool.FailureReasonTemporaryLimited) {
+		t.Fatalf("expected temporary-limit stable fallback log, got %#v", entry)
+	}
+	if entry.SuppressedDownstreamStatus != http.StatusTooManyRequests {
+		t.Fatalf("SuppressedDownstreamStatus = %d, want %d; entry=%#v", entry.SuppressedDownstreamStatus, http.StatusTooManyRequests, entry)
+	}
+	if entry.ContentSuccess {
+		t.Fatalf("temporary-limit stream fallback must not be content success: %#v", entry)
+	}
+}
+
 func TestSendNoAvailableAccountsMapsTemporaryLimitedPoolToClaudeRetryableRateLimit(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -8793,6 +9288,28 @@ func TestDashboardRefreshRefreshesVisibleRuntimeData(t *testing.T) {
 	for name, needle := range expectations {
 		if !strings.Contains(html, needle) {
 			t.Fatalf("expected admin page refresh behavior %q to contain %q", name, needle)
+		}
+	}
+}
+
+func TestAdminPageExplainsQuietAutoRefreshAndBatchFailures(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join("..", "web", "index.html"))
+	if err != nil {
+		t.Fatalf("read admin page: %v", err)
+	}
+
+	html := string(body)
+	expectations := map[string]string{
+		"quiet-mode auto refresh detail":    "settings.autoRefreshQuietModeDetail",
+		"quiet-mode detail rendering":       "formatAutoRefreshQuietModeDetail(status)",
+		"batch failure details formatter":   "function formatBatchFailureDetails(results)",
+		"account batch failure details":     "formatBatchFailureDetails(d.results)",
+		"model batch failure details":       "formatBatchFailureDetails(results)",
+		"single model refresh error detail": "d.error || d.reason",
+	}
+	for name, needle := range expectations {
+		if !strings.Contains(html, needle) {
+			t.Fatalf("expected admin page diagnostic behavior %q to contain %q", name, needle)
 		}
 	}
 }

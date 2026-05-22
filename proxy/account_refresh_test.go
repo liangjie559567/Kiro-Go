@@ -101,11 +101,11 @@ func TestRunRefreshBatchQuietModeMaintainsCooldownTokenWithoutProbe(t *testing.T
 	}
 
 	selected, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeEnabled, now)
-	if skipped != 1 {
-		t.Fatalf("expected one quiet-mode selection skip, got %d", skipped)
+	if skipped != 0 {
+		t.Fatalf("expected quiet-mode auto refresh to select accounts for token maintenance, got %d selector skips", skipped)
 	}
 	if len(selected) != 2 {
-		t.Fatalf("expected quiet-mode account to be deferred to batch skip, got %#v", selected)
+		t.Fatalf("expected quiet-mode accounts to be deferred to batch handling, got %#v", selected)
 	}
 
 	var refreshed []string
@@ -115,7 +115,7 @@ func TestRunRefreshBatchQuietModeMaintainsCooldownTokenWithoutProbe(t *testing.T
 	})
 	result.Skipped = skipped
 
-	if result.Success != 1 || result.Failed != 0 || result.Skipped != 1 || result.QuietSkipped != 1 {
+	if result.Success != 1 || result.Failed != 0 || result.Skipped != 0 || result.QuietSkipped != 1 {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 	if len(refreshed) != 1 || refreshed[0] != "ok" {
@@ -126,14 +126,26 @@ func TestRunRefreshBatchQuietModeMaintainsCooldownTokenWithoutProbe(t *testing.T
 	}
 }
 
-func TestRunAutoRefreshSkipsAllExpensiveRefreshDuringOpusQuietMode(t *testing.T) {
+func TestRunAutoRefreshMaintainsTokenExpiryDuringOpusQuietMode(t *testing.T) {
+	authHTTPClientTestMu.Lock()
+	t.Cleanup(authHTTPClientTestMu.Unlock)
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
 	if err := config.UpdateAutoRefreshConfig(config.AutoRefreshConfig{Enabled: true, IntervalMinutes: 5, Scope: config.AutoRefreshScopeEnabled}); err != nil {
 		t.Fatalf("update auto refresh: %v", err)
 	}
-	if err := config.AddAccount(config.Account{ID: "acct-1", Email: "one@example.com", Enabled: true}); err != nil {
+	oldExpiresAt := time.Now().Add(time.Minute).Unix()
+	if err := config.AddAccount(config.Account{
+		ID:           "acct-1",
+		Email:        "one@example.com",
+		Enabled:      true,
+		AccessToken:  "old-access-token",
+		RefreshToken: "old-refresh-token",
+		AuthMethod:   "social",
+		Region:       "us-east-1",
+		ExpiresAt:    oldExpiresAt,
+	}); err != nil {
 		t.Fatalf("add account: %v", err)
 	}
 
@@ -149,12 +161,38 @@ func TestRunAutoRefreshSkipsAllExpensiveRefreshDuringOpusQuietMode(t *testing.T)
 	modelAdmissionGate.recordPressureUntil("claude-opus-4.7", 429, time.Second, now.Add(time.Minute))
 	t.Cleanup(func() { modelAdmissionGate = oldGate })
 
+	var authCalls int32
+	authHttpClientStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			atomic.AddInt32(&authCalls, 1)
+			if req.URL.Host != "prod.us-east-1.auth.desktop.kiro.dev" || req.URL.Path != "/refreshToken" {
+				t.Fatalf("unexpected auth request: %s %s", req.Method, req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"accessToken":"new-access-token","refreshToken":"new-refresh-token","expiresIn":7200,"profileArn":"arn:aws:codewhisperer:profile/new"}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { auth.InitHttpClient("") })
+
 	h := &Handler{pool: pool.GetPool()}
 	h.runAutoRefresh()
 
 	status := h.getAutoRefreshStatus()
-	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 || status.LastSuccess != 0 || status.LastFailed != 0 {
-		t.Fatalf("expected one quiet skip and no expensive refresh, got %#v", status)
+	if status.LastSkippedCount != 0 || status.LastQuietSkipped != 1 || status.LastSuccess != 1 || status.LastFailed != 0 {
+		t.Fatalf("expected quiet token maintenance success without selector skip, got %#v", status)
+	}
+	if authCalls != 1 {
+		t.Fatalf("expected token maintenance to refresh once, got %d calls", authCalls)
+	}
+	persisted := config.GetAccounts()[0]
+	if persisted.AccessToken != "new-access-token" {
+		t.Fatalf("expected persisted access token to refresh, got %q", persisted.AccessToken)
+	}
+	if persisted.ExpiresAt <= oldExpiresAt {
+		t.Fatalf("expected persisted expiresAt to move forward, old=%d new=%d", oldExpiresAt, persisted.ExpiresAt)
 	}
 }
 
@@ -241,7 +279,7 @@ func TestAutoRefreshStatusRecordsSelectorQuietSkipsFromBatchResult(t *testing.T)
 	h.finishAutoRefresh(result, now.Unix(), now.Add(time.Hour).Unix())
 
 	status := h.getAutoRefreshStatus()
-	if status.LastSkippedCount != 1 || status.LastQuietSkipped != 1 {
+	if status.LastSkippedCount != 0 || status.LastQuietSkipped != 1 {
 		t.Fatalf("expected selector quiet skip to reach status, got %#v", status)
 	}
 }

@@ -1366,6 +1366,7 @@
                 'settings.autoRefreshNo': '否',
                 'settings.autoRefreshSkipped': '已跳过',
                 'settings.autoRefreshQuietSkipped': '静默模式跳过',
+                'settings.autoRefreshQuietModeDetail': '已刷新 token/过期时间，跳过账号信息和模型探测',
                 'settings.saveAutoRefresh': '保存自动刷新设置',
                 'settings.healthCheck': '账号健康检测',
                 'settings.healthCheckEnabled': '启用定时健康检测',
@@ -1601,6 +1602,7 @@
                 'batch.confirmDisable': '确定批量禁用 {0} 个账号？',
                 'batch.confirmRefresh': '确定批量刷新 {0} 个账号？',
                 'batch.refreshResult': '刷新完成：成功 {0}，失败 {1}',
+                'batch.failureDetails': '失败详情',
                 'batch.confirmRefreshModels': '确定为已选 {0} 个账号刷新模型缓存？',
                 'batch.refreshModelsResult': '模型缓存刷新完成：成功 {0}，失败 {1}',
                 'batch.done': '操作完成',
@@ -1720,6 +1722,7 @@
                 'settings.autoRefreshNo': 'No',
                 'settings.autoRefreshSkipped': 'Skipped',
                 'settings.autoRefreshQuietSkipped': 'Quiet-mode skipped',
+                'settings.autoRefreshQuietModeDetail': 'Refreshed tokens/expiry and skipped account info/model probes',
                 'settings.saveAutoRefresh': 'Save Auto Refresh Settings',
                 'settings.healthCheck': 'Account Health Check',
                 'settings.healthCheckEnabled': 'Enable scheduled health checks',
@@ -1951,6 +1954,7 @@
                 'batch.confirmDisable': 'Disable {0} accounts?',
                 'batch.confirmRefresh': 'Refresh {0} accounts?',
                 'batch.refreshResult': 'Refresh done: {0} success, {1} failed',
+                'batch.failureDetails': 'Failure details',
                 'batch.confirmRefreshModels': 'Refresh model cache for {0} selected accounts?',
                 'batch.refreshModelsResult': 'Model cache refresh done: {0} success, {1} failed',
                 'batch.done': 'Done',
@@ -2229,6 +2233,20 @@
                 bar.style.display = 'none';
             }
         }
+        function formatBatchFailureDetails(results) {
+            const failed = (results || []).filter(r => r && r.status === 'failed');
+            if (failed.length === 0) return '';
+            const lines = failed.slice(0, 10).map(r => {
+                const account = accounts.find(a => a.id === r.id);
+                const label = (account && (account.email || account.nickname)) || r.id || '-';
+                const message = r.message || r.error || r.reason || t('common.failed');
+                return '- ' + label + ': ' + message;
+            });
+            if (failed.length > lines.length) {
+                lines.push('- ... +' + (failed.length - lines.length));
+            }
+            return '\n\n' + t('batch.failureDetails') + ':\n' + lines.join('\n');
+        }
         async function batchAction(action) {
             const ids = Array.from(selectedAccounts);
             if (ids.length === 0) return;
@@ -2242,7 +2260,7 @@
                 });
                 const d = await res.json();
                 if (action === 'refresh' && d.success) {
-                    alert(t('batch.refreshResult', d.refreshed, d.failed));
+                    alert(t('batch.refreshResult', d.refreshed, d.failed) + formatBatchFailureDetails(d.results));
                 }
                 selectedAccounts.clear();
                 updateBatchBar();
@@ -2257,16 +2275,26 @@
             if (ids.length === 0) return;
             if (!confirm(t('batch.confirmRefreshModels', ids.length))) return;
             let success = 0, fail = 0;
+            const results = [];
             for (const id of ids) {
                 try {
                     const res = await fetch('/admin/api/accounts/' + id + '/models/refresh', {
                         method: 'POST', headers: { 'X-Admin-Password': password }
                     });
                     const d = await res.json();
-                    if (d.success) success++; else fail++;
-                } catch { fail++; }
+                    if (d.success) {
+                        success++;
+                        results.push({ id, status: 'success', message: 'models refreshed' });
+                    } else {
+                        fail++;
+                        results.push({ id, status: 'failed', reason: d.reason || 'refresh_failed', message: d.error || d.reason || 'refresh failed' });
+                    }
+                } catch (e) {
+                    fail++;
+                    results.push({ id, status: 'failed', reason: 'request_failed', message: e && e.message ? e.message : 'request failed' });
+                }
             }
-            alert(t('batch.refreshModelsResult', success, fail));
+            alert(t('batch.refreshModelsResult', success, fail) + formatBatchFailureDetails(results));
             selectedAccounts.clear();
             updateBatchBar();
             loadAccounts();
@@ -2889,6 +2917,10 @@
             if (value === true) return label;
             return label + ': ' + value;
         }
+        function formatAutoRefreshQuietModeDetail(status) {
+            if (!status || !status.lastQuietSkipped) return null;
+            return t('settings.autoRefreshQuietModeDetail');
+        }
         function renderAutoRefreshStatus(status) {
             status = status || {};
             document.getElementById('autoRefreshRunning').textContent = status.running ? t('settings.autoRefreshYes') : t('settings.autoRefreshNo');
@@ -2900,6 +2932,8 @@
                 formatAutoRefreshResultValue(t('settings.autoRefreshSkipped'), status.lastSkippedCount || status.lastSkipped),
                 formatAutoRefreshResultValue(t('settings.autoRefreshQuietSkipped'), status.lastQuietSkipped)
             ].filter(Boolean);
+            const quietDetail = formatAutoRefreshQuietModeDetail(status);
+            if (quietDetail) results.push(quietDetail);
             document.getElementById('autoRefreshLastResult').textContent = results.length ? results.join(', ') : '-';
         }
         async function loadAutoRefreshConfig(options) {
@@ -3171,11 +3205,15 @@
                 if (!el) return;
                 const recent = Array.isArray(data.recent) ? data.recent : [];
                 const rows = recent.slice(0, 5).map(function(row) {
+                    const evidence = row.toolEvidence || [
+                        row.webSearchToolPresent ? 'websearch' : '',
+                        row.mcpToolPresent ? 'mcp' : ''
+                    ].filter(Boolean).join(',');
                     return '<tr>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.query || '-') + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.mcpStatus || '-') + '</td>' +
                         '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(String(row.resultCount || 0)) + '</td>' +
-                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.failureReason || '-') + '</td>' +
+                        '<td style="padding:6px;border-top:1px solid #e2e8f0">' + escapeHtml(row.failureReason || evidence || '-') + '</td>' +
                         '</tr>';
                 }).join('');
                 el.innerHTML = '<div class="card">' +

@@ -40,12 +40,13 @@ var (
 )
 
 const (
-	defaultOpus47MaxAttempts       = 4
-	defaultOpus47RequestBudget     = 25 * time.Second
-	defaultOpus47ReadinessCacheTTL = 3 * time.Second
-	minStableClaudeCapacityWait    = time.Second
-	maxStableClaudeCapacityWait    = 15 * time.Second
-	modelCachePressureFailureLimit = 2
+	defaultOpus47MaxAttempts                   = 4
+	defaultOpus47RequestBudget                 = 120 * time.Second
+	defaultOpus47ReadinessCacheTTL             = 3 * time.Second
+	minStableClaudeCapacityWait                = time.Second
+	maxStableClaudeCapacityWait                = 120 * time.Second
+	modelCachePressureFailureLimit             = 2
+	claudeCodeTemporaryLimitMaxAccountsPerTurn = 2
 )
 
 const tokenRefreshSkewSeconds int64 = 120
@@ -579,8 +580,15 @@ func stableFallbackText(reason string, err error) string {
 	return msg
 }
 
-func stableFallbackAssistantText(reason string, err error) string {
-	msg := "Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
+func stableFallbackModelLabel(model string) string {
+	if strings.TrimSpace(model) == "" {
+		return "requested model"
+	}
+	return strings.TrimSpace(model)
+}
+
+func stableFallbackAssistantText(model, reason string, err error) string {
+	msg := stableFallbackModelLabel(model) + " upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
 	if reason != "" {
 		msg += " Retry reason: " + reason + "."
 	}
@@ -588,8 +596,8 @@ func stableFallbackAssistantText(reason string, err error) string {
 	return msg
 }
 
-func stableClaudeRetryableErrorMessage(reason string, err error) string {
-	msg := "Opus 4.7 upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
+func stableClaudeRetryableErrorMessage(model, reason string, err error) string {
+	msg := stableFallbackModelLabel(model) + " upstream capacity is temporarily unavailable after Kiro-Go waited for recovery."
 	if reason != "" {
 		msg += " Retry reason: " + reason + "."
 	}
@@ -630,10 +638,48 @@ func isClaudeCodeDevRequest(r *http.Request, model string, stream bool) bool {
 	if requestLogWorkloadClass(r) == RequestWorkloadClaudeCodeDev {
 		return true
 	}
-	if r != nil && firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
+	if r != nil && firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id", "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
 		return true
 	}
 	return false
+}
+
+func shouldCloseClaudeCodeTemporaryLimitTurn(r *http.Request, model string, err error) bool {
+	return isClaudeCodeDevRequest(r, model, false) &&
+		classifyFailureReason(err) == pool.FailureReasonTemporaryLimited
+}
+
+func stableClaudeTemporaryLimitStillBlocked(err error) func() bool {
+	resetAt := rateLimitResetFromError(err)
+	if resetAt.IsZero() {
+		return func() bool { return true }
+	}
+	return func() bool { return time.Now().Before(resetAt) }
+}
+
+func stableClaudeTemporaryLimitDeadline(err error, deadline time.Time) time.Time {
+	resetAt := rateLimitResetFromError(err)
+	if resetAt.IsZero() {
+		resetAt = time.Now().Add(time.Duration(defaultRateLimitFallbackSeconds) * time.Second)
+	}
+	if deadline.IsZero() || resetAt.Before(deadline) {
+		return resetAt
+	}
+	return deadline
+}
+
+func requestModelLabelFromLog(r *http.Request) string {
+	if r != nil {
+		if ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext); ctx != nil {
+			ctx.mu.Lock()
+			model := strings.TrimSpace(firstNonEmptyString(ctx.entry.EffectiveModel, ctx.entry.RequestedModel, ctx.entry.Model))
+			ctx.mu.Unlock()
+			if model != "" {
+				return model
+			}
+		}
+	}
+	return "claude-opus-4.7"
 }
 
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
@@ -650,12 +696,12 @@ func (h *Handler) sendStableClaudeAssistantFallback(w http.ResponseWriter, r *ht
 	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
 	w.WriteHeader(http.StatusOK)
-	resp := KiroToClaudeResponse(stableFallbackAssistantText(reason, err), "", false, nil, 0, 0, model)
+	resp := KiroToClaudeResponse(stableFallbackAssistantText(model, reason, err), "", false, nil, 0, 0, model)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handler) sendStableClaudeRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	updateRequestLogStableFallback(r, reason, anthropicOverloadedStatus)
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
 	for key, values := range opusPressureHeaders(model, err, reason) {
 		if len(values) > 0 && strings.TrimSpace(values[0]) != "" {
 			w.Header().Set(key, values[0])
@@ -672,17 +718,26 @@ func (h *Handler) sendStableClaudeRetryableError(w http.ResponseWriter, r *http.
 		"type": "error",
 		"error": map[string]string{
 			"type":    "overloaded_error",
-			"message": stableClaudeRetryableErrorMessage(reason, err),
+			"message": stableClaudeRetryableErrorMessage(model, reason, err),
 		},
 	})
 }
 
 func (h *Handler) sendStableClaudeStreamFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	h.sendStableClaudeStreamRetryableError(w, r, model, reason, err)
+	h.sendStableClaudeStreamRetryableError(w, r, model, reason, err, nil)
 }
 
-func (h *Handler) sendStableClaudeStreamRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
-	updateRequestLogStableFallback(r, reason, anthropicOverloadedStatus)
+func (h *Handler) sendStableClaudeStreamRetryableError(w http.ResponseWriter, r *http.Request, model, reason string, err error, startedSSE *claudeSSEWriter) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	if startedSSE != nil {
+		startedSSE.Error("overloaded_error", stableClaudeRetryableErrorMessage(model, reason, err))
+		return
+	}
+	for key, values := range opusPressureHeaders(model, err, reason) {
+		if len(values) > 0 && strings.TrimSpace(values[0]) != "" {
+			w.Header().Set(key, values[0])
+		}
+	}
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -690,23 +745,47 @@ func (h *Handler) sendStableClaudeStreamRetryableError(w http.ResponseWriter, r 
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
 	w.WriteHeader(http.StatusOK)
 	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
-	sse.Error("overloaded_error", stableClaudeRetryableErrorMessage(reason, err))
+	sse.Error("overloaded_error", stableClaudeRetryableErrorMessage(model, reason, err))
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
 }
 
-func (h *Handler) closeStableClaudeStreamWithoutAssistant(w http.ResponseWriter, r *http.Request, reason string, err error) {
+func (h *Handler) sendStableClaudeStreamAssistantFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error, startedSSE *claudeSSEWriter) {
 	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	if startedSSE != nil {
+		startedSSE.TextDelta(stableFallbackAssistantText(model, reason, err))
+		startedSSE.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
+		return
+	}
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
 	w.WriteHeader(http.StatusOK)
+	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), model, buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
+	sse.TextDelta(stableFallbackAssistantText(model, reason, err))
+	sse.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
+}
+
+func (h *Handler) closeStableClaudeStreamWithoutAssistant(w http.ResponseWriter, r *http.Request, reason string, err error, startedSSE *claudeSSEWriter) {
+	updateRequestLogStableFallback(r, reason, stableFallbackSuppressedStatus(err))
+	if startedSSE != nil {
+		startedSSE.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
+	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
+	w.WriteHeader(http.StatusOK)
+	sse := newClaudeSSEWriter(w, "msg_"+uuid.New().String(), requestModelLabelFromLog(r), buildClaudeUsageMap(0, 0, promptCacheUsage{}, false), 1024)
+	sse.Stop("end_turn", buildClaudeUsageMap(0, 0, promptCacheUsage{}, false))
 }
 
 func (h *Handler) sendStableOpenAIFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
@@ -722,7 +801,7 @@ func (h *Handler) sendStableOpenAIFallback(w http.ResponseWriter, r *http.Reques
 		"model":   model,
 		"choices": []map[string]interface{}{{
 			"index":         0,
-			"message":       map[string]string{"role": "assistant", "content": stableFallbackAssistantText(reason, err)},
+			"message":       map[string]string{"role": "assistant", "content": stableFallbackAssistantText(model, reason, err)},
 			"finish_reason": "stop",
 		}},
 		"usage": map[string]int{"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
@@ -735,7 +814,7 @@ func (h *Handler) sendStableOpenAIResponsesFallback(w http.ResponseWriter, r *ht
 	w.Header().Set("X-Kiro-Go-Stable-Fallback", "true")
 	w.Header().Set("X-Kiro-Go-Internal-Reason", reason)
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(buildOpenAIResponsesObject("resp_"+uuid.New().String(), model, stableFallbackAssistantText(reason, err), 0, 0, true))
+	_ = json.NewEncoder(w).Encode(buildOpenAIResponsesObject("resp_"+uuid.New().String(), model, stableFallbackAssistantText(model, reason, err), 0, 0, true))
 }
 
 func downstreamStatusForRetryExhaustion(r *http.Request, model string, claudeFormat bool, status int, errType string) (int, string, bool) {
@@ -755,7 +834,7 @@ func (h *Handler) waitForStableContentContinuityResult(r *http.Request, model st
 	return h.waitForStableContentContinuityResultWithHeartbeat(r, model, deadline, stillBlocked, 0, nil)
 }
 
-func (h *Handler) waitForStableContentContinuityResultWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) contentContinuityWaitResult {
+func (h *Handler) waitForStableContentContinuityResultWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func() *claudeSSEWriter) contentContinuityWaitResult {
 	if !stableDownstreamForRequest(r, model, true) {
 		return contentContinuityWaitResult{}
 	}
@@ -779,7 +858,7 @@ func (h *Handler) waitForStableClaudeCapacity(r *http.Request, model string, dea
 	return h.waitForStableClaudeCapacityWithHeartbeat(r, model, deadline, stillBlocked, 0, nil)
 }
 
-func (h *Handler) waitForStableClaudeCapacityWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) bool {
+func (h *Handler) waitForStableClaudeCapacityWithHeartbeat(r *http.Request, model string, deadline time.Time, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func() *claudeSSEWriter) bool {
 	if !stableDownstreamForRequest(r, model, true) {
 		return false
 	}
@@ -795,10 +874,10 @@ func stableClaudeStreamHeartbeatInterval() time.Duration {
 	return time.Duration(cfg.ContentContinuity.StreamHeartbeatSeconds) * time.Second
 }
 
-func newStableClaudeStreamHeartbeat(w http.ResponseWriter, model string) func() {
+func newStableClaudeStreamHeartbeat(w http.ResponseWriter, model string) func() *claudeSSEWriter {
 	var once sync.Once
 	var sse *claudeSSEWriter
-	return func() {
+	return func() *claudeSSEWriter {
 		once.Do(func() {
 			w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-cache")
@@ -809,6 +888,7 @@ func newStableClaudeStreamHeartbeat(w http.ResponseWriter, model string) func() 
 		if sse != nil {
 			sse.Ping()
 		}
+		return sse
 	}
 }
 
@@ -1256,10 +1336,14 @@ func (h *Handler) runAutoRefresh() {
 		return
 	}
 	if shouldSkipBackgroundProbeForOpusQuietMode() {
+		accounts, skipped := selectAutoRefreshAccountsForTime(config.GetAccounts(), settings.Scope, now)
+		result := runTokenMaintenanceBatch(accounts)
+		result.Skipped = skipped
+		h.pool.Reload()
 		finishedAt := time.Now()
 		nextSettings := config.GetAutoRefreshConfig()
-		h.finishAutoRefresh(refreshBatchResult{Skipped: len(config.GetAccounts()), QuietSkipped: len(config.GetAccounts())}, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
-		logger.Warnf("[AutoRefresh] Skipped expensive refresh while Opus 4.7 quiet mode is active")
+		h.finishAutoRefresh(result, finishedAt.Unix(), computeNextRunAt(finishedAt, nextSettings))
+		logger.Warnf("[AutoRefresh] Maintained account tokens and skipped expensive refresh while Opus 4.7 quiet mode is active: success=%d failed=%d skipped=%d quiet=%d", result.Success, result.Failed, result.Skipped, result.QuietSkipped)
 		return
 	}
 
@@ -2478,10 +2562,15 @@ func (h *Handler) sendClaudeNativeWebSearchStream(w http.ResponseWriter, model, 
 func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Request, stream bool, payload *KiroPayload, model string, thinking bool, thinkingResponseOpts claudeThinkingResponseOptions, effectiveReq *ClaudeRequest, estimatedInputTokens int) {
 	budget := newOpus47RequestBudget(model)
 	deadline := budget.deadline
-	var stableStreamHeartbeat func()
+	var stableStreamHeartbeat func() *claudeSSEWriter
 	var stableStreamHeartbeatEvery time.Duration
+	var stableStreamSSE *claudeSSEWriter
 	if stream && stableDownstreamForRequest(r, model, true) {
-		stableStreamHeartbeat = newStableClaudeStreamHeartbeat(w, model)
+		heartbeat := newStableClaudeStreamHeartbeat(w, model)
+		stableStreamHeartbeat = func() *claudeSSEWriter {
+			stableStreamSSE = heartbeat()
+			return stableStreamSSE
+		}
 		stableStreamHeartbeatEvery = stableClaudeStreamHeartbeatInterval()
 	}
 	snap := AdmissionPressureSnapshot{}
@@ -2508,6 +2597,7 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 	used := make(map[string]bool)
 	attempt := 0
 	capacityRetryCount := 0
+	temporaryLimitAccountCount := 0
 	sessionKey := requestStickyKey(r, effectiveReq)
 
 	for {
@@ -2630,6 +2720,26 @@ func (h *Handler) handleClaudeWithAccountRetry(w http.ResponseWriter, r *http.Re
 			return
 		}
 		lastErr = err
+		if shouldCloseClaudeCodeTemporaryLimitTurn(r, model, err) {
+			temporaryLimitAccountCount++
+			if stableDownstreamForRequest(r, model, true) {
+				h.waitForStableClaudeCapacityWithHeartbeat(r, model, stableClaudeTemporaryLimitDeadline(err, deadline), stableClaudeTemporaryLimitStillBlocked(err), stableStreamHeartbeatEvery, stableStreamHeartbeat)
+			}
+			if stableDownstreamForRequest(r, model, true) && r.Context().Err() != nil {
+				return
+			}
+			if temporaryLimitAccountCount < claudeCodeTemporaryLimitMaxAccountsPerTurn {
+				attempt++
+				continue
+			}
+			h.recordFailure()
+			if stream {
+				h.closeStableClaudeStreamWithoutAssistant(w, r, string(pool.FailureReasonTemporaryLimited), err, stableStreamSSE)
+			} else {
+				h.sendStableClaudeRetryableError(w, r, model, string(pool.FailureReasonTemporaryLimited), err)
+			}
+			return
+		}
 		if shouldWaitAndRetryOpus47(err, model) {
 			attempt++
 			continue
@@ -2924,10 +3034,15 @@ func (h *Handler) acquireClaudeCodeSessionAdmissionForRequest(r *http.Request, m
 
 func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, deadline time.Time) (func(), bool) {
 	if stableDownstreamForRequest(r, model, true) {
-		var stableStreamHeartbeat func()
+		var stableStreamHeartbeat func() *claudeSSEWriter
 		var stableStreamHeartbeatEvery time.Duration
+		var stableStreamSSE *claudeSSEWriter
 		if stream && claudeFormat {
-			stableStreamHeartbeat = newStableClaudeStreamHeartbeat(w, model)
+			heartbeat := newStableClaudeStreamHeartbeat(w, model)
+			stableStreamHeartbeat = func() *claudeSSEWriter {
+				stableStreamSSE = heartbeat()
+				return stableStreamSSE
+			}
 			stableStreamHeartbeatEvery = stableClaudeStreamHeartbeatInterval()
 		}
 		for snap := opus47OpenCircuitSnapshot(model); h.shouldFastRejectOpus47OpenCircuit(model, snap); snap = opus47OpenCircuitSnapshot(model) {
@@ -2961,12 +3076,35 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 				}
 				if claudeFormat {
 					h.recordFailure()
-					h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model))
+					h.sendStableAdmissionFallbackWithStartedStream(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model), stableStreamSSE)
 					return nil, false
 				}
 			}
 			h.recordFailure()
-			h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model))
+			h.sendStableAdmissionFallbackWithStartedStream(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model), stableStreamSSE)
+			return nil, false
+		}
+		for snap := opus47OpenCircuitSnapshot(model); shouldHoldStableOpusOpenCircuit(snap); snap = opus47OpenCircuitSnapshot(model) {
+			if stableWait := stableContentContinuityWaitDurationUntil(model, deadline); stableWait > 0 {
+				ctx := context.Background()
+				if r != nil && r.Context() != nil {
+					ctx = r.Context()
+				}
+				result := contentContinuityGateGlobal.waitContextWithHeartbeat(ctx, model, stableWait, func() bool {
+					return shouldHoldStableOpusOpenCircuit(opus47OpenCircuitSnapshot(model))
+				}, stableStreamHeartbeatEvery, stableStreamHeartbeat)
+				updateRequestLogCapacityQueue(r, result.Duration)
+				effectiveLimit, pressureScore := modelAdmissionGate.admissionMetrics(model)
+				updateRequestLogAdmission(r, result.Duration, effectiveLimit, pressureScore)
+				if claudeFormat && result.Canceled {
+					return nil, false
+				}
+				if !result.TimedOut {
+					continue
+				}
+			}
+			h.recordFailure()
+			h.sendStableAdmissionFallbackWithStartedStream(w, r, model, stream, claudeFormat, fmt.Errorf("%s circuit is open", model), stableStreamSSE)
 			return nil, false
 		}
 		if stream && modelAdmissionGate.shouldBypassStream(model) {
@@ -3030,7 +3168,7 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 			break
 		}
 		h.recordFailure()
-		h.sendStableAdmissionFallback(w, r, model, stream, claudeFormat, err)
+		h.sendStableAdmissionFallbackWithStartedStream(w, r, model, stream, claudeFormat, err, stableStreamSSE)
 		return nil, false
 	}
 	startedAt := time.Now()
@@ -3044,14 +3182,24 @@ func (h *Handler) acquireOpus47AdmissionForRequest(w http.ResponseWriter, r *htt
 	return release, ok
 }
 
+func shouldHoldStableOpusOpenCircuit(snap AdmissionPressureSnapshot) bool {
+	return snap.CircuitState == "open" &&
+		snap.RetryAfterSeconds > 0 &&
+		snap.LastPressureReason == pressureReasonForStatus(http.StatusTooManyRequests)
+}
+
 func (h *Handler) sendStableAdmissionFallback(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, err error) {
+	h.sendStableAdmissionFallbackWithStartedStream(w, r, model, stream, claudeFormat, err, nil)
+}
+
+func (h *Handler) sendStableAdmissionFallbackWithStartedStream(w http.ResponseWriter, r *http.Request, model string, stream bool, claudeFormat bool, err error, startedSSE *claudeSSEWriter) {
 	if claudeFormat {
 		if stream {
 			if isClaudeCodeDevRequest(r, model, true) {
-				h.sendStableClaudeStreamFallback(w, r, model, "admission_pressure", err)
+				h.sendStableClaudeStreamRetryableError(w, r, model, "admission_pressure", err, startedSSE)
 				return
 			}
-			h.closeStableClaudeStreamWithoutAssistant(w, r, "admission_pressure", err)
+			h.closeStableClaudeStreamWithoutAssistant(w, r, "admission_pressure", err, startedSSE)
 			return
 		}
 		h.sendStableClaudeFallback(w, r, model, "admission_pressure", err)

@@ -87,7 +87,7 @@ func TestStableContentContinuityCanRespectOpusRequestBudgetDeadline(t *testing.T
 	}
 }
 
-func TestStableContentContinuityCapsDefaultOpusWaitForClaudeCode(t *testing.T) {
+func TestStableContentContinuityUsesDefaultOpusWaitForClaudeCode(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestStableContentContinuityCapsDefaultOpusWaitForClaudeCode(t *testing.T) {
 	}
 
 	got := stableContentContinuityWaitDurationUntil("claude-opus-4.7", time.Now().Add(4*time.Minute))
-	if got != maxStableClaudeCapacityWait {
-		t.Fatalf("stable opus wait = %s, want cap %s", got, maxStableClaudeCapacityWait)
+	if got != 120*time.Second {
+		t.Fatalf("stable opus wait = %s, want configured 120s", got)
 	}
 }

@@ -658,3 +658,103 @@ func TestFleetReadinessAccountsForModelBreakerBlocks(t *testing.T) {
 		t.Fatalf("retryAfterSeconds = %#v, want model breaker recovery hint; body=%#v", body["retryAfterSeconds"], body)
 	}
 }
+
+func TestWebSearchDiagnosticsReturnsToolEvidenceFields(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:                     time.Date(2026, 5, 22, 5, 29, 0, 0, time.UTC),
+		RequestID:                     "req-websearch",
+		AccountID:                     "acct-1",
+		WebSearchQuery:                "node test",
+		WebSearchMCPStatus:            "ok",
+		WebSearchResultCount:          3,
+		WebSearchInjectedPayloadBytes: 512,
+		WebSearchLatencyMs:            42,
+		PayloadKeptTools:              []string{"mcp__browser__search", "bash"},
+		PayloadMaterializedToolRefs:   []string{"mcp__fs__read"},
+		PayloadTrimmedTools:           []string{"mcp__old__tool"},
+		PayloadDeferredTools:          []string{"mcp__late__tool"},
+		PayloadCurrentTools:           4,
+		PayloadCurrentToolSchemaBytes: 2048,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/websearch/diagnostics?query=node+test", nil)
+	w := httptest.NewRecorder()
+	h.apiGetWebSearchDiagnostics(w, req)
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode diagnostics: %v", err)
+	}
+	if body["status"] != "ready" || body["supported"] != true {
+		t.Fatalf("expected ready supported diagnostics, got %#v", body)
+	}
+	recent := body["recent"].([]interface{})
+	if len(recent) != 1 {
+		t.Fatalf("expected one recent diagnostic row, got %#v", recent)
+	}
+	row := recent[0].(map[string]interface{})
+	for key, want := range map[string]interface{}{
+		"requestId":                     "req-websearch",
+		"accountId":                     "acct-1",
+		"query":                         "node test",
+		"mcpStatus":                     "ok",
+		"resultCount":                   float64(3),
+		"latencyMs":                     float64(42),
+		"injectedPayloadBytes":          float64(512),
+		"payloadCurrentTools":           float64(4),
+		"payloadCurrentToolSchemaBytes": float64(2048),
+		"mcpToolPresent":                true,
+		"webSearchToolPresent":          false,
+		"toolEvidence":                  "mcp,websearch_run",
+	} {
+		if got := row[key]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s = %#v, want %#v; row=%#v", key, got, want, row)
+		}
+	}
+	if got := stringSliceFromInterface(row["payloadKeptTools"]); !reflect.DeepEqual(got, []string{"mcp__browser__search", "bash"}) {
+		t.Fatalf("payloadKeptTools = %#v", got)
+	}
+	if got := stringSliceFromInterface(row["payloadMaterializedToolRefs"]); !reflect.DeepEqual(got, []string{"mcp__fs__read"}) {
+		t.Fatalf("payloadMaterializedToolRefs = %#v", got)
+	}
+	if got := stringSliceFromInterface(row["payloadTrimmedTools"]); !reflect.DeepEqual(got, []string{"mcp__old__tool"}) {
+		t.Fatalf("payloadTrimmedTools = %#v", got)
+	}
+	if got := stringSliceFromInterface(row["payloadDeferredTools"]); !reflect.DeepEqual(got, []string{"mcp__late__tool"}) {
+		t.Fatalf("payloadDeferredTools = %#v", got)
+	}
+}
+
+func TestWebSearchDiagnosticsIncludesClaudeCodeWebSearchToolEvidence(t *testing.T) {
+	h := &Handler{requestLogs: newRequestLogStore(5)}
+	h.requestLogs.Add(RequestLogEntry{
+		Timestamp:           time.Date(2026, 5, 22, 5, 42, 0, 0, time.UTC),
+		RequestID:           "req-tool-evidence",
+		PayloadKeptTools:    []string{"agent", "bash", "webSearch", "read"},
+		PayloadCurrentTools: 4,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/websearch/diagnostics", nil)
+	w := httptest.NewRecorder()
+	h.apiGetWebSearchDiagnostics(w, req)
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode diagnostics: %v", err)
+	}
+	recent := body["recent"].([]interface{})
+	if len(recent) != 1 {
+		t.Fatalf("expected webSearch tool evidence row, got %#v", recent)
+	}
+	row := recent[0].(map[string]interface{})
+	if got := row["webSearchToolPresent"]; got != true {
+		t.Fatalf("webSearchToolPresent = %#v, want true; row=%#v", got, row)
+	}
+	if got := row["toolEvidence"]; got != "websearch" {
+		t.Fatalf("toolEvidence = %#v, want websearch; row=%#v", got, row)
+	}
+	if got := row["query"]; got != "" {
+		t.Fatalf("query = %#v, want empty tool capability evidence; row=%#v", got, row)
+	}
+}

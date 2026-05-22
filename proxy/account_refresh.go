@@ -57,9 +57,6 @@ func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, n
 				skipped++
 				continue
 			}
-			if quietMode && account.CooldownUntil > now.Unix() {
-				skipped++
-			}
 			selected = append(selected, account)
 		}
 		return selected, skipped
@@ -70,9 +67,6 @@ func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, n
 		if !quietMode && shouldSkipMaintenanceAccount(account, now) {
 			skipped++
 			continue
-		}
-		if quietMode && account.CooldownUntil > now.Unix() {
-			skipped++
 		}
 		if account.Enabled {
 			selected = append(selected, account)
@@ -93,6 +87,19 @@ func runRefreshBatch(accounts []config.Account, refresh func(account *config.Acc
 			continue
 		}
 		if err := refresh(&accounts[i]); err != nil {
+			result.Failed++
+			continue
+		}
+		result.Success++
+	}
+	return result
+}
+
+func runTokenMaintenanceBatch(accounts []config.Account) refreshBatchResult {
+	var result refreshBatchResult
+	for i := range accounts {
+		result.QuietSkipped++
+		if err := refreshAccountTokenMaintenance(&accounts[i]); err != nil {
 			result.Failed++
 			continue
 		}

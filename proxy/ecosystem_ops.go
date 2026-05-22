@@ -720,14 +720,32 @@ func (h *Handler) apiGetWebSearchDiagnostics(w http.ResponseWriter, r *http.Requ
 	logs := h.ensureRequestLogStore().List(maxRequestLogLimit)
 	recent := make([]map[string]interface{}, 0, 10)
 	for _, entry := range logs {
-		if entry.MCPServerCount == 0 && !containsMCPToolName(entry.PayloadKeptTools) && !containsMCPToolName(entry.PayloadMaterializedToolRefs) {
+		hasMCPTool := entry.MCPServerCount > 0 || containsMCPToolName(entry.PayloadKeptTools) || containsMCPToolName(entry.PayloadMaterializedToolRefs)
+		hasWebSearchTool := containsWebSearchToolName(entry.PayloadKeptTools) || containsWebSearchToolName(entry.PayloadMaterializedToolRefs)
+		hasWebSearchRun := strings.TrimSpace(entry.WebSearchQuery) != "" || strings.TrimSpace(entry.WebSearchMCPStatus) != "" || strings.TrimSpace(entry.WebSearchFailureReason) != ""
+		if !hasMCPTool && !hasWebSearchTool && !hasWebSearchRun {
 			continue
 		}
 		recent = append(recent, map[string]interface{}{
-			"requestId":      entry.RequestID,
-			"timestamp":      entry.Timestamp,
-			"accountId":      entry.AccountID,
-			"mcpServerCount": entry.MCPServerCount,
+			"requestId":                     entry.RequestID,
+			"timestamp":                     entry.Timestamp,
+			"accountId":                     entry.AccountID,
+			"query":                         entry.WebSearchQuery,
+			"mcpStatus":                     entry.WebSearchMCPStatus,
+			"resultCount":                   entry.WebSearchResultCount,
+			"failureReason":                 entry.WebSearchFailureReason,
+			"latencyMs":                     entry.WebSearchLatencyMs,
+			"injectedPayloadBytes":          entry.WebSearchInjectedPayloadBytes,
+			"mcpServerCount":                entry.MCPServerCount,
+			"payloadKeptTools":              entry.PayloadKeptTools,
+			"payloadMaterializedToolRefs":   entry.PayloadMaterializedToolRefs,
+			"payloadTrimmedTools":           entry.PayloadTrimmedTools,
+			"payloadDeferredTools":          entry.PayloadDeferredTools,
+			"payloadCurrentTools":           entry.PayloadCurrentTools,
+			"payloadCurrentToolSchemaBytes": entry.PayloadCurrentToolSchemaBytes,
+			"mcpToolPresent":                hasMCPTool,
+			"webSearchToolPresent":          hasWebSearchTool,
+			"toolEvidence":                  webSearchDiagnosticToolEvidence(entry),
 		})
 		if len(recent) == 10 {
 			break
@@ -748,6 +766,30 @@ func (h *Handler) apiGetWebSearchDiagnostics(w http.ResponseWriter, r *http.Requ
 		"recent":         recent,
 		"failureClasses": []string{"query_extraction_failed", "no_account_available", "kiro_mcp_http_error", "empty_results", "payload_injection_failed"},
 	})
+}
+
+func containsWebSearchToolName(names []string) bool {
+	for _, name := range names {
+		lower := strings.ToLower(strings.TrimSpace(name))
+		if lower == "websearch" || lower == "web_search" || strings.HasPrefix(lower, "websearch") || strings.HasPrefix(lower, "web_search") {
+			return true
+		}
+	}
+	return false
+}
+
+func webSearchDiagnosticToolEvidence(entry RequestLogEntry) string {
+	evidence := make([]string, 0, 2)
+	if entry.MCPServerCount > 0 || containsMCPToolName(entry.PayloadKeptTools) || containsMCPToolName(entry.PayloadMaterializedToolRefs) {
+		evidence = append(evidence, "mcp")
+	}
+	if containsWebSearchToolName(entry.PayloadKeptTools) || containsWebSearchToolName(entry.PayloadMaterializedToolRefs) {
+		evidence = append(evidence, "websearch")
+	}
+	if strings.TrimSpace(entry.WebSearchQuery) != "" || strings.TrimSpace(entry.WebSearchMCPStatus) != "" {
+		evidence = append(evidence, "websearch_run")
+	}
+	return strings.Join(evidence, ",")
 }
 
 func findConfigAccount(id string) (config.Account, bool) {

@@ -1,0 +1,5 @@
+[ 1510086ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8080/admin/api/status:0
+[ 1510087ms] TypeError: Failed to fetch
+    at loadStats (http://127.0.0.1:8080/admin:2166:31)
+    at refreshVisibleData (http://127.0.0.1:8080/admin:3932:32)
+    at refreshDashboardData (http://127.0.0.1:8080/admin:3941:19)

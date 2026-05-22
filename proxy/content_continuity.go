@@ -142,7 +142,7 @@ func (g *contentContinuityGate) waitContext(ctx context.Context, model string, t
 	return g.waitContextWithHeartbeat(ctx, model, timeout, stillBlocked, 0, nil)
 }
 
-func (g *contentContinuityGate) waitContextWithHeartbeat(ctx context.Context, model string, timeout time.Duration, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func()) contentContinuityWaitResult {
+func (g *contentContinuityGate) waitContextWithHeartbeat(ctx context.Context, model string, timeout time.Duration, stillBlocked func() bool, heartbeatEvery time.Duration, heartbeat func() *claudeSSEWriter) contentContinuityWaitResult {
 	start := time.Now()
 	result := contentContinuityWaitResult{Waited: true}
 	if g == nil || timeout <= 0 {
