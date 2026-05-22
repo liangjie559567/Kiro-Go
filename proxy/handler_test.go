@@ -306,6 +306,9 @@ func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 SSE; body=%s", w.Code, w.Body.String())
 	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want text/event-stream", got)
+	}
 	body := w.Body.String()
 	if strings.Contains(body, "message_start") || strings.Contains(body, "content_block_delta") || strings.Contains(body, "message_stop") {
 		t.Fatalf("dev stream fallback must not emit assistant message events: %s", body)
