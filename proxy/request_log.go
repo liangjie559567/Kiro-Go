@@ -664,6 +664,9 @@ func updateRequestLogClassification(r *http.Request, c RequestClassification) {
 }
 
 func requestLogWorkloadClass(r *http.Request) RequestWorkloadClass {
+	if r == nil {
+		return RequestWorkloadUnknown
+	}
 	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
 	if ctx == nil {
 		return RequestWorkloadUnknown

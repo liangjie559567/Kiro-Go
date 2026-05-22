@@ -227,6 +227,12 @@ func TestStableClaudeAgentHeaderFallbackReturnsRetryableErrorWithoutClaudeUserAg
 	}
 }
 
+func TestRequestLogWorkloadClassNilRequestReturnsUnknown(t *testing.T) {
+	if got := requestLogWorkloadClass(nil); got != RequestWorkloadUnknown {
+		t.Fatalf("requestLogWorkloadClass(nil) = %q, want %q", got, RequestWorkloadUnknown)
+	}
+}
+
 func TestStableClaudeFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
