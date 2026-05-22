@@ -140,6 +140,69 @@ func TestStableDownstreamClaudeNoAccountsReturnsAssistantTurn(t *testing.T) {
 	}
 }
 
+func TestStableClaudeDevFallbackReturnsRetryableError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "claude-cli/2.1")
+
+	ctx, loggedReq, recorder, loggedWriter := h.beginRequestLog(w, req)
+	updateRequestLogClassification(loggedReq, classifyGenerationRequest(RequestClassificationInput{
+		Request:  loggedReq,
+		Endpoint: loggedReq.URL.Path,
+		Model:    "claude-opus-4.7",
+		Claude: &ClaudeRequest{
+			Model: "claude-opus-4.7",
+			Tools: []ClaudeTool{{
+				Name:        "bash",
+				Description: "Run command",
+				InputSchema: map[string]interface{}{"type": "object"},
+			}},
+		},
+	}))
+	h.sendStableClaudeFallback(loggedWriter, loggedReq, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+	h.finishRequestLog(ctx, recorder)
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"type":"error"`) || !strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("expected retryable Anthropic error envelope: %s", body)
+	}
+	if strings.Contains(body, `"role":"assistant"`) || strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("dev fallback must not emit assistant compatibility body: %s", body)
+	}
+}
+
+func TestStableClaudeSimpleFallbackKeepsAssistantCompatibility(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "claude-cli/2.1")
+
+	h.sendStableClaudeFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"role":"assistant"`) || !strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("expected assistant compatibility body: %s", body)
+	}
+	if strings.Contains(body, `"type":"error"`) || strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("simple fallback must not emit retryable error: %s", body)
+	}
+}
+
 func TestStableClaudeFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)

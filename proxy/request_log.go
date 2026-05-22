@@ -663,6 +663,16 @@ func updateRequestLogClassification(r *http.Request, c RequestClassification) {
 	}
 }
 
+func requestLogWorkloadClass(r *http.Request) RequestWorkloadClass {
+	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
+	if ctx == nil {
+		return RequestWorkloadUnknown
+	}
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	return RequestWorkloadClass(strings.TrimSpace(ctx.entry.RequestWorkloadClass))
+}
+
 func updateRequestLogGovernor(r *http.Request, u GovernorLogUpdate) {
 	ctx, _ := r.Context().Value(requestLogContextKey{}).(*requestLogContext)
 	if ctx == nil {

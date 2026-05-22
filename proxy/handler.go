@@ -626,7 +626,21 @@ func (h *Handler) recordModelContentSuccessIfPresent(accountID, model string, ou
 	h.pool.RecordModelContentSuccess(accountID, model, time.Now())
 }
 
+func isClaudeCodeDevRequest(r *http.Request, model string, stream bool) bool {
+	if requestLogWorkloadClass(r) == RequestWorkloadClaudeCodeDev {
+		return true
+	}
+	if r != nil && requestUserAgentLooksClaudeCode(r) && firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
+		return true
+	}
+	return false
+}
+
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	if isClaudeCodeDevRequest(r, model, false) {
+		h.sendStableClaudeRetryableError(w, r, model, reason, err)
+		return
+	}
 	h.sendStableClaudeAssistantFallback(w, r, model, reason, err)
 }
 
