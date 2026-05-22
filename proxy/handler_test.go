@@ -281,6 +281,8 @@ func TestStableDownstreamClaudeStreamFallbackReturnsRetryableSSEError(t *testing
 	if !strings.Contains(w.Body.String(), "event: error") || !strings.Contains(w.Body.String(), `"type":"overloaded_error"`) {
 		t.Fatalf("expected retryable Anthropic SSE error, got: %s", w.Body.String())
 	}
+	frames := parseSSEFrames(t, w.Body.String())
+	assertFrameEvent(t, frames, 0, "error")
 	if strings.Contains(w.Body.String(), "kiro_go_stable_fallback") ||
 		strings.Contains(w.Body.String(), "message_start") ||
 		strings.Contains(w.Body.String(), "content_block_delta") ||

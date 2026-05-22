@@ -153,6 +153,39 @@ func TestClassifyGenerationRequestClaudeCodeDevFromToolResultMessage(t *testing.
 	}
 }
 
+func TestClassifyGenerationRequestDoesNotTreatNestedToolResultTextAsDev(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "claude-cli/2.1")
+
+	got := classifyGenerationRequest(RequestClassificationInput{
+		Request:  req,
+		Endpoint: "/v1/messages",
+		Claude: &ClaudeRequest{
+			Model: "claude-opus-4.7",
+			Messages: []ClaudeMessage{{
+				Role: "user",
+				Content: []interface{}{
+					map[string]interface{}{
+						"type": "text",
+						"text": "debug payload from an upstream proxy",
+						"debug": map[string]interface{}{
+							"type":    "tool_result",
+							"content": "not an Anthropic content block",
+						},
+					},
+				},
+			}},
+		},
+	})
+
+	if got.WorkloadClass != RequestWorkloadClaudeCodeSimple {
+		t.Fatalf("WorkloadClass = %q, want %q", got.WorkloadClass, RequestWorkloadClaudeCodeSimple)
+	}
+	if got.Reason != "claude_code_simple" {
+		t.Fatalf("Reason = %q, want claude_code_simple", got.Reason)
+	}
+}
+
 func TestClassifyGenerationRequestClaudeCodeSimpleFromUserAgentOnly(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")

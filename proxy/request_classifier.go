@@ -204,21 +204,21 @@ func decodedContentContainsBlockType(value interface{}, blockType string) bool {
 	switch v := value.(type) {
 	case []interface{}:
 		for _, item := range v {
-			if decodedContentContainsBlockType(item, blockType) {
-				return true
-			}
-		}
-	case map[string]interface{}:
-		if typ, _ := v["type"].(string); strings.EqualFold(strings.TrimSpace(typ), blockType) {
-			return true
-		}
-		for _, nested := range v {
-			if decodedContentContainsBlockType(nested, blockType) {
+			if contentBlockHasType(item, blockType) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func contentBlockHasType(value interface{}, blockType string) bool {
+	block, ok := value.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	typ, _ := block["type"].(string)
+	return strings.EqualFold(strings.TrimSpace(typ), blockType)
 }
 
 func sessionIDFromMetadataUserID(value string) string {
