@@ -343,6 +343,9 @@ func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) 
 	if logs[0].RequestWorkloadClass != string(RequestWorkloadClaudeCodeDev) {
 		t.Fatalf("RequestWorkloadClass = %q, want %q", logs[0].RequestWorkloadClass, RequestWorkloadClaudeCodeDev)
 	}
+	if logs[0].StableFallbackReason == "" {
+		t.Fatalf("expected stable fallback reason, got %#v", logs[0])
+	}
 	if logs[0].ContentSuccess {
 		t.Fatalf("dev stream fallback must not be content success: %#v", logs[0])
 	}
