@@ -630,7 +630,7 @@ func isClaudeCodeDevRequest(r *http.Request, model string, stream bool) bool {
 	if requestLogWorkloadClass(r) == RequestWorkloadClaudeCodeDev {
 		return true
 	}
-	if r != nil && requestUserAgentLooksClaudeCode(r) && firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
+	if r != nil && firstNonEmptyHeader(r, "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
 		return true
 	}
 	return false

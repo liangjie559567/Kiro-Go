@@ -203,6 +203,30 @@ func TestStableClaudeSimpleFallbackKeepsAssistantCompatibility(t *testing.T) {
 	}
 }
 
+func TestStableClaudeAgentHeaderFallbackReturnsRetryableErrorWithoutClaudeUserAgent(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	req.Header.Set("X-Claude-Code-Agent-Id", "agent-123")
+
+	h.sendStableClaudeFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("expected retryable Anthropic error envelope: %s", body)
+	}
+	if strings.Contains(body, `"role":"assistant"`) || strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("agent fallback must not emit assistant compatibility body: %s", body)
+	}
+}
+
 func TestStableClaudeFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
