@@ -293,15 +293,35 @@ func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) 
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
-	h := NewHandler()
-	t.Cleanup(h.Close)
+	cfg := config.Get()
+	cfg.ContentContinuity.MaxQueueWaitSeconds = 1
+	cfg.ContentContinuity.MaxQueueDepth = 10
+	if err := config.Save(); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	oldGate := modelAdmissionGate
+	oldContinuity := contentContinuityGateGlobal
+	modelAdmissionGate = newModelAdmissionGateSet(config.ModelAdmissionConfig{
+		Models: map[string]config.ModelAdmissionRule{
+			"claude-opus-4.7": {MaxConcurrent: 1, MaxWaiting: 1},
+		},
+	})
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	modelAdmissionGate.recordPressure("claude-opus-4.7", http.StatusServiceUnavailable, time.Second)
+	contentContinuityGateGlobal = newContentContinuityGate()
+	t.Cleanup(func() {
+		modelAdmissionGate = oldGate
+		contentContinuityGateGlobal = oldContinuity
+	})
+
+	h := &Handler{pool: &pool.AccountPool{}, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-opus-4.7","stream":true,"max_tokens":64,"messages":[{"role":"user","content":"edit file"}],"tools":[{"name":"bash","description":"Run command","input_schema":{"type":"object"}}]}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
 	req.Header.Set("X-Claude-Code-Session-Id", "session-1")
 
-	h.sendStableClaudeStreamFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 SSE; body=%s", w.Code, w.Body.String())
@@ -315,6 +335,16 @@ func TestStableClaudeDevStreamFallbackDoesNotEmitAssistantContent(t *testing.T) 
 	}
 	if !strings.Contains(body, "event: error") || !strings.Contains(body, `"overloaded_error"`) {
 		t.Fatalf("expected retryable SSE error, got %s", body)
+	}
+	logs := h.requestLogs.List(1)
+	if len(logs) != 1 {
+		t.Fatalf("expected request log, got %#v", logs)
+	}
+	if logs[0].RequestWorkloadClass != string(RequestWorkloadClaudeCodeDev) {
+		t.Fatalf("RequestWorkloadClass = %q, want %q", logs[0].RequestWorkloadClass, RequestWorkloadClaudeCodeDev)
+	}
+	if logs[0].ContentSuccess {
+		t.Fatalf("dev stream fallback must not be content success: %#v", logs[0])
 	}
 }
 
