@@ -1,0 +1,50 @@
+{
+  "startedAt": "2026-05-22T02:57:22.221Z",
+  "outDir": "/root/gsd-workspaces/claude-code-dev-pressure-20260522/uat-dev-pressure/20260522025722",
+  "agents": 2,
+  "testedTasks": [
+    1,
+    2
+  ],
+  "testPattern": "task 1|task 2",
+  "preReadiness": {
+    "label": "before",
+    "status": "degraded",
+    "circuitState": "half_open",
+    "reasonCodes": [
+      "admission_pressure"
+    ],
+    "safeConcurrency": 2,
+    "locallySchedulableAccounts": 19,
+    "coolingDownAccounts": 2,
+    "temporaryLimitedAccounts": 2,
+    "admissionPressureScore": 4,
+    "lastPressureReason": "rate_limited_or_model_capacity",
+    "retryAfterSeconds": 0,
+    "recommendedAction": "limit_to_safe_concurrency"
+  },
+  "postReadiness": {
+    "label": "after",
+    "status": "degraded",
+    "circuitState": "half_open",
+    "reasonCodes": [
+      "admission_pressure"
+    ],
+    "safeConcurrency": 2,
+    "locallySchedulableAccounts": 18,
+    "coolingDownAccounts": 3,
+    "temporaryLimitedAccounts": 3,
+    "admissionPressureScore": 4,
+    "lastPressureReason": "rate_limited_or_model_capacity",
+    "retryAfterSeconds": 0,
+    "recommendedAction": "limit_to_safe_concurrency"
+  },
+  "claudeApiOk": 2,
+  "claudeApiFailed": 0,
+  "doneMarkers": 2,
+  "capacityTexts": 0,
+  "npmTestExit": 0,
+  "usageRows": 17,
+  "errorRows": 0,
+  "pass": true
+}

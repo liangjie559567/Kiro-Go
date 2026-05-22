@@ -1,0 +1,20 @@
+
+> claude-code-dev-pressure-20260522@1.0.0 test
+> node --test --test-name-pattern task 1
+
+TAP version 13
+# Subtest: task 1 alpha
+ok 1 - task 1 alpha
+  ---
+  duration_ms: 1.74249
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 74.857792

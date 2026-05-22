@@ -1,0 +1,16 @@
+[
+  {
+    "index": 1,
+    "exitCode": 0,
+    "durationMs": 45074,
+    "parsed": true,
+    "isError": false,
+    "apiErrorStatus": null,
+    "stopReason": "end_turn",
+    "apiOk": true,
+    "doneMarker": true,
+    "resultHead": "DEV_TASK_1_DONE",
+    "stderrHead": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+    "realCapacityText": false
+  }
+]

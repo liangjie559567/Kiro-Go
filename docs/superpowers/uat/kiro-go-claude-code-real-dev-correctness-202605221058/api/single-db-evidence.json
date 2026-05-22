@@ -1,0 +1,109 @@
+{
+  "usage": [
+    {
+      "id": 96804,
+      "created_at": "2026-05-22T10:56:54.995696+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 4562,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96801,
+      "created_at": "2026-05-22T10:56:50.124506+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 10153,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96799,
+      "created_at": "2026-05-22T10:56:39.876517+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 8970,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96797,
+      "created_at": "2026-05-22T10:56:30.839353+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 6062,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96795,
+      "created_at": "2026-05-22T10:56:24.708827+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 4438,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96794,
+      "created_at": "2026-05-22T10:56:20.112811+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 6606,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96757,
+      "created_at": "2026-05-22T10:54:22.149586+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 8454,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    },
+    {
+      "id": 96752,
+      "created_at": "2026-05-22T10:54:13.633872+08:00",
+      "api_key_id": 2,
+      "model": "claude-opus-4-7",
+      "requested_model": "claude-opus-4-7",
+      "upstream_model": null,
+      "inbound_endpoint": "/v1/messages",
+      "upstream_endpoint": "/v1/messages",
+      "stream": true,
+      "duration_ms": 4615,
+      "user_agent": "claude-cli/2.1.143 (external, sdk-cli)"
+    }
+  ],
+  "errors": []
+}
