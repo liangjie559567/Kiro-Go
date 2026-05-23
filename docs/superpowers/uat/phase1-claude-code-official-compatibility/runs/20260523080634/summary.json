@@ -1,0 +1,267 @@
+{
+  "run_id": "20260523080634",
+  "started_at": "2026-05-23T08:06:34.012Z",
+  "finished_at": "2026-05-23T08:06:48.714Z",
+  "overall_status": "COMPLETE_WITH_BLOCKERS_ALLOWED",
+  "environment": {
+    "KIRO_GO_BASE_URL": "SET",
+    "KIRO_GO_API_KEY": "[REDACTED]",
+    "KIRO_GO_ADMIN_PASSWORD": "[REDACTED]",
+    "SUB2API_BASE_URL": "SET",
+    "SUB2API_API_KEY": "[REDACTED]"
+  },
+  "counts": {
+    "PASS": 14
+  },
+  "checks": [
+    {
+      "name": "/v1/messages non-stream",
+      "status": "PASS",
+      "detail": "Received Anthropic message response.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1562,
+        "body_file": "messages-nonstream.json",
+        "id": "msg_8adbaf7c-0460-4107-a553-450c1e606639",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages stream",
+      "status": "PASS",
+      "detail": "Received parseable Anthropic SSE stream.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "text/event-stream; charset=utf-8",
+        "duration_ms": 1536,
+        "body_file": "messages-stream.sse"
+      },
+      "sse": {
+        "event_count": 6,
+        "event_order": [
+          "message_start",
+          "content_block_start",
+          "content_block_delta",
+          "content_block_stop",
+          "message_delta",
+          "message_stop"
+        ],
+        "message_id": "msg_ca097e92-8111-4aad-8a06-959bbe6ee025",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": "[REDACTED]",
+          "output_tokens": "[REDACTED]"
+        },
+        "content": [
+          {
+            "index": 0,
+            "type": "text",
+            "text": "phase1-uat-ok"
+          }
+        ],
+        "tool_uses": [],
+        "text": "phase1-uat-ok"
+      }
+    },
+    {
+      "name": "/v1/messages tool-use shape",
+      "status": "PASS",
+      "detail": "Received tool_use content block.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 2720,
+        "body_file": "messages-tool-use.json",
+        "id": "msg_1d4f4104-e751-47ca-a579-894fa25a360e",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages max_tokens=0",
+      "status": "PASS",
+      "detail": "Received compatible max_tokens=0 response.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 4,
+        "body_file": "messages-max-tokens-zero.json",
+        "id": "msg_cc2993c5-a3b1-4441-b9db-3281b112a3d1",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages assistant prefill",
+      "status": "PASS",
+      "detail": "Accepted assistant prefill request.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1502,
+        "body_file": "messages-assistant-prefill.json",
+        "id": "msg_ad3f6f16-28e0-4a7b-8181-329b79813c0a",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages fine-grained tool streaming",
+      "status": "PASS",
+      "detail": "Received fine-grained tool streaming request.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "text/event-stream; charset=utf-8",
+        "duration_ms": 1735,
+        "body_file": "messages-fine-grained-tool-streaming.sse"
+      },
+      "sse": {
+        "event_count": 6,
+        "event_order": [
+          "message_start",
+          "content_block_start",
+          "content_block_delta",
+          "content_block_stop",
+          "message_delta",
+          "message_stop"
+        ],
+        "message_id": "msg_215c2102-74d3-4669-9538-2ed443f7597a",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": "[REDACTED]",
+          "output_tokens": "[REDACTED]"
+        },
+        "content": [
+          {
+            "index": 0,
+            "type": "tool_use",
+            "id": "tooluse_4OBbEK6mhsZThGGhz1hV5p",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        ],
+        "tool_uses": [
+          {
+            "index": 0,
+            "type": "tool_use",
+            "id": "tooluse_4OBbEK6mhsZThGGhz1hV5p",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        ],
+        "text": ""
+      }
+    },
+    {
+      "name": "/v1/messages tool_reference",
+      "status": "PASS",
+      "detail": "Accepted tool_reference request.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 4084,
+        "body_file": "messages-tool-reference.json",
+        "id": "msg_a972cc0b-a2a4-4b8d-b9a5-647c7865f849",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages tool-result follow-up",
+      "status": "PASS",
+      "detail": "Accepted tool_result follow-up conversation.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1525,
+        "body_file": "messages-tool-result-follow-up.json",
+        "id": "msg_d7a4e998-32e5-4f68-9247-9e47cef3496e",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages/count_tokens",
+      "status": "PASS",
+      "detail": "Received token count.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 4,
+        "body_file": "count-tokens.json",
+        "input_tokens": "[REDACTED]"
+      }
+    },
+    {
+      "name": "/v1/models",
+      "status": "PASS",
+      "detail": "Received model list.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "models.json",
+        "data_count": 31
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/readiness signals",
+      "status": "PASS",
+      "detail": "Claude Code readiness reflected recent boundary probes.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "admin-claude-code-readiness-signals.json"
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/model-readiness",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "admin-claude-code-model-readiness.json"
+      }
+    },
+    {
+      "name": "/admin/api/request-logs boundary signals",
+      "status": "PASS",
+      "detail": "Request logs recorded the boundary probes.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 5,
+        "body_file": "admin-request-logs-signals.json"
+      }
+    },
+    {
+      "name": "sub2api black-box optional /v1/models",
+      "status": "PASS",
+      "detail": "sub2api black-box model endpoint responded.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 14,
+        "body_file": "sub2api-models.json",
+        "data_count": 37
+      }
+    }
+  ]
+}

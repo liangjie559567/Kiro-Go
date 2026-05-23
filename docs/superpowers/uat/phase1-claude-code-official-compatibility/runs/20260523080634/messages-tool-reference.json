@@ -1,0 +1,1 @@
+{"id":"msg_a972cc0b-a2a4-4b8d-b9a5-647c7865f849","type":"message","role":"assistant","content":[{"type":"tool_use","id":"tooluse_wBigSJ5ftRmAy5u7aBkwSN","name":"mcp__filesystem__read_file","input":{"path":"README.md"}}],"model":"claude-opus-4.7","stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":6808,"output_tokens":16}}

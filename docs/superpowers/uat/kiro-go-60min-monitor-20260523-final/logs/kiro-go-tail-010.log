@@ -1,3 +1,2 @@
-WARN  2026/05/23 02:57:11 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
-WARN  2026/05/23 02:58:12 [ModelsCache] Skipped refresh [REDACTED] Opus 4.7 quiet mode is active
-WARN  2026/05/23 03:02:11 [HealthCheck] Skipped model probes while Opus 4.7 quiet mode is active
+INFO  2026/05/23 10:36:02 [HealthCheck] Completed: success=21 failed=0 disabled=0 skipped=0
+INFO  2026/05/23 10:41:09 [HealthCheck] Completed: success=21 failed=0 disabled=0 skipped=0

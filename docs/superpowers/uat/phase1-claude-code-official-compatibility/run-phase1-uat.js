@@ -7,6 +7,7 @@ const { parseSse, summarizeEvents } = require('./parse-anthropic-sse');
 
 const ROOT = __dirname;
 const RUNS_DIR = path.join(ROOT, 'runs');
+const DEFAULT_MODEL = process.env.UAT_MODEL || process.env.ANTHROPIC_MODEL || 'claude-opus-4.7';
 const REQUIRED_ENV = [
   'KIRO_GO_BASE_URL',
   'KIRO_GO_API_KEY',
@@ -120,13 +121,17 @@ function adminHeaders() {
 function sub2apiHeaders() {
   return {
     'content-type': 'application/json',
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'claude-code-20250219,fine-grained-tool-streaming-2025-05-14',
+    'x-claude-code-session-id': `phase1-uat-${process.pid}`,
+    'x-claude-code-agent-id': 'phase1-uat',
     'authorization': `Bearer ${process.env.SUB2API_API_KEY}`,
   };
 }
 
 function baseRequestBody(extra) {
   return Object.assign({
-    model: 'claude-3-5-haiku-20241022',
+    model: DEFAULT_MODEL,
     max_tokens: 128,
     messages: [
       {
@@ -188,6 +193,14 @@ function hasToolUse(json) {
   return Boolean(json && Array.isArray(json.content) && json.content.some((item) => item && item.type === 'tool_use'));
 }
 
+function hasAssistantText(json, expectedPrefix) {
+  return Boolean(
+    json &&
+      Array.isArray(json.content) &&
+      json.content.some((item) => item && item.type === 'text' && String(item.text || '').startsWith(expectedPrefix)),
+  );
+}
+
 async function checkMessagesNonStream(ctx) {
   const name = '/v1/messages non-stream';
   const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
@@ -220,6 +233,236 @@ async function checkMessagesStream(ctx) {
       return fail(name, 'SSE did not include message_start and message_stop.', { response: summarizeHttp(result), sse: summary });
     }
     return pass(name, 'Received parseable Anthropic SSE stream.', { response: summarizeHttp(result), sse: summary });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkMaxTokensZero(ctx) {
+  const name = '/v1/messages max_tokens=0';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const body = baseRequestBody({
+      max_tokens: 0,
+      messages: [
+        {
+          role: 'user',
+          content: 'Warm the cache and return no output.',
+        },
+      ],
+    });
+    const result = await postJson(`${ctx.kiroBase}/v1/messages`, anthHeaders(), body, ctx.outDir, 'messages-max-tokens-zero');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    if (!jsonHasMessageShape(result.json)) return fail(name, 'Response did not match Anthropic message shape.', { response: summarizeHttp(result) });
+    if (result.json.stop_reason !== 'max_tokens') return fail(name, 'Expected stop_reason=max_tokens.', { response: summarizeHttp(result) });
+    if (!Array.isArray(result.json.content) || result.json.content.length !== 0) return fail(name, 'Expected empty content array.', { response: summarizeHttp(result) });
+    if (!result.json.usage || result.json.usage.output_tokens !== 0) return fail(name, 'Expected output_tokens=0.', { response: summarizeHttp(result) });
+    return pass(name, 'Received compatible max_tokens=0 response.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkAssistantPrefill(ctx) {
+  const name = '/v1/messages assistant prefill';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const body = baseRequestBody({
+      max_tokens: 64,
+      messages: [
+        {
+          role: 'user',
+          content: 'Return valid JSON with key ok.',
+        },
+        {
+          role: 'assistant',
+          content: '{"ok":',
+        },
+      ],
+    });
+    const result = await postJson(`${ctx.kiroBase}/v1/messages`, anthHeaders(), body, ctx.outDir, 'messages-assistant-prefill');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    if (!jsonHasMessageShape(result.json)) return fail(name, 'Response did not match Anthropic message shape.', { response: summarizeHttp(result) });
+    return pass(name, 'Accepted assistant prefill request.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkFineGrainedToolStreaming(ctx) {
+  const name = '/v1/messages fine-grained tool streaming';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const body = baseRequestBody({
+      max_tokens: 256,
+      messages: [
+        {
+          role: 'user',
+          content: 'Use the get_weather tool for Shanghai.',
+        },
+      ],
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Get current weather for a city.',
+          input_schema: {
+            type: 'object',
+            properties: { city: { type: 'string' } },
+            required: ['city'],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'get_weather' },
+      stream: true,
+    });
+    const headers = Object.assign({}, anthHeaders(), {
+      'anthropic-beta': 'fine-grained-tool-streaming-2025-05-14',
+    });
+    const result = await postJson(`${ctx.kiroBase}/v1/messages`, headers, body, ctx.outDir, 'messages-fine-grained-tool-streaming');
+    const events = parseSse(result.text);
+    const summary = summarizeEvents(events);
+    writeJson(path.join(ctx.outDir, 'messages-fine-grained-tool-streaming.summary.json'), summary);
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result), sse: summary });
+    if (!summary.event_order.length) return fail(name, 'Expected parseable SSE events.', { response: summarizeHttp(result), sse: summary });
+    return pass(name, 'Received fine-grained tool streaming request.', { response: summarizeHttp(result), sse: summary });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkToolReference(ctx) {
+  const name = '/v1/messages tool_reference';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const body = baseRequestBody({
+      max_tokens: 64,
+      messages: [
+        {
+          role: 'user',
+          content: 'Read README.md through the referenced MCP tool if possible.',
+        },
+      ],
+      tool_reference: [
+        {
+          type: 'tool_reference',
+          id: 'toolref_1',
+          name: 'mcp__filesystem__read_file',
+          description: 'Read a file',
+          input_schema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const headers = Object.assign({}, anthHeaders(), {
+      'anthropic-beta': 'tool-search-2025-10-19',
+    });
+    const result = await postJson(`${ctx.kiroBase}/v1/messages`, headers, body, ctx.outDir, 'messages-tool-reference');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    if (!jsonHasMessageShape(result.json) && !hasToolUse(result.json)) {
+      return fail(name, 'Response did not match Anthropic message or tool_use shape.', { response: summarizeHttp(result) });
+    }
+    return pass(name, 'Accepted tool_reference request.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkPromptCacheControl(ctx) {
+  const name = '/v1/messages cache_control passthrough';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_API_KEY']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const body = baseRequestBody({
+      max_tokens: 64,
+      system: [
+        {
+          type: 'text',
+          text: 'You are validating prompt cache control passthrough for Claude Code compatibility.',
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Reply with the exact text: phase1-cache-control-ok',
+            },
+          ],
+        },
+      ],
+      metadata: {
+        user_id: 'phase1-uat-cache-control',
+      },
+    });
+    const result = await postJson(`${ctx.kiroBase}/v1/messages`, anthHeaders(), body, ctx.outDir, 'messages-cache-control');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    if (!jsonHasMessageShape(result.json)) return fail(name, 'Response did not match Anthropic message shape.', { response: summarizeHttp(result) });
+    return pass(name, 'Accepted cache_control and metadata fields.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkClaudeCodeReadinessSignals(ctx) {
+  const name = '/admin/api/claude-code/readiness signals';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_ADMIN_PASSWORD']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const result = await getJson(`${ctx.kiroBase}/admin/api/claude-code/readiness`, adminHeaders(), ctx.outDir, 'admin-claude-code-readiness-signals');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    const capabilities = result.json && result.json.capabilities;
+    if (!capabilities || typeof capabilities !== 'object') return fail(name, 'Readiness response missing capabilities.', { response: summarizeHttp(result) });
+    if (!result.json.recentToolReferences || !result.json.recentMCPTools || !result.json.recentFineGrainedToolStreaming) {
+      return fail(name, 'Expected recent Claude Code signals to be present.', { response: summarizeHttp(result) });
+    }
+    return pass(name, 'Claude Code readiness reflected recent boundary probes.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkRequestLogSignals(ctx) {
+  const name = '/admin/api/request-logs boundary signals';
+  const missing = requiredMissing(['KIRO_GO_BASE_URL', 'KIRO_GO_ADMIN_PASSWORD']);
+  if (missing.length) return blocked(name, missing);
+
+  try {
+    const result = await getJson(`${ctx.kiroBase}/admin/api/request-logs?limit=50`, adminHeaders(), ctx.outDir, 'admin-request-logs-signals');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    const logs = Array.isArray(result.json && result.json.logs) ? result.json.logs : [];
+    const maxZero = logs.find((entry) => entry.maxTokensZeroMode);
+    const prefill = logs.find((entry) => entry.assistantPrefillMode);
+    const fineGrained = logs.find((entry) => entry.fineGrainedToolStreamingRequested || entry.fineGrainedToolStreamingMode);
+    const toolReference = logs.find((entry) => entry.toolReferenceCount > 0 || (Array.isArray(entry.payloadDeferredTools) && entry.payloadDeferredTools.length > 0));
+    if (!maxZero || !prefill || !fineGrained || !toolReference) {
+      return fail(name, 'Expected recent request logs for all boundary probes.', {
+        response: summarizeHttp(result),
+        found: {
+          maxZero: Boolean(maxZero),
+          prefill: Boolean(prefill),
+          fineGrained: Boolean(fineGrained),
+          toolReference: Boolean(toolReference),
+        },
+      });
+    }
+    return pass(name, 'Request logs recorded the boundary probes.', { response: summarizeHttp(result) });
   } catch (error) {
     return fail(name, error.message);
   }
@@ -320,7 +563,7 @@ async function checkCountTokens(ctx) {
 
   try {
     const body = {
-      model: 'claude-3-5-haiku-20241022',
+      model: DEFAULT_MODEL,
       messages: [
         {
           role: 'user',
@@ -368,7 +611,7 @@ async function checkAdmin(ctx, endpoint, stem) {
   }
 }
 
-async function checkSub2api(ctx) {
+async function checkSub2apiModels(ctx) {
   const name = 'sub2api black-box optional /v1/models';
   const missing = requiredMissing(['SUB2API_BASE_URL', 'SUB2API_API_KEY']);
   if (missing.length) return skipped(name, `Optional sub2api check skipped; missing ${missing.join(', ')}.`);
@@ -377,6 +620,53 @@ async function checkSub2api(ctx) {
     const result = await getJson(`${ctx.sub2apiBase}/v1/models`, sub2apiHeaders(), ctx.outDir, 'sub2api-models');
     if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
     return pass(name, 'sub2api black-box model endpoint responded.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkSub2apiMessages(ctx) {
+  const name = 'sub2api black-box optional /v1/messages Claude Code headers';
+  const missing = requiredMissing(['SUB2API_BASE_URL', 'SUB2API_API_KEY']);
+  if (missing.length) return skipped(name, `Optional sub2api check skipped; missing ${missing.join(', ')}.`);
+
+  try {
+    const body = baseRequestBody({
+      stream: false,
+      metadata: {
+        user_id: 'phase1-uat',
+      },
+    });
+    const result = await postJson(`${ctx.sub2apiBase}/v1/messages`, sub2apiHeaders(), body, ctx.outDir, 'sub2api-messages-nonstream');
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result) });
+    if (!jsonHasMessageShape(result.json)) return fail(name, 'Response did not match Anthropic message shape.', { response: summarizeHttp(result) });
+    return pass(name, 'sub2api accepted a Claude Code-shaped /v1/messages request.', { response: summarizeHttp(result) });
+  } catch (error) {
+    return fail(name, error.message);
+  }
+}
+
+async function checkSub2apiMessagesStream(ctx) {
+  const name = 'sub2api black-box optional /v1/messages stream';
+  const missing = requiredMissing(['SUB2API_BASE_URL', 'SUB2API_API_KEY']);
+  if (missing.length) return skipped(name, `Optional sub2api check skipped; missing ${missing.join(', ')}.`);
+
+  try {
+    const body = baseRequestBody({
+      stream: true,
+      metadata: {
+        user_id: 'phase1-uat',
+      },
+    });
+    const result = await postJson(`${ctx.sub2apiBase}/v1/messages`, sub2apiHeaders(), body, ctx.outDir, 'sub2api-messages-stream');
+    const events = parseSse(result.text);
+    const summary = summarizeEvents(events);
+    writeJson(path.join(ctx.outDir, 'sub2api-messages-stream.summary.json'), summary);
+    if (!result.ok) return fail(name, `HTTP ${result.status}`, { response: summarizeHttp(result), sse: summary });
+    if (!summary.event_order.includes('message_start') || !summary.event_order.includes('message_stop')) {
+      return fail(name, 'sub2api stream did not include message_start/message_stop.', { response: summarizeHttp(result), sse: summary });
+    }
+    return pass(name, 'sub2api accepted a streamed Claude Code-shaped /v1/messages request.', { response: summarizeHttp(result), sse: summary });
   } catch (error) {
     return fail(name, error.message);
   }
@@ -447,6 +737,11 @@ async function main() {
         '/v1/messages non-stream',
         '/v1/messages stream',
         '/v1/messages tool-use shape',
+        '/v1/messages max_tokens=0',
+        '/v1/messages assistant prefill',
+        '/v1/messages fine-grained tool streaming',
+        '/v1/messages tool_reference',
+        '/v1/messages cache_control passthrough',
         '/v1/messages tool-result follow-up',
         '/v1/messages/count_tokens',
         '/v1/models',
@@ -454,6 +749,8 @@ async function main() {
         '/admin/api/claude-code/model-readiness',
         '/admin/api/request-logs',
         'sub2api black-box optional /v1/models',
+        'sub2api black-box optional /v1/messages Claude Code headers',
+        'sub2api black-box optional /v1/messages stream',
       ],
     };
     console.log(JSON.stringify(summary, null, 2));
@@ -477,13 +774,20 @@ async function main() {
     checkMessagesNonStream,
     checkMessagesStream,
     checkToolUse,
+    checkMaxTokensZero,
+    checkAssistantPrefill,
+    checkFineGrainedToolStreaming,
+    checkToolReference,
+    checkPromptCacheControl,
     checkToolResultFollowUp,
     checkCountTokens,
     checkModels,
-    (context) => checkAdmin(context, '/admin/api/claude-code/readiness', 'admin-claude-code-readiness'),
+    checkClaudeCodeReadinessSignals,
     (context) => checkAdmin(context, '/admin/api/claude-code/model-readiness', 'admin-claude-code-model-readiness'),
-    (context) => checkAdmin(context, '/admin/api/request-logs', 'admin-request-logs'),
-    checkSub2api,
+    checkRequestLogSignals,
+    checkSub2apiModels,
+    checkSub2apiMessages,
+    checkSub2apiMessagesStream,
   ];
 
   for (const step of steps) {

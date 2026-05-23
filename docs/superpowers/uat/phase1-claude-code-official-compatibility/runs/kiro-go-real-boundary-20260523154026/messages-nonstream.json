@@ -1,0 +1,1 @@
+{"error":{"message":"HTTP 400 from Kiro IDE: {\"message\":\"Invalid model. Please select a different model to continue.\",\"reason\":\"INVALID_MODEL_ID\"}","type":"invalid_request_error"},"type":"error"}

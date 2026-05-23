@@ -1,0 +1,18 @@
+event: message_start
+data: {"message":{"content":[],"id":"msg_215c2102-74d3-4669-9538-2ed443f7597a","model":"claude-opus-4.7","role":"assistant","stop_reason":null,"stop_sequence":null,"type":"message","usage":{"input_tokens":56,"output_tokens":0}},"type":"message_start"}
+
+event: content_block_start
+data: {"content_block":{"type":"tool_use","id":"tooluse_4OBbEK6mhsZThGGhz1hV5p","name":"get_weather","input":{}},"index":0,"type":"content_block_start"}
+
+event: content_block_delta
+data: {"delta":{"partial_json":"{\"city\":\"Shanghai\"}","type":"input_json_delta"},"index":0,"type":"content_block_delta"}
+
+event: content_block_stop
+data: {"index":0,"type":"content_block_stop"}
+
+event: message_delta
+data: {"delta":{"stop_reason":"tool_use","stop_sequence":null},"type":"message_delta","usage":{"input_tokens":6758,"output_tokens":22}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

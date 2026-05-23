@@ -1,0 +1,26 @@
+{
+  "event_count": 6,
+  "event_order": [
+    "message_start",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop"
+  ],
+  "message_id": "msg_8a4f6b52-90dc-492a-a4ea-5ad32631f50f",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": "[REDACTED]",
+    "output_tokens": "[REDACTED]"
+  },
+  "content": [
+    {
+      "index": 0,
+      "type": "text",
+      "text": "phase1-uat-ok"
+    }
+  ],
+  "tool_uses": [],
+  "text": "phase1-uat-ok"
+}

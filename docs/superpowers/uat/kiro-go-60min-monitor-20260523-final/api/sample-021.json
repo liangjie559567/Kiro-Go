@@ -1,20 +1,20 @@
 {
   "index": 21,
-  "sampledAt": "2026-05-23T03:16:14.011Z",
+  "sampledAt": "2026-05-23T10:52:37.772Z",
   "health": {
     "ok": true,
     "status": 200,
     "durationMs": 2,
     "body": {
       "status": "ok",
-      "uptime": 33482,
+      "uptime": 60865,
       "version": "1.0.8"
     }
   },
   "subHealth": {
     "ok": true,
     "status": 200,
-    "durationMs": 1,
+    "durationMs": 3,
     "body": {
       "status": "ok"
     }
@@ -22,12 +22,12 @@
   "status": {
     "ok": true,
     "status": 200,
-    "durationMs": 1
+    "durationMs": 2
   },
   "readiness": {
     "ok": true,
     "status": 200,
-    "durationMs": 1,
+    "durationMs": 2,
     "body": {
       "capabilities": {
         "assistantPrefill": {
@@ -48,7 +48,24 @@
           },
           "status": "PARTIAL"
         },
-        "countTokens": "[REDACTED]",
+        "countTokens": {
+          "claudeCodeCompatibility": {
+            "mode": "estimated",
+            "proof": "count_tokens endpoint is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible estimated token counting; official exact count is not proven",
+          "evidence": {
+            "mode": "estimated",
+            "proof": "no recent count_tokens request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "estimated",
+            "proof": "no upstream exact count_tokens evidence",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
         "fineGrainedToolStreaming": {
           "claudeCodeCompatibility": {
             "mode": "kiro_go_chunked_complete_input",
@@ -67,7 +84,24 @@
           },
           "status": "PARTIAL"
         },
-        "maxTokensZero": "[REDACTED]",
+        "maxTokensZero": {
+          "claudeCodeCompatibility": {
+            "mode": "local_zero_output",
+            "proof": "local zero-output response shape is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible zero-output response; official cache warmup is not proven",
+          "evidence": {
+            "mode": "local_zero_output",
+            "proof": "no recent max_tokens=0 request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "local_zero_output",
+            "proof": "no upstream cache warmup evidence",
+            "status": "BLOCKED_BY_UPSTREAM"
+          },
+          "status": "PARTIAL"
+        },
         "messages": {
           "detail": "/v1/messages is implemented",
           "status": "PASS"
@@ -386,20 +420,20 @@
       "admissionPressure": {
         "active": false,
         "activeRequests": 0,
-        "circuitState": "half_open",
-        "effectiveMaxConcurrent": 1,
+        "circuitState": "closed",
+        "effectiveMaxConcurrent": 10,
         "expiresInMs": 0,
         "lastPressureAt": "2026-05-22T18:34:02.083825823Z",
         "lastPressureReason": "rate_limited_or_model_capacity",
         "maxConcurrent": 10,
         "model": "claude-opus-4-7",
         "queueDepth": 0,
-        "recentCapacityErrors": 97,
-        "recentQueueTimeouts": 30,
-        "recentSuccesses": 67,
+        "recentCapacityErrors": 0,
+        "recentQueueTimeouts": 0,
+        "recentSuccesses": 95,
         "reducedConcurrency": false,
         "retryAfterSeconds": 0,
-        "score": 6
+        "score": 0
       },
       "capabilities": {
         "thinking": true,
@@ -423,76 +457,1117 @@
       "thinkingVariant": false
     }
   },
+  "fleetReadiness": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 4,
+    "body": {
+      "accounts": [
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:02:47.321716323Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:02:51.662222644Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "deepseek-3.2",
+            "claude-opus-4.6",
+            "minimax-m2.5",
+            "glm-5",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "auto",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 39,
+            "avgLatencyMs": 450,
+            "lastUpdatedAt": 1779533482,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:03:06.827730269Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:03:11.437698055Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "claude-opus-4.6",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "auto",
+            "claude-sonnet-4.6",
+            "deepseek-3.2",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 39,
+            "avgLatencyMs": 425,
+            "lastUpdatedAt": 1779533482,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:00:43.851919475Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:01:21.735498745Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "claude-sonnet-4.5",
+            "claude-opus-4.6",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "auto",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 42,
+            "avgLatencyMs": 368,
+            "lastUpdatedAt": 1779533481,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:01:45.466912256Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:01:49.163948737Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "auto",
+            "claude-opus-4.6"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 453,
+            "lastUpdatedAt": 1779533481,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:04:45.306524463Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:04:48.874920268Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.6",
+            "deepseek-3.2",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "minimax-m2.1",
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "auto",
+            "claude-sonnet-4",
+            "glm-5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 403,
+            "lastUpdatedAt": 1779533483,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:02:21.563919059Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:02:26.061730599Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "auto",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "claude-opus-4.6",
+            "minimax-m2.5",
+            "glm-5",
+            "claude-opus-4.5",
+            "minimax-m2.1"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 373,
+            "lastUpdatedAt": 1779533481,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:03:52.586514518Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:03:56.951783408Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.1",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-opus-4.6",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "auto",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 412,
+            "lastUpdatedAt": 1779533482,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:05:04.216767593Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:05:38.248932283Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "deepseek-3.2",
+            "claude-opus-4.7",
+            "claude-opus-4.6",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "glm-5",
+            "auto",
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "claude-haiku-4.5",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 363,
+            "lastUpdatedAt": 1779533483,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:03:29.187147973Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:03:33.532080748Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "claude-opus-4.7",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "minimax-m2.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "claude-opus-4.6",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 1,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 424,
+            "lastUpdatedAt": 1779533482,
+            "score": 97
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T17:59:54.967159972Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T17:59:58.535857255Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "auto",
+            "claude-opus-4.7",
+            "claude-opus-4.5",
+            "claude-sonnet-4.6",
+            "glm-5",
+            "claude-opus-4.6",
+            "minimax-m2.1",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 2,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 462,
+            "lastUpdatedAt": 1779533480,
+            "score": 95
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:17:19.824962677Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:21:09.221714293Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.6",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "auto",
+            "glm-5",
+            "claude-opus-4.5",
+            "minimax-m2.1",
+            "claude-opus-4.7",
+            "deepseek-3.2",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 4,
+            "recentSuccesses": 45,
+            "avgLatencyMs": 370,
+            "lastUpdatedAt": 1779533480,
+            "score": 91
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:14:45.054042682Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:20:58.139659572Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "glm-5",
+            "qwen3-coder-next",
+            "auto",
+            "claude-opus-4.6",
+            "claude-sonnet-4.6",
+            "minimax-m2.5",
+            "claude-opus-4.7",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 6,
+            "recentSuccesses": 42,
+            "avgLatencyMs": 363,
+            "lastUpdatedAt": 1779533480,
+            "score": 87
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:07:40.398796378Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:23:23.183455397Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.5",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "minimax-m2.1",
+            "claude-haiku-4.5",
+            "deepseek-3.2",
+            "glm-5",
+            "auto",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 8,
+            "recentSuccesses": 39,
+            "avgLatencyMs": 504,
+            "lastUpdatedAt": 1779533479,
+            "score": 82
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:11:39.793672567Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:31:10.580642927Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.5",
+            "claude-haiku-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.1",
+            "claude-sonnet-4.6",
+            "claude-opus-4.7",
+            "claude-opus-4.6",
+            "minimax-m2.5",
+            "auto"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 12,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 449,
+            "lastUpdatedAt": 1779533479,
+            "score": 76
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:06:48.419941265Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:30:33.039813528Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "glm-5",
+            "auto",
+            "claude-sonnet-4.5",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "deepseek-3.2",
+            "minimax-m2.1",
+            "claude-opus-4.5",
+            "minimax-m2.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 13,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 460,
+            "lastUpdatedAt": 1779533479,
+            "score": 75
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:07:15.326481701Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:30:39.428176573Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.1",
+            "glm-5",
+            "auto",
+            "claude-opus-4.6",
+            "deepseek-3.2",
+            "qwen3-coder-next",
+            "claude-sonnet-4.6",
+            "claude-opus-4.7",
+            "claude-opus-4.5",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "minimax-m2.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 13,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 437,
+            "lastUpdatedAt": 1779533479,
+            "score": 75
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:06:18.227676479Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:30:29.385400729Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "auto",
+            "qwen3-coder-next",
+            "glm-5",
+            "claude-opus-4.6",
+            "claude-haiku-4.5",
+            "minimax-m2.5",
+            "minimax-m2.1",
+            "claude-sonnet-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "claude-opus-4.7",
+            "claude-sonnet-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 14,
+            "recentSuccesses": 39,
+            "avgLatencyMs": 427,
+            "lastUpdatedAt": 1779533478,
+            "score": 73
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-23T10:21:21.736841268Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerState": "closed",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "minimax-m2.5",
+            "qwen3-coder-next",
+            "deepseek-3.2",
+            "glm-5",
+            "auto",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "claude-haiku-4.5",
+            "minimax-m2.1"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 20,
+            "recentSuccesses": 67,
+            "avgLatencyMs": 1237,
+            "lastUpdatedAt": 1779533477,
+            "score": 72
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:10:13.135138694Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:34:05.083571284Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "auto",
+            "minimax-m2.1",
+            "glm-5",
+            "qwen3-coder-next",
+            "claude-opus-4.7",
+            "claude-sonnet-4.6",
+            "minimax-m2.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 17,
+            "recentSuccesses": 41,
+            "avgLatencyMs": 351,
+            "lastUpdatedAt": 1779533478,
+            "score": 70
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:08:14.140363715Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:33:54.999138226Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "claude-opus-4.7",
+            "glm-5",
+            "claude-opus-4.6",
+            "claude-sonnet-4.6",
+            "claude-sonnet-4.5",
+            "deepseek-3.2",
+            "auto",
+            "minimax-m2.1",
+            "qwen3-coder-next",
+            "claude-opus-4.5",
+            "claude-sonnet-4",
+            "claude-haiku-4.5",
+            "minimax-m2.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 20,
+            "recentSuccesses": 40,
+            "avgLatencyMs": 457,
+            "lastUpdatedAt": 1779533477,
+            "score": 66
+          },
+          "weight": 2
+        },
+        {
+          "coolingDown": false,
+          "eligible": true,
+          "email": "[REDACTED]",
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "lastFailureReason": "unknown",
+          "latestContentSuccessAt": "2026-05-22T18:09:22.659999406Z",
+          "latestContentSuccessModel": "claude-opus-4.7",
+          "modelBreakerReason": "temporary_limited",
+          "modelBreakerRetryAt": "2026-05-22T18:34:01.397350656Z",
+          "modelBreakerState": "open",
+          "modelListed": true,
+          "modelsCached": [
+            "minimax-m2.1",
+            "auto",
+            "claude-sonnet-4.6",
+            "claude-haiku-4.5",
+            "qwen3-coder-next",
+            "claude-opus-4.6",
+            "claude-opus-4.5",
+            "glm-5",
+            "claude-opus-4.7",
+            "claude-sonnet-4.5",
+            "claude-sonnet-4",
+            "deepseek-3.2",
+            "minimax-m2.5"
+          ],
+          "reason": "eligible",
+          "reasonCodes": [
+            "eligible"
+          ],
+          "runtimeHealth": {
+            "activeConnections": 0,
+            "recentFailures": 18,
+            "recentSuccesses": 39,
+            "avgLatencyMs": 1277,
+            "lastUpdatedAt": 1779533478,
+            "score": 63
+          },
+          "weight": 2
+        }
+      ],
+      "admissionEffectiveConcurrency": 10,
+      "admissionPressureScore": 0,
+      "authBlockedAccounts": 0,
+      "autoRefresh": {
+        "running": false,
+        "lastStartedAt": 1779533358,
+        "lastFinishedAt": 1779533380,
+        "nextRunAt": 1779535180,
+        "lastSuccess": 21,
+        "lastFailed": 0,
+        "lastSkipped": false,
+        "lastSkippedCount": 0,
+        "lastQuietSkipped": 0
+      },
+      "circuitState": "closed",
+      "contentSuccessRate": 1,
+      "contractVersion": "opus-4.7-readiness.1",
+      "coolingDownAccounts": 0,
+      "currentInFlight": 0,
+      "enabledAccounts": 21,
+      "healthCheck": {
+        "running": false,
+        "lastStartedAt": 1779533476,
+        "lastFinishedAt": 1779533483,
+        "nextRunAt": 1779533783,
+        "lastSuccess": 21,
+        "lastFailed": 0,
+        "lastDisabled": 0,
+        "lastSkipped": false,
+        "lastSkippedCount": 0,
+        "lastQuietSkipped": 0
+      },
+      "lastPressureAt": "2026-05-22T18:34:02.083825823Z",
+      "lastPressureReason": "rate_limited_or_model_capacity",
+      "locallySchedulableAccounts": 21,
+      "mappedModel": "claude-opus-4.7",
+      "model": "claude-opus-4-7",
+      "modelBreakerBlockedAccounts": 0,
+      "modelListedAccounts": 21,
+      "notes": [],
+      "quotaBlockedAccounts": 0,
+      "reasonCodes": [
+        "healthy"
+      ],
+      "recentContentRequests": 0,
+      "recentEmptyCompletions": 0,
+      "recentStableFallbacks": 0,
+      "recommendedAction": "send_with_safe_concurrency",
+      "recommendedQueueWaitSeconds": 120,
+      "requestedModel": "claude-opus-4-7",
+      "retryAfterSeconds": 0,
+      "safeConcurrency": 10,
+      "status": "healthy",
+      "strategy": "health",
+      "summary": {
+        "authBlocked": 0,
+        "coolingDown": 0,
+        "disabled": 0,
+        "eligible": 21,
+        "enabled": 21,
+        "modelBreakerOpen": 0,
+        "modelNotListed": 0,
+        "quotaBlocked": 0,
+        "total": 21
+      },
+      "temporaryLimitedAccounts": 0
+    }
+  },
+  "requestStats": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 3,
+    "body": {
+      "averageDurationMs": 14106,
+      "byEndpoint": {
+        "/v1/messages": {
+          "total": 170,
+          "success": 166,
+          "failed": 4,
+          "averageDurationMs": 14936,
+          "inputTokens": 1344968,
+          "outputTokens": 10144,
+          "cacheReadInputTokens": 974472,
+          "cacheCreationInputTokens": 841208,
+          "queueWaitMs": 1176998,
+          "maxQueueWaitMs": 80006,
+          "firstTokenMs": 441730,
+          "maxFirstTokenMs": 41538,
+          "attempts": 251,
+          "toolUseCount": 73
+        },
+        "/v1/messages/count_tokens": {
+          "total": 5,
+          "success": 5,
+          "failed": 0,
+          "averageDurationMs": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "queueWaitMs": 0,
+          "maxQueueWaitMs": 0,
+          "firstTokenMs": 0,
+          "maxFirstTokenMs": 0,
+          "attempts": 0,
+          "toolUseCount": 0
+        },
+        "/v1/models": {
+          "total": 5,
+          "success": 5,
+          "failed": 0,
+          "averageDurationMs": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "queueWaitMs": 0,
+          "maxQueueWaitMs": 0,
+          "firstTokenMs": 0,
+          "maxFirstTokenMs": 0,
+          "attempts": 0,
+          "toolUseCount": 0
+        }
+      },
+      "byModel": {
+        "claude-3-5-haiku-20241022": {
+          "total": 4,
+          "success": 1,
+          "failed": 3,
+          "averageDurationMs": 578,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "queueWaitMs": 0,
+          "maxQueueWaitMs": 0,
+          "firstTokenMs": 0,
+          "maxFirstTokenMs": 0,
+          "attempts": 3,
+          "toolUseCount": 0
+        },
+        "claude-opus-4.7": {
+          "total": 170,
+          "success": 170,
+          "failed": 0,
+          "averageDurationMs": 14922,
+          "inputTokens": 1344968,
+          "outputTokens": 10144,
+          "cacheReadInputTokens": 974472,
+          "cacheCreationInputTokens": 841208,
+          "queueWaitMs": 1176998,
+          "maxQueueWaitMs": 80006,
+          "firstTokenMs": 441730,
+          "maxFirstTokenMs": 41538,
+          "attempts": 248,
+          "toolUseCount": 73
+        },
+        "unknown": {
+          "total": 6,
+          "success": 5,
+          "failed": 1,
+          "averageDurationMs": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0,
+          "queueWaitMs": 0,
+          "maxQueueWaitMs": 0,
+          "firstTokenMs": 0,
+          "maxFirstTokenMs": 0,
+          "attempts": 0,
+          "toolUseCount": 0
+        }
+      },
+      "cacheCreationInputTokens": 841208,
+      "cacheReadInputTokens": 974472,
+      "failed": 4,
+      "inputTokens": 1344968,
+      "outputTokens": 10144,
+      "success": 176,
+      "total": 180
+    }
+  },
   "requestLogs": {
-    "total": 136,
+    "total": 180,
     "byStatus": {
-      "200": 135,
+      "200": 176,
+      "400": 3,
       "401": 1
     },
     "byModel": {
-      "claude-opus-4.7": 135,
-      "": 1
+      "claude-opus-4.7": 170,
+      "": 6,
+      "claude-3-5-haiku-20241022": 4
     },
     "byOutcome": {
-      "success": 135,
-      "error": 1
+      "success": 176,
+      "error": 4
     },
-    "attemptTrace": 134,
-    "errorEntries": 1,
+    "attemptTrace": 165,
+    "errorEntries": 4,
     "maxDurationMs": 90707
   },
   "db": {
-    "now": "2026-05-23T11:16:14.172583+08:00",
+    "now": "2026-05-23T18:52:37.924173+08:00",
     "recentUsage": [
       {
         "requested_model": "gpt-5.5",
         "stream": true,
-        "n": 117,
-        "min_created_at": "2026-05-23T11:01:43.388836+08:00",
-        "max_created_at": "2026-05-23T11:16:10.993927+08:00",
-        "max_ms": 23310,
-        "p95_ms": 20502,
-        "accounts": 4
+        "n": 123,
+        "min_created_at": "2026-05-23T18:37:38.113084+08:00",
+        "max_created_at": "2026-05-23T18:52:34.633906+08:00",
+        "max_ms": 134170,
+        "p95_ms": 26021,
+        "accounts": 5
       },
       {
-        "requested_model": "gpt-5.5",
+        "requested_model": "gpt-image-2",
         "stream": false,
-        "n": 25,
-        "min_created_at": "2026-05-23T11:01:14.88402+08:00",
-        "max_created_at": "2026-05-23T11:16:14.057144+08:00",
-        "max_ms": 122809,
-        "p95_ms": 81295,
-        "accounts": 13
+        "n": 31,
+        "min_created_at": "2026-05-23T18:41:45.03487+08:00",
+        "max_created_at": "2026-05-23T18:52:23.216503+08:00",
+        "max_ms": 154642,
+        "p95_ms": 152527,
+        "accounts": 19
       },
       {
         "requested_model": "claude-opus-4-6",
         "stream": false,
-        "n": 16,
-        "min_created_at": "2026-05-23T11:01:14.469929+08:00",
-        "max_created_at": "2026-05-23T11:16:14.020029+08:00",
-        "max_ms": 3296,
-        "p95_ms": 3296,
-        "accounts": 12
-      },
-      {
-        "requested_model": "claude-opus-4-7",
-        "stream": true,
         "n": 15,
-        "min_created_at": "2026-05-23T11:09:04.740661+08:00",
-        "max_created_at": "2026-05-23T11:10:10.77783+08:00",
-        "max_ms": 14825,
-        "p95_ms": 14825,
-        "accounts": 1
+        "min_created_at": "2026-05-23T18:38:13.55525+08:00",
+        "max_created_at": "2026-05-23T18:52:14.170474+08:00",
+        "max_ms": 14245,
+        "p95_ms": 14245,
+        "accounts": 14
       },
       {
-        "requested_model": "gpt-5.2",
+        "requested_model": "gpt-5.5",
         "stream": false,
-        "n": 1,
-        "min_created_at": "2026-05-23T11:13:54.612153+08:00",
-        "max_created_at": "2026-05-23T11:13:54.612153+08:00",
-        "max_ms": 1152,
-        "p95_ms": 1152,
-        "accounts": 1
+        "n": 15,
+        "min_created_at": "2026-05-23T18:38:14.161496+08:00",
+        "max_created_at": "2026-05-23T18:52:13.973876+08:00",
+        "max_ms": 3095,
+        "p95_ms": 3095,
+        "accounts": 14
       }
     ],
     "accounts": [
@@ -504,7 +1579,7 @@
       {
         "status": "active",
         "schedulable": true,
-        "n": 21
+        "n": 31
       }
     ],
     "tempUnschedulable": []
@@ -512,7 +1587,7 @@
   "dockerLogs": {
     "kiroGo": {
       "error": 0,
-      "warn": 7,
+      "warn": 0,
       "panic": 0,
       "rate429": 0,
       "temporaryLimit": 0,
@@ -520,13 +1595,13 @@
       "status503": 0
     },
     "sub2api": {
-      "error": 18,
-      "warn": 14,
+      "error": 0,
+      "warn": 1,
       "panic": 0,
-      "rate429": 3,
+      "rate429": 1,
       "temporaryLimit": 0,
       "noAvailable": 0,
-      "status503": 2
+      "status503": 0
     }
   }
 }

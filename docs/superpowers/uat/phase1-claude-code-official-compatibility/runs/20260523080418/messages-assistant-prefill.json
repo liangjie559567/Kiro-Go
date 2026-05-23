@@ -1,0 +1,1 @@
+{"id":"msg_3b56436f-f257-4014-b977-28b3cad08f5f","type":"message","role":"assistant","content":[{"type":"text","text":"{\"ok\": true}"}],"model":"claude-opus-4.7","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":5917,"output_tokens":5}}

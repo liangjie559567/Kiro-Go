@@ -1,0 +1,40 @@
+{
+  "event_count": 6,
+  "event_order": [
+    "message_start",
+    "content_block_start",
+    "content_block_delta",
+    "content_block_stop",
+    "message_delta",
+    "message_stop"
+  ],
+  "message_id": "msg_c61fcc22-d3e2-439a-abf9-d02989121b7a",
+  "stop_reason": "tool_use",
+  "usage": {
+    "input_tokens": "[REDACTED]",
+    "output_tokens": "[REDACTED]"
+  },
+  "content": [
+    {
+      "index": 0,
+      "type": "tool_use",
+      "id": "tooluse_198vE4KHxJ4vtAInXpYGeP",
+      "name": "get_weather",
+      "input": {
+        "city": "Shanghai"
+      }
+    }
+  ],
+  "tool_uses": [
+    {
+      "index": 0,
+      "type": "tool_use",
+      "id": "tooluse_198vE4KHxJ4vtAInXpYGeP",
+      "name": "get_weather",
+      "input": {
+        "city": "Shanghai"
+      }
+    }
+  ],
+  "text": ""
+}

@@ -1,0 +1,149 @@
+{
+  "run_id": "kiro-go-real-boundary-20260523154026",
+  "started_at": "2026-05-23T07:40:26.691Z",
+  "finished_at": "2026-05-23T07:40:29.113Z",
+  "overall_status": "FAIL",
+  "environment": {
+    "KIRO_GO_BASE_URL": "SET",
+    "KIRO_GO_API_KEY": "[REDACTED]",
+    "KIRO_GO_ADMIN_PASSWORD": "[REDACTED]",
+    "SUB2API_BASE_URL": "SET",
+    "SUB2API_API_KEY": "[REDACTED]"
+  },
+  "counts": {
+    "FAIL": 3,
+    "SKIPPED": 1,
+    "PASS": 6
+  },
+  "checks": [
+    {
+      "name": "/v1/messages non-stream",
+      "status": "FAIL",
+      "detail": "HTTP 400",
+      "response": {
+        "status": 400,
+        "ok": false,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 900,
+        "body_file": "messages-nonstream.json",
+        "type": "error"
+      }
+    },
+    {
+      "name": "/v1/messages stream",
+      "status": "FAIL",
+      "detail": "HTTP 400",
+      "response": {
+        "status": 400,
+        "ok": false,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 752,
+        "body_file": "messages-stream.json",
+        "type": "error"
+      },
+      "sse": {
+        "event_count": 0,
+        "event_order": [],
+        "message_id": null,
+        "stop_reason": null,
+        "usage": null,
+        "content": [],
+        "tool_uses": [],
+        "text": ""
+      }
+    },
+    {
+      "name": "/v1/messages tool-use shape",
+      "status": "FAIL",
+      "detail": "HTTP 400",
+      "response": {
+        "status": 400,
+        "ok": false,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 738,
+        "body_file": "messages-tool-use.json",
+        "type": "error"
+      }
+    },
+    {
+      "name": "/v1/messages tool-result follow-up",
+      "status": "SKIPPED",
+      "detail": "Skipped because tool-use shape check did not produce a tool_use response."
+    },
+    {
+      "name": "/v1/messages/count_tokens",
+      "status": "PASS",
+      "detail": "Received token count.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "count-tokens.json",
+        "input_tokens": "[REDACTED]"
+      }
+    },
+    {
+      "name": "/v1/models",
+      "status": "PASS",
+      "detail": "Received model list.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "models.json",
+        "data_count": 31
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/readiness",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "admin-claude-code-readiness.json"
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/model-readiness",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 2,
+        "body_file": "admin-claude-code-model-readiness.json"
+      }
+    },
+    {
+      "name": "/admin/api/request-logs",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 8,
+        "body_file": "admin-request-logs.json"
+      }
+    },
+    {
+      "name": "sub2api black-box optional /v1/models",
+      "status": "PASS",
+      "detail": "sub2api black-box model endpoint responded.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 14,
+        "body_file": "sub2api-models.json",
+        "data_count": 17
+      }
+    }
+  ]
+}

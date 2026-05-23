@@ -1,0 +1,1 @@
+{"id":"msg_08d9260d-ea27-410a-8abf-7a646b1c6452","type":"message","role":"assistant","content":[{"type":"text","text":"Shanghai is currently 23°C and clear."}],"model":"claude-opus-4.7","stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":6838,"output_tokens":10}}

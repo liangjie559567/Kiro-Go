@@ -9,7 +9,7 @@ const outDir = path.resolve(__dirname);
 const apiDir = path.join(outDir, 'api');
 const dbDir = path.join(outDir, 'db');
 const logDir = path.join(outDir, 'logs');
-const intervalMs = Number(process.env.MONITOR_INTERVAL_MS || 30000);
+const intervalMs = Number(process.env.MONITOR_INTERVAL_MS || 60000);
 const durationMs = Number(process.env.MONITOR_DURATION_MS || 600000);
 const adminPassword = process.env.KIRO_GO_ADMIN_PASSWORD || '';
 const kiroBase = process.env.KIRO_GO_BASE_URL || 'http://127.0.0.1:8080';
@@ -27,13 +27,13 @@ function redact(value) {
     return value
       .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
       .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/g, '[EMAIL_REDACTED]')
-      .replace(/(authorization|credentials|api[_-]?key|password|token|secret|refresh|access|key)(["'\s:=]+)([^"',\s}]+)/gi, '$1$2[REDACTED]');
+      .replace(/(authorization|credentials|api[_-]?key|password|secret|refresh[_-]?token|access[_-]?token)(["'\s:=]+)([^"',\s}]+)/gi, '$1$2[REDACTED]');
   }
   if (Array.isArray(value)) return value.map(redact);
   if (typeof value === 'object') {
     const out = {};
     for (const [key, item] of Object.entries(value)) {
-      out[key] = /authorization|credentials|api[_-]?key|password|token|secret|refresh|access|^key$|email|userId|machineId|profileArn|riskGroupKey|anthropicRequestId/i.test(key)
+      out[key] = /authorization|credentials|api[_-]?key|password|secret|refresh[_-]?token|access[_-]?token|^key$|email|userId|machineId|profileArn|riskGroupKey|anthropicRequestId/i.test(key)
         ? '[REDACTED]'
         : redact(item);
     }
@@ -74,7 +74,8 @@ function pgJson(sql) {
 }
 
 function logTail(container, sinceSeconds) {
-  const raw = sh(`docker logs --since ${sinceSeconds}s ${container} 2>&1 || true`);
+  const tailLines = Math.max(200, Math.min(1000, sinceSeconds * 2));
+  const raw = sh(`docker logs --since ${sinceSeconds}s --tail ${tailLines} ${container} 2>&1 || true`);
   const redacted = redact(raw);
   return {
     lines: redacted.split(/\n/).filter(Boolean).slice(-200),
@@ -116,7 +117,9 @@ async function sample(index, sinceSeconds) {
   const status = await jsonFetch(`${kiroBase}/admin/api/status`, { headers: adminHeaders });
   const readiness = await jsonFetch(`${kiroBase}/admin/api/claude-code/readiness`, { headers: adminHeaders });
   const modelReadiness = await jsonFetch(`${kiroBase}/admin/api/claude-code/model-readiness?model=claude-opus-4-7`, { headers: adminHeaders });
+  const fleetReadiness = await jsonFetch(`${kiroBase}/admin/api/fleet/readiness?model=claude-opus-4-7`, { headers: adminHeaders });
   const requestLogs = await jsonFetch(`${kiroBase}/admin/api/request-logs?limit=300`, { headers: adminHeaders });
+  const requestStats = await jsonFetch(`${kiroBase}/admin/api/request-stats`, { headers: adminHeaders });
   const logs = requestLogs.body && requestLogs.body.logs || [];
   const db = pgJson(`select json_build_object(
     'now', now(),
@@ -134,6 +137,8 @@ async function sample(index, sinceSeconds) {
     status: { ok: status.ok, status: status.status, durationMs: status.durationMs },
     readiness: { ok: readiness.ok, status: readiness.status, durationMs: readiness.durationMs, body: readiness.body },
     modelReadiness: { ok: modelReadiness.ok, status: modelReadiness.status, durationMs: modelReadiness.durationMs, body: modelReadiness.body },
+    fleetReadiness: { ok: fleetReadiness.ok, status: fleetReadiness.status, durationMs: fleetReadiness.durationMs, body: fleetReadiness.body },
+    requestStats: { ok: requestStats.ok, status: requestStats.status, durationMs: requestStats.durationMs, body: requestStats.body },
     requestLogs: summarizeRequestLogs(logs),
     db,
     dockerLogs: { kiroGo: kiroLogs.counts, sub2api: sub2apiLogs.counts },
@@ -147,6 +152,9 @@ async function sample(index, sinceSeconds) {
     subHealth: subHealth.status,
     requestLogErrors: row.requestLogs.errorEntries,
     requestLogMaxMs: row.requestLogs.maxDurationMs,
+    safeConcurrency: row.fleetReadiness.body && row.fleetReadiness.body.safeConcurrency,
+    locallySchedulable: row.fleetReadiness.body && row.fleetReadiness.body.locallySchedulableAccounts,
+    generationBlocked: row.fleetReadiness.body && row.fleetReadiness.body.generationBlocked,
     kiroWarn: row.dockerLogs.kiroGo.warn,
     kiro429: row.dockerLogs.kiroGo.rate429,
     kiro503: row.dockerLogs.kiroGo.status503,
@@ -169,19 +177,38 @@ async function main() {
     if (Date.now() - started > durationMs) break;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
+  const hasRequestStatsTraffic = (row) => {
+    const body = row.requestStats && row.requestStats.body;
+    const byEndpoint = body && body.byEndpoint && body.byEndpoint['/v1/messages'];
+    return Boolean(body && body.total > 0 && byEndpoint && byEndpoint.success > 0);
+  };
   const aggregate = {
     startedAt,
     completedAt: new Date().toISOString(),
     intervalMs,
     durationMs,
     sampleCount: samples.length,
-    pass: samples.every((row) => row.health.status === 200 && row.subHealth.status === 200 && row.dockerLogs.kiroGo.panic === 0),
+    pass: samples.every((row) => (
+      row.health.status === 200
+      && row.subHealth.status === 200
+      && row.status.status === 200
+      && row.readiness.status === 200
+      && row.modelReadiness.status === 200
+      && row.fleetReadiness.status === 200
+      && row.requestStats.status === 200
+      && hasRequestStatsTraffic(row)
+      && row.dockerLogs.kiroGo.panic === 0
+    )),
+    minSafeConcurrency: Math.min(...samples.map((row) => Number(row.fleetReadiness.body && row.fleetReadiness.body.safeConcurrency || 0))),
+    minLocallySchedulable: Math.min(...samples.map((row) => Number(row.fleetReadiness.body && row.fleetReadiness.body.locallySchedulableAccounts || 0))),
+    maxGenerationBlocked: Math.max(...samples.map((row) => Number(row.fleetReadiness.body && row.fleetReadiness.body.generationBlocked || 0))),
     maxRequestLogErrors: Math.max(...samples.map((row) => row.requestLogs.errorEntries)),
     maxKiro429LogMentions: Math.max(...samples.map((row) => row.dockerLogs.kiroGo.rate429)),
     maxKiro503LogMentions: Math.max(...samples.map((row) => row.dockerLogs.kiroGo.status503)),
     maxTempUnschedulable: Math.max(...samples.map((row) => (row.db.tempUnschedulable || []).length)),
     last: samples[samples.length - 1],
   };
+  aggregate.pass = aggregate.pass && aggregate.maxKiro429LogMentions === 0 && aggregate.maxKiro503LogMentions === 0;
   writeJson(path.join(outDir, 'monitor-summary.json'), aggregate);
 }
 

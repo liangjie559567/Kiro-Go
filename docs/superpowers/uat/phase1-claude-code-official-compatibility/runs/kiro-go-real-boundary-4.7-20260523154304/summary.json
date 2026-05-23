@@ -1,0 +1,173 @@
+{
+  "run_id": "kiro-go-real-boundary-4.7-20260523154304",
+  "started_at": "2026-05-23T07:43:05.014Z",
+  "finished_at": "2026-05-23T07:43:11.909Z",
+  "overall_status": "COMPLETE_WITH_BLOCKERS_ALLOWED",
+  "environment": {
+    "KIRO_GO_BASE_URL": "SET",
+    "KIRO_GO_API_KEY": "[REDACTED]",
+    "KIRO_GO_ADMIN_PASSWORD": "[REDACTED]",
+    "SUB2API_BASE_URL": "SET",
+    "SUB2API_API_KEY": "[REDACTED]"
+  },
+  "counts": {
+    "PASS": 10
+  },
+  "checks": [
+    {
+      "name": "/v1/messages non-stream",
+      "status": "PASS",
+      "detail": "Received Anthropic message response.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1872,
+        "body_file": "messages-nonstream.json",
+        "id": "msg_f647cb92-1278-482c-9a4a-af5737b18e61",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages stream",
+      "status": "PASS",
+      "detail": "Received parseable Anthropic SSE stream.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "text/event-stream; charset=utf-8",
+        "duration_ms": 1504,
+        "body_file": "messages-stream.sse"
+      },
+      "sse": {
+        "event_count": 6,
+        "event_order": [
+          "message_start",
+          "content_block_start",
+          "content_block_delta",
+          "content_block_stop",
+          "message_delta",
+          "message_stop"
+        ],
+        "message_id": "msg_992cd23b-004c-4277-8cc6-f6da8481c8ab",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": "[REDACTED]",
+          "output_tokens": "[REDACTED]"
+        },
+        "content": [
+          {
+            "index": 0,
+            "type": "text",
+            "text": "phase1-uat-ok"
+          }
+        ],
+        "tool_uses": [],
+        "text": "phase1-uat-ok"
+      }
+    },
+    {
+      "name": "/v1/messages tool-use shape",
+      "status": "PASS",
+      "detail": "Received tool_use content block.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1926,
+        "body_file": "messages-tool-use.json",
+        "id": "msg_225af50e-ec90-48cf-8ce8-d46cca1fc220",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages tool-result follow-up",
+      "status": "PASS",
+      "detail": "Accepted tool_result follow-up conversation.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1559,
+        "body_file": "messages-tool-result-follow-up.json",
+        "id": "msg_401853e1-87b8-4b1e-a824-c46f172b7b51",
+        "type": "message"
+      }
+    },
+    {
+      "name": "/v1/messages/count_tokens",
+      "status": "PASS",
+      "detail": "Received token count.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 2,
+        "body_file": "count-tokens.json",
+        "input_tokens": "[REDACTED]"
+      }
+    },
+    {
+      "name": "/v1/models",
+      "status": "PASS",
+      "detail": "Received model list.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 1,
+        "body_file": "models.json",
+        "data_count": 31
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/readiness",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 2,
+        "body_file": "admin-claude-code-readiness.json"
+      }
+    },
+    {
+      "name": "/admin/api/claude-code/model-readiness",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 2,
+        "body_file": "admin-claude-code-model-readiness.json"
+      }
+    },
+    {
+      "name": "/admin/api/request-logs",
+      "status": "PASS",
+      "detail": "Admin endpoint returned success status.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 10,
+        "body_file": "admin-request-logs.json"
+      }
+    },
+    {
+      "name": "sub2api black-box optional /v1/models",
+      "status": "PASS",
+      "detail": "sub2api black-box model endpoint responded.",
+      "response": {
+        "status": 200,
+        "ok": true,
+        "content_type": "application/json; charset=utf-8",
+        "duration_ms": 13,
+        "body_file": "sub2api-models.json",
+        "data_count": 17
+      }
+    }
+  ]
+}

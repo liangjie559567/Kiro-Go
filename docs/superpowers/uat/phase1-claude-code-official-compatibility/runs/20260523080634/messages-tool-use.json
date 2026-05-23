@@ -1,0 +1,1 @@
+{"id":"msg_1d4f4104-e751-47ca-a579-894fa25a360e","type":"message","role":"assistant","content":[{"type":"tool_use","id":"tooluse_Or4pGZUz6YzG20FFHzIlRt","name":"get_weather","input":{"city":"Shanghai"}}],"model":"claude-opus-4.7","stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":6808,"output_tokens":11}}
