@@ -39,14 +39,34 @@ func TestSelectAutoRefreshAccountsHonorsScope(t *testing.T) {
 	}
 
 	all, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeAll, now)
-	if len(all) != 3 {
-		t.Fatalf("expected all 3 accounts, got %d", len(all))
+	if len(all) != 4 {
+		t.Fatalf("expected all 4 accounts, got %d", len(all))
 	}
-	if all[0].ID != "enabled-1" || all[1].ID != "disabled-1" || all[2].ID != "enabled-2" {
+	if all[0].ID != "enabled-1" || all[1].ID != "disabled-1" || all[2].ID != "enabled-2" || all[3].ID != "cooling-1" {
 		t.Fatalf("unexpected all-scope order: %#v", all)
 	}
-	if skipped != 1 {
-		t.Fatalf("expected one cooling account skipped for all scope, got %d", skipped)
+	if skipped != 0 {
+		t.Fatalf("expected no selector skips for all scope, got %d", skipped)
+	}
+}
+
+func TestSelectAutoRefreshAccountsAllIncludesCoolingAccounts(t *testing.T) {
+	now := time.Unix(2000, 0)
+	accounts := []config.Account{
+		{ID: "fresh", Enabled: true},
+		{ID: "cooling", Enabled: true, CooldownUntil: now.Add(time.Hour).Unix(), LastFailureReason: string(pool.FailureReasonTemporaryLimited)},
+		{ID: "disabled", Enabled: false},
+	}
+
+	selected, skipped := selectAutoRefreshAccountsForTime(accounts, config.AutoRefreshScopeAll, now)
+	if skipped != 0 {
+		t.Fatalf("expected all-scope auto refresh to include cooling accounts without selector skips, got %d", skipped)
+	}
+	if len(selected) != len(accounts) {
+		t.Fatalf("expected all-scope selection to keep all accounts, got %d", len(selected))
+	}
+	if selected[1].ID != "cooling" {
+		t.Fatalf("expected cooling account to stay selected, got %#v", selected)
 	}
 }
 

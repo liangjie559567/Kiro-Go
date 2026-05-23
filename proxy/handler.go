@@ -638,6 +638,9 @@ func isClaudeCodeDevRequest(r *http.Request, model string, stream bool) bool {
 	if requestLogWorkloadClass(r) == RequestWorkloadClaudeCodeDev {
 		return true
 	}
+	if requestUserAgentLooksClaudeCode(r) {
+		return true
+	}
 	if r != nil && firstNonEmptyHeader(r, "x-claude-code-session-id", "x-claude-session-id", "claude-code-session-id", "x-claude-code-agent-id", "x-claude-code-parent-agent-id") != "" {
 		return true
 	}
@@ -683,6 +686,12 @@ func requestModelLabelFromLog(r *http.Request) string {
 }
 
 func (h *Handler) sendStableClaudeFallback(w http.ResponseWriter, r *http.Request, model, reason string, err error) {
+	// claude-cli (Claude Code dev) clients ignore assistant-compatibility 200 OK
+	// payloads and treat them as a successful turn, which silently swallows the
+	// upstream pressure signal. They do, however, honor a retryable
+	// overloaded_error with Retry-After, which lets the CLI back off and retry
+	// instead of dropping the turn. Non-CLI Claude clients (e.g. SDK/web) prefer
+	// the assistant-shaped fallback so the conversation stays renderable.
 	if isClaudeCodeDevRequest(r, model, false) {
 		h.sendStableClaudeRetryableError(w, r, model, reason, err)
 		return

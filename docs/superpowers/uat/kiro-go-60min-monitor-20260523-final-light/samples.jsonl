@@ -1,0 +1,589 @@
+{"index":1,"sampledAt":"2026-05-23T11:25:40+08:00","health":{"status":"ok","uptime":34048,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":2,"sampledAt":"2026-05-23T11:26:40+08:00","health":{"status":"ok","uptime":34108,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":3,"sampledAt":"2026-05-23T11:27:40+08:00","health":{"status":"ok","uptime":34168,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":4,"sampledAt":"2026-05-23T11:28:40+08:00","health":{"status":"ok","uptime":34228,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":5,"sampledAt":"2026-05-23T11:29:40+08:00","health":{"status":"ok","uptime":34288,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":6,"sampledAt":"2026-05-23T11:30:40+08:00","health":{"status":"ok","uptime":34348,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":7,"sampledAt":"2026-05-23T11:31:40+08:00","health":{"status":"ok","uptime":34408,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":8,"sampledAt":"2026-05-23T11:32:40+08:00","health":{"status":"ok","uptime":34468,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":9,"sampledAt":"2026-05-23T11:33:40+08:00","health":{"status":"ok","uptime":34528,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":10,"sampledAt":"2026-05-23T11:34:40+08:00","health":{"status":"ok","uptime":34588,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":11,"sampledAt":"2026-05-23T11:35:40+08:00","health":{"status":"ok","uptime":34648,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":12,"sampledAt":"2026-05-23T11:36:41+08:00","health":{"status":"ok","uptime":34709,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":13,"sampledAt":"2026-05-23T11:37:41+08:00","health":{"status":"ok","uptime":34769,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":14,"sampledAt":"2026-05-23T11:38:41+08:00","health":{"status":"ok","uptime":34829,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":15,"sampledAt":"2026-05-23T11:39:41+08:00","health":{"status":"ok","uptime":34889,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":16,"sampledAt":"2026-05-23T11:40:41+08:00","health":{"status":"ok","uptime":34949,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":17,"sampledAt":"2026-05-23T11:41:41+08:00","health":{"status":"ok","uptime":35009,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":18,"sampledAt":"2026-05-23T11:42:41+08:00","health":{"status":"ok","uptime":35069,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 17,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":19,"sampledAt":"2026-05-23T11:43:41+08:00","health":{"status":"ok","uptime":35129,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 17,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":20,"sampledAt":"2026-05-23T11:44:41+08:00","health":{"status":"ok","uptime":35189,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 17,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":21,"sampledAt":"2026-05-23T11:45:41+08:00","health":{"status":"ok","uptime":35249,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":22,"sampledAt":"2026-05-23T11:46:41+08:00","health":{"status":"ok","uptime":35309,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":23,"sampledAt":"2026-05-23T11:47:41+08:00","health":{"status":"ok","uptime":35369,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":24,"sampledAt":"2026-05-23T11:48:41+08:00","health":{"status":"ok","uptime":35429,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":25,"sampledAt":"2026-05-23T11:49:41+08:00","health":{"status":"ok","uptime":35489,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":26,"sampledAt":"2026-05-23T11:50:41+08:00","health":{"status":"ok","uptime":35549,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":27,"sampledAt":"2026-05-23T11:51:41+08:00","health":{"status":"ok","uptime":35609,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":28,"sampledAt":"2026-05-23T11:52:41+08:00","health":{"status":"ok","uptime":35669,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":29,"sampledAt":"2026-05-23T11:53:41+08:00","health":{"status":"ok","uptime":35729,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":30,"sampledAt":"2026-05-23T11:54:41+08:00","health":{"status":"ok","uptime":35789,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}
+{"index":31,"sampledAt":"2026-05-23T11:55:41+08:00","health":{"status":"ok","uptime":35849,"version":"1.0.8"},"sub2api":{"status":"ok"},"modelReadiness":{
+  "routingReason": "schedulable accounts available",
+  "summary": {
+    "accountsEvaluated": 21,
+    "generationBlocked": 0,
+    "locallySchedulable": 21,
+    "modelListed": true,
+    "riskGroupCoolingDown": 0
+  },
+  "admissionPressure": {
+    "circuitState": null,
+    "effectiveMaxConcurrent": null,
+    "score": null,
+    "retryAfterSeconds": null,
+    "recentSuccesses": null,
+    "recentCapacityErrors": null,
+    "recentQueueTimeouts": null
+  }
+}}

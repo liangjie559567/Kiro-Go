@@ -1,0 +1,532 @@
+{
+  "index": 20,
+  "sampledAt": "2026-05-23T03:15:12.736Z",
+  "health": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 2,
+    "body": {
+      "status": "ok",
+      "uptime": 33420,
+      "version": "1.0.8"
+    }
+  },
+  "subHealth": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 2,
+    "body": {
+      "status": "ok"
+    }
+  },
+  "status": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 0
+  },
+  "readiness": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1,
+    "body": {
+      "capabilities": {
+        "assistantPrefill": {
+          "claudeCodeCompatibility": {
+            "mode": "emulated_text_prefill",
+            "proof": "text prefill conversion is implemented",
+            "status": "EMULATED_PASS"
+          },
+          "detail": "Text prefill is emulated as a continuation instruction; tool-use prefill is rejected",
+          "evidence": {
+            "mode": "emulated_text_prefill",
+            "proof": "no recent assistant text prefill request in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "emulated_text_prefill",
+            "proof": "native upstream prefill is not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "countTokens": "[REDACTED]",
+        "fineGrainedToolStreaming": {
+          "claudeCodeCompatibility": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "Anthropic SSE input_json_delta writer is implemented",
+            "status": "PASS"
+          },
+          "detail": "Claude Code compatible input_json_delta events are emitted; true upstream partial JSON parity depends on Kiro stream shape",
+          "evidence": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "no recent fine-grained tool stream in readiness window"
+          },
+          "officialAnthropicParity": {
+            "mode": "kiro_go_chunked_complete_input",
+            "proof": "upstream partial tool input deltas are not proven",
+            "status": "PARTIAL"
+          },
+          "status": "PARTIAL"
+        },
+        "maxTokensZero": "[REDACTED]",
+        "messages": {
+          "detail": "/v1/messages is implemented",
+          "status": "PASS"
+        },
+        "opus47AdaptiveAdmission": {
+          "detail": "Opus 4.7 model-capacity pressure is tracked separately from account health and can reduce effective concurrency",
+          "status": "PASS"
+        },
+        "toolReference": {
+          "detail": "tool_reference is accepted and materialized when relevant",
+          "status": "PASS"
+        },
+        "toolSchemaValidation": {
+          "detail": "Invalid model-emitted tool_use inputs are repaired or suppressed before Claude Code receives them",
+          "status": "PASS"
+        }
+      },
+      "examples": [],
+      "lastSeen": "",
+      "recentAdmissionPressure": false,
+      "recentClaudeCode": false,
+      "recentContextReminders": [],
+      "recentFineGrainedToolStreaming": false,
+      "recentMCPTools": false,
+      "recentOrphanedToolResults": false,
+      "recentParentAgents": false,
+      "recentResponsesRestore": false,
+      "recentSuppressedToolUses": false,
+      "recentToolReferences": false,
+      "recentToolResultImages": false,
+      "recentToolResultTurns": false,
+      "recentToolTrimming": false,
+      "recentUnsupportedBlocks": false
+    }
+  },
+  "modelReadiness": {
+    "ok": true,
+    "status": 200,
+    "durationMs": 1,
+    "body": {
+      "accounts": [
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "93fb7e70-3ccf-4330-9d8d-b25c89322ae4",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "6d524028-56ee-41e9-aad9-eaba82d4d75b",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "fef84be2-f929-4ea2-afa9-5f8702016868",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "f4454cf1-1b38-4fed-ad1d-076795f4d8cd",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "62c85da6-7eac-46eb-a8c9-7470695df3c7",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "95d9dcb5-f544-4bcb-9aee-ff1890938a82",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "b96e50b4-e443-47ea-ac2b-568537eab945",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "125bd142-5218-45d9-8748-3e29a775050b",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "6f572596-acd3-4e06-947a-4dd11424d4df",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "1e7bad65-4a46-40d0-81bd-19fde0f14954",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "71cf722d-a7b0-49a1-9998-bef22a11cf45",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "7170ccb6-30cc-40fe-9f79-4344389c034b",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "54a00e6f-a582-4083-a197-ea2a1a0cb847",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "61a48fab-58c1-49b0-957a-b4caf88b51d0",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "ae380baf-1725-4733-9ffe-cc227764b6c4",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "2980ad67-e95f-498f-a774-9e420b3f6f2f",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "2ba05a3b-74e2-4500-9d29-fb84fda5416e",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "fb3056fa-28f8-413b-9a53-52ab3c854daf",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "ed9239cb-65ef-4970-941c-1d716127c8cd",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "8a5910cb-c52e-498f-923c-93b174be628d",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        },
+        {
+          "cooldownRemainingSeconds": 0,
+          "cooldownSource": "account",
+          "coolingDown": false,
+          "email": "[REDACTED]",
+          "enabled": true,
+          "healthy": true,
+          "id": "efa39437-556e-43e7-84b7-f727ad7cb576",
+          "lastFailureReason": "unknown",
+          "listsModel": true,
+          "reason": "schedulable",
+          "schedulable": true
+        }
+      ],
+      "admissionPressure": {
+        "active": false,
+        "activeRequests": 0,
+        "circuitState": "half_open",
+        "effectiveMaxConcurrent": 1,
+        "expiresInMs": 0,
+        "lastPressureAt": "2026-05-22T18:34:02.083825823Z",
+        "lastPressureReason": "rate_limited_or_model_capacity",
+        "maxConcurrent": 10,
+        "model": "claude-opus-4-7",
+        "queueDepth": 0,
+        "recentCapacityErrors": 97,
+        "recentQueueTimeouts": 30,
+        "recentSuccesses": 67,
+        "reducedConcurrency": false,
+        "retryAfterSeconds": 0,
+        "score": 6
+      },
+      "capabilities": {
+        "thinking": true,
+        "toolUse": true,
+        "vision": true,
+        "webSearch": true
+      },
+      "listedByGateway": true,
+      "mappedModel": "claude-opus-4.7",
+      "reason": "model listed by Kiro-Go model cache",
+      "requestedModel": "claude-opus-4-7",
+      "routingReason": "schedulable accounts available",
+      "summary": {
+        "accountsEvaluated": 21,
+        "generationBlocked": 0,
+        "locallySchedulable": 21,
+        "modelListed": true,
+        "riskGroupCoolingDown": 0
+      },
+      "thinking": false,
+      "thinkingVariant": false
+    }
+  },
+  "requestLogs": {
+    "total": 136,
+    "byStatus": {
+      "200": 135,
+      "401": 1
+    },
+    "byModel": {
+      "claude-opus-4.7": 135,
+      "": 1
+    },
+    "byOutcome": {
+      "success": 135,
+      "error": 1
+    },
+    "attemptTrace": 134,
+    "errorEntries": 1,
+    "maxDurationMs": 90707
+  },
+  "db": {
+    "now": "2026-05-23T11:15:12.844866+08:00",
+    "recentUsage": [
+      {
+        "requested_model": "gpt-5.5",
+        "stream": true,
+        "n": 115,
+        "min_created_at": "2026-05-23T11:00:14.035035+08:00",
+        "max_created_at": "2026-05-23T11:15:11.611666+08:00",
+        "max_ms": 23310,
+        "p95_ms": 19349,
+        "accounts": 5
+      },
+      {
+        "requested_model": "gpt-5.5",
+        "stream": false,
+        "n": 25,
+        "min_created_at": "2026-05-23T11:00:15.531955+08:00",
+        "max_created_at": "2026-05-23T11:14:14.027286+08:00",
+        "max_ms": 138173,
+        "p95_ms": 122809,
+        "accounts": 15
+      },
+      {
+        "requested_model": "claude-opus-4-6",
+        "stream": false,
+        "n": 15,
+        "min_created_at": "2026-05-23T11:00:15.856054+08:00",
+        "max_created_at": "2026-05-23T11:14:13.860986+08:00",
+        "max_ms": 3296,
+        "p95_ms": 3296,
+        "accounts": 12
+      },
+      {
+        "requested_model": "claude-opus-4-7",
+        "stream": true,
+        "n": 15,
+        "min_created_at": "2026-05-23T11:09:04.740661+08:00",
+        "max_created_at": "2026-05-23T11:10:10.77783+08:00",
+        "max_ms": 14825,
+        "p95_ms": 14825,
+        "accounts": 1
+      },
+      {
+        "requested_model": "gpt-5.2",
+        "stream": false,
+        "n": 1,
+        "min_created_at": "2026-05-23T11:13:54.612153+08:00",
+        "max_created_at": "2026-05-23T11:13:54.612153+08:00",
+        "max_ms": 1152,
+        "p95_ms": 1152,
+        "accounts": 1
+      }
+    ],
+    "accounts": [
+      {
+        "status": "active",
+        "schedulable": false,
+        "n": 1
+      },
+      {
+        "status": "active",
+        "schedulable": true,
+        "n": 21
+      }
+    ],
+    "tempUnschedulable": []
+  },
+  "dockerLogs": {
+    "kiroGo": {
+      "error": 0,
+      "warn": 7,
+      "panic": 0,
+      "rate429": 0,
+      "temporaryLimit": 0,
+      "noAvailable": 0,
+      "status503": 0
+    },
+    "sub2api": {
+      "error": 18,
+      "warn": 14,
+      "panic": 0,
+      "rate429": 3,
+      "temporaryLimit": 0,
+      "noAvailable": 0,
+      "status503": 2
+    }
+  }
+}

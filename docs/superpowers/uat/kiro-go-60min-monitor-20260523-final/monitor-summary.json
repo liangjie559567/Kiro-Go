@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-05-23T04:00:21.181Z",
+  "original": {
+    "count": 29,
+    "health200": 29,
+    "subHealth200": 29,
+    "readiness200": 29,
+    "modelReadiness200": 29,
+    "locallySchedulableMin": 21,
+    "generationBlockedMax": 0,
+    "riskGroupCoolingDownMax": 0,
+    "requestLogs429Max": null,
+    "requestLogs503Max": null,
+    "firstSampledAt": "2026-05-23T02:55:46.390Z",
+    "lastSampledAt": "2026-05-23T03:24:23.982Z"
+  },
+  "light": {
+    "indexCount": 31,
+    "okStatusCount": 62,
+    "kiroHealthOkCount": 31,
+    "sub2apiHealthOkCount": 31,
+    "locallySchedulableMin": 17,
+    "generationBlockedMax": 0,
+    "riskGroupCoolingDownMax": 0
+  },
+  "totalMinuteSamples": 60,
+  "freshApi": {
+    "capturedAt": "2026-05-23T03:59:05.057Z",
+    "kiroHealthStatus": "ok",
+    "sub2apiHealthStatus": "ok",
+    "modelRoutingReason": "schedulable accounts available",
+    "modelLocallySchedulable": 21,
+    "modelGenerationBlocked": 0,
+    "modelAccounts": 21,
+    "fleetStatus": "degraded",
+    "fleetReasonCodes": [
+      "admission_pressure"
+    ],
+    "fleetSafeConcurrency": 1,
+    "requestStatsKeys": [
+      "averageDurationMs",
+      "byEndpoint",
+      "byModel",
+      "cacheCreationInputTokens",
+      "cacheReadInputTokens",
+      "failed",
+      "inputTokens",
+      "outputTokens",
+      "success",
+      "total"
+    ]
+  },
+  "monitorInterruption": "original monitor stopped before sample 30 because docker logs execSync hit Node ENOBUFS; this is a monitor implementation buffer error, not a captured service health/API failure",
+  "verdictBasis": "29 original minute samples plus 31 light minute samples, all sampled Kiro-Go/sub2api health checks OK; fresh API capture also OK"
+}

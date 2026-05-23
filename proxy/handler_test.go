@@ -110,18 +110,22 @@ func TestStableDownstreamDoesNotApplyToNonOpusByDefault(t *testing.T) {
 	}
 }
 
-func TestStableDownstreamClaudeNoAccountsReturnsAssistantTurn(t *testing.T) {
-	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
-		t.Fatalf("init config: %v", err)
+func assertClaudeRetryableFallback(t *testing.T, w *httptest.ResponseRecorder) {
+	t.Helper()
+	if w.Code != anthropicOverloadedStatus {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, anthropicOverloadedStatus, w.Body.String())
 	}
-	h := NewHandler()
-	t.Cleanup(h.Close)
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
-	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	body := w.Body.String()
+	if !strings.Contains(body, `"type":"error"`) || !strings.Contains(body, `"overloaded_error"`) {
+		t.Fatalf("expected retryable Anthropic error envelope: %s", body)
+	}
+	if strings.Contains(body, `"role":"assistant"`) || strings.Contains(body, "This turn has been closed by the gateway") {
+		t.Fatalf("retryable fallback must not emit assistant compatibility body: %s", body)
+	}
+}
 
-	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "no_available_accounts", errors.New("No available accounts"))
-
+func assertClaudeAssistantFallback(t *testing.T, w *httptest.ResponseRecorder) {
+	t.Helper()
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
 	}
@@ -136,8 +140,38 @@ func TestStableDownstreamClaudeNoAccountsReturnsAssistantTurn(t *testing.T) {
 		t.Fatalf("expected stable assistant fallback text, got %#v", resp.Content)
 	}
 	if strings.Contains(w.Body.String(), `"type":"error"`) || strings.Contains(w.Body.String(), `"overloaded_error"`) {
-		t.Fatalf("stable fallback must not surface retryable error: %s", w.Body.String())
+		t.Fatalf("assistant fallback must not surface retryable error: %s", w.Body.String())
 	}
+}
+
+func TestStableDownstreamClaudeCodeNoAccountsReturnsRetryableError(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+
+	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "no_available_accounts", errors.New("No available accounts"))
+
+	assertClaudeRetryableFallback(t, w)
+}
+
+func TestStableDownstreamSub2APICompatibilityNoAccountsReturnsAssistantTurn(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	h := NewHandler()
+	t.Cleanup(h.Close)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	r.Header.Set("User-Agent", "sub2api/1.0")
+
+	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "no_available_accounts", errors.New("No available accounts"))
+
+	assertClaudeAssistantFallback(t, w)
 }
 
 func TestStableClaudeDevFallbackReturnsRetryableError(t *testing.T) {
@@ -179,7 +213,7 @@ func TestStableClaudeDevFallbackReturnsRetryableError(t *testing.T) {
 	}
 }
 
-func TestStableClaudeSimpleFallbackKeepsAssistantCompatibility(t *testing.T) {
+func TestStableClaudeCLIWithoutToolsFallbackReturnsRetryableError(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
@@ -191,16 +225,7 @@ func TestStableClaudeSimpleFallbackKeepsAssistantCompatibility(t *testing.T) {
 
 	h.sendStableClaudeFallback(w, req, "claude-opus-4.7", "admission_pressure", errors.New("queue timeout"))
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, `"role":"assistant"`) || !strings.Contains(body, "This turn has been closed by the gateway") {
-		t.Fatalf("expected assistant compatibility body: %s", body)
-	}
-	if strings.Contains(body, `"type":"error"`) || strings.Contains(body, `"overloaded_error"`) {
-		t.Fatalf("simple fallback must not emit retryable error: %s", body)
-	}
+	assertClaudeRetryableFallback(t, w)
 }
 
 func TestStableClaudeAgentHeaderFallbackReturnsRetryableErrorWithoutClaudeUserAgent(t *testing.T) {
@@ -233,13 +258,13 @@ func TestRequestLogWorkloadClassNilRequestReturnsUnknown(t *testing.T) {
 	}
 }
 
-func TestStableClaudeFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
+func TestStableSub2APICompatibilityFallbackKeepsRetryAfterOutOfClosedAssistantTurn(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
 	}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
-	r.Header.Set("User-Agent", "sub2api/1.0 claude-cli/2.1")
+	r.Header.Set("User-Agent", "sub2api/1.0")
 	h := &Handler{requestLogs: newRequestLogStore(defaultRequestLogCapacity)}
 
 	h.sendStableClaudeFallback(w, r, "claude-opus-4.7", "admission_pressure", errors.New("circuit open"))
@@ -3060,16 +3085,7 @@ func TestStableAttemptBudgetExhaustionReturnsBoundedFallback(t *testing.T) {
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable attempt-budget wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
-	}
-	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
-	}
-	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
-		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
-	}
+	assertClaudeRetryableFallback(t, w)
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
@@ -3148,16 +3164,7 @@ func TestStableClaudeAttemptBudgetDoesNotLoopForever(t *testing.T) {
 
 	h.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
-	}
-	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
-	}
-	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
-		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
-	}
+	assertClaudeRetryableFallback(t, w)
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
@@ -3211,16 +3218,7 @@ func TestStableClaudeNoAccountsReturnsBoundedFallback(t *testing.T) {
 	if waited < 900*time.Millisecond {
 		t.Fatalf("stable no-accounts wait lasted %s, want content continuity wait", waited)
 	}
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
-	}
-	bodyText := w.Body.String()
-	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
-	}
-	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
-		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
-	}
+	assertClaudeRetryableFallback(t, w)
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected request log, got %#v", logs)
@@ -4489,16 +4487,7 @@ func TestStableAdmissionPressureReturnsBoundedFallback(t *testing.T) {
 	if time.Since(start) > 250*time.Millisecond {
 		t.Fatalf("expected stable continuity wait to respect short request budget, waited %s", time.Since(start))
 	}
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
-	}
-	bodyText := rr.Body.String()
-	if !strings.Contains(bodyText, `"role":"assistant"`) || !strings.Contains(bodyText, "This turn has been closed by the gateway") {
-		t.Fatalf("stable fallback must close the turn with assistant content: %s", bodyText)
-	}
-	if strings.Contains(bodyText, `"type":"error"`) || strings.Contains(bodyText, `"overloaded_error"`) {
-		t.Fatalf("stable fallback must not surface retryable error: %s", bodyText)
-	}
+	assertClaudeRetryableFallback(t, rr)
 	h.finishRequestLog(ctx, recorder)
 
 	logs := h.requestLogs.List(1)
@@ -5079,9 +5068,7 @@ func TestStableOpenCircuitCanRecoverAfterBoundedWait(t *testing.T) {
 	}
 	h.finishRequestLog(ctx, recorder)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected stable assistant fallback after bounded wait, got status %d body=%s", rr.Code, rr.Body.String())
-	}
+	assertClaudeRetryableFallback(t, rr)
 	logs := h.requestLogs.List(1)
 	if len(logs) != 1 {
 		t.Fatalf("expected one request log, got %#v", logs)

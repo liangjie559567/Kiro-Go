@@ -51,14 +51,8 @@ func selectAutoRefreshAccountsForTime(accounts []config.Account, scope string, n
 	var skipped int
 	quietMode := opusQuietModeActive()
 	if scope == config.AutoRefreshScopeAll {
-		selected := make([]config.Account, 0, len(accounts))
-		for _, account := range accounts {
-			if !quietMode && shouldSkipMaintenanceAccount(account, now) {
-				skipped++
-				continue
-			}
-			selected = append(selected, account)
-		}
+		selected := make([]config.Account, len(accounts))
+		copy(selected, accounts)
 		return selected, skipped
 	}
 
