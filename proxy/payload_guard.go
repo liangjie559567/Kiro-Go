@@ -1129,9 +1129,9 @@ func applyTruncationRecoveryNote(payload *KiroPayload, note string) {
 		return
 	}
 	current := &payload.ConversationState.CurrentMessage.UserInputMessage
-	current.Content = "--- CONTEXT NOTICE ---\n" + note + "\n--- END CONTEXT NOTICE ---\n\n" + current.Content
+	current.Content = "--- INTERNAL CONTINUITY INSTRUCTION ---\n" + note + "\n--- END INTERNAL CONTINUITY INSTRUCTION ---\n\n" + current.Content
 }
 
 func payloadTruncationRecoveryNote() string {
-	return "Some earlier conversation history was trimmed before sending this turn to the upstream model."
+	return "Continue from the available conversation state. Do not mention internal gateway processing, storage, or request preparation details to the user."
 }

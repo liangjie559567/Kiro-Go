@@ -33,6 +33,9 @@
   let customSelectUid = 0;
   let customSelectObserver = null;
   let customSelectRefreshQueued = false;
+  let currentTab = 'accounts';
+  let currentDetailAccountId = '';
+  let refreshInFlight = false;
 
   // DOM helpers
   const $ = (id) => document.getElementById(id);
@@ -644,7 +647,7 @@
 
   // Data loaders
   async function loadData() {
-    await Promise.all([loadStats(), loadAccounts(), loadSettings(), loadVersion()]);
+    await Promise.all([loadStats(), loadAccounts(), loadSettings(), loadVersion(), loadKiroCLIDiagnostics()]);
     renderEndpointCode('claudeEndpoint', baseUrl + '/v1/messages');
     renderEndpointCode('openaiEndpoint', baseUrl + '/v1/chat/completions');
     renderEndpointCode('modelsEndpoint', baseUrl + '/v1/models');
@@ -949,7 +952,7 @@
       if (!res.ok || !d.success) throw new Error(d.error || t('common.failed'));
       dismiss();
       if (action === 'refresh') {
-        toast(t('batch.refreshResult', d.refreshed || 0, d.failed || 0), d.failed ? 'warning' : 'success');
+        toast(t('batch.refreshResult', d.refreshed || 0, d.failed || 0) + formatBatchFailureDetails(d.results), d.failed ? 'warning' : 'success');
       } else if (action === 'enable') {
         toast(t('batch.enableResult', d.count || ids.length), 'success');
       } else if (action === 'disable') {
@@ -975,18 +978,40 @@
     if (!confirmed) return;
     const dismiss = toast(t('detail.refreshModelCache') + '…', 'info', { duration: 0 });
     let ok = 0, fail = 0;
+    const results = [];
     for (const id of ids) {
       try {
         const res = await api('/accounts/' + id + '/models/refresh', { method: 'POST' });
         const d = await res.json();
-        if (d.success) ok++; else fail++;
-      } catch { fail++; }
+        if (d.success) {
+          ok++;
+          results.push({ id, status: 'success' });
+        } else {
+          fail++;
+          results.push({ id, status: 'failed', reason: d.reason, message: d.error || d.reason });
+        }
+      } catch (e) {
+        fail++;
+        results.push({ id, status: 'failed', reason: 'request_failed', message: e && e.message });
+      }
     }
     dismiss();
-    toast(t('batch.refreshModelsResult', ok, fail), fail ? 'warning' : 'success');
+    toast(t('batch.refreshModelsResult', ok, fail) + formatBatchFailureDetails(results), fail ? 'warning' : 'success');
     selectedAccounts.clear();
     updateBatchBar();
     loadAccounts();
+  }
+  function formatBatchFailureDetails(results) {
+    const failed = (results || []).filter(r => r && r.status === 'failed');
+    if (!failed.length) return '';
+    const lines = failed.slice(0, 10).map(r => {
+      const account = accountsData.find(a => a.id === r.id);
+      const label = (account && (account.email || account.nickname)) || r.id || '-';
+      const message = r.message || r.error || r.reason || t('common.failed');
+      return label + ': ' + message;
+    });
+    if (failed.length > lines.length) lines.push('+' + (failed.length - lines.length));
+    return ' · ' + lines.join('; ');
   }
   async function refreshAllModels() {
     const ok = await confirmAction(t('models.confirmRefreshAll'), {
@@ -1026,6 +1051,7 @@
   function showDetail(id) {
     const a = accountsData.find(x => x.id === id);
     if (!a) return;
+    currentDetailAccountId = id;
     const idAttr = escapeAttr(id);
     $('detailBody').innerHTML =
       '<div class="detail-section"><h4>' + escapeHtml(t('detail.basicInfo')) + '</h4><div class="detail-grid">' +
@@ -1172,7 +1198,168 @@
     }
     await putAccount(id, { proxyURL: url }, t('detail.proxySaved'));
   }
-  function closeDetailModal() { closeDialog('detailModal'); }
+  function closeDetailModal() {
+    currentDetailAccountId = '';
+    closeDialog('detailModal');
+  }
+  function getDetailDraftValues() {
+    return {
+      machineId: $('machineIdInput') ? $('machineIdInput').value : '',
+      weight: $('weightInput') ? $('weightInput').value : '',
+      allowOverage: $('allowOverageInput') ? $('allowOverageInput').checked : false,
+      overageWeight: $('overageWeightInput') ? $('overageWeightInput').value : '',
+      proxyURL: $('proxyURLInput') ? $('proxyURLInput').value : '',
+    };
+  }
+  function restoreDetailDraftValues(draft) {
+    if (!draft) return;
+    if ($('machineIdInput')) $('machineIdInput').value = draft.machineId;
+    if ($('weightInput')) $('weightInput').value = draft.weight;
+    if ($('allowOverageInput')) $('allowOverageInput').checked = draft.allowOverage;
+    if ($('overageWeightInput')) $('overageWeightInput').value = draft.overageWeight;
+    if ($('proxyURLInput')) $('proxyURLInput').value = draft.proxyURL;
+  }
+  async function refreshOpenAccountDetail() {
+    if (!currentDetailAccountId || !$('detailModal').classList.contains('active')) return;
+    const draft = getDetailDraftValues();
+    await loadAccounts();
+    showDetail(currentDetailAccountId);
+    restoreDetailDraftValues(draft);
+  }
+
+  // Runtime diagnostics
+  function formatAutoRefreshTime(ts) {
+    if (!ts) return '-';
+    if (typeof ts === 'string') return new Date(ts).toLocaleString();
+    return new Date(ts * 1000).toLocaleString();
+  }
+  function formatAutoRefreshResultValue(label, value) {
+    if (value === undefined || value === null || value === false) return null;
+    if (value === true) return label;
+    return label + ': ' + value;
+  }
+  function formatAutoRefreshQuietModeDetail(status) {
+    if (!status || !status.lastQuietSkipped) return null;
+    return 'Quiet mode: token/expiry maintenance only';
+  }
+  async function loadAutoRefreshConfig(options) {
+    const updateFields = !options || options.updateFields !== false;
+    try {
+      const res = await api('/auto-refresh');
+      const data = await res.json();
+      const status = data.status || data;
+      const settings = data.settings || data;
+      const target = $('autoRefreshStatus');
+      if (target) {
+        const results = [
+          formatAutoRefreshResultValue('State', status.running ? 'running' : (settings.enabled ? 'enabled' : 'disabled')),
+          formatAutoRefreshResultValue(t('stats.success'), status.lastSuccess),
+          formatAutoRefreshResultValue(t('stats.failed'), status.lastFailed),
+          formatAutoRefreshResultValue('Skipped', status.lastSkippedCount || status.lastSkipped),
+          formatAutoRefreshResultValue('Quiet skipped', status.lastQuietSkipped),
+        ].filter(Boolean);
+        const quietDetail = formatAutoRefreshQuietModeDetail(status);
+        if (quietDetail) results.push(quietDetail);
+        target.textContent = 'Auto refresh: next ' + formatAutoRefreshTime(status.nextRunAt) + ' · ' + (results.join(', ') || '-');
+      }
+      if (updateFields) refreshCustomSelects();
+    } catch (e) { }
+  }
+  async function loadHealthCheckConfig(options) {
+    const updateFields = !options || options.updateFields !== false;
+    try {
+      const res = await api('/health-check');
+      const data = await res.json();
+      const status = data.status || data;
+      const settings = data.settings || data;
+      const target = $('healthCheckStatus');
+      if (target) target.textContent = 'Health check: ' + (status.running ? 'running' : (settings.enabled ? 'enabled' : 'disabled')) + ' · next ' + formatAutoRefreshTime(status.nextRunAt);
+      if (updateFields) refreshCustomSelects();
+    } catch (e) { }
+  }
+  async function loadRequestLogs() {
+    try {
+      const [statsRes, logsRes] = await Promise.all([api('/request-stats'), api('/request-logs?limit=20')]);
+      const stats = await statsRes.json();
+      const logs = await logsRes.json();
+      const statEl = $('requestLogStats');
+      if (statEl) statEl.textContent = 'Request logs: ' + (stats.total || 0) + ' total';
+      const body = $('requestLogsBody');
+      if (body) {
+        const rows = Array.isArray(logs) ? logs : (logs.logs || logs.entries || []);
+        body.innerHTML = rows.map(row =>
+          '<tr>' +
+          '<td>' + escapeHtml(row.time || row.startedAt || row.timestamp || '-') + '</td>' +
+          '<td>' + escapeHtml(row.model || row.effectiveModel || row.requestedModel || '-') + '</td>' +
+          '<td>' + escapeHtml(row.status || row.statusCode || row.outcome || '-') + '</td>' +
+          '<td>' + escapeHtml(row.error || row.errorType || row.contentSuccessEvidence || '') + '</td>' +
+          '</tr>'
+        ).join('');
+      }
+    } catch (e) { }
+  }
+  async function clearRequestLogs() {
+    try {
+      await api('/request-logs/clear', { method: 'POST' });
+      await loadRequestLogs();
+    } catch (e) { }
+  }
+  async function refreshSettingsRuntimeData() {
+    await Promise.all([
+      loadAutoRefreshConfig({ updateFields: false }),
+      loadHealthCheckConfig({ updateFields: false }),
+      loadRequestLogs()
+    ]);
+  }
+  function isMainVisible() {
+    return !$('mainPage').classList.contains('hidden');
+  }
+  async function refreshVisibleData() {
+    if (!isMainVisible() || refreshInFlight) return;
+    refreshInFlight = true;
+    try {
+      const tasks = [loadStats()];
+      if (currentTab === 'accounts' || currentDetailAccountId) tasks.push(loadAccounts());
+      if (currentTab === 'settings') tasks.push(refreshSettingsRuntimeData());
+      if (currentTab === 'api') tasks.push(loadKiroCLIDiagnostics());
+      await Promise.all(tasks);
+      if (currentDetailAccountId) await refreshOpenAccountDetail();
+    } finally {
+      refreshInFlight = false;
+    }
+  }
+  async function loadKiroCLIDiagnostics() {
+    if (!password) return;
+    const el = $('kiro-cli-diagnostics');
+    if (!el) return;
+    try {
+      const diagnosticsPath = '/admin/api/kiro-cli/diagnostics';
+      const resp = await fetch(diagnosticsPath, { headers: { 'X-Admin-Password': password } });
+      const data = await resp.json();
+      const home = data.home || {};
+      const opus = data.opus47ModelState || {};
+      const latest = data.latest || {};
+      const latestText = latest.command
+        ? [latest.command, latest.status || '-', latest.reason || '', (latest.durationMs || 0) + 'ms'].filter(Boolean).join(' · ')
+        : '-';
+      el.innerHTML =
+        '<div class="card">' +
+        '<div class="card-header"><span class="card-title">Kiro CLI diagnostics</span><button class="btn btn-outline btn-sm" id="kiroCliDiagnosticsRefreshBtn" type="button">Refresh</button></div>' +
+        '<div class="detail-grid">' +
+        '<div class="detail-item"><div class="detail-label">Path</div><div class="detail-value">' + escapeHtml(data.cliPath || '-') + '</div></div>' +
+        '<div class="detail-item"><div class="detail-label">Availability</div><div class="detail-value">' + escapeHtml(data.available ? 'available' : 'unavailable') + '</div></div>' +
+        '<div class="detail-item"><div class="detail-label">Version</div><div class="detail-value">' + escapeHtml(data.version || '-') + '</div></div>' +
+        '<div class="detail-item"><div class="detail-label">CLI home</div><div class="detail-value">' + escapeHtml(home.configured ? (home.present ? 'present' : 'configured') : 'unset') + '</div></div>' +
+        '<div class="detail-item"><div class="detail-label">Opus 4.7 model list</div><div class="detail-value">' + escapeHtml(opus.state || 'unknown') + '</div></div>' +
+        '</div>' +
+        '<p class="muted-text text-sm mt-2">Latest: ' + escapeHtml(latestText) + '</p>' +
+        '</div>';
+      const refresh = $('kiroCliDiagnosticsRefreshBtn');
+      if (refresh) refresh.addEventListener('click', loadKiroCLIDiagnostics);
+    } catch (e) {
+      el.innerHTML = '<div class="card"><div class="muted-text">Kiro CLI diagnostics unavailable</div></div>';
+    }
+  }
 
   // Test flow
   function getTestAccount(id) {
@@ -2152,9 +2339,11 @@
 
   // Tabs
   function switchTab(tab) {
+    currentTab = tab;
     qsa('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
     qsa('.tab-content').forEach(c => c.classList.add('hidden'));
     $('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
+    refreshVisibleData();
   }
 
   // Event wiring
@@ -2262,6 +2451,10 @@
     $('proxyType').addEventListener('change', onProxyTypeChange);
     $('saveProxyBtn').addEventListener('click', saveProxyConfig);
     $('resetStatsBtn').addEventListener('click', resetStats);
+    const requestLogsRefreshBtn = $('requestLogsRefreshBtn');
+    if (requestLogsRefreshBtn) requestLogsRefreshBtn.addEventListener('click', loadRequestLogs);
+    const requestLogsClearBtn = $('requestLogsClearBtn');
+    if (requestLogsClearBtn) requestLogsClearBtn.addEventListener('click', clearRequestLogs);
   }
 
   function bindPromptFilterEvents() {
@@ -2367,9 +2560,10 @@
     if (yr) yr.textContent = new Date().getFullYear();
     wireEvents();
     if (password) tryAutoLogin();
-    setInterval(() => {
-      if (!$('mainPage').classList.contains('hidden')) loadStats();
-    }, 10000);
+    setInterval(refreshVisibleData, 10000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshVisibleData();
+    });
   }
 
   if (document.readyState === 'loading') {

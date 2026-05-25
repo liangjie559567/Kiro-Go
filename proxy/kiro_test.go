@@ -1171,6 +1171,45 @@ func TestWrapToolUseRepairsClaudeCodeTaskUpdateStatusObject(t *testing.T) {
 	}
 }
 
+func TestWrapToolUseDropsClaudeCodeTaskUpdatePlaceholderTaskID(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"TaskUpdate": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"taskId": map[string]interface{}{"type": "string"},
+					"status": map[string]interface{}{"type": "string", "enum": []interface{}{"pending", "in_progress", "completed", "deleted"}},
+				},
+				"required":             []interface{}{"taskId", "status"},
+				"additionalProperties": false,
+			}},
+		},
+	}
+	var got []KiroToolUse
+	var suppressed []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+		OnSuppressedToolUse: func(tu KiroToolUse, reason string) {
+			suppressed = append(suppressed, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_task_update",
+		Name:      "TaskUpdate",
+		Input:     map[string]interface{}{"taskId": "current", "status": "in_progress"},
+	})
+
+	if len(got) != 0 {
+		t.Fatalf("expected placeholder taskId tool_use to be dropped, got %#v", got)
+	}
+	if len(suppressed) != 1 {
+		t.Fatalf("expected placeholder taskId tool_use suppression to be recorded, got %#v", suppressed)
+	}
+}
+
 func TestWrapToolUseRepairsClaudeCodeTaskOutputAliases(t *testing.T) {
 	payload := &KiroPayload{
 		ToolSchemas: map[string]toolSchemaSummary{
@@ -1249,6 +1288,53 @@ func TestWrapToolUseRepairsClaudeCodeTaskCreateAliases(t *testing.T) {
 	}
 	if got[0].Input["activeForm"] != "Writing SUMMARY and committing" {
 		t.Fatalf("expected activeForm alias repaired, got %#v", got[0].Input)
+	}
+}
+
+func TestWrapToolUseStripsUnsupportedClaudeCodeAgentFields(t *testing.T) {
+	payload := &KiroPayload{
+		ToolSchemas: map[string]toolSchemaSummary{
+			"agent": {Schema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"description":   map[string]interface{}{"type": "string"},
+					"prompt":        map[string]interface{}{"type": "string"},
+					"subagent_type": map[string]interface{}{"type": "string"},
+				},
+				"required": []interface{}{"description", "prompt", "subagent_type"},
+			}},
+		},
+	}
+	var got []KiroToolUse
+	callback := wrapKiroToolUseCallback(payload, &KiroStreamCallback{
+		OnToolUse: func(tu KiroToolUse) {
+			got = append(got, tu)
+		},
+	})
+
+	callback.OnToolUse(KiroToolUse{
+		ToolUseID: "toolu_agent",
+		Name:      "agent",
+		Input: map[string]interface{}{
+			"description":       "Map codebase architecture",
+			"prompt":            "Focus: arch\nWrite docs directly.",
+			"subagent_type":     "gsd-codebase-mapper",
+			"model":             "claude-opus-4-7",
+			"run_in_background": true,
+		},
+	})
+
+	if len(got) != 1 {
+		t.Fatalf("expected repaired agent tool_use to pass, got %#v", got)
+	}
+	if got[0].Input["description"] != "Map codebase architecture" || got[0].Input["prompt"] == "" || got[0].Input["subagent_type"] != "gsd-codebase-mapper" {
+		t.Fatalf("expected required agent fields preserved, got %#v", got[0].Input)
+	}
+	if _, ok := got[0].Input["model"]; ok {
+		t.Fatalf("expected unsupported model field stripped, got %#v", got[0].Input)
+	}
+	if _, ok := got[0].Input["run_in_background"]; ok {
+		t.Fatalf("expected unsupported run_in_background field stripped, got %#v", got[0].Input)
 	}
 }
 

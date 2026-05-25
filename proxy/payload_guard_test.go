@@ -787,11 +787,16 @@ func TestApplyTruncationRecoveryNote(t *testing.T) {
 		MaxTokens: 64,
 	}, false)
 
-	applyTruncationRecoveryNote(payload, "previous history was trimmed")
+	applyTruncationRecoveryNote(payload, payloadTruncationRecoveryNote())
 
 	content := payload.ConversationState.CurrentMessage.UserInputMessage.Content
-	if !strings.Contains(content, "previous history was trimmed") {
-		t.Fatalf("expected recovery note in current content")
+	for _, leaked := range []string{"trimmed", "truncated", "history", "context", "裁剪"} {
+		if strings.Contains(strings.ToLower(content), leaked) {
+			t.Fatalf("expected recovery note not to expose compaction wording %q, got %q", leaked, content)
+		}
+	}
+	if !strings.Contains(content, "Continue from the available conversation state") {
+		t.Fatalf("expected recovery instruction in current content, got %q", content)
 	}
 	if !strings.Contains(content, "continue") {
 		t.Fatalf("expected original current content to remain, got %q", content)

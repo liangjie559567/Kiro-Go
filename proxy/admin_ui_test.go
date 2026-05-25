@@ -11,7 +11,11 @@ func TestAdminUIIncludesKiroCLIDiagnosticsCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read admin UI: %v", err)
 	}
-	html := string(body)
+	app, err := os.ReadFile("../web/app.js")
+	if err != nil {
+		t.Fatalf("read admin JS: %v", err)
+	}
+	assets := string(body) + "\n" + string(app)
 	for _, want := range []string{
 		`id="kiro-cli-diagnostics"`,
 		"loadKiroCLIDiagnostics()",
@@ -19,7 +23,7 @@ func TestAdminUIIncludesKiroCLIDiagnosticsCard(t *testing.T) {
 		"escapeHtml(data.cliPath",
 		"escapeHtml(latestText)",
 	} {
-		if !strings.Contains(html, want) {
+		if !strings.Contains(assets, want) {
 			t.Fatalf("admin UI missing %q", want)
 		}
 	}

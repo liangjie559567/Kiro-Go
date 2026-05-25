@@ -7136,6 +7136,84 @@ func TestHandleClaudeStreamInvalidToolUseFallsBackToEndTurn(t *testing.T) {
 	waitForAccountRequestCount(t, 1)
 }
 
+func TestHandleClaudeStreamRepairsAgentToolUseUnsupportedFields(t *testing.T) {
+	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if err := config.UpdatePreferredEndpoint("kiro"); err != nil {
+		t.Fatalf("update preferred endpoint: %v", err)
+	}
+	if err := config.UpdateEndpointFallback(false); err != nil {
+		t.Fatalf("update endpoint fallback: %v", err)
+	}
+
+	p := &pool.AccountPool{}
+	h := &Handler{pool: p, promptCache: newPromptCacheTracker(defaultPromptCacheTTL), requestLogs: newRequestLogStore(10)}
+	if err := config.AddAccount(config.Account{
+		ID:          "acct-agent-tool-stream",
+		Enabled:     true,
+		AccessToken: "token-agent-tool-stream",
+		ProfileArn:  "arn:aws:codewhisperer:profile/test",
+		ExpiresAt:   time.Now().Add(time.Hour).Unix(),
+	}); err != nil {
+		t.Fatalf("add account: %v", err)
+	}
+	p.Reload()
+
+	kiroHttpStore.Store(&http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(bytes.NewReader(buildTestEventStream(t, []testEventStreamMessage{
+					{
+						eventType: "toolUseEvent",
+						payload: map[string]interface{}{
+							"toolUseId": "toolu_agent",
+							"name":      "agent",
+							"input": map[string]interface{}{
+								"description":       "Map codebase architecture",
+								"prompt":            "Focus: arch\nWrite docs directly.",
+								"subagent_type":     "gsd-codebase-mapper",
+								"model":             "claude-opus-4-7",
+								"run_in_background": true,
+							},
+							"stop": true,
+						},
+					},
+					{eventType: "metadataEvent", payload: map[string]interface{}{"usage": map[string]interface{}{"inputTokens": 25, "outputTokens": 9}}},
+				}))),
+				Header: make(http.Header),
+			}, nil
+		}),
+	})
+	t.Cleanup(func() { InitKiroHttpClient("") })
+
+	body := strings.NewReader(`{"model":"claude-sonnet-4.5","stream":true,"max_tokens":64,"tools":[{"name":"agent","description":"Spawn a subagent","input_schema":{"type":"object","properties":{"description":{"type":"string"},"prompt":{"type":"string"},"subagent_type":{"type":"string"}},"required":["description","prompt","subagent_type"]}}],"messages":[{"role":"user","content":"Map codebase architecture."}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/messages", body)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body %s", w.Code, w.Body.String())
+	}
+	respBody := w.Body.String()
+	if !strings.Contains(respBody, `"name":"agent"`) || !strings.Contains(respBody, `"stop_reason":"tool_use"`) {
+		t.Fatalf("expected repaired agent tool_use response, got %q", respBody)
+	}
+	if strings.Contains(respBody, "run_in_background") || strings.Contains(respBody, "claude-opus-4-7") {
+		t.Fatalf("expected unsupported agent fields stripped from client response, got %q", respBody)
+	}
+	entries := h.requestLogs.List(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected one request log entry, got %#v", entries)
+	}
+	if entries[0].SuppressedToolUseCount != 0 {
+		t.Fatalf("expected agent tool_use not to be suppressed, got %#v", entries[0])
+	}
+	waitForAccountRequestCount(t, 1)
+}
+
 func TestHandleClaudeNonStreamInvalidToolUseIsSuppressedAndLogged(t *testing.T) {
 	if err := config.Init(filepath.Join(t.TempDir(), "config.json")); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -9257,20 +9335,30 @@ func TestDashboardRefreshRefreshesVisibleRuntimeData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read admin page: %v", err)
 	}
+	app, err := os.ReadFile(filepath.Join("..", "web", "app.js"))
+	if err != nil {
+		t.Fatalf("read admin JS: %v", err)
+	}
 
-	html := string(body)
+	html := string(body) + "\n" + string(app)
 	expectations := map[string]string{
-		"active tab state":               "let currentTab = 'accounts';",
-		"visible refresh coordinator":    "async function refreshVisibleData()",
-		"settings runtime refresh":       "loadRequestLogs()",
-		"auto refresh status only":       "loadAutoRefreshConfig({ updateFields: false })",
-		"health check status only":       "loadHealthCheckConfig({ updateFields: false })",
-		"detail modal state":             "let currentDetailAccountId = '';",
-		"detail draft preservation":      "getDetailDraftValues()",
-		"detail modal refresh":           "refreshOpenAccountDetail()",
-		"overlap guard":                  "refreshInFlight",
-		"switch tab immediate refresh":   "refreshVisibleData();",
-		"visible page immediate refresh": "document.addEventListener('visibilitychange'",
+		"active tab state":                "let currentTab = 'accounts';",
+		"visible refresh coordinator":     "async function refreshVisibleData()",
+		"settings runtime refresh":        "loadRequestLogs()",
+		"auto refresh status only":        "loadAutoRefreshConfig({ updateFields: false })",
+		"health check status only":        "loadHealthCheckConfig({ updateFields: false })",
+		"auto refresh status envelope":    "const status = data.status || data;",
+		"runtime settings envelope":       "const settings = data.settings || data;",
+		"request logs response envelope":  "logs.logs || logs.entries || []",
+		"request log timestamp field":     "row.time || row.startedAt || row.timestamp",
+		"request log model fallback":      "row.model || row.effectiveModel || row.requestedModel",
+		"detail modal state":              "let currentDetailAccountId = '';",
+		"detail draft preservation":       "getDetailDraftValues()",
+		"detail modal refresh":            "refreshOpenAccountDetail()",
+		"detail modal close clears state": "currentDetailAccountId = '';",
+		"overlap guard":                   "refreshInFlight",
+		"switch tab immediate refresh":    "refreshVisibleData();",
+		"visible page immediate refresh":  "document.addEventListener('visibilitychange'",
 	}
 	for name, needle := range expectations {
 		if !strings.Contains(html, needle) {
@@ -9284,10 +9372,14 @@ func TestAdminPageExplainsQuietAutoRefreshAndBatchFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read admin page: %v", err)
 	}
+	app, err := os.ReadFile(filepath.Join("..", "web", "app.js"))
+	if err != nil {
+		t.Fatalf("read admin JS: %v", err)
+	}
 
-	html := string(body)
+	html := string(body) + "\n" + string(app)
 	expectations := map[string]string{
-		"quiet-mode auto refresh detail":    "settings.autoRefreshQuietModeDetail",
+		"quiet-mode auto refresh detail":    "Quiet mode: token/expiry maintenance only",
 		"quiet-mode detail rendering":       "formatAutoRefreshQuietModeDetail(status)",
 		"batch failure details formatter":   "function formatBatchFailureDetails(results)",
 		"account batch failure details":     "formatBatchFailureDetails(d.results)",

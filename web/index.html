@@ -406,10 +406,37 @@
           <div class="card-header"><span class="card-title" data-i18n="settings.statistics"></span></div>
           <button class="btn btn-danger" id="resetStatsBtn" data-i18n="settings.resetStats"></button>
         </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Runtime diagnostics</span>
+            <div class="card-actions">
+              <button class="btn btn-outline btn-sm" id="requestLogsRefreshBtn" type="button">Refresh</button>
+              <button class="btn btn-danger btn-sm" id="requestLogsClearBtn" type="button">Clear</button>
+            </div>
+          </div>
+          <div id="autoRefreshStatus" class="muted-text text-sm">-</div>
+          <div id="healthCheckStatus" class="muted-text text-sm mt-2">-</div>
+          <div id="requestLogStats" class="muted-text text-sm mt-2">-</div>
+          <div class="table-wrap mt-3">
+            <table class="w-full text-xs">
+              <thead>
+                <tr>
+                  <th class="text-left">Time</th>
+                  <th class="text-left">Model</th>
+                  <th class="text-left">Status</th>
+                  <th class="text-left">Error</th>
+                </tr>
+              </thead>
+              <tbody id="requestLogsBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- API tab -->
       <div id="tabApi" class="tab-content hidden">
+        <div id="kiro-cli-diagnostics"></div>
         <section class="api-card" aria-labelledby="apiEndpointsTitle">
           <div class="card-header api-card-header">
             <span class="card-title" id="apiEndpointsTitle" data-i18n="api.endpoints"></span>

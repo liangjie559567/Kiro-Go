@@ -415,6 +415,8 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 		aliasToCanonical(repaired, "file", "file_path")
 		coerceIntegerField(repaired, "offset")
 		coerceIntegerField(repaired, "limit")
+	case "agent", "task":
+		repairAgentInput(repaired, summary.Schema)
 	case "taskcreate":
 		repairTaskCreateInput(repaired)
 	case "taskupdate":
@@ -428,6 +430,30 @@ func repairToolUseInputForClientSchema(name string, input map[string]interface{}
 	}
 	removeUnknownFieldsWhenDisallowed(repaired, summary.Schema)
 	return repaired
+}
+
+func repairAgentInput(input map[string]interface{}, schema map[string]interface{}) {
+	aliasToCanonical(input, "agent_type", "subagent_type")
+	aliasToCanonical(input, "agentType", "subagent_type")
+	aliasToCanonical(input, "subagentType", "subagent_type")
+	aliasToCanonical(input, "message", "prompt")
+	aliasToCanonical(input, "task", "prompt")
+	aliasToCanonical(input, "summary", "description")
+	coerceStringField(input, "description")
+	coerceStringField(input, "prompt")
+	coerceStringField(input, "subagent_type")
+
+	props, ok := schema["properties"].(map[string]interface{})
+	if !ok || len(props) == 0 {
+		delete(input, "model")
+		delete(input, "run_in_background")
+		return
+	}
+	for key := range input {
+		if _, ok := props[key]; !ok {
+			delete(input, key)
+		}
+	}
 }
 
 func repairBashInput(input map[string]interface{}) {
@@ -863,6 +889,9 @@ func toolUseInputSatisfiesSchema(tu KiroToolUse, schemas map[string]toolSchemaSu
 	if len(schemas) == 0 {
 		return true
 	}
+	if hasInvalidClaudeCodeTaskID(tu) {
+		return false
+	}
 	schema, ok := schemas[tu.Name]
 	if !ok {
 		return true
@@ -887,6 +916,22 @@ func toolUseInputSatisfiesSchema(tu KiroToolUse, schemas map[string]toolSchemaSu
 		}
 	}
 	return true
+}
+
+func hasInvalidClaudeCodeTaskID(tu KiroToolUse) bool {
+	switch strings.ToLower(strings.TrimSpace(tu.Name)) {
+	case "taskupdate", "taskoutput", "taskget", "taskstop":
+	default:
+		return false
+	}
+	taskID, _ := tu.Input["taskId"].(string)
+	normalized := strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(strings.TrimSpace(taskID)))
+	switch normalized {
+	case "current", "currenttask", "active", "activetask", "inprogress", "inprogresstask", "latest", "latesttask", "selected", "selectedtask", "task":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateToolInputAgainstSchema(input map[string]interface{}, schema map[string]interface{}) bool {
